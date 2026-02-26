@@ -6,6 +6,60 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 
+function safeRequire(mod) {
+  try { return require(mod); } catch (e) { return null; }
+}
+const nodemailer = safeRequire('nodemailer');
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const LOCALES_DIR = path.join(__dirname, 'locales');
+const SUPPORTED_LANGS = ['el', 'en', 'de', 'es', 'ru', 'ja'];
+let LOCALES = {};
+
+function loadLocales() {
+  LOCALES = {};
+  for (const lang of SUPPORTED_LANGS) {
+    try {
+      LOCALES[lang] = JSON.parse(
+        fs.readFileSync(path.join(LOCALES_DIR, `${lang}.json`), 'utf8')
+      );
+    } catch (e) {
+      console.warn(`[i18n] Could not load locale ${lang}: ${e.message}`);
+      LOCALES[lang] = {};
+    }
+  }
+}
+
+function getLangFromRequest(req) {
+  const qLang = (req.query.lang || '').toLowerCase();
+  if (SUPPORTED_LANGS.includes(qLang)) return qLang;
+  const acceptLang = (req.headers['accept-language'] || '').toLowerCase();
+  for (const lang of SUPPORTED_LANGS) {
+    if (
+      acceptLang.startsWith(lang) ||
+      acceptLang.includes(`${lang}-`) ||
+      acceptLang.includes(`${lang},`)
+    ) {
+      return lang;
+    }
+  }
+  return 'el';
+}
+
+function translate(lang, key) {
+  const parts = key.split('.');
+  let val = LOCALES[lang];
+  for (const part of parts) {
+    if (!val || typeof val !== 'object') { val = undefined; break; }
+    val = val[part];
+  }
+  if (val !== undefined && val !== null) return String(val);
+  if (lang !== 'el') return translate('el', key);
+  return key;
+}
+
+loadLocales();
+
 const app = express();
 
 function ensureDir(dirPath) {
@@ -344,6 +398,198 @@ function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
   }
 }
 
+// ── Mailer ────────────────────────────────────────────────────────────────────
+
+function buildTransport() {
+  if (!nodemailer) return null;
+  const host = process.env.THRC_SMTP_HOST;
+  const port = Number(process.env.THRC_SMTP_PORT || '587');
+  const user = process.env.THRC_SMTP_USER;
+  const pass = process.env.THRC_SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+}
+
+async function sendOrderEmail({ tenant, config, order }) {
+  const transport = buildTransport();
+  if (!transport) {
+    console.log('[Thronos Commerce] Mailer not configured – skipping email.');
+    return;
+  }
+
+  const recipients = (config.notificationEmails || []).join(',');
+  if (!recipients) {
+    console.log(`[Thronos Commerce] No notificationEmails set for tenant ${tenant.id} – skipping email.`);
+    return;
+  }
+
+  const fromName = config.notificationFromName || config.storeName || 'Thronos Commerce Store';
+  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const subject = `[${tenant.id}] Νέα παραγγελία #${order.id} – ${order.productName}`;
+
+  const lines = [
+    `Κατάστημα: ${config.storeName} (${tenant.domain || tenant.id})`,
+    `Κωδικός παραγγελίας: ${order.id}`,
+    `Προϊόν: ${order.productName}`,
+    `Σύνολο: ${Number(order.total).toFixed(2)} €`,
+    `Τρόπος αποστολής: ${order.shippingMethodLabel}`,
+    `Τρόπος πληρωμής: ${order.paymentMethodLabel}`,
+    '',
+    `Πελάτης: ${order.customerName}`,
+    `Email: ${order.email}`,
+    `Σημειώσεις: ${order.notes || '–'}`,
+    '',
+    `Κατάσταση πληρωμής: ${order.paymentStatus}`,
+    '',
+    `Blockchain proof hash: ${order.proofHash || 'pending'}`
+  ];
+
+  const cc = config.notificationCcCustomer ? order.email : undefined;
+  await transport.sendMail({
+    from,
+    to: recipients,
+    ...(cc ? { cc } : {}),
+    subject,
+    text: lines.join('\n')
+  });
+  console.log(`[Thronos Commerce] Order email sent for ${order.id} → ${recipients}`);
+}
+
+// ── Generic webhook (mobile / Viber bridge) ───────────────────────────────────
+
+async function sendOrderWebhook({ tenant, config, order }) {
+  const url = (config.notificationWebhookUrl || '').trim();
+  if (!url) return;
+
+  const payload = {
+    tenantId: tenant.id,
+    domain: tenant.domain || '',
+    orderId: order.id,
+    total: order.total,
+    status: order.paymentStatus,
+    customerName: order.customerName,
+    customerEmail: order.email,
+    createdAt: order.createdAt
+  };
+
+  const secret = (config.notificationWebhookSecret || '').trim();
+  const headers = {};
+  if (secret) {
+    headers['X-Thronos-Signature'] = crypto
+      .createHmac('sha256', secret)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+  }
+
+  await axios.post(url, payload, { timeout: 3000, headers });
+  console.log(`[Thronos Commerce] Webhook sent for order ${order.id} → ${url}`);
+}
+
+// ── Enhanced mailer (THRC_MAIL_* env vars) ───────────────────────────────────
+
+function getMailerTransport() {
+  if (!nodemailer) return null;
+  const host = process.env.THRC_MAIL_SMTP_HOST;
+  const port = Number(process.env.THRC_MAIL_SMTP_PORT || '587');
+  const user = process.env.THRC_MAIL_SMTP_USER;
+  const pass = process.env.THRC_MAIL_SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+}
+
+async function sendOrderEmails(order, config) {
+  const transport = getMailerTransport();
+  if (!transport) {
+    console.log('[Thronos Commerce] THRC_MAIL transport not configured – skipping sendOrderEmails.');
+    return;
+  }
+
+  const fromAddress = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
+  const fromName = config.storeName || 'Thronos Commerce';
+  const from = `"${fromName}" <${fromAddress}>`;
+
+  const bodyLines = [
+    `Κωδικός παραγγελίας: ${order.id}`,
+    `Προϊόν: ${order.productName}`,
+    `Σύνολο: ${Number(order.total).toFixed(2)} €`,
+    `Αποστολή: ${order.shippingMethodLabel}`,
+    `Πληρωμή: ${order.paymentMethodLabel}`,
+    `Πελάτης: ${order.customerName}`,
+    `Email πελάτη: ${order.email}`,
+    `Σημειώσεις: ${order.notes || '–'}`,
+    `Blockchain proof: ${order.proofHash || 'pending'}`
+  ].join('\n');
+
+  const sends = [];
+  const notificationEmail = (process.env.THRC_NOTIFICATION_EMAIL || '').trim();
+
+  if (notificationEmail) {
+    sends.push(
+      transport.sendMail({
+        from,
+        to: notificationEmail,
+        subject: `[${order.tenantId}] Νέα παραγγελία #${order.id} – ${order.productName}`,
+        text: `Νέα παραγγελία στο κατάστημα ${config.storeName}!\n\n${bodyLines}`
+      })
+    );
+  }
+
+  if (order.email) {
+    sends.push(
+      transport.sendMail({
+        from,
+        to: order.email,
+        subject: `Επιβεβαίωση παραγγελίας #${order.id} – ${config.storeName}`,
+        text: `Γεια σας ${order.customerName},\n\nΛάβαμε την παραγγελία σας!\n\n${bodyLines}\n\nΕυχαριστούμε!\n${config.storeName}`
+      })
+    );
+  }
+
+  if (sends.length > 0) {
+    await Promise.all(sends);
+    console.log(
+      `[Thronos Commerce] sendOrderEmails: merchant=${notificationEmail || 'none'}, customer=${order.email}`
+    );
+  }
+}
+
+async function attestMailToThronos(order, meta) {
+  const nodeUrl = (process.env.THRONOS_NODE_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.THRONOS_COMMERCE_API_KEY || null;
+  if (!nodeUrl) return null;
+
+  const from = meta.from || '';
+  const to = meta.to || '';
+  const subject = meta.subject || '';
+  const canonical = `${from}|${to}|${subject}|${order.id}|${order.total}|${order.createdAt}`;
+  const hash = crypto.createHash('sha256').update(canonical).digest('hex');
+
+  try {
+    const response = await axios.post(
+      `${nodeUrl}/api/mail/attest`,
+      { orderId: order.id, from, to, subject, hash, apiKey },
+      { timeout: 4000 }
+    );
+    console.log('[Thronos Commerce] attestMailToThronos response:', response.data);
+  } catch (err) {
+    console.error('[Thronos Commerce] attestMailToThronos failed:', err.message);
+  }
+
+  return hash;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Multer storage for per-tenant media
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -372,6 +618,14 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tenants', express.static(TENANTS_DIR));
 app.use(express.urlencoded({ extended: true }));
+
+// i18n middleware – sets req.lang, res.locals.lang, res.locals.t
+app.use((req, res, next) => {
+  req.lang = getLangFromRequest(req);
+  res.locals.lang = req.lang;
+  res.locals.t = (key) => translate(req.lang, key);
+  next();
+});
 
 // Tenant resolution middleware (skips root operator panel)
 app.use((req, res, next) => {
@@ -496,8 +750,30 @@ app.post('/checkout', async (req, res) => {
 
   console.log('[Thronos Commerce] New order:', JSON.stringify(order));
 
-  appendTenantOrder(req, order);
   const proofHash = await recordOrderOnChain(order, req.tenant);
+  order.proofHash = proofHash;
+  appendTenantOrder(req, order);
+
+  try {
+    await sendOrderEmail({ tenant: req.tenant, config, order });
+  } catch (err) {
+    console.error('[Thronos Commerce] sendOrderEmail failed:', err.message);
+  }
+
+  try {
+    await sendOrderWebhook({ tenant: req.tenant, config, order });
+  } catch (err) {
+    console.error('[Thronos Commerce] sendOrderWebhook failed:', err.message);
+  }
+
+  const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
+  const mailSubject = `Νέα παραγγελία #${order.id} – ${order.productName}`;
+  sendOrderEmails(order, config).catch((err) =>
+    console.error('[Thronos Commerce] sendOrderEmails failed:', err.message)
+  );
+  attestMailToThronos(order, { from: mailFrom, to: order.email, subject: mailSubject }).catch(
+    (err) => console.error('[Thronos Commerce] attestMailToThronos failed:', err.message)
+  );
 
   res.render('thanks', {
     config,
@@ -581,6 +857,14 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuActiveText || config.theme.menuActiveText || '#ffffff';
   config.theme.buttonRadius =
     themeButtonRadius || config.theme.buttonRadius || '4px';
+
+  // Notification settings
+  config.notificationEmails = (req.body.notificationEmails || '')
+    .split('\n').map((e) => e.trim()).filter((e) => e.length > 0);
+  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
+  config.notificationFromName   = (req.body.notificationFromName   || '').trim();
+  config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
+  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
 
   saveJson(req.tenantPaths.config, config);
 

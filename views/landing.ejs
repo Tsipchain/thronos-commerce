@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,7 +14,7 @@
 
     <main>
       <section class="hero">
-        <h2>Στήσε e‑shop χωρίς WordPress/WooCommerce, με απόδειξη στο ThronosChain.</h2>
+        <h2><%= t('landing.hero') %></h2>
       </section>
 
       <section class="product-list">
@@ -32,38 +32,38 @@
       </section>
 
       <section class="admin-block">
-        <h2>Ζήτα προσφορά</h2>
+        <h2><%= t('landing.offer') %></h2>
         <% if (message) { %><p class="admin-msg success"><%= message %></p><% } %>
         <form method="POST" action="/thronos-commerce/offer" class="checkout-form">
-          <label>Όνομα
+          <label><%= t('landing.name') %>
             <input type="text" name="name" required />
           </label>
-          <label>Email
+          <label><%= t('landing.email') || 'Email' %>
             <input type="email" name="email" required />
           </label>
-          <label>Τηλέφωνο
+          <label><%= t('landing.phone') %>
             <input type="text" name="phone" required />
           </label>
-          <label>Brand
+          <label><%= t('landing.brand') %>
             <input type="text" name="brand" required />
           </label>
-          <label>Domain
+          <label><%= t('landing.domain') %>
             <input type="text" name="domain" placeholder="π.χ. fashionmm.gr" />
           </label>
-          <label>Αριθμός προϊόντων
+          <label><%= t('landing.productsCount') %>
             <input type="number" name="products" min="1" />
           </label>
-          <label>Πακέτο
+          <label><%= t('landing.package') %>
             <select name="packageId" required>
               <% packages.forEach(function(pkg){ %>
                 <option value="<%= pkg.id %>"><%= pkg.title %></option>
               <% }) %>
             </select>
           </label>
-          <label>Μήνυμα
+          <label><%= t('landing.message') %>
             <textarea name="message" rows="4"></textarea>
           </label>
-          <button class="button" type="submit">Αποστολή</button>
+          <button class="button" type="submit"><%= t('landing.send') %></button>
         </form>
       </section>
     </main>

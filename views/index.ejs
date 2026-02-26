@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
     <title><%= config.storeName %></title>
@@ -16,6 +16,20 @@
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
       }
+      .lang-switcher {
+        display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+        padding: 6px 16px; background: rgba(0,0,0,.06); font-size: 0.78rem;
+      }
+      .lang-switcher span { color: #888; margin-right: 4px; }
+      .lang-switcher a {
+        padding: 2px 7px; border-radius: 4px; text-decoration: none;
+        color: inherit; border: 1px solid #ccc; transition: background .15s;
+      }
+      .lang-switcher a:hover { background: rgba(0,0,0,.08); }
+      .lang-switcher a.active {
+        background: var(--menu-active-bg); color: var(--menu-active-text);
+        border-color: transparent; font-weight: 700;
+      }
     </style>
   </head>
   <body>
@@ -27,22 +41,32 @@
         <div>
           <h1><%= config.storeName %></h1>
           <% if (config.web3Domain) { %>
-            <p class="subtitle">Web3 domain: <%= config.web3Domain %></p>
+            <p class="subtitle"><%= t('storefront.web3Domain') %>: <%= config.web3Domain %></p>
           <% } %>
         </div>
       </div>
-      <button class="menu-toggle" id="menu-toggle" type="button">☰ Κατηγορίες</button>
+      <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
       <nav class="main-nav" id="main-nav">
         <ul>
-          <li class="<%= !activeCategory ? 'active' : '' %>"><a href="/">Όλα τα προϊόντα</a></li>
+          <li class="<%= !activeCategory ? 'active' : '' %>">
+            <a href="/<%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.allProducts') %></a>
+          </li>
           <% categories.forEach(function(cat) { %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
-              <a href="/?category=<%= cat.slug %>"><%= cat.name %></a>
+              <a href="/?category=<%= cat.slug %><%= lang !== 'el' ? '&lang=' + lang : '' %>"><%= cat.name %></a>
             </li>
           <% }); %>
         </ul>
       </nav>
     </header>
+
+    <div class="lang-switcher">
+      <span><%= t('storefront.langLabel') %>:</span>
+      <% ['el','en','de','es','ru','ja'].forEach(function(l) { %>
+        <a href="?<%= activeCategory ? 'category=' + activeCategory + '&' : '' %>lang=<%= l %>"
+           class="<%= lang === l ? 'active' : '' %>"><%= l.toUpperCase() %></a>
+      <% }) %>
+    </div>
 
     <main>
       <section class="hero">
@@ -51,7 +75,7 @@
 
       <section class="product-list">
         <% if (products.length === 0) { %>
-          <p>Δεν βρέθηκαν προϊόντα για αυτή την κατηγορία.</p>
+          <p><%= t('storefront.noProducts') %></p>
         <% } %>
 
         <% products.forEach(function (product) { %>
@@ -64,7 +88,7 @@
             <h2><%= product.name %></h2>
             <p><%= product.description %></p>
             <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
-            <a class="button" href="/product/<%= product.id %>">Δείτε το προϊόν</a>
+            <a class="button" href="/product/<%= product.id %><%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.viewProduct') %></a>
           </article>
         <% }); %>
       </section>
