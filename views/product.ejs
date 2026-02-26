@@ -5,6 +5,8 @@
     <title><%= product.name %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/styles.css" />
+    <% if (product.seoTitle) { %><meta name="og:title" content="<%= product.seoTitle %>" /><% } %>
+    <% if (product.seoDescription) { %><meta name="description" content="<%= product.seoDescription %>" /><% } %>
     <style>
       :root {
         --primary-color: <%= config.primaryColor %>;
@@ -16,6 +18,16 @@
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
       }
+      .gallery-thumbs {
+        display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+      }
+      .gallery-thumbs img {
+        width: 72px; height: 72px; object-fit: cover; border-radius: 4px;
+        cursor: pointer; border: 2px solid transparent; transition: border-color .15s;
+      }
+      .gallery-thumbs img:hover,
+      .gallery-thumbs img.active { border-color: var(--accent-color); }
+      .product-hero-image img { transition: opacity .15s; }
     </style>
   </head>
   <body>
@@ -32,8 +44,17 @@
       <article class="product-detail">
         <% if (product.imageUrl) { %>
           <div class="product-hero-image">
-            <img src="<%= product.imageUrl %>" alt="<%= product.name %>" />
+            <img src="<%= product.imageUrl %>" alt="<%= product.name %>" id="hero-img" />
           </div>
+          <% const allImgs = [product.imageUrl].concat(Array.isArray(product.gallery) ? product.gallery : []).filter(Boolean); %>
+          <% if (allImgs.length > 1) { %>
+          <div class="gallery-thumbs">
+            <% allImgs.forEach(function(url, gi) { %>
+              <img src="<%= url %>" alt="" loading="lazy" class="<%= gi === 0 ? 'active' : '' %>"
+                   onclick="swapHero(this, '<%= url %>')" />
+            <% }) %>
+          </div>
+          <% } %>
         <% } %>
 
         <h2><%= product.name %></h2>
@@ -84,6 +105,111 @@
           <button type="submit" class="button"><%= t('checkout.submit') %></button>
         </form>
       </article>
+
+      <%# ── Reviews ── %>
+      <section class="reviews-section" style="margin-top:32px;">
+        <h3 style="margin-bottom:12px;"><%= t('reviews.title') %></h3>
+        <div id="reviews-list" style="margin-bottom:20px;"></div>
+
+        <div class="review-form-wrap" style="background:#f9f9f9;border-radius:8px;padding:20px;">
+          <h4 style="margin:0 0 14px;"><%= t('reviews.writeReview') %></h4>
+          <div id="review-msg" style="margin-bottom:10px;font-size:0.88rem;"></div>
+          <label style="display:block;margin-bottom:8px;">
+            <%= t('reviews.labelName') %>
+            <input type="text" id="rv-name" style="display:block;width:100%;margin-top:4px;padding:7px 10px;border:1px solid #ddd;border-radius:4px;" />
+          </label>
+          <label style="display:block;margin-bottom:8px;">
+            <%= t('reviews.labelRating') %>
+            <select id="rv-rating" style="display:block;margin-top:4px;padding:7px 10px;border:1px solid #ddd;border-radius:4px;">
+              <option value="5">★★★★★</option>
+              <option value="4">★★★★☆</option>
+              <option value="3">★★★☆☆</option>
+              <option value="2">★★☆☆☆</option>
+              <option value="1">★☆☆☆☆</option>
+            </select>
+          </label>
+          <label style="display:block;margin-bottom:14px;">
+            <%= t('reviews.labelComment') %>
+            <textarea id="rv-comment" rows="3" style="display:block;width:100%;margin-top:4px;padding:7px 10px;border:1px solid #ddd;border-radius:4px;resize:vertical;box-sizing:border-box;"></textarea>
+          </label>
+          <button id="rv-submit" class="button" type="button"><%= t('reviews.submit') %></button>
+        </div>
+      </section>
+
     </main>
+    <script>
+      function swapHero(thumb, url) {
+        const hero = document.getElementById('hero-img');
+        if (hero) { hero.src = url; }
+        document.querySelectorAll('.gallery-thumbs img').forEach(function(t) { t.classList.remove('active'); });
+        thumb.classList.add('active');
+      }
+
+      // ── Reviews ──────────────────────────────────────────────────
+      const PRODUCT_ID = '<%= product.id %>';
+      const reviewI18n = {
+        noReviews: '<%= t("reviews.noReviews") %>',
+        stars: ['', '★☆☆☆☆', '★★☆☆☆', '★★★☆☆', '★★★★☆', '★★★★★'],
+        submitOk:  '<%= t("reviews.submitOk") %>',
+        submitErr: '<%= t("reviews.submitErr") %>'
+      };
+
+      function renderStars(n) { return reviewI18n.stars[n] || n + '/5'; }
+
+      function renderReviews(list) {
+        const el = document.getElementById('reviews-list');
+        if (!list.length) {
+          el.innerHTML = '<p style="color:#aaa;font-style:italic;">' + reviewI18n.noReviews + '</p>';
+          return;
+        }
+        el.innerHTML = list.slice(-5).reverse().map(function(r) {
+          const d = new Date(r.createdAt).toLocaleDateString('<%= lang %>');
+          return '<div style="border-bottom:1px solid #eee;padding:12px 0;">' +
+            '<strong>' + r.name.replace(/</g,'&lt;') + '</strong> ' +
+            '<span style="color:#f59e0b;">' + renderStars(r.rating) + '</span> ' +
+            '<span style="color:#aaa;font-size:0.8rem;">' + d + '</span>' +
+            '<p style="margin:6px 0 0;font-size:0.88rem;">' + r.comment.replace(/</g,'&lt;') + '</p>' +
+            '</div>';
+        }).join('');
+      }
+
+      fetch('/api/products/' + PRODUCT_ID + '/reviews')
+        .then(function(r) { return r.json(); })
+        .then(renderReviews)
+        .catch(function() {});
+
+      document.getElementById('rv-submit').addEventListener('click', function() {
+        const name    = document.getElementById('rv-name').value.trim();
+        const rating  = document.getElementById('rv-rating').value;
+        const comment = document.getElementById('rv-comment').value.trim();
+        const msgEl   = document.getElementById('review-msg');
+        msgEl.textContent = '';
+
+        fetch('/api/products/' + PRODUCT_ID + '/reviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, rating, comment })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            msgEl.style.color = '#155724';
+            msgEl.textContent = reviewI18n.submitOk;
+            document.getElementById('rv-name').value = '';
+            document.getElementById('rv-comment').value = '';
+            fetch('/api/products/' + PRODUCT_ID + '/reviews')
+              .then(function(r) { return r.json(); })
+              .then(renderReviews);
+          } else {
+            msgEl.style.color = '#721c24';
+            msgEl.textContent = data.error || reviewI18n.submitErr;
+          }
+        })
+        .catch(function() {
+          msgEl.style.color = '#721c24';
+          msgEl.textContent = reviewI18n.submitErr;
+        });
+      });
+    </script>
   </body>
 </html>

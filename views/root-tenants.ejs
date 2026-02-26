@@ -343,6 +343,47 @@
       </div>
 
 
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   GATEWAY SURCHARGE (ROOT ONLY)                           %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Gateway Surcharge (ανά tenant)</h2>
+        <p class="helper">
+          Ορίστε την προσαύξηση gateway (%) ανά τρόπο πληρωμής για κάθε κατάστημα.
+          Αυτή η ρύθμιση είναι ορατή μόνο στο Root Admin.
+        </p>
+
+        <% if (tenants.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
+        <% } else { %>
+        <form method="POST" action="/root/tenants/payment-config" id="surcharge-form">
+          <div class="form-grid">
+            <label>
+              Tenant
+              <select name="tenantId" id="surcharge-tenant-select" onchange="renderSurchargeFields(this.value)">
+                <% tenants.forEach(function(t) { %>
+                  <option value="<%= t.id %>"><%= t.id %></option>
+                <% }) %>
+              </select>
+            </label>
+          </div>
+
+          <div id="surcharge-fields" style="margin:12px 0 16px;"></div>
+
+          <div class="form-grid">
+            <label class="full">
+              Root κωδικός *
+              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Αποθήκευση surcharges</button>
+          </div>
+        </form>
+        <% } %>
+      </div>
+
       <div class="root-pass-note">
         <strong>Σημείωση ασφαλείας:</strong> Το root password ορίζεται μέσω της env μεταβλητής
         <code>THRONOS_ROOT_ADMIN_PASSWORD</code>. Χωρίς αυτή, κανένα root action δεν εκτελείται.
@@ -352,7 +393,36 @@
     </div><%# /root-layout %>
 
     <script>
-      // Pre-fill the update form when a tenant is selected
+      // ── Gateway Surcharge ─────────────────────────────────────────
+      const tenantPaymentConfigs = <%- JSON.stringify(tenantPaymentConfigs) %>;
+
+      function renderSurchargeFields(tenantId) {
+        const container = document.getElementById('surcharge-fields');
+        const opts = tenantPaymentConfigs[tenantId] || [];
+        if (opts.length === 0) {
+          container.innerHTML = '<p style="color:#aaa;font-style:italic;font-size:0.85rem;">Δεν υπάρχουν payment options για αυτό το tenant.</p>';
+          return;
+        }
+        let html = '<table style="border-collapse:collapse;font-size:0.86rem;width:100%;">' +
+          '<thead><tr><th style="text-align:left;padding:6px 10px;background:#f0f2fa;">ID</th>' +
+          '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">Label</th>' +
+          '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">Surcharge %</th></tr></thead><tbody>';
+        opts.forEach(function(opt, i) {
+          html += '<tr><td style="padding:6px 10px;"><code>' + opt.id + '</code></td>' +
+            '<td style="padding:6px 10px;">' + (opt.label || '–') + '</td>' +
+            '<td style="padding:6px 10px;"><input type="number" name="surcharge_' + i + '" ' +
+            'value="' + (opt.gatewaySurchargePercent || 0) + '" min="0" step="0.001" ' +
+            'style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;" /></td></tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
+
+      // Render on page load
+      const surchargeSelect = document.getElementById('surcharge-tenant-select');
+      if (surchargeSelect) renderSurchargeFields(surchargeSelect.value);
+
+      // ── Update form pre-fill ──────────────────────────────────────
       const tenantData = {
         <% tenants.forEach(function(t, i) { %>
           "<%= t.id %>": {
