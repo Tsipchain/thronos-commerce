@@ -6,6 +6,11 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 
+function safeRequire(mod) {
+  try { return require(mod); } catch (e) { return null; }
+}
+const nodemailer = safeRequire('nodemailer');
+
 const app = express();
 
 function ensureDir(dirPath) {
@@ -344,6 +349,100 @@ function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
   }
 }
 
+// ── Mailer ────────────────────────────────────────────────────────────────────
+
+function buildTransport() {
+  if (!nodemailer) return null;
+  const host = process.env.THRC_SMTP_HOST;
+  const port = Number(process.env.THRC_SMTP_PORT || '587');
+  const user = process.env.THRC_SMTP_USER;
+  const pass = process.env.THRC_SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+}
+
+async function sendOrderEmail({ tenant, config, order }) {
+  const transport = buildTransport();
+  if (!transport) {
+    console.log('[Thronos Commerce] Mailer not configured – skipping email.');
+    return;
+  }
+
+  const recipients = (config.notificationEmails || []).join(',');
+  if (!recipients) {
+    console.log(`[Thronos Commerce] No notificationEmails set for tenant ${tenant.id} – skipping email.`);
+    return;
+  }
+
+  const fromName = config.notificationFromName || config.storeName || 'Thronos Commerce Store';
+  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const subject = `[${tenant.id}] Νέα παραγγελία #${order.id} – ${order.productName}`;
+
+  const lines = [
+    `Κατάστημα: ${config.storeName} (${tenant.domain || tenant.id})`,
+    `Κωδικός παραγγελίας: ${order.id}`,
+    `Προϊόν: ${order.productName}`,
+    `Σύνολο: ${Number(order.total).toFixed(2)} €`,
+    `Τρόπος αποστολής: ${order.shippingMethodLabel}`,
+    `Τρόπος πληρωμής: ${order.paymentMethodLabel}`,
+    '',
+    `Πελάτης: ${order.customerName}`,
+    `Email: ${order.email}`,
+    `Σημειώσεις: ${order.notes || '–'}`,
+    '',
+    `Κατάσταση πληρωμής: ${order.paymentStatus}`,
+    '',
+    `Blockchain proof hash: ${order.proofHash || 'pending'}`
+  ];
+
+  const cc = config.notificationCcCustomer ? order.email : undefined;
+  await transport.sendMail({
+    from,
+    to: recipients,
+    ...(cc ? { cc } : {}),
+    subject,
+    text: lines.join('\n')
+  });
+  console.log(`[Thronos Commerce] Order email sent for ${order.id} → ${recipients}`);
+}
+
+// ── Generic webhook (mobile / Viber bridge) ───────────────────────────────────
+
+async function sendOrderWebhook({ tenant, config, order }) {
+  const url = (config.notificationWebhookUrl || '').trim();
+  if (!url) return;
+
+  const payload = {
+    tenantId: tenant.id,
+    domain: tenant.domain || '',
+    orderId: order.id,
+    total: order.total,
+    status: order.paymentStatus,
+    customerName: order.customerName,
+    customerEmail: order.email,
+    createdAt: order.createdAt
+  };
+
+  const secret = (config.notificationWebhookSecret || '').trim();
+  const headers = {};
+  if (secret) {
+    headers['X-Thronos-Signature'] = crypto
+      .createHmac('sha256', secret)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+  }
+
+  await axios.post(url, payload, { timeout: 3000, headers });
+  console.log(`[Thronos Commerce] Webhook sent for order ${order.id} → ${url}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Multer storage for per-tenant media
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -496,8 +595,21 @@ app.post('/checkout', async (req, res) => {
 
   console.log('[Thronos Commerce] New order:', JSON.stringify(order));
 
-  appendTenantOrder(req, order);
   const proofHash = await recordOrderOnChain(order, req.tenant);
+  order.proofHash = proofHash;
+  appendTenantOrder(req, order);
+
+  try {
+    await sendOrderEmail({ tenant: req.tenant, config, order });
+  } catch (err) {
+    console.error('[Thronos Commerce] sendOrderEmail failed:', err.message);
+  }
+
+  try {
+    await sendOrderWebhook({ tenant: req.tenant, config, order });
+  } catch (err) {
+    console.error('[Thronos Commerce] sendOrderWebhook failed:', err.message);
+  }
 
   res.render('thanks', {
     config,
@@ -581,6 +693,14 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuActiveText || config.theme.menuActiveText || '#ffffff';
   config.theme.buttonRadius =
     themeButtonRadius || config.theme.buttonRadius || '4px';
+
+  // Notification settings
+  config.notificationEmails = (req.body.notificationEmails || '')
+    .split('\n').map((e) => e.trim()).filter((e) => e.length > 0);
+  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
+  config.notificationFromName   = (req.body.notificationFromName   || '').trim();
+  config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
+  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
 
   saveJson(req.tenantPaths.config, config);
 

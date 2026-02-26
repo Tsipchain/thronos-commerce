@@ -89,6 +89,30 @@
         display: inline-block; background: #e8f4fd; color: #1a73b8;
         border-radius: 3px; padding: 1px 6px; font-size: 0.76rem; font-family: monospace;
       }
+
+      /* ── Color picker pairs ── */
+      .color-field { display: flex; gap: 6px; align-items: center; }
+      .color-field input[type=text]  { flex: 1; }
+      .color-field input[type=color] {
+        width: 36px; height: 34px; padding: 2px;
+        border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff;
+        flex-shrink: 0;
+      }
+      .color-field input[type=color]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      /* ── Logo upload inline ── */
+      .logo-upload-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+      .logo-upload-row input[type=file] { flex: 1 1 160px; font-size: 0.82rem; }
+      .btn-xs { padding: 5px 12px; font-size: 0.8rem; background: #eee;
+                border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+      #logo-upload-status { font-size: 0.8rem; color: #555; margin-top: 4px; }
+
+      /* ── Notifications section ── */
+      .notif-section { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #ddd; }
+      .notif-section h3 { margin: 0 0 4px; }
+      .checkbox-label { display: flex !important; flex-direction: row !important;
+                        align-items: center; gap: 8px; cursor: pointer; }
+      .checkbox-label input[type=checkbox] { width: auto; margin: 0; }
     </style>
   </head>
   <body>
@@ -145,13 +169,23 @@
         </label>
 
         <label><span>Κύριο χρώμα</span>
-          <input type="text" name="primaryColor" value="<%= config.primaryColor %>"
-                 placeholder="#222222" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div class="color-field">
+            <input type="text" name="primaryColor" id="txt-primaryColor"
+                   value="<%= config.primaryColor %>" placeholder="#222222"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-primaryColor" value="<%= config.primaryColor || '#222222' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
         </label>
 
         <label><span>Χρώμα έμφασης</span>
-          <input type="text" name="accentColor" value="<%= config.accentColor %>"
-                 placeholder="#00ff88" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div class="color-field">
+            <input type="text" name="accentColor" id="txt-accentColor"
+                   value="<%= config.accentColor %>" placeholder="#00ff88"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-accentColor" value="<%= config.accentColor || '#00ff88' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
         </label>
 
         <label><span>Γραμματοσειρά</span>
@@ -176,35 +210,66 @@
         </label>
 
         <label><span>Διαδρομή λογότυπου</span>
-          <input type="text" name="logoPath" value="<%= config.logoPath %>"
+          <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
                  placeholder="/logo.svg" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
+        <% if (permissions.canUploadMedia) { %>
+        <div style="margin:-4px 0 14px;">
+          <p class="helper" style="margin-bottom:5px;">Ή ανεβάστε νέο αρχείο logo απευθείας:</p>
+          <div class="logo-upload-row">
+            <input type="file" id="logo-file" accept="image/*" />
+            <input type="password" id="logo-pass" placeholder="Κωδικός" style="width:130px;" />
+            <button type="button" class="btn-xs" id="logo-upload-btn">Ανέβασμα logo</button>
+          </div>
+          <p id="logo-upload-status"></p>
+        </div>
+        <% } %>
 
         <h3>Χρώματα μενού &amp; κουμπιών</h3>
         <p class="helper">Προσαρμόστε την παλέτα του πλαϊνού μενού και τις γωνίες κουμπιών.</p>
 
         <label><span>Φόντο μενού</span>
-          <input type="text" name="themeMenuBg"
-                 value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div class="color-field">
+            <input type="text" name="themeMenuBg" id="txt-themeMenuBg"
+                   value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-themeMenuBg"
+                   value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
         </label>
 
         <label><span>Κείμενο μενού</span>
-          <input type="text" name="themeMenuText"
-                 value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div class="color-field">
+            <input type="text" name="themeMenuText" id="txt-themeMenuText"
+                   value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-themeMenuText"
+                   value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
         </label>
 
         <label><span>Φόντο ενεργού στοιχείου μενού</span>
-          <input type="text" name="themeMenuActiveBg"
-                 value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div class="color-field">
+            <input type="text" name="themeMenuActiveBg" id="txt-themeMenuActiveBg"
+                   value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-themeMenuActiveBg"
+                   value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
         </label>
 
         <label><span>Κείμενο ενεργού στοιχείου μενού</span>
-          <input type="text" name="themeMenuActiveText"
-                 value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div class="color-field">
+            <input type="text" name="themeMenuActiveText" id="txt-themeMenuActiveText"
+                   value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-themeMenuActiveText"
+                   value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
         </label>
 
         <label><span>Ακτίνα γωνιών κουμπιών</span>
@@ -212,6 +277,55 @@
                  value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
                  placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
+
+        <%# ── Ειδοποιήσεις ── %>
+        <div class="notif-section">
+          <h3>Ειδοποιήσεις παραγγελιών – Email</h3>
+          <p class="helper">
+            Κάθε νέα παραγγελία θα στέλνει αυτόματα email στις παρακάτω διευθύνσεις.
+            Απαιτείται ρύθμιση SMTP στο περιβάλλον (THRC_SMTP_HOST / THRC_SMTP_USER / THRC_SMTP_PASS).
+          </p>
+
+          <label><span>Email ειδοποιήσεων <small style="color:#999">(ένα ανά γραμμή)</small></span>
+            <textarea name="notificationEmails" rows="3"
+                      placeholder="owner@myshop.gr&#10;backup@myshop.gr"
+                      <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
+          </label>
+
+          <label class="checkbox-label">
+            <input type="checkbox" name="notificationCcCustomer"
+                   <%= (config.notificationCcCustomer) ? 'checked' : '' %>
+                   <%= permissions.canEditSettings ? '' : 'disabled' %> />
+            <span>Αποστολή αντιγράφου email και στον πελάτη (CC)</span>
+          </label>
+
+          <label><span>Εμφανιζόμενο όνομα αποστολέα</span>
+            <input type="text" name="notificationFromName"
+                   value="<%= config.notificationFromName || '' %>"
+                   placeholder="π.χ. FashionMM Store"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+
+          <h3 style="margin-top:18px;">Ειδοποιήσεις παραγγελιών – Webhook</h3>
+          <p class="helper">
+            Για mobile / Viber ειδοποιήσεις: βάλτε το URL του δικού σας webhook service.
+            Κάθε νέα παραγγελία θα κάνει POST εκεί αυτόματα.
+          </p>
+
+          <label><span>Webhook URL <small style="color:#999">(προαιρετικό)</small></span>
+            <input type="text" name="notificationWebhookUrl"
+                   value="<%= config.notificationWebhookUrl || '' %>"
+                   placeholder="https://myhook.example.com/orders"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+
+          <label><span>Webhook Secret <small style="color:#999">(για υπογραφή X-Thronos-Signature)</small></span>
+            <input type="text" name="notificationWebhookSecret"
+                   value="<%= config.notificationWebhookSecret || '' %>"
+                   placeholder="mysecret123"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+        </div>
 
         <label><span>Κωδικός διαχειριστή</span>
           <input type="password" name="password"
@@ -431,6 +545,10 @@
             </tbody>
           </table>
           <% } %>
+          <p class="helper" style="margin-top:6px;">
+            <strong>Κόστος βάσης:</strong> τα μεταφορικά σε €.&nbsp;
+            <strong>COD προσαύξηση:</strong> προστίθεται μόνο όταν η πληρωμή είναι αντικαταβολή (COD).
+          </p>
 
           <%# ── Payment options ── %>
           <h3>Τρόποι πληρωμής</h3>
@@ -467,6 +585,9 @@
             </tbody>
           </table>
           <% } %>
+          <p class="helper" style="margin-top:6px;">
+            <strong>Gateway surcharge %:</strong> προμήθεια platform πληρωμής π.χ. για Stripe. Μπορεί να είναι 0.
+          </p>
 
           <% if (permissions.canEditSettings) { %>
           <div class="save-row">
@@ -678,6 +799,47 @@
             uploadResult.innerHTML = 'Το ανέβασμα ολοκληρώθηκε! URL: <code>' + json.url + '</code>';
           } else {
             uploadResult.textContent = json.error || 'Σφάλμα κατά το ανέβασμα.';
+          }
+        });
+      }
+
+      // ── Color pickers ─────────────────────────────────────────────
+      function bindColorPair(textId, pickerId) {
+        const txt  = document.getElementById(textId);
+        const pick = document.getElementById(pickerId);
+        if (!txt || !pick) return;
+        pick.addEventListener('input', () => { txt.value = pick.value; });
+        txt.addEventListener('input', () => {
+          if (/^#[0-9a-f]{6}$/i.test(txt.value)) pick.value = txt.value;
+        });
+      }
+      bindColorPair('txt-primaryColor',       'cp-primaryColor');
+      bindColorPair('txt-accentColor',        'cp-accentColor');
+      bindColorPair('txt-themeMenuBg',        'cp-themeMenuBg');
+      bindColorPair('txt-themeMenuText',      'cp-themeMenuText');
+      bindColorPair('txt-themeMenuActiveBg',  'cp-themeMenuActiveBg');
+      bindColorPair('txt-themeMenuActiveText','cp-themeMenuActiveText');
+
+      // ── Logo upload (fills logoPath-input on success) ─────────────
+      const logoUploadBtn    = document.getElementById('logo-upload-btn');
+      const logoUploadStatus = document.getElementById('logo-upload-status');
+      if (logoUploadBtn) {
+        logoUploadBtn.addEventListener('click', async () => {
+          const file = document.getElementById('logo-file').files[0];
+          const pass = document.getElementById('logo-pass').value;
+          if (!file) { logoUploadStatus.textContent = 'Επιλέξτε αρχείο.'; return; }
+          if (!pass) { logoUploadStatus.textContent = 'Εισάγετε κωδικό.'; return; }
+          logoUploadStatus.textContent = 'Ανέβασμα...';
+          const fd = new FormData();
+          fd.append('image', file);
+          fd.append('password', pass);
+          const r = await fetch('/admin/upload-image', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (j.ok) {
+            document.getElementById('logoPath-input').value = j.url;
+            logoUploadStatus.innerHTML = 'Ανέβηκε! URL αυτόματα αντιγράφηκε στο πεδίο: <code>' + j.url + '</code>';
+          } else {
+            logoUploadStatus.textContent = j.error || 'Σφάλμα κατά το ανέβασμα.';
           }
         });
       }
