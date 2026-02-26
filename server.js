@@ -111,8 +111,30 @@ function tenantPaths(tenantId) {
     config: path.join(base, 'config.json'),
     products: path.join(base, 'products.json'),
     categories: path.join(base, 'categories.json'),
+    orders: path.join(base, 'orders.json'),
     media
   };
+}
+
+function loadTenantOrders(req) {
+  try {
+    const raw = fs.readFileSync(req.tenantPaths.orders, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('not an array');
+    return parsed;
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`[Thronos Commerce] Malformed orders.json for tenant ${req.tenant.id}: ${err.message} – falling back to empty array.`);
+    }
+    return [];
+  }
+}
+
+function appendTenantOrder(req, order) {
+  ensureDir(req.tenantPaths.base);
+  const orders = loadTenantOrders(req);
+  orders.push(order);
+  saveJson(req.tenantPaths.orders, orders);
 }
 
 function getTenantByHost(hostname) {
@@ -424,8 +446,9 @@ app.post('/checkout', async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  console.log('New order received:', order);
+  console.log('[Thronos Commerce] New order:', JSON.stringify(order));
 
+  appendTenantOrder(req, order);
   const proofHash = await recordOrderOnChain(order, req.tenant);
 
   res.render('thanks', {
@@ -439,6 +462,19 @@ app.post('/checkout', async (req, res) => {
 // Admin panel
 app.get('/admin', (req, res) => {
   res.render('admin', buildAdminViewModel(req));
+});
+
+// Admin orders view
+app.get('/admin/orders', (req, res) => {
+  const config = loadTenantConfig(req);
+  const allOrders = loadTenantOrders(req);
+  const orders = allOrders.slice(-100).reverse();
+  res.render('admin-orders', {
+    tenant: req.tenant,
+    config,
+    orders,
+    permissions: getSupportPermissions(req.tenant.supportTier)
+  });
 });
 
 app.post('/admin/settings', async (req, res) => {

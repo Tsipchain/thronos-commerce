@@ -2,7 +2,7 @@
 <html lang="el">
   <head>
     <meta charset="UTF-8" />
-    <title>Admin – <%= config.storeName %></title>
+    <title>Διαχείριση – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
@@ -16,183 +16,536 @@
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
       }
+
+      /* ── Full-Ops banner ── */
+      .fullops-banner {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin-bottom: 20px;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: #5a4200;
+      }
+
+      /* ── Products table & modal ── */
+      .products-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+      .products-table th, .products-table td {
+        text-align: left; padding: 8px 10px;
+        border-bottom: 1px solid #e0e0e0; font-size: 0.88rem;
+      }
+      .products-table th { background: #f5f5f5; font-weight: 600; }
+      .products-table .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+      .products-table .no-img { width: 48px; height: 48px; background: #eee; border-radius: 4px; display: inline-block; }
+      .btn-sm { padding: 4px 10px; font-size: 0.8rem; border-radius: 4px; cursor: pointer;
+                border: 1px solid #ccc; background: #fff; }
+      .btn-sm.edit { border-color: var(--accent-color); color: var(--accent-color); }
+      .btn-sm.del  { border-color: #e57373; color: #e57373; }
+      .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      /* modal overlay */
+      .modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,.45); z-index: 900;
+        align-items: center; justify-content: center;
+      }
+      .modal-overlay.open { display: flex; }
+      .modal-box {
+        background: #fff; border-radius: 8px; padding: 28px 28px 20px;
+        width: min(520px, 95vw); max-height: 90vh; overflow-y: auto;
+        box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      }
+      .modal-box h3 { margin-top: 0; }
+      .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .modal-grid .full { grid-column: 1 / -1; }
+      .modal-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.86rem; }
+      .modal-grid input, .modal-grid textarea, .modal-grid select {
+        padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;
+      }
+      .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+      /* helper text */
+      .helper { font-size: 0.82rem; color: #666; margin: 0 0 12px; }
+
+      /* password row for product save */
+      .save-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+      .save-row input[type=password] { flex: 1 1 180px; }
     </style>
   </head>
   <body>
     <header>
-      <h1>Thronos Commerce · Admin</h1>
+      <h1>Thronos Commerce · Διαχείριση</h1>
       <p class="subtitle">
-        Tenant: <strong><%= tenant.id %></strong> · Support tier: <strong><%= tenant.supportTier %></strong>
+        Κατάστημα: <strong><%= tenant.id %></strong>
+        &nbsp;·&nbsp;
+        Πακέτο: <strong><%= tenant.supportTier %></strong>
+        &nbsp;·&nbsp;
+        <a href="/admin" style="font-size:0.85rem">Ρυθμίσεις</a>
+        &nbsp;|&nbsp;
+        <a href="/admin/orders" style="font-size:0.85rem">Παραγγελίες</a>
+        &nbsp;|&nbsp;
+        <a href="/" style="font-size:0.85rem">Κατάστημα ↗</a>
       </p>
     </header>
 
     <main class="admin-layout">
+
+      <%# ── Full-Ops banner ── %>
+      <% if (tenant.supportTier === 'FULL_OPS_START') { %>
+      <div class="fullops-banner">
+        <strong>Πρόγραμμα Full Ops ενεργό.</strong><br>
+        Το κατάστημά σας βρίσκεται σε πρόγραμμα Full Ops – η ομάδα Thronos Commerce
+        αναλαμβάνει όλες τις αλλαγές. Επικοινωνήστε μαζί μας για ενημερώσεις.
+      </div>
+      <% } %>
+
+      <%# ── Flash messages ── %>
       <% if (message) { %><p class="admin-msg success"><%= message %></p><% } %>
-      <% if (error) { %><p class="admin-msg error"><%= error %></p><% } %>
+      <% if (error)   { %><p class="admin-msg error"><%= error %></p><% } %>
 
       <nav class="admin-tabs">
-        <a href="#tab-theme">Θέμα / Εμφάνιση</a>
+        <a href="#tab-theme">Εμφάνιση &amp; Ρυθμίσεις</a>
         <a href="#tab-categories">Κατηγορίες</a>
         <a href="#tab-products">Προϊόντα</a>
+        <a href="#tab-upload">Εικόνες</a>
+        <a href="/admin/orders">Παραγγελίες</a>
       </nav>
 
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 1 – THEME / SETTINGS                                %>
+      <%# ══════════════════════════════════════════════════════════ %>
       <form id="tab-theme" class="admin-block" method="POST" action="/admin/settings">
-        <h2>Θέμα / Ρυθμίσεις καταστήματος</h2>
+        <h2>Εμφάνιση &amp; Ρυθμίσεις καταστήματος</h2>
+        <p class="helper">Αλλάξτε το όνομα, τα χρώματα και τα βασικά στοιχεία του καταστήματός σας.</p>
 
         <label><span>Όνομα καταστήματος</span>
-          <input type="text" name="storeName" value="<%= config.storeName %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="text" name="storeName" value="<%= config.storeName %>"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>Primary color</span>
-          <input type="text" name="primaryColor" value="<%= config.primaryColor %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Κύριο χρώμα</span>
+          <input type="text" name="primaryColor" value="<%= config.primaryColor %>"
+                 placeholder="#222222" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>Accent color</span>
-          <input type="text" name="accentColor" value="<%= config.accentColor %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Χρώμα έμφασης</span>
+          <input type="text" name="accentColor" value="<%= config.accentColor %>"
+                 placeholder="#00ff88" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>Font family</span>
+        <label><span>Γραμματοσειρά</span>
           <select name="fontFamily" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI</option>
-            <option value="'Roboto', Arial, sans-serif" <%= config.fontFamily.includes('Roboto') ? 'selected' : '' %>>Roboto</option>
-            <option value="'Segoe UI', system-ui, sans-serif" <%= config.fontFamily.includes('Segoe UI') ? 'selected' : '' %>>Segoe UI</option>
+            <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+              <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI (προεπιλογή)</option>
+            <option value="'Roboto', Arial, sans-serif"
+              <%= config.fontFamily.includes('Roboto') ? 'selected' : '' %>>Roboto</option>
+            <option value="'Segoe UI', system-ui, sans-serif"
+              <%= config.fontFamily.includes('Segoe UI') && !config.fontFamily.includes('system-ui, -apple') ? 'selected' : '' %>>Segoe UI</option>
           </select>
         </label>
 
-        <label><span>Hero text</span>
-          <textarea name="heroText" rows="3" <%= permissions.canEditSettings ? '' : 'readonly' %>><%= config.heroText %></textarea>
+        <label><span>Κείμενο banner αρχικής σελίδας</span>
+          <textarea name="heroText" rows="3"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= config.heroText %></textarea>
         </label>
 
-        <label><span>Web3 domain</span>
-          <input type="text" name="web3Domain" value="<%= config.web3Domain %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Web3 domain (προαιρετικό)</span>
+          <input type="text" name="web3Domain" value="<%= config.web3Domain %>"
+                 placeholder="π.χ. mystore.thr" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>Logo path</span>
-          <input type="text" name="logoPath" value="<%= config.logoPath %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Διαδρομή λογότυπου</span>
+          <input type="text" name="logoPath" value="<%= config.logoPath %>"
+                 placeholder="/logo.svg" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <h3>Menu & Buttons</h3>
+        <h3>Χρώματα μενού &amp; κουμπιών</h3>
+        <p class="helper">Προσαρμόστε την παλέτα του πλαϊνού μενού και τις γωνίες κουμπιών.</p>
 
-        <label><span>menuBg</span>
-          <input type="text" name="themeMenuBg" value="<%= (config.theme && config.theme.menuBg) || '#111111' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Φόντο μενού</span>
+          <input type="text" name="themeMenuBg"
+                 value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>menuText</span>
-          <input type="text" name="themeMenuText" value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Κείμενο μενού</span>
+          <input type="text" name="themeMenuText"
+                 value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>menuActiveBg</span>
-          <input type="text" name="themeMenuActiveBg" value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Φόντο ενεργού στοιχείου μενού</span>
+          <input type="text" name="themeMenuActiveBg"
+                 value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>menuActiveText</span>
-          <input type="text" name="themeMenuActiveText" value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Κείμενο ενεργού στοιχείου μενού</span>
+          <input type="text" name="themeMenuActiveText"
+                 value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>buttonRadius</span>
-          <input type="text" name="themeButtonRadius" value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        <label><span>Ακτίνα γωνιών κουμπιών</span>
+          <input type="text" name="themeButtonRadius"
+                 value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
+                 placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
         <label><span>Κωδικός διαχειριστή</span>
-          <input type="password" name="password" <%= permissions.canEditSettings ? 'required' : 'disabled' %> />
+          <input type="password" name="password"
+                 <%= permissions.canEditSettings ? 'required' : 'disabled' %> />
         </label>
 
         <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
           Αποθήκευση ρυθμίσεων
         </button>
+        <% if (!permissions.canEditSettings) { %>
+          <p class="helper" style="margin-top:8px;">
+            Οι ρυθμίσεις διαχειρίζονται από την ομάδα Thronos Commerce στο πλαίσιο του πακέτου σας.
+          </p>
+        <% } %>
       </form>
 
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 2 – CATEGORIES                                      %>
+      <%# ══════════════════════════════════════════════════════════ %>
       <section id="tab-categories" class="admin-block">
-        <h2>Κατηγορίες</h2>
+        <h2>Κατηγορίες προϊόντων</h2>
+        <p class="helper">Οργανώστε τα προϊόντα σας σε κατηγορίες ώστε οι πελάτες να βρίσκουν εύκολα αυτό που ψάχνουν.</p>
 
         <table class="admin-table">
           <thead>
-            <tr><th>ID</th><th>Όνομα</th><th>Slug</th><th>Ενέργειες</th></tr>
+            <tr>
+              <th>Κωδικός</th>
+              <th>Όνομα</th>
+              <th>Slug (URL)</th>
+              <th>Ενέργεια</th>
+            </tr>
           </thead>
           <tbody>
             <% categories.forEach(function(cat){ %>
               <tr>
-                <td><%= cat.id %></td>
+                <td><code><%= cat.id %></code></td>
                 <td><%= cat.name %></td>
                 <td><%= cat.slug %></td>
                 <td>
                   <form method="POST" action="/admin/categories/delete" class="inline-form">
                     <input type="hidden" name="categoryId" value="<%= cat.id %>" />
-                    <input type="password" name="password" placeholder="Password" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-                    <button type="submit" class="button danger" <%= permissions.canEditCategories ? '' : 'disabled' %>>Διαγραφή</button>
+                    <input type="password" name="password" placeholder="Κωδικός"
+                           <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+                    <button type="submit" class="button danger"
+                            <%= permissions.canEditCategories ? '' : 'disabled' %>>Διαγραφή</button>
                   </form>
                 </td>
               </tr>
             <% }) %>
+            <% if (categories.length === 0) { %>
+              <tr><td colspan="4" style="color:#888;font-style:italic;">Δεν υπάρχουν κατηγορίες ακόμα.</td></tr>
+            <% } %>
           </tbody>
         </table>
 
+        <% if (permissions.canEditCategories) { %>
         <form method="POST" action="/admin/categories/add" class="admin-subform">
           <h3>Νέα κατηγορία</h3>
-          <input type="text" name="id" placeholder="id" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <input type="text" name="name" placeholder="Όνομα" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <input type="text" name="slug" placeholder="slug" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <input type="password" name="password" placeholder="Admin password" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <button type="submit" class="button" <%= permissions.canEditCategories ? '' : 'disabled' %>>Προσθήκη</button>
+          <p class="helper">Συμπληρώστε τον μοναδικό κωδικό (π.χ. "bags"), το εμφανιζόμενο όνομα και το slug για το URL.</p>
+          <input type="text" name="id" placeholder="Κωδικός (π.χ. bags)" required />
+          <input type="text" name="name" placeholder="Όνομα (π.χ. Τσάντες)" required />
+          <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+          <button type="submit" class="button">Προσθήκη κατηγορίας</button>
         </form>
 
         <form method="POST" action="/admin/categories/update" class="admin-subform">
-          <h3>Μετονομασία / αλλαγή</h3>
-          <select name="categoryId" <%= permissions.canEditCategories ? '' : 'disabled' %>>
+          <h3>Μετονομασία κατηγορίας</h3>
+          <select name="categoryId">
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="text" name="name" placeholder="Νέο όνομα" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <input type="text" name="slug" placeholder="Νέο slug" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <input type="password" name="password" placeholder="Admin password" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
-          <button type="submit" class="button" <%= permissions.canEditCategories ? '' : 'disabled' %>>Ενημέρωση</button>
+          <input type="text" name="name" placeholder="Νέο όνομα" required />
+          <input type="text" name="slug" placeholder="Νέο slug" required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+          <button type="submit" class="button">Ενημέρωση</button>
+        </form>
+        <% } else { %>
+          <p class="helper">Η διαχείριση κατηγοριών γίνεται από την ομάδα Thronos Commerce στο πλαίσιο του πακέτου σας.</p>
+        <% } %>
+      </section>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <section id="tab-products" class="admin-block">
+        <h2>Προϊόντα καταστήματος</h2>
+        <p class="helper">
+          Διαχειριστείτε τα προϊόντα του καταστήματός σας. Κάντε κλικ «Επεξεργασία» για να αλλάξετε ένα προϊόν ή «Νέο προϊόν» για να προσθέσετε νέο.
+          Όταν είστε έτοιμοι, πατήστε <strong>Αποθήκευση όλων</strong>.
+          <% if (!permissions.canEditProducts) { %>
+            <br><em>Τα προϊόντα σας διαχειρίζεται η ομάδα Thronos Commerce.</em>
+          <% } %>
+        </p>
+
+        <% if (permissions.canEditProducts) { %>
+          <button class="button" id="btn-add-product" type="button">+ Νέο προϊόν</button>
+        <% } %>
+
+        <table class="products-table" id="products-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Όνομα</th>
+              <th>Τιμή (€)</th>
+              <th>SKU</th>
+              <th>Κατηγορία</th>
+              <% if (permissions.canEditProducts) { %><th>Ενέργειες</th><% } %>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <%# Rendered by JS below %>
+          </tbody>
+        </table>
+
+        <%# Hidden form that submits the serialized JSON array to the backend %>
+        <form id="products-save-form" method="POST" action="/admin/products">
+          <input type="hidden" name="productsJson" id="products-json-input" />
+          <% if (permissions.canEditProducts) { %>
+          <div class="save-row">
+            <label style="flex:1 1 auto;font-size:0.86rem;">
+              Κωδικός διαχειριστή για αποθήκευση:
+            </label>
+            <input type="password" name="password" required placeholder="Κωδικός" />
+            <button type="submit" class="button">Αποθήκευση όλων</button>
+          </div>
+          <% } %>
         </form>
       </section>
 
-      <section class="admin-block">
-        <h2>Upload εικόνας</h2>
-        <p>Ανέβασε εικόνα, πάρε το URL και βάλ’ το στα προϊόντα.</p>
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 4 – IMAGE UPLOAD                                    %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <section id="tab-upload" class="admin-block">
+        <h2>Ανέβασμα εικόνας</h2>
+        <p class="helper">Ανεβάστε μια εικόνα στον server και αντιγράψτε το URL της για να το χρησιμοποιήσετε στα προϊόντα σας.</p>
         <form id="upload-form" enctype="multipart/form-data">
-          <input type="file" name="image" accept="image/*" <%= permissions.canUploadMedia ? '' : 'disabled' %> required />
-          <input type="password" name="password" placeholder="Admin password" <%= permissions.canUploadMedia ? 'required' : 'disabled' %> />
-          <button class="button" type="submit" <%= permissions.canUploadMedia ? '' : 'disabled' %>>Upload</button>
+          <input type="file" name="image" accept="image/*"
+                 <%= permissions.canUploadMedia ? '' : 'disabled' %> required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή"
+                 <%= permissions.canUploadMedia ? 'required' : 'disabled' %> />
+          <button class="button" type="submit"
+                  <%= permissions.canUploadMedia ? '' : 'disabled' %>>Ανέβασμα</button>
         </form>
         <p id="upload-result"></p>
+        <% if (!permissions.canUploadMedia) { %>
+          <p class="helper">Το ανέβασμα εικόνων διαχειρίζεται η ομάδα Thronos Commerce.</p>
+        <% } %>
       </section>
 
-      <form id="tab-products" class="admin-block" method="POST" action="/admin/products">
-        <h2>Προϊόντα (JSON)</h2>
-        <p>Επεξεργάσου τη λίστα προϊόντων ως JSON array.</p>
-        <textarea name="productsJson" rows="18" <%= permissions.canEditProducts ? '' : 'readonly' %>><%= productsJson %></textarea>
-        <label><span>Κωδικός διαχειριστή</span>
-          <input type="password" name="password" <%= permissions.canEditProducts ? 'required' : 'disabled' %> />
-        </label>
-        <button type="submit" class="button" <%= permissions.canEditProducts ? '' : 'disabled' %>>
-          Αποθήκευση προϊόντων
-        </button>
-      </form>
     </main>
 
+
+    <%# ══════════════════════════════════════════════════════════ %>
+    <%#   PRODUCT MODAL                                           %>
+    <%# ══════════════════════════════════════════════════════════ %>
+    <div class="modal-overlay" id="product-modal">
+      <div class="modal-box">
+        <h3 id="modal-title">Προϊόν</h3>
+        <div class="modal-grid">
+          <label class="full"><span>Όνομα προϊόντος *</span>
+            <input type="text" id="f-name" placeholder="π.χ. Δερμάτινη τσάντα" />
+          </label>
+          <label><span>Κωδικός (id) *</span>
+            <input type="text" id="f-id" placeholder="π.χ. bag-001" />
+          </label>
+          <label><span>SKU</span>
+            <input type="text" id="f-sku" placeholder="π.χ. SKU-123" />
+          </label>
+          <label><span>Τιμή (€) *</span>
+            <input type="number" id="f-price" min="0" step="0.01" placeholder="0.00" />
+          </label>
+          <label><span>Απόθεμα</span>
+            <input type="number" id="f-stock" min="0" step="1" placeholder="0" />
+          </label>
+          <label class="full"><span>Κατηγορία (categoryId)</span>
+            <select id="f-category">
+              <option value="">– Χωρίς κατηγορία –</option>
+              <% categories.forEach(function(cat){ %>
+                <option value="<%= cat.id %>"><%= cat.name %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label class="full"><span>URL εικόνας</span>
+            <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
+          </label>
+          <label class="full"><span>Περιγραφή</span>
+            <textarea id="f-description" rows="3" placeholder="Σύντομη περιγραφή προϊόντος..."></textarea>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="button" type="button" id="modal-cancel"
+                  style="background:#eee;color:#333;">Ακύρωση</button>
+          <button class="button" type="button" id="modal-save">Αποθήκευση</button>
+        </div>
+      </div>
+    </div>
+
+
     <script>
-      const uploadForm = document.getElementById("upload-form");
-      const uploadResult = document.getElementById("upload-result");
+      // ── Products data (server-rendered) ────────────────────────
+      let products = <%- productsJson %>;
+      const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
+
+      // ── Render table ────────────────────────────────────────────
+      function renderTable() {
+        const tbody = document.getElementById('products-tbody');
+        if (!products.length) {
+          tbody.innerHTML = '<tr><td colspan="' + (canEdit ? 6 : 5) + '" style="color:#888;font-style:italic;">Δεν υπάρχουν προϊόντα ακόμα.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = products.map((p, i) => {
+          const img = p.imageUrl
+            ? '<img class="thumb" src="' + escHtml(p.imageUrl) + '" alt="" loading="lazy">'
+            : '<span class="no-img"></span>';
+          const editBtn = canEdit
+            ? '<button class="btn-sm edit" type="button" onclick="openEdit(' + i + ')">Επεξεργασία</button> ' +
+              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">Διαγραφή</button>'
+            : '';
+          return '<tr>' +
+            '<td>' + img + '</td>' +
+            '<td>' + escHtml(p.name || '') + '</td>' +
+            '<td>' + (p.price !== undefined ? Number(p.price).toFixed(2) : '–') + '</td>' +
+            '<td>' + escHtml(p.sku || '') + '</td>' +
+            '<td>' + escHtml(p.categoryId || '') + '</td>' +
+            (canEdit ? '<td>' + editBtn + '</td>' : '') +
+            '</tr>';
+        }).join('');
+      }
+
+      function escHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      // ── Modal logic ─────────────────────────────────────────────
+      let editingIdx = -1; // -1 = new product
+
+      const modal    = document.getElementById('product-modal');
+      const fName    = document.getElementById('f-name');
+      const fId      = document.getElementById('f-id');
+      const fSku     = document.getElementById('f-sku');
+      const fPrice   = document.getElementById('f-price');
+      const fStock   = document.getElementById('f-stock');
+      const fCat     = document.getElementById('f-category');
+      const fImg     = document.getElementById('f-imageUrl');
+      const fDesc    = document.getElementById('f-description');
+      const mTitle   = document.getElementById('modal-title');
+
+      function openAdd() {
+        editingIdx = -1;
+        mTitle.textContent = 'Νέο προϊόν';
+        fName.value = ''; fId.value = ''; fSku.value = '';
+        fPrice.value = ''; fStock.value = '1';
+        fCat.value = ''; fImg.value = ''; fDesc.value = '';
+        modal.classList.add('open');
+        fName.focus();
+      }
+
+      function openEdit(i) {
+        editingIdx = i;
+        const p = products[i];
+        mTitle.textContent = 'Επεξεργασία: ' + (p.name || '');
+        fName.value  = p.name || '';
+        fId.value    = p.id || '';
+        fSku.value   = p.sku || '';
+        fPrice.value = p.price !== undefined ? p.price : '';
+        fStock.value = p.stock !== undefined ? p.stock : '';
+        fCat.value   = p.categoryId || '';
+        fImg.value   = p.imageUrl || '';
+        fDesc.value  = p.description || '';
+        modal.classList.add('open');
+        fName.focus();
+      }
+
+      function closeModal() { modal.classList.remove('open'); }
+
+      document.getElementById('modal-cancel').addEventListener('click', closeModal);
+      modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+
+      document.getElementById('modal-save').addEventListener('click', function() {
+        const name = fName.value.trim();
+        const id   = fId.value.trim();
+        if (!name || !id) {
+          alert('Το όνομα και ο κωδικός είναι υποχρεωτικά.');
+          return;
+        }
+        const product = {
+          id,
+          name,
+          sku:         fSku.value.trim() || undefined,
+          price:       parseFloat(fPrice.value) || 0,
+          stock:       parseInt(fStock.value, 10) || 0,
+          categoryId:  fCat.value || undefined,
+          imageUrl:    fImg.value.trim() || undefined,
+          description: fDesc.value.trim() || undefined
+        };
+        // Remove undefined fields
+        Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);
+
+        if (editingIdx === -1) {
+          products.push(product);
+        } else {
+          products[editingIdx] = product;
+        }
+        closeModal();
+        renderTable();
+      });
+
+      function deleteProduct(i) {
+        if (!confirm('Σίγουρα θέλετε να διαγράψετε το προϊόν "' + (products[i].name || i) + '";')) return;
+        products.splice(i, 1);
+        renderTable();
+      }
+
+      // ── Add button ──────────────────────────────────────────────
+      const btnAdd = document.getElementById('btn-add-product');
+      if (btnAdd) btnAdd.addEventListener('click', openAdd);
+
+      // ── Serialize before submit ─────────────────────────────────
+      const saveForm = document.getElementById('products-save-form');
+      if (saveForm) {
+        saveForm.addEventListener('submit', function() {
+          document.getElementById('products-json-input').value = JSON.stringify(products);
+        });
+      }
+
+      // ── Initial render ──────────────────────────────────────────
+      renderTable();
+
+
+      // ── Image upload ────────────────────────────────────────────
+      const uploadForm   = document.getElementById('upload-form');
+      const uploadResult = document.getElementById('upload-result');
 
       if (uploadForm) {
-        uploadForm.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          uploadResult.textContent = "Uploading...";
-
+        uploadForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          uploadResult.textContent = 'Ανέβασμα σε εξέλιξη...';
           const formData = new FormData(uploadForm);
-          const response = await fetch("/admin/upload-image", {
-            method: "POST",
-            body: formData
-          });
+          const response = await fetch('/admin/upload-image', { method: 'POST', body: formData });
           const json = await response.json();
           if (json.ok) {
-            uploadResult.innerHTML = 'Upload OK: <code>' + json.url + '</code>';
+            uploadResult.innerHTML = 'Το ανέβασμα ολοκληρώθηκε! URL: <code>' + json.url + '</code>';
           } else {
-            uploadResult.textContent = json.error || "Upload failed.";
+            uploadResult.textContent = json.error || 'Σφάλμα κατά το ανέβασμα.';
           }
         });
       }

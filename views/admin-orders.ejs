@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Παραγγελίες – <%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+        --menu-bg: <%= (config.theme && config.theme.menuBg) || '#111' %>;
+        --menu-text: <%= (config.theme && config.theme.menuText) || '#fff' %>;
+        --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
+        --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
+        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+      }
+
+      .orders-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+      .orders-table th, .orders-table td {
+        text-align: left; padding: 9px 12px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .orders-table th { background: #f5f5f5; font-weight: 600; white-space: nowrap; }
+      .orders-table tr:hover td { background: #fafafa; }
+
+      .status-badge {
+        display: inline-block; padding: 2px 8px; border-radius: 20px;
+        font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+      }
+      .status-PENDING_COD    { background: #fff3cd; color: #7a5c00; }
+      .status-PENDING_STRIPE { background: #cce5ff; color: #004085; }
+      .status-PAID           { background: #d4edda; color: #155724; }
+      .status-CANCELLED      { background: #f8d7da; color: #721c24; }
+
+      .helper { font-size: 0.82rem; color: #666; margin: 0 0 14px; }
+      .empty-msg { color: #888; font-style: italic; padding: 20px 0; }
+
+      .fullops-banner {
+        background: #fff3cd; border: 1px solid #ffc107;
+        border-radius: 6px; padding: 14px 18px; margin-bottom: 20px;
+        font-size: 0.95rem; line-height: 1.5; color: #5a4200;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Thronos Commerce · Παραγγελίες</h1>
+      <p class="subtitle">
+        Κατάστημα: <strong><%= tenant.id %></strong>
+        &nbsp;·&nbsp;
+        Πακέτο: <strong><%= tenant.supportTier %></strong>
+        &nbsp;·&nbsp;
+        <a href="/admin" style="font-size:0.85rem">Ρυθμίσεις</a>
+        &nbsp;|&nbsp;
+        <a href="/admin/orders" style="font-size:0.85rem">Παραγγελίες</a>
+        &nbsp;|&nbsp;
+        <a href="/" style="font-size:0.85rem">Κατάστημα ↗</a>
+      </p>
+    </header>
+
+    <main class="admin-layout">
+
+      <% if (tenant.supportTier === 'FULL_OPS_START') { %>
+      <div class="fullops-banner">
+        <strong>Πρόγραμμα Full Ops ενεργό.</strong><br>
+        Το κατάστημά σας βρίσκεται σε πρόγραμμα Full Ops – η ομάδα Thronos Commerce
+        αναλαμβάνει όλες τις αλλαγές. Επικοινωνήστε μαζί μας για ενημερώσεις.
+      </div>
+      <% } %>
+
+      <nav class="admin-tabs">
+        <a href="/admin">Εμφάνιση &amp; Ρυθμίσεις</a>
+        <a href="/admin#tab-categories">Κατηγορίες</a>
+        <a href="/admin#tab-products">Προϊόντα</a>
+        <a href="/admin#tab-upload">Εικόνες</a>
+        <a href="/admin/orders" class="active">Παραγγελίες</a>
+      </nav>
+
+      <section class="admin-block">
+        <h2>Ιστορικό παραγγελιών</h2>
+        <p class="helper">
+          Εμφανίζονται οι τελευταίες <%= orders.length %> παραγγελίες.
+          Η κατάσταση πληρωμής ενημερώνεται αυτόματα.
+        </p>
+
+        <% if (orders.length === 0) { %>
+          <p class="empty-msg">Δεν υπάρχουν παραγγελίες ακόμα. Όταν γίνει η πρώτη παραγγελία θα εμφανιστεί εδώ.</p>
+        <% } else { %>
+        <div style="overflow-x:auto;">
+          <table class="orders-table">
+            <thead>
+              <tr>
+                <th>Ημερομηνία</th>
+                <th>Κωδικός παραγγελίας</th>
+                <th>Προϊόν</th>
+                <th>Σύνολο (€)</th>
+                <th>Αποστολή</th>
+                <th>Πληρωμή</th>
+                <th>Κατάσταση</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% orders.forEach(function(order) { %>
+                <tr>
+                  <td style="white-space:nowrap;">
+                    <% const d = new Date(order.createdAt); %>
+                    <%= d.toLocaleDateString('el-GR') %>
+                    <br><small style="color:#888;"><%= d.toLocaleTimeString('el-GR', {hour:'2-digit',minute:'2-digit'}) %></small>
+                  </td>
+                  <td><code style="font-size:0.78rem;"><%= order.id %></code></td>
+                  <td><%= order.productName || '–' %></td>
+                  <td><strong><%= typeof order.total === 'number' ? order.total.toFixed(2) : '–' %></strong></td>
+                  <td><%= order.shippingMethodLabel || order.shippingMethodId || '–' %></td>
+                  <td><%= order.paymentMethodLabel  || order.paymentMethodId  || '–' %></td>
+                  <td>
+                    <span class="status-badge status-<%= order.paymentStatus || 'PENDING_COD' %>">
+                      <%
+                        const statusLabels = {
+                          PENDING_COD:    'Αναμονή (Αντικαταβολή)',
+                          PENDING_STRIPE: 'Αναμονή πληρωμής',
+                          PAID:           'Πληρώθηκε',
+                          CANCELLED:      'Ακυρώθηκε'
+                        };
+                      %>
+                      <%= statusLabels[order.paymentStatus] || order.paymentStatus || '–' %>
+                    </span>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </section>
+
+    </main>
+  </body>
+</html>
