@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Thronos Root Admin – Tenants</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --accent-color: #5b6af5;
+        --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      body { font-family: var(--font-family); background: #f4f6fb; color: #1a1a2e; margin: 0; }
+
+      header {
+        background: #1a1a2e; color: #fff; padding: 18px 28px;
+        display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+      }
+      header h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.02em; }
+      header .badge {
+        background: #5b6af5; color: #fff; border-radius: 4px;
+        padding: 2px 10px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+      }
+      header a { color: #a0aec0; font-size: 0.82rem; text-decoration: none; }
+      header a:hover { color: #fff; }
+
+      .root-layout { max-width: 1100px; margin: 28px auto; padding: 0 20px 60px; }
+
+      .flash { padding: 12px 18px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
+      .flash.success { background: #d4edda; border: 1px solid #b8dfc4; color: #155724; }
+      .flash.error   { background: #f8d7da; border: 1px solid #f1b0b7; color: #721c24; }
+
+      /* ── Section card ── */
+      .card {
+        background: #fff; border-radius: 10px; padding: 24px 28px;
+        box-shadow: 0 2px 12px rgba(0,0,0,.07); margin-bottom: 24px;
+      }
+      .card h2 { margin: 0 0 4px; font-size: 1.05rem; }
+      .card .helper { font-size: 0.82rem; color: #666; margin: 0 0 18px; }
+
+      /* ── Tenants table ── */
+      .tenants-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+      .tenants-table th, .tenants-table td {
+        padding: 9px 12px; text-align: left; border-bottom: 1px solid #eee;
+      }
+      .tenants-table th { background: #f0f2fa; font-weight: 600; white-space: nowrap; }
+      .tenants-table tr:hover td { background: #fafbff; }
+
+      .tier-badge {
+        display: inline-block; padding: 2px 8px; border-radius: 20px;
+        font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+      }
+      .tier-SELF_SERVICE     { background: #e3f0ff; color: #1a56db; }
+      .tier-MANAGEMENT_START { background: #fef3c7; color: #92400e; }
+      .tier-FULL_OPS_START   { background: #d1fae5; color: #065f46; }
+
+      .active-yes { color: #065f46; font-weight: 600; }
+      .active-no  { color: #9f1239; font-weight: 600; }
+
+      /* ── Forms ── */
+      .form-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px; margin-bottom: 16px;
+      }
+      .form-grid .full { grid-column: 1 / -1; }
+      .form-grid label { display: flex; flex-direction: column; gap: 5px;
+                         font-size: 0.84rem; font-weight: 500; }
+      .form-grid input, .form-grid select {
+        padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+        font-size: 0.88rem; background: #fff;
+      }
+      .form-grid input:focus, .form-grid select:focus {
+        outline: none; border-color: var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(91,106,245,.12);
+      }
+      .form-grid .hint { font-size: 0.76rem; color: #888; margin-top: 2px; }
+
+      .form-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .btn {
+        display: inline-block; padding: 8px 20px; border-radius: 6px; font-size: 0.88rem;
+        font-weight: 600; cursor: pointer; border: none; transition: opacity .15s;
+      }
+      .btn:hover { opacity: 0.87; }
+      .btn-primary { background: var(--accent-color); color: #fff; }
+      .btn-warning { background: #f59e0b; color: #fff; }
+      .btn-danger  { background: #ef4444; color: #fff; }
+
+      .root-pass-note {
+        font-size: 0.78rem; color: #888;
+        border-top: 1px dashed #ddd; margin-top: 20px; padding-top: 14px;
+      }
+
+      /* ── Collapsible form sections ── */
+      details { margin-top: 10px; }
+      details summary {
+        cursor: pointer; font-weight: 600; font-size: 0.92rem;
+        color: var(--accent-color); list-style: none; padding: 4px 0;
+      }
+      details summary::-webkit-details-marker { display: none; }
+      details summary::before { content: '▶ '; font-size: 0.7rem; }
+      details[open] summary::before { content: '▼ '; font-size: 0.7rem; }
+      details .detail-body { padding: 16px 0 4px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Thronos Commerce</h1>
+      <span class="badge">ROOT ADMIN</span>
+      <span style="flex:1"></span>
+      <a href="/">← Storefront</a>
+    </header>
+
+    <div class="root-layout">
+
+      <% if (message) { %>
+        <div class="flash success"><%= message %></div>
+      <% } %>
+      <% if (error) { %>
+        <div class="flash error"><%= error %></div>
+      <% } %>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TENANTS TABLE                                           %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Tenants (<%= tenants.length %>)</h2>
+        <p class="helper">Όλα τα καταστήματα που είναι εγγεγραμμένα στην πλατφόρμα.</p>
+
+        <% if (tenants.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants ακόμα.</p>
+        <% } else { %>
+        <div style="overflow-x:auto;">
+          <table class="tenants-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Domain</th>
+                <th>Πακέτο</th>
+                <th>Ενεργό</th>
+                <th>Δημιουργία</th>
+                <th>Admin hash</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% tenants.forEach(function(t) { %>
+              <tr>
+                <td><code><%= t.id %></code></td>
+                <td><%= t.domain || '–' %></td>
+                <td><span class="tier-badge tier-<%= t.supportTier %>"><%= t.supportTier %></span></td>
+                <td>
+                  <% if (t.active) { %>
+                    <span class="active-yes">✓ Ναι</span>
+                  <% } else { %>
+                    <span class="active-no">✗ Όχι</span>
+                  <% } %>
+                </td>
+                <td style="white-space:nowrap;font-size:0.8rem;color:#666;">
+                  <% if (t.createdAt) { %>
+                    <%= new Date(t.createdAt).toLocaleDateString('el-GR') %>
+                  <% } else { %>–<% } %>
+                </td>
+                <td style="font-size:0.74rem;color:#999;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  <%= t.adminPasswordHash ? t.adminPasswordHash.slice(0, 20) + '…' : '–' %>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   CREATE TENANT                                           %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Δημιουργία νέου tenant</h2>
+        <p class="helper">
+          Συμπληρώστε τα στοιχεία του νέου καταστήματος. Τα αρχεία config/products/categories
+          θα δημιουργηθούν αυτόματα από το template που επιλέξετε.
+        </p>
+
+        <form method="POST" action="/root/tenants/create">
+          <div class="form-grid">
+            <label>
+              Tenant ID *
+              <input type="text" name="id" placeholder="π.χ. myshop" required
+                     pattern="[a-zA-Z0-9_-]+" title="Μόνο γράμματα, αριθμοί, _ και -" />
+              <span class="hint">Μοναδικό αναγνωριστικό (a-z, 0-9, -, _)</span>
+            </label>
+
+            <label>
+              Domain
+              <input type="text" name="domain" placeholder="π.χ. myshop.gr" />
+              <span class="hint">Το hostname για tenant resolution</span>
+            </label>
+
+            <label>
+              Πακέτο υποστήριξης
+              <select name="supportTier">
+                <option value="SELF_SERVICE">SELF_SERVICE</option>
+                <option value="MANAGEMENT_START">MANAGEMENT_START</option>
+                <option value="FULL_OPS_START">FULL_OPS_START</option>
+              </select>
+            </label>
+
+            <label>
+              Template (αντιγραφή από)
+              <select name="templateId">
+                <% tenants.forEach(function(t) { %>
+                  <option value="<%= t.id %>" <%= t.id === 'demo' ? 'selected' : '' %>><%= t.id %></option>
+                <% }) %>
+                <% if (tenants.length === 0) { %>
+                  <option value="demo">demo (προεπιλογή)</option>
+                <% } %>
+              </select>
+              <span class="hint">Αντιγράφονται config / products / categories</span>
+            </label>
+
+            <label>
+              Κωδικός admin *
+              <input type="text" name="adminPasswordPlain" required autocomplete="new-password"
+                     placeholder="Αρχικός κωδικός για τον ιδιοκτήτη" />
+              <span class="hint">Θα αποθηκευτεί ως bcrypt hash</span>
+            </label>
+
+            <label class="full">
+              Root κωδικός *
+              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">+ Δημιουργία tenant</button>
+          </div>
+        </form>
+      </div>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   UPDATE TENANT                                           %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Ενημέρωση tenant</h2>
+        <p class="helper">Αλλαγή domain, πακέτου υποστήριξης ή κατάστασης ενεργοποίησης.</p>
+
+        <% if (tenants.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants για ενημέρωση.</p>
+        <% } else { %>
+        <form method="POST" action="/root/tenants/update" id="update-form">
+          <div class="form-grid">
+            <label>
+              Tenant
+              <select name="tenantId" id="update-tenant-select" onchange="prefillUpdate(this)">
+                <% tenants.forEach(function(t) { %>
+                  <option value="<%= t.id %>"
+                    data-domain="<%= t.domain || '' %>"
+                    data-tier="<%= t.supportTier %>"
+                    data-active="<%= t.active ? 'true' : 'false' %>">
+                    <%= t.id %>
+                  </option>
+                <% }) %>
+              </select>
+            </label>
+
+            <label>
+              Domain
+              <input type="text" name="domain" id="update-domain" placeholder="π.χ. myshop.gr" />
+            </label>
+
+            <label>
+              Πακέτο υποστήριξης
+              <select name="supportTier" id="update-tier">
+                <option value="SELF_SERVICE">SELF_SERVICE</option>
+                <option value="MANAGEMENT_START">MANAGEMENT_START</option>
+                <option value="FULL_OPS_START">FULL_OPS_START</option>
+              </select>
+            </label>
+
+            <label>
+              Κατάσταση
+              <select name="active" id="update-active">
+                <option value="true">Ενεργό</option>
+                <option value="false">Ανενεργό</option>
+              </select>
+            </label>
+
+            <label class="full">
+              Root κωδικός *
+              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-warning" type="submit">Ενημέρωση</button>
+          </div>
+        </form>
+        <% } %>
+      </div>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   RESET ADMIN PASSWORD                                    %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Επαναφορά κωδικού admin</h2>
+        <p class="helper">Ορίστε νέο κωδικό για τον admin ενός tenant. Θα αποθηκευτεί ως bcrypt hash.</p>
+
+        <% if (tenants.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
+        <% } else { %>
+        <form method="POST" action="/root/tenants/reset-admin-password">
+          <div class="form-grid">
+            <label>
+              Tenant
+              <select name="tenantId">
+                <% tenants.forEach(function(t) { %>
+                  <option value="<%= t.id %>"><%= t.id %></option>
+                <% }) %>
+              </select>
+            </label>
+
+            <label>
+              Νέος κωδικός admin *
+              <input type="text" name="newPassword" required autocomplete="new-password"
+                     placeholder="Νέος κωδικός" />
+            </label>
+
+            <label class="full">
+              Root κωδικός *
+              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-danger" type="submit">Επαναφορά κωδικού</button>
+          </div>
+        </form>
+        <% } %>
+      </div>
+
+
+      <div class="root-pass-note">
+        <strong>Σημείωση ασφαλείας:</strong> Το root password ορίζεται μέσω της env μεταβλητής
+        <code>THRONOS_ROOT_ADMIN_PASSWORD</code>. Χωρίς αυτή, κανένα root action δεν εκτελείται.
+        Μην μοιραστείτε αυτό το URL ή τον κωδικό.
+      </div>
+
+    </div><%# /root-layout %>
+
+    <script>
+      // Pre-fill the update form when a tenant is selected
+      const tenantData = {
+        <% tenants.forEach(function(t, i) { %>
+          "<%= t.id %>": {
+            domain: "<%- (t.domain || '').replace(/"/g, '\\"') %>",
+            tier: "<%= t.supportTier %>",
+            active: <%= t.active ? 'true' : 'false' %>
+          }<%= i < tenants.length - 1 ? ',' : '' %>
+        <% }) %>
+      };
+
+      function prefillUpdate(select) {
+        const d = tenantData[select.value];
+        if (!d) return;
+        document.getElementById('update-domain').value = d.domain;
+        const tierSel = document.getElementById('update-tier');
+        for (let i = 0; i < tierSel.options.length; i++) {
+          if (tierSel.options[i].value === d.tier) { tierSel.selectedIndex = i; break; }
+        }
+        const activeSel = document.getElementById('update-active');
+        for (let i = 0; i < activeSel.options.length; i++) {
+          if ((activeSel.options[i].value === 'true') === d.active) { activeSel.selectedIndex = i; break; }
+        }
+      }
+
+      // Pre-fill on page load
+      const sel = document.getElementById('update-tenant-select');
+      if (sel) prefillUpdate(sel);
+    </script>
+  </body>
+</html>
