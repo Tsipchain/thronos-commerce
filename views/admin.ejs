@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin – <%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+      }
+      main { max-width: 960px; margin: 0 auto; }
+      form.admin-block {
+        border: 1px solid #ddd;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        background: #fff;
+      }
+      form.admin-block h2 { margin-top: 0; }
+      label span {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+      }
+      input[type="text"],
+      input[type="password"],
+      textarea {
+        width: 100%;
+        padding: 0.4rem;
+        margin-bottom: 0.6rem;
+      }
+      .message { color: green; margin-bottom: 1rem; }
+      .error { color: red; margin-bottom: 1rem; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo-title">
+        <h1>Thronos Commerce – Admin</h1>
+      </div>
+    </header>
+
+    <main>
+      <% if (message) { %>
+        <div class="message"><%= message %></div>
+      <% } %>
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <form class="admin-block" method="POST" action="/admin/settings">
+        <h2>Ρυθμίσεις Καταστήματος</h2>
+
+        <label>
+          <span>Όνομα καταστήματος</span>
+          <input type="text" name="storeName" value="<%= config.storeName %>" />
+        </label>
+
+        <label>
+          <span>Κύριο χρώμα (primaryColor)</span>
+          <input type="text" name="primaryColor" value="<%= config.primaryColor %>" />
+        </label>
+
+        <label>
+          <span>Δευτερεύον χρώμα (accentColor)</span>
+          <input type="text" name="accentColor" value="<%= config.accentColor %>" />
+        </label>
+
+        <label>
+          <span>Font family</span>
+          <input type="text" name="fontFamily" value="<%= config.fontFamily %>" />
+        </label>
+
+        <label>
+          <span>Hero κείμενο (κεντρικό μήνυμα)</span>
+          <input type="text" name="heroText" value="<%= config.heroText %>" />
+        </label>
+
+        <label>
+          <span>Web3 domain (π.χ. fashionmm.thr)</span>
+          <input type="text" name="web3Domain" value="<%= config.web3Domain %>" />
+        </label>
+
+        <label>
+          <span>Logo path (π.χ. /images/fashionmm-logo.png)</span>
+          <input type="text" name="logoPath" value="<%= config.logoPath %>" />
+        </label>
+
+        <label>
+          <span>Κωδικός διαχειριστή</span>
+          <input type="password" name="password" required />
+        </label>
+
+        <button type="submit" class="button">Αποθήκευση ρυθμίσεων</button>
+      </form>
+
+      <form class="admin-block" method="POST" action="/admin/products">
+        <h2>Προϊόντα (JSON)</h2>
+        <p>Επεξεργάσου τη λίστα προϊόντων ως JSON array.</p>
+
+        <textarea name="productsJson" rows="18"><%= productsJson %></textarea>
+
+        <label>
+          <span>Κωδικός διαχειριστή</span>
+          <input type="password" name="password" required />
+        </label>
+
+        <button type="submit" class="button">Αποθήκευση προϊόντων</button>
+      </form>
+    </main>
+
+    <footer>
+      <p>Thronos Commerce · Admin panel</p>
+    </footer>
+  </body>
+</html>
