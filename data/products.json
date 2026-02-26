@@ -1,0 +1,62 @@
+[
+  {
+    "id": "bag1",
+    "name": "Handmade Tote Bag",
+    "price": 45.00,
+    "description": "A spacious, stylish tote bag handmade with premium materials. Perfect for everyday use."
+  },
+  {
+    "id": "bag2",
+    "name": "Handmade Crossbody Bag",
+    "price": 55.00,
+    "description": "A chic crossbody bag with adjustable strap and multiple pockets, crafted by hand."
+  },
+  {
+    "id": "bag3",
+    "name": "Handmade Backpack",
+    "price": 65.00,
+    "description": "A durable handmade backpack featuring a unique design and plenty of storage space."
+  },
+  {
+    "id": "bag4",
+    "name": "Mini Shoulder Bag",
+    "price": 50.00,
+    "description": "A compact handmade shoulder bag ideal for carrying essentials on the go."
+  },
+  {
+    "id": "bag5",
+    "name": "Classic Handbag",
+    "price": 60.00,
+    "description": "A timeless handmade handbag with elegant lines and quality craftsmanship."
+  },
+  {
+    "id": "bag6",
+    "name": "Vintage Messenger Bag",
+    "price": 70.00,
+    "description": "A vintage-inspired handmade messenger bag made from sturdy canvas and leather."
+  },
+  {
+    "id": "bag7",
+    "name": "Stylish Clutch",
+    "price": 40.00,
+    "description": "A handmade clutch bag perfect for evening events, featuring fine detailing and a secure clasp."
+  },
+  {
+    "id": "bag8",
+    "name": "Eco-Friendly Shopper",
+    "price": 35.00,
+    "description": "A handmade eco-friendly shopping bag crafted from sustainable materials."
+  },
+  {
+    "id": "bag9",
+    "name": "Convertible Daypack",
+    "price": 75.00,
+    "description": "A versatile handmade daypack that converts from a backpack to a tote bag with ease."
+  },
+  {
+    "id": "bag10",
+    "name": "Limited Edition Satchel",
+    "price": 80.00,
+    "description": "A limited-edition handmade satchel bag that combines functionality with exclusive design elements."
+  }
+]

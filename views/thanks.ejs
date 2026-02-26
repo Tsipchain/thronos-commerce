@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thank You – Thronos Commerce Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Thank you for your order!</h1>
+    </header>
+    <main>
+      <p>Dear <strong><%= order.name %></strong>, thank you for purchasing the <strong><%= order.product.name %></strong>.</p>
+      <p>We will contact you at <strong><%= order.email %></strong> with the next steps for delivery.</p>
+      <p class="back-link"><a href="/">&larr; Back to home</a></p>
+    </main>
+    <footer>
+      <p>&copy; <%= new Date().getFullYear() %> Thronos Commerce Demo.</p>
+    </footer>
+  </body>
+</html>

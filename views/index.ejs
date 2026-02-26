@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thronos Commerce Demo Store</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Thronos Commerce Demo Store</h1>
+    </header>
+    <main>
+      <h2>Products</h2>
+      <p>Below is a list of the available handmade bags.  Click on a product to view details and place an order.</p>
+      <ul class="product-list">
+        <% products.forEach((p) => { %>
+          <li>
+            <a href="/product/<%= p.id %>"><strong><%= p.name %></strong></a>
+            <span class="price">€<%= p.price.toFixed(2) %></span>
+          </li>
+        <% }); %>
+      </ul>
+    </main>
+    <footer>
+      <p>&copy; <%= new Date().getFullYear() %> Thronos Commerce Demo.  All rights reserved.</p>
+    </footer>
+  </body>
+</html>
