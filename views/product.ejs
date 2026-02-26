@@ -1,34 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title><%= product.name %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= product.name %> – Thronos Commerce Demo</title>
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+      }
+    </style>
   </head>
   <body>
     <header>
-      <h1><%= product.name %></h1>
+      <div class="logo-title">
+        <% if (config.logoPath) { %>
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+        <% } %>
+        <h1><%= config.storeName %></h1>
+      </div>
     </header>
-    <main>
-      <p class="description"><%= product.description %></p>
-      <p class="price-label">Price:</p>
-      <p class="price-value">€<%= product.price.toFixed(2) %></p>
 
-      <h3>Order this product</h3>
-      <form method="post" action="/checkout">
-        <input type="hidden" name="product" value="<%= product.id %>" />
-        <label for="name">Your Name:</label><br />
-        <input type="text" id="name" name="name" required /><br />
-        <label for="email">Email:</label><br />
-        <input type="email" id="email" name="email" required /><br />
-        <button type="submit">Place Order</button>
-      </form>
-      <p class="back-link"><a href="/">&larr; Back to products</a></p>
+    <main>
+      <article class="product-detail">
+        <h2><%= product.name %></h2>
+        <p><%= product.description %></p>
+        <p class="price"><%= product.price.toFixed(2) %> €</p>
+
+        <form action="/checkout" method="POST" class="checkout-form">
+          <input type="hidden" name="productId" value="<%= product.id %>" />
+
+          <label>
+            Ονοματεπώνυμο
+            <input type="text" name="name" required />
+          </label>
+
+          <label>
+            Email
+            <input type="email" name="email" required />
+          </label>
+
+          <label>
+            Web3 Wallet (προαιρετικό)
+            <input type="text" name="wallet" placeholder="0x..." />
+          </label>
+
+          <label>
+            Σημειώσεις (π.χ. χρώμα, παραλλαγές)
+            <textarea name="notes" rows="3"></textarea>
+          </label>
+
+          <button type="submit" class="button">
+            Ολοκλήρωση παραγγελίας
+          </button>
+        </form>
+      </article>
     </main>
+
     <footer>
-      <p>&copy; <%= new Date().getFullYear() %> Thronos Commerce Demo.</p>
+      <p>Thronos Commerce · Order will receive blockchain proof hash</p>
     </footer>
   </body>
 </html>
