@@ -1,23 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Ευχαριστούμε – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thank You – Thronos Commerce Demo</title>
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+      }
+    </style>
   </head>
   <body>
     <header>
-      <h1>Thank you for your order!</h1>
+      <div class="logo-title">
+        <% if (config.logoPath) { %>
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+        <% } %>
+        <h1><%= config.storeName %></h1>
+      </div>
     </header>
+
     <main>
-      <p>Dear <strong><%= order.name %></strong>, thank you for purchasing the <strong><%= order.product.name %></strong>.</p>
-      <p>We will contact you at <strong><%= order.email %></strong> with the next steps for delivery.</p>
-      <p class="back-link"><a href="/">&larr; Back to home</a></p>
+      <section class="thank-you">
+        <h2>Ευχαριστούμε για την παραγγελία!</h2>
+        <p>Κωδικός παραγγελίας: <strong><%= order.id %></strong></p>
+        <p>Προϊόν: <strong><%= order.productName %></strong></p>
+        <p>Σύνολο: <strong><%= order.total.toFixed(2) %> €</strong></p>
+
+        <% if (order.wallet) { %>
+          <p>Δηλωμένο Web3 wallet: <code><%= order.wallet %></code></p>
+        <% } %>
+
+        <p class="hash">
+          Thronos blockchain proof hash:<br />
+          <code><%= proofHash %></code>
+        </p>
+
+        <p>Θα επικοινωνήσουμε μαζί σας μέσω email για επιβεβαίωση & αποστολή.</p>
+      </section>
     </main>
+
     <footer>
-      <p>&copy; <%= new Date().getFullYear() %> Thronos Commerce Demo.</p>
+      <p>Thronos Commerce · Web2 store με Web3 απόδειξη</p>
     </footer>
   </body>
 </html>
