@@ -1,30 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title><%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thronos Commerce Demo Store</title>
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+      }
+    </style>
   </head>
   <body>
     <header>
-      <h1>Thronos Commerce Demo Store</h1>
+      <div class="logo-title">
+        <% if (config.logoPath) { %>
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+        <% } %>
+        <div>
+          <h1><%= config.storeName %></h1>
+          <% if (config.web3Domain) { %>
+            <p class="subtitle">Web3 domain: <%= config.web3Domain %></p>
+          <% } %>
+        </div>
+      </div>
     </header>
+
     <main>
-      <h2>Products</h2>
-      <p>Below is a list of the available handmade bags.  Click on a product to view details and place an order.</p>
-      <ul class="product-list">
-        <% products.forEach((p) => { %>
-          <li>
-            <a href="/product/<%= p.id %>"><strong><%= p.name %></strong></a>
-            <span class="price">€<%= p.price.toFixed(2) %></span>
-          </li>
+      <section class="hero">
+        <p><%= config.heroText %></p>
+      </section>
+
+      <section class="product-list">
+        <% if (products.length === 0) { %>
+          <p>Δεν υπάρχουν ακόμα προϊόντα. Προσθέστε από το admin panel.</p>
+        <% } %>
+
+        <% products.forEach(function (product) { %>
+          <article class="product-card">
+            <h2><%= product.name %></h2>
+            <p><%= product.description %></p>
+            <p class="price"><%= product.price.toFixed(2) %> €</p>
+            <a class="button" href="/product/<%= product.id %>">Δείτε το προϊόν</a>
+          </article>
         <% }); %>
-      </ul>
+      </section>
     </main>
+
     <footer>
-      <p>&copy; <%= new Date().getFullYear() %> Thronos Commerce Demo.  All rights reserved.</p>
+      <p>Thronos Commerce · Web3 ready e-shops</p>
     </footer>
   </body>
 </html>
