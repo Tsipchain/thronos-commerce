@@ -71,6 +71,24 @@
       /* password row for product save */
       .save-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
       .save-row input[type=password] { flex: 1 1 180px; }
+
+      /* ── Shipping & Payment table ── */
+      .sp-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+      .sp-table th, .sp-table td {
+        padding: 8px 10px; text-align: left;
+        border-bottom: 1px solid #e0e0e0; font-size: 0.87rem;
+      }
+      .sp-table th { background: #f5f5f5; font-weight: 600; white-space: nowrap; }
+      .sp-table input[type=text],
+      .sp-table input[type=number] {
+        width: 100%; box-sizing: border-box;
+        padding: 5px 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.87rem;
+      }
+      .sp-table input:read-only { background: #f9f9f9; color: #888; cursor: not-allowed; }
+      .sp-badge {
+        display: inline-block; background: #e8f4fd; color: #1a73b8;
+        border-radius: 3px; padding: 1px 6px; font-size: 0.76rem; font-family: monospace;
+      }
     </style>
   </head>
   <body>
@@ -109,6 +127,7 @@
         <a href="#tab-categories">Κατηγορίες</a>
         <a href="#tab-products">Προϊόντα</a>
         <a href="#tab-upload">Εικόνες</a>
+        <a href="#tab-shipping">Μεταφορικά &amp; Πληρωμή</a>
         <a href="/admin/orders">Παραγγελίες</a>
       </nav>
 
@@ -345,6 +364,119 @@
         <% if (!permissions.canUploadMedia) { %>
           <p class="helper">Το ανέβασμα εικόνων διαχειρίζεται η ομάδα Thronos Commerce.</p>
         <% } %>
+      </section>
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 5 – SHIPPING & PAYMENT                              %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <section id="tab-shipping" class="admin-block">
+        <h2>Μεταφορικά &amp; Τρόποι Πληρωμής</h2>
+        <p class="helper">
+          Ορίστε τα κόστη αποστολής και τις χρεώσεις για κάθε τρόπο πληρωμής.
+          Οι κωδικοί (id), οι επιτρεπόμενοι συνδυασμοί και ο τύπος πληρωμής <strong>δεν αλλάζουν</strong> εδώ —
+          επικοινωνήστε με την ομάδα Thronos για δομικές αλλαγές.
+        </p>
+
+        <% if (!permissions.canEditSettings) { %>
+          <p class="helper">
+            Τα μεταφορικά διαχειρίζονται από την ομάδα Thronos Commerce στο πλαίσιο του πακέτου σας.
+          </p>
+        <% } %>
+
+        <form method="POST" action="/admin/shipping-payment">
+
+          <%# ── Shipping options ── %>
+          <h3>Τρόποι αποστολής</h3>
+          <% if ((config.shippingOptions || []).length === 0) { %>
+            <p class="helper" style="color:#888;">Δεν υπάρχουν τρόποι αποστολής στη διαμόρφωση.</p>
+          <% } else { %>
+          <table class="sp-table">
+            <thead>
+              <tr>
+                <th>Κωδικός (id)</th>
+                <th>Ετικέτα</th>
+                <th>Κόστος αποστολής (€)</th>
+                <th>Προσαύξηση αντικαταβολής (€)</th>
+                <th>Επιτρεπόμενες πληρωμές</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% (config.shippingOptions || []).forEach(function(opt, i) { %>
+              <tr>
+                <td><span class="sp-badge"><%= opt.id %></span></td>
+                <td>
+                  <input type="text" name="ship_label_<%= i %>"
+                         value="<%= opt.label || '' %>"
+                         <%= permissions.canEditSettings ? 'required' : 'readonly' %> />
+                </td>
+                <td>
+                  <input type="number" name="ship_base_<%= i %>"
+                         value="<%= opt.base !== undefined ? opt.base : 0 %>"
+                         min="0" step="0.01"
+                         <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                </td>
+                <td>
+                  <input type="number" name="ship_codFee_<%= i %>"
+                         value="<%= opt.codFee !== undefined ? opt.codFee : 0 %>"
+                         min="0" step="0.01"
+                         <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                </td>
+                <td>
+                  <% (opt.allowedPaymentMethods || []).forEach(function(pm) { %>
+                    <span class="sp-badge"><%= pm %></span>
+                  <% }) %>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <% } %>
+
+          <%# ── Payment options ── %>
+          <h3>Τρόποι πληρωμής</h3>
+          <% if ((config.paymentOptions || []).length === 0) { %>
+            <p class="helper" style="color:#888;">Δεν υπάρχουν τρόποι πληρωμής στη διαμόρφωση.</p>
+          <% } else { %>
+          <table class="sp-table">
+            <thead>
+              <tr>
+                <th>Κωδικός (id)</th>
+                <th>Ετικέτα</th>
+                <th>Τύπος</th>
+                <th>Προσαύξηση gateway (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% (config.paymentOptions || []).forEach(function(opt, i) { %>
+              <tr>
+                <td><span class="sp-badge"><%= opt.id %></span></td>
+                <td>
+                  <input type="text" name="pay_label_<%= i %>"
+                         value="<%= opt.label || '' %>"
+                         <%= permissions.canEditSettings ? 'required' : 'readonly' %> />
+                </td>
+                <td><span class="sp-badge"><%= opt.type || '–' %></span></td>
+                <td>
+                  <input type="number" name="pay_surcharge_<%= i %>"
+                         value="<%= opt.gatewaySurchargePercent !== undefined ? opt.gatewaySurchargePercent : 0 %>"
+                         min="0" step="0.001"
+                         <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <% } %>
+
+          <% if (permissions.canEditSettings) { %>
+          <div class="save-row">
+            <label style="flex:1 1 auto;font-size:0.86rem;">Κωδικός διαχειριστή:</label>
+            <input type="password" name="password" required placeholder="Κωδικός" />
+            <button type="submit" class="button">Αποθήκευση</button>
+          </div>
+          <% } %>
+
+        </form>
       </section>
 
     </main>
