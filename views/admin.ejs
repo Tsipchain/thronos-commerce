@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
-    <title>Διαχείριση – <%= config.storeName %></title>
+    <title><%= t('admin.tabTheme').split('&')[0].trim() %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
@@ -117,17 +117,17 @@
   </head>
   <body>
     <header>
-      <h1>Thronos Commerce · Διαχείριση</h1>
+      <h1><%= t('admin.headerTitle') %></h1>
       <p class="subtitle">
-        Κατάστημα: <strong><%= tenant.id %></strong>
+        <%= t('admin.store') %>: <strong><%= tenant.id %></strong>
         &nbsp;·&nbsp;
-        Πακέτο: <strong><%= tenant.supportTier %></strong>
+        <%= t('admin.package') %>: <strong><%= tenant.supportTier %></strong>
         &nbsp;·&nbsp;
-        <a href="/admin" style="font-size:0.85rem">Ρυθμίσεις</a>
+        <a href="/admin" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/admin/orders" style="font-size:0.85rem">Παραγγελίες</a>
+        <a href="/admin/orders" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/" style="font-size:0.85rem">Κατάστημα ↗</a>
+        <a href="/" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
       </p>
     </header>
 
@@ -136,9 +136,8 @@
       <%# ── Full-Ops banner ── %>
       <% if (tenant.supportTier === 'FULL_OPS_START') { %>
       <div class="fullops-banner">
-        <strong>Πρόγραμμα Full Ops ενεργό.</strong><br>
-        Το κατάστημά σας βρίσκεται σε πρόγραμμα Full Ops – η ομάδα Thronos Commerce
-        αναλαμβάνει όλες τις αλλαγές. Επικοινωνήστε μαζί μας για ενημερώσεις.
+        <strong><%= t('admin.fullOpsBanner') %></strong><br>
+        <%= t('admin.fullOpsText') %>
       </div>
       <% } %>
 
@@ -147,12 +146,12 @@
       <% if (error)   { %><p class="admin-msg error"><%= error %></p><% } %>
 
       <nav class="admin-tabs">
-        <a href="#tab-theme">Εμφάνιση &amp; Ρυθμίσεις</a>
-        <a href="#tab-categories">Κατηγορίες</a>
-        <a href="#tab-products">Προϊόντα</a>
-        <a href="#tab-upload">Εικόνες</a>
-        <a href="#tab-shipping">Μεταφορικά &amp; Πληρωμή</a>
-        <a href="/admin/orders">Παραγγελίες</a>
+        <a href="#tab-theme"><%= t('admin.tabTheme') %></a>
+        <a href="#tab-categories"><%= t('admin.tabCategories') %></a>
+        <a href="#tab-products"><%= t('admin.tabProducts') %></a>
+        <a href="#tab-upload"><%= t('admin.tabImages') %></a>
+        <a href="#tab-shipping"><%= t('admin.tabShipping') %></a>
+        <a href="/admin/orders"><%= t('admin.tabOrders') %></a>
       </nav>
 
 
@@ -160,15 +159,15 @@
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
       <form id="tab-theme" class="admin-block" method="POST" action="/admin/settings">
-        <h2>Εμφάνιση &amp; Ρυθμίσεις καταστήματος</h2>
-        <p class="helper">Αλλάξτε το όνομα, τα χρώματα και τα βασικά στοιχεία του καταστήματός σας.</p>
+        <h2><%= t('admin.themeTitle') %></h2>
+        <p class="helper"><%= t('admin.themeHelper') %></p>
 
-        <label><span>Όνομα καταστήματος</span>
+        <label><span><%= t('admin.storeName') %></span>
           <input type="text" name="storeName" value="<%= config.storeName %>"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>Κύριο χρώμα</span>
+        <label><span><%= t('admin.primaryColor') %></span>
           <div class="color-field">
             <input type="text" name="primaryColor" id="txt-primaryColor"
                    value="<%= config.primaryColor %>" placeholder="#222222"
@@ -178,7 +177,7 @@
           </div>
         </label>
 
-        <label><span>Χρώμα έμφασης</span>
+        <label><span><%= t('admin.accentColor') %></span>
           <div class="color-field">
             <input type="text" name="accentColor" id="txt-accentColor"
                    value="<%= config.accentColor %>" placeholder="#00ff88"
@@ -188,7 +187,7 @@
           </div>
         </label>
 
-        <label><span>Γραμματοσειρά</span>
+        <label><span><%= t('admin.fontFamily') %></span>
           <select name="fontFamily" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
               <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI (προεπιλογή)</option>
@@ -199,36 +198,36 @@
           </select>
         </label>
 
-        <label><span>Κείμενο banner αρχικής σελίδας</span>
+        <label><span><%= t('admin.heroTextLabel') %></span>
           <textarea name="heroText" rows="3"
                     <%= permissions.canEditSettings ? '' : 'readonly' %>><%= config.heroText %></textarea>
         </label>
 
-        <label><span>Web3 domain (προαιρετικό)</span>
+        <label><span><%= t('admin.web3DomainLabel') %></span>
           <input type="text" name="web3Domain" value="<%= config.web3Domain %>"
                  placeholder="π.χ. mystore.thr" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
 
-        <label><span>Διαδρομή λογότυπου</span>
+        <label><span><%= t('admin.logoPath') %></span>
           <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
                  placeholder="/logo.svg" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
-          <p class="helper" style="margin-bottom:5px;">Ή ανεβάστε νέο αρχείο logo απευθείας:</p>
+          <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
           <div class="logo-upload-row">
             <input type="file" id="logo-file" accept="image/*" />
-            <input type="password" id="logo-pass" placeholder="Κωδικός" style="width:130px;" />
-            <button type="button" class="btn-xs" id="logo-upload-btn">Ανέβασμα logo</button>
+            <input type="password" id="logo-pass" placeholder="<%= t('admin.logoPassPlaceholder') %>" style="width:130px;" />
+            <button type="button" class="btn-xs" id="logo-upload-btn"><%= t('admin.uploadLogoBtn') %></button>
           </div>
           <p id="logo-upload-status"></p>
         </div>
         <% } %>
 
-        <h3>Χρώματα μενού &amp; κουμπιών</h3>
-        <p class="helper">Προσαρμόστε την παλέτα του πλαϊνού μενού και τις γωνίες κουμπιών.</p>
+        <h3><%= t('admin.menuColors') %></h3>
+        <p class="helper"><%= t('admin.menuColorsHelper') %></p>
 
-        <label><span>Φόντο μενού</span>
+        <label><span><%= t('admin.menuBg') %></span>
           <div class="color-field">
             <input type="text" name="themeMenuBg" id="txt-themeMenuBg"
                    value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
@@ -239,7 +238,7 @@
           </div>
         </label>
 
-        <label><span>Κείμενο μενού</span>
+        <label><span><%= t('admin.menuText') %></span>
           <div class="color-field">
             <input type="text" name="themeMenuText" id="txt-themeMenuText"
                    value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
@@ -250,7 +249,7 @@
           </div>
         </label>
 
-        <label><span>Φόντο ενεργού στοιχείου μενού</span>
+        <label><span><%= t('admin.menuActiveBg') %></span>
           <div class="color-field">
             <input type="text" name="themeMenuActiveBg" id="txt-themeMenuActiveBg"
                    value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
@@ -261,7 +260,7 @@
           </div>
         </label>
 
-        <label><span>Κείμενο ενεργού στοιχείου μενού</span>
+        <label><span><%= t('admin.menuActiveText') %></span>
           <div class="color-field">
             <input type="text" name="themeMenuActiveText" id="txt-themeMenuActiveText"
                    value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
@@ -272,7 +271,7 @@
           </div>
         </label>
 
-        <label><span>Ακτίνα γωνιών κουμπιών</span>
+        <label><span><%= t('admin.buttonRadius') %></span>
           <input type="text" name="themeButtonRadius"
                  value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
                  placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
@@ -280,13 +279,10 @@
 
         <%# ── Ειδοποιήσεις ── %>
         <div class="notif-section">
-          <h3>Ειδοποιήσεις παραγγελιών – Email</h3>
-          <p class="helper">
-            Κάθε νέα παραγγελία θα στέλνει αυτόματα email στις παρακάτω διευθύνσεις.
-            Απαιτείται ρύθμιση SMTP στο περιβάλλον (THRC_SMTP_HOST / THRC_SMTP_USER / THRC_SMTP_PASS).
-          </p>
+          <h3><%= t('admin.notifEmail') %></h3>
+          <p class="helper"><%= t('admin.notifEmailHelper') %></p>
 
-          <label><span>Email ειδοποιήσεων <small style="color:#999">(ένα ανά γραμμή)</small></span>
+          <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
             <textarea name="notificationEmails" rows="3"
                       placeholder="owner@myshop.gr&#10;backup@myshop.gr"
                       <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
@@ -296,30 +292,27 @@
             <input type="checkbox" name="notificationCcCustomer"
                    <%= (config.notificationCcCustomer) ? 'checked' : '' %>
                    <%= permissions.canEditSettings ? '' : 'disabled' %> />
-            <span>Αποστολή αντιγράφου email και στον πελάτη (CC)</span>
+            <span><%= t('admin.notifCcCustomer') %></span>
           </label>
 
-          <label><span>Εμφανιζόμενο όνομα αποστολέα</span>
+          <label><span><%= t('admin.notifFromName') %></span>
             <input type="text" name="notificationFromName"
                    value="<%= config.notificationFromName || '' %>"
                    placeholder="π.χ. FashionMM Store"
                    <%= permissions.canEditSettings ? '' : 'readonly' %> />
           </label>
 
-          <h3 style="margin-top:18px;">Ειδοποιήσεις παραγγελιών – Webhook</h3>
-          <p class="helper">
-            Για mobile / Viber ειδοποιήσεις: βάλτε το URL του δικού σας webhook service.
-            Κάθε νέα παραγγελία θα κάνει POST εκεί αυτόματα.
-          </p>
+          <h3 style="margin-top:18px;"><%= t('admin.notifWebhook') %></h3>
+          <p class="helper"><%= t('admin.notifWebhookHelper') %></p>
 
-          <label><span>Webhook URL <small style="color:#999">(προαιρετικό)</small></span>
+          <label><span><%= t('admin.webhookUrl') %></span>
             <input type="text" name="notificationWebhookUrl"
                    value="<%= config.notificationWebhookUrl || '' %>"
                    placeholder="https://myhook.example.com/orders"
                    <%= permissions.canEditSettings ? '' : 'readonly' %> />
           </label>
 
-          <label><span>Webhook Secret <small style="color:#999">(για υπογραφή X-Thronos-Signature)</small></span>
+          <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
             <input type="text" name="notificationWebhookSecret"
                    value="<%= config.notificationWebhookSecret || '' %>"
                    placeholder="mysecret123"
@@ -327,18 +320,16 @@
           </label>
         </div>
 
-        <label><span>Κωδικός διαχειριστή</span>
+        <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
                  <%= permissions.canEditSettings ? 'required' : 'disabled' %> />
         </label>
 
         <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-          Αποθήκευση ρυθμίσεων
+          <%= t('admin.saveSettings') %>
         </button>
         <% if (!permissions.canEditSettings) { %>
-          <p class="helper" style="margin-top:8px;">
-            Οι ρυθμίσεις διαχειρίζονται από την ομάδα Thronos Commerce στο πλαίσιο του πακέτου σας.
-          </p>
+          <p class="helper" style="margin-top:8px;"><%= t('admin.fullOpsManagedNote') %></p>
         <% } %>
       </form>
 
@@ -347,16 +338,16 @@
       <%#   TAB 2 – CATEGORIES                                      %>
       <%# ══════════════════════════════════════════════════════════ %>
       <section id="tab-categories" class="admin-block">
-        <h2>Κατηγορίες προϊόντων</h2>
-        <p class="helper">Οργανώστε τα προϊόντα σας σε κατηγορίες ώστε οι πελάτες να βρίσκουν εύκολα αυτό που ψάχνουν.</p>
+        <h2><%= t('admin.categoriesTitle') %></h2>
+        <p class="helper"><%= t('admin.categoriesHelper') %></p>
 
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Κωδικός</th>
-              <th>Όνομα</th>
-              <th>Slug (URL)</th>
-              <th>Ενέργεια</th>
+              <th><%= t('admin.catColId') %></th>
+              <th><%= t('admin.catColName') %></th>
+              <th><%= t('admin.catColSlug') %></th>
+              <th><%= t('admin.catColAction') %></th>
             </tr>
           </thead>
           <tbody>
@@ -371,30 +362,30 @@
                     <input type="password" name="password" placeholder="Κωδικός"
                            <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
                     <button type="submit" class="button danger"
-                            <%= permissions.canEditCategories ? '' : 'disabled' %>>Διαγραφή</button>
+                            <%= permissions.canEditCategories ? '' : 'disabled' %>><%= t('admin.catDelete') %></button>
                   </form>
                 </td>
               </tr>
             <% }) %>
             <% if (categories.length === 0) { %>
-              <tr><td colspan="4" style="color:#888;font-style:italic;">Δεν υπάρχουν κατηγορίες ακόμα.</td></tr>
+              <tr><td colspan="4" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
             <% } %>
           </tbody>
         </table>
 
         <% if (permissions.canEditCategories) { %>
         <form method="POST" action="/admin/categories/add" class="admin-subform">
-          <h3>Νέα κατηγορία</h3>
-          <p class="helper">Συμπληρώστε τον μοναδικό κωδικό (π.χ. "bags"), το εμφανιζόμενο όνομα και το slug για το URL.</p>
+          <h3><%= t('admin.catAddTitle') %></h3>
+          <p class="helper"><%= t('admin.catAddHelper') %></p>
           <input type="text" name="id" placeholder="Κωδικός (π.χ. bags)" required />
           <input type="text" name="name" placeholder="Όνομα (π.χ. Τσάντες)" required />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
-          <button type="submit" class="button">Προσθήκη κατηγορίας</button>
+          <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
 
         <form method="POST" action="/admin/categories/update" class="admin-subform">
-          <h3>Μετονομασία κατηγορίας</h3>
+          <h3><%= t('admin.catUpdateTitle') %></h3>
           <select name="categoryId">
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
@@ -403,10 +394,10 @@
           <input type="text" name="name" placeholder="Νέο όνομα" required />
           <input type="text" name="slug" placeholder="Νέο slug" required />
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
-          <button type="submit" class="button">Ενημέρωση</button>
+          <button type="submit" class="button"><%= t('admin.catUpdateBtn') %></button>
         </form>
         <% } else { %>
-          <p class="helper">Η διαχείριση κατηγοριών γίνεται από την ομάδα Thronos Commerce στο πλαίσιο του πακέτου σας.</p>
+          <p class="helper"><%= t('admin.catManagedNote') %></p>
         <% } %>
       </section>
 
@@ -415,28 +406,27 @@
       <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
       <%# ══════════════════════════════════════════════════════════ %>
       <section id="tab-products" class="admin-block">
-        <h2>Προϊόντα καταστήματος</h2>
+        <h2><%= t('admin.productsTitle') %></h2>
         <p class="helper">
-          Διαχειριστείτε τα προϊόντα του καταστήματός σας. Κάντε κλικ «Επεξεργασία» για να αλλάξετε ένα προϊόν ή «Νέο προϊόν» για να προσθέσετε νέο.
-          Όταν είστε έτοιμοι, πατήστε <strong>Αποθήκευση όλων</strong>.
+          <%= t('admin.productsHelper') %>
           <% if (!permissions.canEditProducts) { %>
-            <br><em>Τα προϊόντα σας διαχειρίζεται η ομάδα Thronos Commerce.</em>
+            <br><em><%= t('admin.productsManagedNote') %></em>
           <% } %>
         </p>
 
         <% if (permissions.canEditProducts) { %>
-          <button class="button" id="btn-add-product" type="button">+ Νέο προϊόν</button>
+          <button class="button" id="btn-add-product" type="button"><%= t('admin.addProduct') %></button>
         <% } %>
 
         <table class="products-table" id="products-table">
           <thead>
             <tr>
               <th></th>
-              <th>Όνομα</th>
-              <th>Τιμή (€)</th>
-              <th>SKU</th>
-              <th>Κατηγορία</th>
-              <% if (permissions.canEditProducts) { %><th>Ενέργειες</th><% } %>
+              <th><%= t('admin.colName') %></th>
+              <th><%= t('admin.colPrice') %></th>
+              <th><%= t('admin.colSku') %></th>
+              <th><%= t('admin.colCategory') %></th>
+              <% if (permissions.canEditProducts) { %><th><%= t('admin.colActions') %></th><% } %>
             </tr>
           </thead>
           <tbody id="products-tbody">
@@ -450,10 +440,10 @@
           <% if (permissions.canEditProducts) { %>
           <div class="save-row">
             <label style="flex:1 1 auto;font-size:0.86rem;">
-              Κωδικός διαχειριστή για αποθήκευση:
+              <%= t('admin.savePassLabel') %>
             </label>
-            <input type="password" name="password" required placeholder="Κωδικός" />
-            <button type="submit" class="button">Αποθήκευση όλων</button>
+            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" />
+            <button type="submit" class="button"><%= t('admin.saveAll') %></button>
           </div>
           <% } %>
         </form>
@@ -464,19 +454,19 @@
       <%#   TAB 4 – IMAGE UPLOAD                                    %>
       <%# ══════════════════════════════════════════════════════════ %>
       <section id="tab-upload" class="admin-block">
-        <h2>Ανέβασμα εικόνας</h2>
-        <p class="helper">Ανεβάστε μια εικόνα στον server και αντιγράψτε το URL της για να το χρησιμοποιήσετε στα προϊόντα σας.</p>
+        <h2><%= t('admin.imagesTitle') %></h2>
+        <p class="helper"><%= t('admin.imagesHelper') %></p>
         <form id="upload-form" enctype="multipart/form-data">
           <input type="file" name="image" accept="image/*"
                  <%= permissions.canUploadMedia ? '' : 'disabled' %> required />
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή"
                  <%= permissions.canUploadMedia ? 'required' : 'disabled' %> />
           <button class="button" type="submit"
-                  <%= permissions.canUploadMedia ? '' : 'disabled' %>>Ανέβασμα</button>
+                  <%= permissions.canUploadMedia ? '' : 'disabled' %>><%= t('admin.uploadBtn') %></button>
         </form>
         <p id="upload-result"></p>
         <% if (!permissions.canUploadMedia) { %>
-          <p class="helper">Το ανέβασμα εικόνων διαχειρίζεται η ομάδα Thronos Commerce.</p>
+          <p class="helper"><%= t('admin.imagesManagedNote') %></p>
         <% } %>
       </section>
 
@@ -484,34 +474,28 @@
       <%#   TAB 5 – SHIPPING & PAYMENT                              %>
       <%# ══════════════════════════════════════════════════════════ %>
       <section id="tab-shipping" class="admin-block">
-        <h2>Μεταφορικά &amp; Τρόποι Πληρωμής</h2>
-        <p class="helper">
-          Ορίστε τα κόστη αποστολής και τις χρεώσεις για κάθε τρόπο πληρωμής.
-          Οι κωδικοί (id), οι επιτρεπόμενοι συνδυασμοί και ο τύπος πληρωμής <strong>δεν αλλάζουν</strong> εδώ —
-          επικοινωνήστε με την ομάδα Thronos για δομικές αλλαγές.
-        </p>
+        <h2><%= t('admin.shippingTitle') %></h2>
+        <p class="helper"><%= t('admin.shippingHelper') %></p>
 
         <% if (!permissions.canEditSettings) { %>
-          <p class="helper">
-            Τα μεταφορικά διαχειρίζονται από την ομάδα Thronos Commerce στο πλαίσιο του πακέτου σας.
-          </p>
+          <p class="helper"><%= t('admin.shippingManagedNote') %></p>
         <% } %>
 
         <form method="POST" action="/admin/shipping-payment">
 
           <%# ── Shipping options ── %>
-          <h3>Τρόποι αποστολής</h3>
+          <h3><%= t('admin.shippingOptionsTitle') %></h3>
           <% if ((config.shippingOptions || []).length === 0) { %>
-            <p class="helper" style="color:#888;">Δεν υπάρχουν τρόποι αποστολής στη διαμόρφωση.</p>
+            <p class="helper" style="color:#888;"><%= t('admin.shippingNone') %></p>
           <% } else { %>
           <table class="sp-table">
             <thead>
               <tr>
-                <th>Κωδικός (id)</th>
-                <th>Ετικέτα</th>
-                <th>Κόστος αποστολής (€)</th>
-                <th>Προσαύξηση αντικαταβολής (€)</th>
-                <th>Επιτρεπόμενες πληρωμές</th>
+                <th><%= t('admin.shipColId') %></th>
+                <th><%= t('admin.shipColLabel') %></th>
+                <th><%= t('admin.shipColBase') %></th>
+                <th><%= t('admin.shipColCodFee') %></th>
+                <th><%= t('admin.shipColAllowed') %></th>
               </tr>
             </thead>
             <tbody>
@@ -545,23 +529,20 @@
             </tbody>
           </table>
           <% } %>
-          <p class="helper" style="margin-top:6px;">
-            <strong>Κόστος βάσης:</strong> τα μεταφορικά σε €.&nbsp;
-            <strong>COD προσαύξηση:</strong> προστίθεται μόνο όταν η πληρωμή είναι αντικαταβολή (COD).
-          </p>
+          <p class="helper" style="margin-top:6px;"><%= t('admin.shipCostHelper') %></p>
 
           <%# ── Payment options ── %>
-          <h3>Τρόποι πληρωμής</h3>
+          <h3><%= t('admin.paymentOptionsTitle') %></h3>
           <% if ((config.paymentOptions || []).length === 0) { %>
-            <p class="helper" style="color:#888;">Δεν υπάρχουν τρόποι πληρωμής στη διαμόρφωση.</p>
+            <p class="helper" style="color:#888;"><%= t('admin.paymentNone') %></p>
           <% } else { %>
           <table class="sp-table">
             <thead>
               <tr>
-                <th>Κωδικός (id)</th>
-                <th>Ετικέτα</th>
-                <th>Τύπος</th>
-                <th>Προσαύξηση gateway (%)</th>
+                <th><%= t('admin.payColId') %></th>
+                <th><%= t('admin.payColLabel') %></th>
+                <th><%= t('admin.payColType') %></th>
+                <th><%= t('admin.payColSurcharge') %></th>
               </tr>
             </thead>
             <tbody>
@@ -585,15 +566,13 @@
             </tbody>
           </table>
           <% } %>
-          <p class="helper" style="margin-top:6px;">
-            <strong>Gateway surcharge %:</strong> προμήθεια platform πληρωμής π.χ. για Stripe. Μπορεί να είναι 0.
-          </p>
+          <p class="helper" style="margin-top:6px;"><%= t('admin.paySurchargeHelper') %></p>
 
           <% if (permissions.canEditSettings) { %>
           <div class="save-row">
-            <label style="flex:1 1 auto;font-size:0.86rem;">Κωδικός διαχειριστή:</label>
-            <input type="password" name="password" required placeholder="Κωδικός" />
-            <button type="submit" class="button">Αποθήκευση</button>
+            <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
+            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" />
+            <button type="submit" class="button"><%= t('admin.shippingSave') %></button>
           </div>
           <% } %>
 
@@ -608,48 +587,64 @@
     <%# ══════════════════════════════════════════════════════════ %>
     <div class="modal-overlay" id="product-modal">
       <div class="modal-box">
-        <h3 id="modal-title">Προϊόν</h3>
+        <h3 id="modal-title"><%= t('admin.modalNewProduct') %></h3>
         <div class="modal-grid">
-          <label class="full"><span>Όνομα προϊόντος *</span>
+          <label class="full"><span><%= t('admin.modalProductName') %></span>
             <input type="text" id="f-name" placeholder="π.χ. Δερμάτινη τσάντα" />
           </label>
-          <label><span>Κωδικός (id) *</span>
+          <label><span><%= t('admin.modalProductId') %></span>
             <input type="text" id="f-id" placeholder="π.χ. bag-001" />
           </label>
-          <label><span>SKU</span>
+          <label><span><%= t('admin.modalSku') %></span>
             <input type="text" id="f-sku" placeholder="π.χ. SKU-123" />
           </label>
-          <label><span>Τιμή (€) *</span>
+          <label><span><%= t('admin.modalPrice') %></span>
             <input type="number" id="f-price" min="0" step="0.01" placeholder="0.00" />
           </label>
-          <label><span>Απόθεμα</span>
+          <label><span><%= t('admin.modalStock') %></span>
             <input type="number" id="f-stock" min="0" step="1" placeholder="0" />
           </label>
-          <label class="full"><span>Κατηγορία (categoryId)</span>
+          <label class="full"><span><%= t('admin.modalCategory') %></span>
             <select id="f-category">
-              <option value="">– Χωρίς κατηγορία –</option>
+              <option value=""><%= t('admin.modalNoCat') %></option>
               <% categories.forEach(function(cat){ %>
                 <option value="<%= cat.id %>"><%= cat.name %></option>
               <% }) %>
             </select>
           </label>
-          <label class="full"><span>URL εικόνας</span>
+          <label class="full"><span><%= t('admin.modalImageUrl') %></span>
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
           </label>
-          <label class="full"><span>Περιγραφή</span>
+          <label class="full"><span><%= t('admin.modalDescription') %></span>
             <textarea id="f-description" rows="3" placeholder="Σύντομη περιγραφή προϊόντος..."></textarea>
           </label>
         </div>
         <div class="modal-actions">
           <button class="button" type="button" id="modal-cancel"
-                  style="background:#eee;color:#333;">Ακύρωση</button>
-          <button class="button" type="button" id="modal-save">Αποθήκευση</button>
+                  style="background:#eee;color:#333;"><%= t('admin.modalCancel') %></button>
+          <button class="button" type="button" id="modal-save"><%= t('admin.modalSave') %></button>
         </div>
       </div>
     </div>
 
 
     <script>
+      // ── i18n strings for JS ────────────────────────────────────
+      const i18nJs = {
+        noProducts:    '<%- t("admin.noProductsYet") %>',
+        newProduct:    '<%- t("admin.modalNewProduct") %>',
+        editPrefix:    '<%- t("admin.modalEditPrefix") %>',
+        editBtn:       '<%- t("admin.editProduct") %>',
+        deleteBtn:     '<%- t("admin.deleteProduct") %>',
+        nameRequired:  '<%- t("admin.jsNameIdRequired") %>',
+        uploading:     '<%- t("admin.jsUploading") %>',
+        uploadOk:      '<%- t("admin.jsUploadComplete") %>',
+        uploadErr:     '<%- t("admin.jsUploadError") %>',
+        logoOk:        '<%- t("admin.jsLogoUploaded") %>',
+        selectFile:    '<%- t("admin.jsSelectFile") %>',
+        enterPass:     '<%- t("admin.jsEnterPassword") %>'
+      };
+
       // ── Products data (server-rendered) ────────────────────────
       let products = <%- productsJson %>;
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
@@ -658,7 +653,7 @@
       function renderTable() {
         const tbody = document.getElementById('products-tbody');
         if (!products.length) {
-          tbody.innerHTML = '<tr><td colspan="' + (canEdit ? 6 : 5) + '" style="color:#888;font-style:italic;">Δεν υπάρχουν προϊόντα ακόμα.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="' + (canEdit ? 6 : 5) + '" style="color:#888;font-style:italic;">' + i18nJs.noProducts + '</td></tr>';
           return;
         }
         tbody.innerHTML = products.map((p, i) => {
@@ -666,8 +661,8 @@
             ? '<img class="thumb" src="' + escHtml(p.imageUrl) + '" alt="" loading="lazy">'
             : '<span class="no-img"></span>';
           const editBtn = canEdit
-            ? '<button class="btn-sm edit" type="button" onclick="openEdit(' + i + ')">Επεξεργασία</button> ' +
-              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">Διαγραφή</button>'
+            ? '<button class="btn-sm edit" type="button" onclick="openEdit(' + i + ')">' + i18nJs.editBtn + '</button> ' +
+              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">' + i18nJs.deleteBtn + '</button>'
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
@@ -704,7 +699,7 @@
 
       function openAdd() {
         editingIdx = -1;
-        mTitle.textContent = 'Νέο προϊόν';
+        mTitle.textContent = i18nJs.newProduct;
         fName.value = ''; fId.value = ''; fSku.value = '';
         fPrice.value = ''; fStock.value = '1';
         fCat.value = ''; fImg.value = ''; fDesc.value = '';
@@ -715,7 +710,7 @@
       function openEdit(i) {
         editingIdx = i;
         const p = products[i];
-        mTitle.textContent = 'Επεξεργασία: ' + (p.name || '');
+        mTitle.textContent = i18nJs.editPrefix + (p.name || '');
         fName.value  = p.name || '';
         fId.value    = p.id || '';
         fSku.value   = p.sku || '';
@@ -737,7 +732,7 @@
         const name = fName.value.trim();
         const id   = fId.value.trim();
         if (!name || !id) {
-          alert('Το όνομα και ο κωδικός είναι υποχρεωτικά.');
+          alert(i18nJs.nameRequired);
           return;
         }
         const product = {
@@ -763,7 +758,7 @@
       });
 
       function deleteProduct(i) {
-        if (!confirm('Σίγουρα θέλετε να διαγράψετε το προϊόν "' + (products[i].name || i) + '";')) return;
+        if (!confirm(i18nJs.editPrefix.replace(': ','') + ' "' + (products[i].name || i) + '" ;')) return;
         products.splice(i, 1);
         renderTable();
       }
@@ -791,14 +786,14 @@
       if (uploadForm) {
         uploadForm.addEventListener('submit', async function(e) {
           e.preventDefault();
-          uploadResult.textContent = 'Ανέβασμα σε εξέλιξη...';
+          uploadResult.textContent = i18nJs.uploading;
           const formData = new FormData(uploadForm);
           const response = await fetch('/admin/upload-image', { method: 'POST', body: formData });
           const json = await response.json();
           if (json.ok) {
-            uploadResult.innerHTML = 'Το ανέβασμα ολοκληρώθηκε! URL: <code>' + json.url + '</code>';
+            uploadResult.innerHTML = i18nJs.uploadOk + '<code>' + json.url + '</code>';
           } else {
-            uploadResult.textContent = json.error || 'Σφάλμα κατά το ανέβασμα.';
+            uploadResult.textContent = json.error || i18nJs.uploadErr;
           }
         });
       }
@@ -827,9 +822,9 @@
         logoUploadBtn.addEventListener('click', async () => {
           const file = document.getElementById('logo-file').files[0];
           const pass = document.getElementById('logo-pass').value;
-          if (!file) { logoUploadStatus.textContent = 'Επιλέξτε αρχείο.'; return; }
-          if (!pass) { logoUploadStatus.textContent = 'Εισάγετε κωδικό.'; return; }
-          logoUploadStatus.textContent = 'Ανέβασμα...';
+          if (!file) { logoUploadStatus.textContent = i18nJs.selectFile; return; }
+          if (!pass) { logoUploadStatus.textContent = i18nJs.enterPass; return; }
+          logoUploadStatus.textContent = i18nJs.uploading;
           const fd = new FormData();
           fd.append('image', file);
           fd.append('password', pass);
@@ -837,9 +832,9 @@
           const j = await r.json();
           if (j.ok) {
             document.getElementById('logoPath-input').value = j.url;
-            logoUploadStatus.innerHTML = 'Ανέβηκε! URL αυτόματα αντιγράφηκε στο πεδίο: <code>' + j.url + '</code>';
+            logoUploadStatus.innerHTML = i18nJs.logoOk + '<code>' + j.url + '</code>';
           } else {
-            logoUploadStatus.textContent = j.error || 'Σφάλμα κατά το ανέβασμα.';
+            logoUploadStatus.textContent = j.error || i18nJs.uploadErr;
           }
         });
       }

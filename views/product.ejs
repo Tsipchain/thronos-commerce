@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
     <title><%= product.name %> – <%= config.storeName %></title>
@@ -44,22 +44,22 @@
           <input type="hidden" name="productId" value="<%= product.id %>" />
 
           <label>
-            Ονοματεπώνυμο
+            <%= t('checkout.fullName') %>
             <input type="text" name="name" required />
           </label>
 
           <label>
-            Email
+            <%= t('checkout.email') %>
             <input type="email" name="email" required />
           </label>
 
           <label>
-            Web3 Wallet (προαιρετικό)
+            <%= t('checkout.web3Wallet') %>
             <input type="text" name="wallet" placeholder="0x..." />
           </label>
 
           <label>
-            Τρόπος αποστολής
+            <%= t('checkout.shippingMethod') %>
             <select name="shippingMethodId" required>
               <% config.shippingOptions.forEach(function (opt) { %>
                 <option value="<%= opt.id %>"><%= opt.label %></option>
@@ -68,7 +68,7 @@
           </label>
 
           <label>
-            Τρόπος πληρωμής
+            <%= t('checkout.paymentMethod') %>
             <select name="paymentMethodId" required>
               <% config.paymentOptions.forEach(function (opt) { %>
                 <option value="<%= opt.id %>"><%= opt.label %></option>
@@ -77,11 +77,11 @@
           </label>
 
           <label>
-            Σημειώσεις
+            <%= t('checkout.notes') %>
             <textarea name="notes" rows="3"></textarea>
           </label>
 
-          <button type="submit" class="button">Ολοκλήρωση παραγγελίας</button>
+          <button type="submit" class="button"><%= t('checkout.submit') %></button>
         </form>
       </article>
     </main>

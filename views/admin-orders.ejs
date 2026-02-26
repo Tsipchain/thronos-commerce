@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
-    <title>Παραγγελίες – <%= config.storeName %></title>
+    <title><%= t('orders.headerTitle') %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
@@ -46,17 +46,17 @@
   </head>
   <body>
     <header>
-      <h1>Thronos Commerce · Παραγγελίες</h1>
+      <h1><%= t('orders.headerTitle') %></h1>
       <p class="subtitle">
-        Κατάστημα: <strong><%= tenant.id %></strong>
+        <%= t('orders.store') %>: <strong><%= tenant.id %></strong>
         &nbsp;·&nbsp;
-        Πακέτο: <strong><%= tenant.supportTier %></strong>
+        <%= t('orders.package') %>: <strong><%= tenant.supportTier %></strong>
         &nbsp;·&nbsp;
-        <a href="/admin" style="font-size:0.85rem">Ρυθμίσεις</a>
+        <a href="/admin" style="font-size:0.85rem"><%= t('orders.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/admin/orders" style="font-size:0.85rem">Παραγγελίες</a>
+        <a href="/admin/orders" style="font-size:0.85rem"><%= t('orders.ordersLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/" style="font-size:0.85rem">Κατάστημα ↗</a>
+        <a href="/" style="font-size:0.85rem"><%= t('orders.storefrontLink') %></a>
       </p>
     </header>
 
@@ -64,41 +64,39 @@
 
       <% if (tenant.supportTier === 'FULL_OPS_START') { %>
       <div class="fullops-banner">
-        <strong>Πρόγραμμα Full Ops ενεργό.</strong><br>
-        Το κατάστημά σας βρίσκεται σε πρόγραμμα Full Ops – η ομάδα Thronos Commerce
-        αναλαμβάνει όλες τις αλλαγές. Επικοινωνήστε μαζί μας για ενημερώσεις.
+        <strong><%= t('orders.fullOpsBanner') %></strong><br>
+        <%= t('orders.fullOpsText') %>
       </div>
       <% } %>
 
       <nav class="admin-tabs">
-        <a href="/admin">Εμφάνιση &amp; Ρυθμίσεις</a>
-        <a href="/admin#tab-categories">Κατηγορίες</a>
-        <a href="/admin#tab-products">Προϊόντα</a>
-        <a href="/admin#tab-upload">Εικόνες</a>
-        <a href="/admin/orders" class="active">Παραγγελίες</a>
+        <a href="/admin"><%= t('orders.tabTheme') %></a>
+        <a href="/admin#tab-categories"><%= t('admin.tabCategories') %></a>
+        <a href="/admin#tab-products"><%= t('admin.tabProducts') %></a>
+        <a href="/admin#tab-upload"><%= t('admin.tabImages') %></a>
+        <a href="/admin/orders" class="active"><%= t('orders.tabOrders') %></a>
       </nav>
 
       <section class="admin-block">
-        <h2>Ιστορικό παραγγελιών</h2>
+        <h2><%= t('orders.title') %></h2>
         <p class="helper">
-          Εμφανίζονται οι τελευταίες <%= orders.length %> παραγγελίες.
-          Η κατάσταση πληρωμής ενημερώνεται αυτόματα.
+          <%= t('orders.helperPrefix') %> <%= orders.length %> <%= t('orders.helperSuffix') %>
         </p>
 
         <% if (orders.length === 0) { %>
-          <p class="empty-msg">Δεν υπάρχουν παραγγελίες ακόμα. Όταν γίνει η πρώτη παραγγελία θα εμφανιστεί εδώ.</p>
+          <p class="empty-msg"><%= t('orders.empty') %></p>
         <% } else { %>
         <div style="overflow-x:auto;">
           <table class="orders-table">
             <thead>
               <tr>
-                <th>Ημερομηνία</th>
-                <th>Κωδικός παραγγελίας</th>
-                <th>Προϊόν</th>
-                <th>Σύνολο (€)</th>
-                <th>Αποστολή</th>
-                <th>Πληρωμή</th>
-                <th>Κατάσταση</th>
+                <th><%= t('orders.colDate') %></th>
+                <th><%= t('orders.colId') %></th>
+                <th><%= t('orders.colProduct') %></th>
+                <th><%= t('orders.colTotal') %></th>
+                <th><%= t('orders.colShipping') %></th>
+                <th><%= t('orders.colPayment') %></th>
+                <th><%= t('orders.colStatus') %></th>
               </tr>
             </thead>
             <tbody>
@@ -106,8 +104,8 @@
                 <tr>
                   <td style="white-space:nowrap;">
                     <% const d = new Date(order.createdAt); %>
-                    <%= d.toLocaleDateString('el-GR') %>
-                    <br><small style="color:#888;"><%= d.toLocaleTimeString('el-GR', {hour:'2-digit',minute:'2-digit'}) %></small>
+                    <%= d.toLocaleDateString(lang) %>
+                    <br><small style="color:#888;"><%= d.toLocaleTimeString(lang, {hour:'2-digit',minute:'2-digit'}) %></small>
                   </td>
                   <td><code style="font-size:0.78rem;"><%= order.id %></code></td>
                   <td><%= order.productName || '–' %></td>
@@ -115,15 +113,15 @@
                   <td><%= order.shippingMethodLabel || order.shippingMethodId || '–' %></td>
                   <td><%= order.paymentMethodLabel  || order.paymentMethodId  || '–' %></td>
                   <td>
+                    <%
+                      const statusLabels = {
+                        PENDING_COD:    t('orders.statusPendingCod'),
+                        PENDING_STRIPE: t('orders.statusPendingStripe'),
+                        PAID:           t('orders.statusPaid'),
+                        CANCELLED:      t('orders.statusCancelled')
+                      };
+                    %>
                     <span class="status-badge status-<%= order.paymentStatus || 'PENDING_COD' %>">
-                      <%
-                        const statusLabels = {
-                          PENDING_COD:    'Αναμονή (Αντικαταβολή)',
-                          PENDING_STRIPE: 'Αναμονή πληρωμής',
-                          PAID:           'Πληρώθηκε',
-                          CANCELLED:      'Ακυρώθηκε'
-                        };
-                      %>
                       <%= statusLabels[order.paymentStatus] || order.paymentStatus || '–' %>
                     </span>
                   </td>

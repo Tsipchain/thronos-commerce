@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
-    <title>Ευχαριστούμε – <%= config.storeName %></title>
+    <title><%= t('thankyou.pageTitle') %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
@@ -30,24 +30,24 @@
 
     <main>
       <section class="thank-you">
-        <h2>Ευχαριστούμε για την παραγγελία!</h2>
-        <p>Κωδικός παραγγελίας: <strong><%= order.id %></strong></p>
-        <p>Προϊόν: <strong><%= order.productName %></strong></p>
-        <p>Αποστολή: <strong><%= order.shippingMethodLabel %></strong></p>
-        <p>Πληρωμή: <strong><%= order.paymentMethodLabel %></strong></p>
+        <h2><%= t('thankyou.title') %></h2>
+        <p><%= t('thankyou.orderId') %>: <strong><%= order.id %></strong></p>
+        <p><%= t('thankyou.product') %>: <strong><%= order.productName %></strong></p>
+        <p><%= t('thankyou.shipping') %>: <strong><%= order.shippingMethodLabel %></strong></p>
+        <p><%= t('thankyou.payment') %>: <strong><%= order.paymentMethodLabel %></strong></p>
         <hr />
-        <p>Subtotal: <strong><%= order.subtotal.toFixed(2) %> €</strong></p>
-        <p>Μεταφορικά: <strong><%= order.shippingCost.toFixed(2) %> €</strong></p>
-        <p>Αντικαταβολή: <strong><%= order.codFee.toFixed(2) %> €</strong></p>
-        <p>Gateway fee: <strong><%= order.gatewayFee.toFixed(2) %> €</strong></p>
-        <p>Σύνολο: <strong><%= order.total.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.subtotal') %>: <strong><%= order.subtotal.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.shippingCost') %>: <strong><%= order.shippingCost.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.codFee') %>: <strong><%= order.codFee.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.gatewayFee') %>: <strong><%= order.gatewayFee.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.total') %>: <strong><%= order.total.toFixed(2) %> €</strong></p>
 
         <% if (order.wallet) { %>
-          <p>Web3 wallet: <code><%= order.wallet %></code></p>
+          <p><%= t('thankyou.wallet') %>: <code><%= order.wallet %></code></p>
         <% } %>
 
         <p class="hash">
-          Thronos blockchain proof hash:<br />
+          <%= t('thankyou.proofHash') %>:<br />
           <code><%= proofHash %></code>
         </p>
       </section>
