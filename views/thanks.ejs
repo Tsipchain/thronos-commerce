@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ευχαριστούμε – <%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+        --menu-bg: <%= (config.theme && config.theme.menuBg) || '#111' %>;
+        --menu-text: <%= (config.theme && config.theme.menuText) || '#fff' %>;
+        --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
+        --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
+        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo-title">
+        <% if (config.logoPath) { %>
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+        <% } %>
+        <h1><%= config.storeName %></h1>
+      </div>
+    </header>
+
+    <main>
+      <section class="thank-you">
+        <h2>Ευχαριστούμε για την παραγγελία!</h2>
+        <p>Κωδικός παραγγελίας: <strong><%= order.id %></strong></p>
+        <p>Προϊόν: <strong><%= order.productName %></strong></p>
+        <p>Αποστολή: <strong><%= order.shippingMethodLabel %></strong></p>
+        <p>Πληρωμή: <strong><%= order.paymentMethodLabel %></strong></p>
+        <hr />
+        <p>Subtotal: <strong><%= order.subtotal.toFixed(2) %> €</strong></p>
+        <p>Μεταφορικά: <strong><%= order.shippingCost.toFixed(2) %> €</strong></p>
+        <p>Αντικαταβολή: <strong><%= order.codFee.toFixed(2) %> €</strong></p>
+        <p>Gateway fee: <strong><%= order.gatewayFee.toFixed(2) %> €</strong></p>
+        <p>Σύνολο: <strong><%= order.total.toFixed(2) %> €</strong></p>
+
+        <% if (order.wallet) { %>
+          <p>Web3 wallet: <code><%= order.wallet %></code></p>
+        <% } %>
+
+        <p class="hash">
+          Thronos blockchain proof hash:<br />
+          <code><%= proofHash %></code>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

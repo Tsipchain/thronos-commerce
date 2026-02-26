@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+        --menu-bg: <%= (config.theme && config.theme.menuBg) || '#111' %>;
+        --menu-text: <%= (config.theme && config.theme.menuText) || '#fff' %>;
+        --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
+        --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
+        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo-title">
+        <% if (config.logoPath) { %>
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+        <% } %>
+        <div>
+          <h1><%= config.storeName %></h1>
+          <% if (config.web3Domain) { %>
+            <p class="subtitle">Web3 domain: <%= config.web3Domain %></p>
+          <% } %>
+        </div>
+      </div>
+      <button class="menu-toggle" id="menu-toggle" type="button">☰ Κατηγορίες</button>
+      <nav class="main-nav" id="main-nav">
+        <ul>
+          <li class="<%= !activeCategory ? 'active' : '' %>"><a href="/">Όλα τα προϊόντα</a></li>
+          <% categories.forEach(function(cat) { %>
+            <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
+              <a href="/?category=<%= cat.slug %>"><%= cat.name %></a>
+            </li>
+          <% }); %>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p><%= config.heroText %></p>
+      </section>
+
+      <section class="product-list">
+        <% if (products.length === 0) { %>
+          <p>Δεν βρέθηκαν προϊόντα για αυτή την κατηγορία.</p>
+        <% } %>
+
+        <% products.forEach(function (product) { %>
+          <article class="product-card">
+            <% if (product.imageUrl) { %>
+              <div class="product-thumb">
+                <img src="<%= product.imageUrl %>" alt="<%= product.name %>" />
+              </div>
+            <% } %>
+            <h2><%= product.name %></h2>
+            <p><%= product.description %></p>
+            <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
+            <a class="button" href="/product/<%= product.id %>">Δείτε το προϊόν</a>
+          </article>
+        <% }); %>
+      </section>
+    </main>
+
+    <script>
+      const menuToggle = document.getElementById("menu-toggle");
+      const mainNav = document.getElementById("main-nav");
+      if (menuToggle && mainNav) {
+        menuToggle.addEventListener("click", () => {
+          mainNav.classList.toggle("open");
+        });
+      }
+    </script>
+  </body>
+</html>

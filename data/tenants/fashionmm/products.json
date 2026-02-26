@@ -1,0 +1,32 @@
+[
+  {
+    "id": "bag1",
+    "name": "Handmade Tote Bag",
+    "description": "Spacious, stylish tote με premium υφάσματα.",
+    "price": 65.0,
+    "imageUrl": "/tenants/fashionmm/media/tote-001.jpg",
+    "categoryId": "bags",
+    "stock": 5,
+    "sku": "FMM-TOTE-001"
+  },
+  {
+    "id": "bag2",
+    "name": "Crossbody Everyday Bag",
+    "description": "Χιαστί τσάντα με πολλές τσέπες, για όλη μέρα.",
+    "price": 55.0,
+    "imageUrl": "/tenants/fashionmm/media/cross-001.jpg",
+    "categoryId": "bags",
+    "stock": 7,
+    "sku": "FMM-CROSS-001"
+  },
+  {
+    "id": "clutch1",
+    "name": "Velvet Night Clutch",
+    "description": "Βελούδινο βραδινό clutch με μεταλλικές λεπτομέρειες.",
+    "price": 72.0,
+    "imageUrl": "/tenants/fashionmm/media/clutch-001.jpg",
+    "categoryId": "clutch",
+    "stock": 3,
+    "sku": "FMM-CLUTCH-001"
+  }
+]

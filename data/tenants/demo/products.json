@@ -1,0 +1,12 @@
+[
+  {
+    "id": "demo-bag-01",
+    "name": "Demo Everyday Bag",
+    "description": "Minimal design για καθημερινή χρήση.",
+    "price": 48,
+    "imageUrl": "",
+    "categoryId": "bags",
+    "stock": 8,
+    "sku": "DEMO-BAG-001"
+  }
+]

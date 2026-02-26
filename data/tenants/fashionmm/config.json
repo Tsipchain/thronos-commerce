@@ -1,0 +1,53 @@
+{
+  "storeName": "Fashionmm Boutique",
+  "primaryColor": "#111111",
+  "accentColor": "#f06292",
+  "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  "heroText": "Handmade bags, μικρές σειρές, καθόλου WooCommerce.",
+  "web3Domain": "fashionmm.thr",
+  "logoPath": "/tenants/fashionmm/media/logo.png",
+  "shippingOptions": [
+    {
+      "id": "standard_cod",
+      "label": "ACS / Γενική – αντικαταβολή",
+      "base": 4.0,
+      "codFee": 2.0,
+      "allowedPaymentMethods": ["COD"]
+    },
+    {
+      "id": "standard_card",
+      "label": "ACS / Γενική – προπληρωμή κάρτα / Stripe",
+      "base": 3.0,
+      "codFee": 0.0,
+      "allowedPaymentMethods": ["CARD"]
+    },
+    {
+      "id": "pickup",
+      "label": "Παραλαβή από το κατάστημα",
+      "base": 0.0,
+      "codFee": 0.0,
+      "allowedPaymentMethods": ["CARD", "COD"]
+    }
+  ],
+  "paymentOptions": [
+    {
+      "id": "CARD",
+      "label": "Πληρωμή με κάρτα (Stripe)",
+      "type": "STRIPE",
+      "gatewaySurchargePercent": 0
+    },
+    {
+      "id": "COD",
+      "label": "Αντικαταβολή",
+      "type": "COD",
+      "gatewaySurchargePercent": 0
+    }
+  ],
+  "theme": {
+    "menuBg": "#111111",
+    "menuText": "#ffffff",
+    "menuActiveBg": "#f06292",
+    "menuActiveText": "#ffffff",
+    "buttonRadius": "4px"
+  }
+}

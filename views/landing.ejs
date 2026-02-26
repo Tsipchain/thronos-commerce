@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thronos Commerce</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Thronos Commerce</h1>
+      <p class="subtitle">Multi-tenant · Web3-ready e-commerce platform</p>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h2>Στήσε e‑shop χωρίς WordPress/WooCommerce, με απόδειξη στο ThronosChain.</h2>
+      </section>
+
+      <section class="product-list">
+        <% packages.forEach(function(pkg){ %>
+          <article class="product-card">
+            <h3><%= pkg.title %></h3>
+            <p><%= pkg.description %></p>
+            <ul>
+              <% pkg.features.forEach(function(feature){ %>
+                <li><%= feature %></li>
+              <% }) %>
+            </ul>
+          </article>
+        <% }) %>
+      </section>
+
+      <section class="admin-block">
+        <h2>Ζήτα προσφορά</h2>
+        <% if (message) { %><p class="admin-msg success"><%= message %></p><% } %>
+        <form method="POST" action="/thronos-commerce/offer" class="checkout-form">
+          <label>Όνομα
+            <input type="text" name="name" required />
+          </label>
+          <label>Email
+            <input type="email" name="email" required />
+          </label>
+          <label>Τηλέφωνο
+            <input type="text" name="phone" required />
+          </label>
+          <label>Brand
+            <input type="text" name="brand" required />
+          </label>
+          <label>Domain
+            <input type="text" name="domain" placeholder="π.χ. fashionmm.gr" />
+          </label>
+          <label>Αριθμός προϊόντων
+            <input type="number" name="products" min="1" />
+          </label>
+          <label>Πακέτο
+            <select name="packageId" required>
+              <% packages.forEach(function(pkg){ %>
+                <option value="<%= pkg.id %>"><%= pkg.title %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Μήνυμα
+            <textarea name="message" rows="4"></textarea>
+          </label>
+          <button class="button" type="submit">Αποστολή</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin – <%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+        --menu-bg: <%= (config.theme && config.theme.menuBg) || '#111' %>;
+        --menu-text: <%= (config.theme && config.theme.menuText) || '#fff' %>;
+        --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
+        --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
+        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Thronos Commerce · Admin</h1>
+      <p class="subtitle">
+        Tenant: <strong><%= tenant.id %></strong> · Support tier: <strong><%= tenant.supportTier %></strong>
+      </p>
+    </header>
+
+    <main class="admin-layout">
+      <% if (message) { %><p class="admin-msg success"><%= message %></p><% } %>
+      <% if (error) { %><p class="admin-msg error"><%= error %></p><% } %>
+
+      <nav class="admin-tabs">
+        <a href="#tab-theme">Θέμα / Εμφάνιση</a>
+        <a href="#tab-categories">Κατηγορίες</a>
+        <a href="#tab-products">Προϊόντα</a>
+      </nav>
+
+      <form id="tab-theme" class="admin-block" method="POST" action="/admin/settings">
+        <h2>Θέμα / Ρυθμίσεις καταστήματος</h2>
+
+        <label><span>Όνομα καταστήματος</span>
+          <input type="text" name="storeName" value="<%= config.storeName %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>Primary color</span>
+          <input type="text" name="primaryColor" value="<%= config.primaryColor %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>Accent color</span>
+          <input type="text" name="accentColor" value="<%= config.accentColor %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>Font family</span>
+          <select name="fontFamily" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI</option>
+            <option value="'Roboto', Arial, sans-serif" <%= config.fontFamily.includes('Roboto') ? 'selected' : '' %>>Roboto</option>
+            <option value="'Segoe UI', system-ui, sans-serif" <%= config.fontFamily.includes('Segoe UI') ? 'selected' : '' %>>Segoe UI</option>
+          </select>
+        </label>
+
+        <label><span>Hero text</span>
+          <textarea name="heroText" rows="3" <%= permissions.canEditSettings ? '' : 'readonly' %>><%= config.heroText %></textarea>
+        </label>
+
+        <label><span>Web3 domain</span>
+          <input type="text" name="web3Domain" value="<%= config.web3Domain %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>Logo path</span>
+          <input type="text" name="logoPath" value="<%= config.logoPath %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <h3>Menu & Buttons</h3>
+
+        <label><span>menuBg</span>
+          <input type="text" name="themeMenuBg" value="<%= (config.theme && config.theme.menuBg) || '#111111' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>menuText</span>
+          <input type="text" name="themeMenuText" value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>menuActiveBg</span>
+          <input type="text" name="themeMenuActiveBg" value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>menuActiveText</span>
+          <input type="text" name="themeMenuActiveText" value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>buttonRadius</span>
+          <input type="text" name="themeButtonRadius" value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+
+        <label><span>Κωδικός διαχειριστή</span>
+          <input type="password" name="password" <%= permissions.canEditSettings ? 'required' : 'disabled' %> />
+        </label>
+
+        <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+          Αποθήκευση ρυθμίσεων
+        </button>
+      </form>
+
+      <section id="tab-categories" class="admin-block">
+        <h2>Κατηγορίες</h2>
+
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>Όνομα</th><th>Slug</th><th>Ενέργειες</th></tr>
+          </thead>
+          <tbody>
+            <% categories.forEach(function(cat){ %>
+              <tr>
+                <td><%= cat.id %></td>
+                <td><%= cat.name %></td>
+                <td><%= cat.slug %></td>
+                <td>
+                  <form method="POST" action="/admin/categories/delete" class="inline-form">
+                    <input type="hidden" name="categoryId" value="<%= cat.id %>" />
+                    <input type="password" name="password" placeholder="Password" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+                    <button type="submit" class="button danger" <%= permissions.canEditCategories ? '' : 'disabled' %>>Διαγραφή</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+
+        <form method="POST" action="/admin/categories/add" class="admin-subform">
+          <h3>Νέα κατηγορία</h3>
+          <input type="text" name="id" placeholder="id" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <input type="text" name="name" placeholder="Όνομα" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <input type="text" name="slug" placeholder="slug" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <input type="password" name="password" placeholder="Admin password" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <button type="submit" class="button" <%= permissions.canEditCategories ? '' : 'disabled' %>>Προσθήκη</button>
+        </form>
+
+        <form method="POST" action="/admin/categories/update" class="admin-subform">
+          <h3>Μετονομασία / αλλαγή</h3>
+          <select name="categoryId" <%= permissions.canEditCategories ? '' : 'disabled' %>>
+            <% categories.forEach(function(cat){ %>
+              <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
+            <% }) %>
+          </select>
+          <input type="text" name="name" placeholder="Νέο όνομα" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <input type="text" name="slug" placeholder="Νέο slug" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <input type="password" name="password" placeholder="Admin password" <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+          <button type="submit" class="button" <%= permissions.canEditCategories ? '' : 'disabled' %>>Ενημέρωση</button>
+        </form>
+      </section>
+
+      <section class="admin-block">
+        <h2>Upload εικόνας</h2>
+        <p>Ανέβασε εικόνα, πάρε το URL και βάλ’ το στα προϊόντα.</p>
+        <form id="upload-form" enctype="multipart/form-data">
+          <input type="file" name="image" accept="image/*" <%= permissions.canUploadMedia ? '' : 'disabled' %> required />
+          <input type="password" name="password" placeholder="Admin password" <%= permissions.canUploadMedia ? 'required' : 'disabled' %> />
+          <button class="button" type="submit" <%= permissions.canUploadMedia ? '' : 'disabled' %>>Upload</button>
+        </form>
+        <p id="upload-result"></p>
+      </section>
+
+      <form id="tab-products" class="admin-block" method="POST" action="/admin/products">
+        <h2>Προϊόντα (JSON)</h2>
+        <p>Επεξεργάσου τη λίστα προϊόντων ως JSON array.</p>
+        <textarea name="productsJson" rows="18" <%= permissions.canEditProducts ? '' : 'readonly' %>><%= productsJson %></textarea>
+        <label><span>Κωδικός διαχειριστή</span>
+          <input type="password" name="password" <%= permissions.canEditProducts ? 'required' : 'disabled' %> />
+        </label>
+        <button type="submit" class="button" <%= permissions.canEditProducts ? '' : 'disabled' %>>
+          Αποθήκευση προϊόντων
+        </button>
+      </form>
+    </main>
+
+    <script>
+      const uploadForm = document.getElementById("upload-form");
+      const uploadResult = document.getElementById("upload-result");
+
+      if (uploadForm) {
+        uploadForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          uploadResult.textContent = "Uploading...";
+
+          const formData = new FormData(uploadForm);
+          const response = await fetch("/admin/upload-image", {
+            method: "POST",
+            body: formData
+          });
+          const json = await response.json();
+          if (json.ok) {
+            uploadResult.innerHTML = 'Upload OK: <code>' + json.url + '</code>';
+          } else {
+            uploadResult.textContent = json.error || "Upload failed.";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

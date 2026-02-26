@@ -1,161 +1,428 @@
-const express = require("express");
-const path = require("path");
-const fs = require("fs");
-const crypto = require("crypto");
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const axios = require('axios');
+const multer = require('multer');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 
-// Paths
-const DATA_DIR = path.join(__dirname, "data");
-const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
-const CONFIG_FILE = path.join(DATA_DIR, "store-config.json");
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
 
-// Basic helpers
+// Data root config
+const DEFAULT_DATA_ROOT = path.join(__dirname, 'data');
+const DATA_ROOT = process.env.THRC_DATA_ROOT || DEFAULT_DATA_ROOT;
+ensureDir(DATA_ROOT);
+
+const TENANTS_DIR = path.join(DATA_ROOT, 'tenants');
+ensureDir(TENANTS_DIR);
+
+const TENANTS_REGISTRY = path.join(DATA_ROOT, 'tenants.json');
+
 function loadJson(filePath, fallback) {
   try {
-    const raw = fs.readFileSync(filePath, "utf8");
+    const raw = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(raw);
   } catch (err) {
-    console.warn(`Could not load ${filePath}:`, err.message);
+    console.warn(`Could not load ${filePath}: ${err.message}`);
     return fallback;
   }
 }
 
 function saveJson(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function loadProducts() {
-  return loadJson(PRODUCTS_FILE, []);
+function loadTenantsRegistry() {
+  const tenants = loadJson(TENANTS_REGISTRY, []);
+  return Array.isArray(tenants) ? tenants : [];
 }
 
-function loadConfig() {
-  return loadJson(CONFIG_FILE, {
-    storeName: "Thronos Demo Store",
-    primaryColor: "#222222",
-    accentColor: "#00ff88",
-    fontFamily:
-      "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    heroText: "Καλωσήρθατε στο Thronos Commerce!",
-    web3Domain: "",
-    logoPath: "/logo.png"
-  });
+function tenantPaths(tenantId) {
+  const base = path.join(TENANTS_DIR, tenantId);
+  ensureDir(base);
+  const media = path.join(base, 'media');
+  ensureDir(media);
+  return {
+    base,
+    config: path.join(base, 'config.json'),
+    products: path.join(base, 'products.json'),
+    categories: path.join(base, 'categories.json'),
+    media
+  };
 }
 
-// Blockchain stub – εδώ “κουμπώνεις” Thronos chain αργότερα
-function recordOrderOnChain(order) {
+function getTenantByHost(hostname) {
+  const tenants = loadTenantsRegistry();
+  const host = (hostname || '').toLowerCase();
+  let tenant = tenants.find(
+    (t) =>
+      t.domain &&
+      t.domain.toLowerCase() === host
+  );
+  if (!tenant && tenants.length > 0) {
+    // dev fallback to demo or first active tenant
+    tenant = tenants.find((t) => t.id === 'demo') || tenants.find((t) => t.active) || tenants[0];
+  }
+  return tenant;
+}
+
+// Tenant-scoped loaders
+function loadTenantConfig(req) {
+  const fallback = {
+     storeName: 'Thronos Demo Store',
+     primaryColor: '#222222',
+     accentColor: '#00ff88',
+     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+     heroText: 'Καλωσήρθατε στο Thronos Commerce!',
+     web3Domain: '',
+     logoPath: '/logo.svg',
+     shippingOptions: [],
+     paymentOptions: [],
+     theme: {
+        menuBg: '#111111',
+        menuText: '#ffffff',
+        menuActiveBg: '#f06292',
+        menuActiveText: '#ffffff',
+        buttonRadius: '4px'
+     }
+  };
+  return loadJson(req.tenantPaths.config, fallback);
+}
+
+function loadTenantProducts(req) {
+  return loadJson(req.tenantPaths.products, []);
+}
+
+function loadTenantCategories(req) {
+  return loadJson(req.tenantPaths.categories, []);
+}
+
+function saveTenantCategories(req, categories) {
+  saveJson(req.tenantPaths.categories, categories);
+}
+
+function getSupportPermissions(supportTier) {
+  const map = {
+    SELF_SERVICE: {
+      canEditSettings: true,
+      canEditProducts: true,
+      canUploadMedia: true,
+      canEditCategories: true
+    },
+    MANAGEMENT_START: {
+      canEditSettings: true,
+      canEditProducts: true,
+      canUploadMedia: true,
+      canEditCategories: true
+    },
+    FULL_OPS_START: {
+      canEditSettings: false,
+      canEditProducts: false,
+      canUploadMedia: false,
+      canEditCategories: false
+    }
+  };
+  return map[supportTier] || map.SELF_SERVICE;
+}
+
+function calculateTotals(config, product, shippingMethodId, paymentMethodId) {
+  const shippingMethod = (config.shippingOptions || []).find((s) => s.id === shippingMethodId);
+  const paymentMethod = (config.paymentOptions || []).find((p) => p.id === paymentMethodId);
+
+  if (!shippingMethod) {
+    throw new Error('Invalid shipping method');
+  }
+  if (!paymentMethod) {
+    throw new Error('Invalid payment method');
+  }
+  if (
+    Array.isArray(shippingMethod.allowedPaymentMethods) &&
+    !shippingMethod.allowedPaymentMethods.includes(paymentMethod.id)
+  ) {
+    throw new Error('Ο συγκεκριμένος τρόπος πληρωμής δεν είναι διαθέσιμος για αυτή τη μέθοδο αποστολής.');
+  }
+
+  const subtotal = Number(product.price) || 0;
+  const shippingCost = Number(shippingMethod.base) || 0;
+  const codFee =
+    paymentMethod.id === 'COD' ? Number(shippingMethod.codFee || 0) : 0;
+  const gatewaySurchargePercent = Number(paymentMethod.gatewaySurchargePercent) || 0;
+  const gatewayFee = subtotal * gatewaySurchargePercent;
+
+  const total = subtotal + shippingCost + codFee + gatewayFee;
+
+  return {
+    subtotal,
+    shippingCost,
+    codFee,
+    gatewayFee,
+    total,
+    shippingMethod,
+    paymentMethod
+  };
+}
+
+async function recordOrderOnChain(order, tenant) {
   const payload = {
     orderId: order.id,
     total: order.total,
     timestamp: order.createdAt,
-    customerEmail: order.email
+    customerEmail: order.email,
+    wallet: order.wallet || null,
+    tenantId: tenant ? tenant.id : null
   };
 
   const hash = crypto
-    .createHash("sha256")
+    .createHash('sha256')
     .update(JSON.stringify(payload))
-    .digest("hex");
+    .digest('hex');
 
-  console.log("Thronos Commerce – order hash (to be recorded on-chain):", hash);
+  const nodeUrl = (process.env.THRONOS_NODE_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.THRONOS_COMMERCE_API_KEY || null;
 
-  // TODO: μελλοντικά στείλτο σε THRONOS_CHAIN_NODE_URL (HTTP POST)
-  // if (process.env.THRONOS_NODE_URL) { ... }
+  if (!nodeUrl) {
+    console.log('THRONOS_NODE_URL not set; skipping on-chain call. Hash:', hash);
+    return hash;
+  }
+
+  try {
+    const response = await axios.post(
+      `${nodeUrl}/api/commerce/attest`,
+      {
+        ...payload,
+        hash,
+        apiKey
+      },
+      { timeout: 4000 }
+    );
+    console.log('Thronos node response:', response.data);
+  } catch (err) {
+    console.error('Failed to send order to Thronos node:', err.message);
+  }
 
   return hash;
 }
 
-// View engine
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
+async function verifyAdminPassword(tenant, plainPassword) {
+  if (!tenant.adminPasswordHash) {
+    return false;
+  }
+  const ok = await bcrypt.compare(plainPassword || '', tenant.adminPasswordHash);
+  return ok;
+}
 
-// Static + body parsing
-app.use(express.static(path.join(__dirname, "public")));
-app.use(express.urlencoded({ extended: true }));
-
-// Home – λίστα προϊόντων
-app.get("/", (req, res) => {
-  const products = loadProducts();
-  const config = loadConfig();
-  res.render("index", { products, config });
+// Multer storage for per-tenant media
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const mediaDir =
+      (req.tenantPaths && req.tenantPaths.media) ||
+      path.join(TENANTS_DIR, '_uploads');
+    ensureDir(mediaDir);
+    cb(null, mediaDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const base = path
+      .basename(file.originalname || 'upload', ext)
+      .replace(/[^a-z0-9_-]/gi, '-')
+      .toLowerCase();
+    cb(null, `${Date.now()}-${base}${ext || '.jpg'}`);
+  }
 });
 
-// Product page
-app.get("/product/:id", (req, res) => {
-  const products = loadProducts();
-  const config = loadConfig();
+const upload = multer({ storage });
+
+// View engine & middleware
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/tenants', express.static(TENANTS_DIR));
+app.use(express.urlencoded({ extended: true }));
+
+// Tenant resolution middleware
+app.use((req, res, next) => {
+  const hostHeader = (req.headers.host || '').split(':')[0];
+  const tenant = getTenantByHost(hostHeader);
+  if (!tenant) {
+    return res
+      .status(503)
+      .send('No tenant configured for this host. Check tenants.json.');
+  }
+  req.tenant = tenant;
+  req.tenantPaths = tenantPaths(tenant.id);
+  next();
+});
+
+function buildAdminViewModel(req, extra) {
+  const config = loadTenantConfig(req);
+  const products = loadTenantProducts(req);
+  const categories = loadTenantCategories(req);
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+
+  return {
+    tenant: req.tenant,
+    permissions,
+    config,
+    categories,
+    productsJson: JSON.stringify(products, null, 2),
+    message: null,
+    error: null,
+    ...(extra || {})
+  };
+}
+
+// Routes
+
+// Storefront home
+app.get('/', (req, res) => {
+  const config = loadTenantConfig(req);
+  const categories = loadTenantCategories(req);
+  const allProducts = loadTenantProducts(req);
+
+  const catSlug = req.query.category;
+  let products = allProducts;
+
+  if (catSlug) {
+    const cat = categories.find((c) => c.slug === catSlug);
+    if (cat) {
+      products = allProducts.filter((p) => p.categoryId === cat.id);
+    } else {
+      products = [];
+    }
+  }
+
+  res.render('index', {
+    config,
+    categories,
+    products,
+    activeCategory: catSlug || null,
+    tenant: req.tenant
+  });
+});
+
+// Product detail
+app.get('/product/:id', (req, res) => {
+  const config = loadTenantConfig(req);
+  const products = loadTenantProducts(req);
   const product = products.find((p) => p.id === req.params.id);
 
   if (!product) {
-    return res.status(404).send("Product not found");
+    return res.status(404).send('Product not found');
   }
 
-  res.render("product", { product, config });
+  res.render('product', {
+    config,
+    product,
+    tenant: req.tenant
+  });
 });
 
-// Checkout – demo φόρμα
-app.post("/checkout", (req, res) => {
-  const products = loadProducts();
-  const config = loadConfig();
+// Checkout
+app.post('/checkout', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const products = loadTenantProducts(req);
+  const { name, email, wallet, productId, notes, shippingMethodId, paymentMethodId } =
+    req.body;
 
-  const { name, email, wallet, productId, notes } = req.body;
   const product = products.find((p) => p.id === productId);
-
   if (!product) {
-    return res.status(400).send("Invalid product");
+    return res.status(400).send('Invalid product');
+  }
+
+  let totals;
+  try {
+    totals = calculateTotals(config, product, shippingMethodId, paymentMethodId);
+  } catch (err) {
+    return res.status(400).send(err.message);
   }
 
   const order = {
     id: Date.now().toString(),
+    tenantId: req.tenant.id,
     productId: product.id,
     productName: product.name,
-    price: product.price,
+    price: Number(product.price) || 0,
     customerName: name,
     email,
-    wallet: wallet || "",
-    notes: notes || "",
-    createdAt: new Date().toISOString(),
-    total: product.price
+    wallet: wallet || '',
+    notes: notes || '',
+    shippingMethodId,
+    paymentMethodId,
+    shippingMethodLabel: totals.shippingMethod.label,
+    paymentMethodLabel: totals.paymentMethod.label,
+    subtotal: totals.subtotal,
+    shippingCost: totals.shippingCost,
+    codFee: totals.codFee,
+    gatewayFee: totals.gatewayFee,
+    total: totals.total,
+    paymentStatus: paymentMethodId === 'CARD' ? 'PENDING_STRIPE' : 'PENDING_COD',
+    createdAt: new Date().toISOString()
   };
 
-  console.log("New order received:", order);
+  console.log('New order received:', order);
 
-  const proofHash = recordOrderOnChain(order);
+  const proofHash = await recordOrderOnChain(order, req.tenant);
 
-  res.render("thanks", { order, proofHash, config });
-});
-
-// -------- ADMIN PANEL --------
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "changeme";
-
-// πόρτα διαχείρισης
-app.get("/admin", (req, res) => {
-  const config = loadConfig();
-  const products = loadProducts();
-
-  res.render("admin", {
+  res.render('thanks', {
     config,
-    productsJson: JSON.stringify(products, null, 2),
-    message: null,
-    error: null
+    order,
+    proofHash,
+    tenant: req.tenant
   });
 });
 
-app.post("/admin/settings", (req, res) => {
-  const { password, storeName, primaryColor, accentColor, fontFamily, heroText, web3Domain, logoPath } =
-    req.body;
+// Admin panel
+app.get('/admin', (req, res) => {
+  res.render('admin', buildAdminViewModel(req));
+});
 
-  if (password !== ADMIN_PASSWORD) {
-    const config = loadConfig();
-    const products = loadProducts();
-    return res.status(401).render("admin", {
-      config,
-      productsJson: JSON.stringify(products, null, 2),
-      message: null,
-      error: "Λάθος κωδικός διαχειριστή."
-    });
+app.post('/admin/settings', async (req, res) => {
+  const {
+    password,
+    storeName,
+    primaryColor,
+    accentColor,
+    fontFamily,
+    heroText,
+    web3Domain,
+    logoPath,
+    themeMenuBg,
+    themeMenuText,
+    themeMenuActiveBg,
+    themeMenuActiveText,
+    themeButtonRadius
+  } = req.body;
+
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res
+      .status(403)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή ρυθμίσεων.'
+        })
+      );
   }
 
-  const config = loadConfig();
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res
+      .status(401)
+      .render(
+        'admin',
+        buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' })
+      );
+  }
+
+  const config = loadTenantConfig(req);
   config.storeName = storeName || config.storeName;
   config.primaryColor = primaryColor || config.primaryColor;
   config.accentColor = accentColor || config.accentColor;
@@ -163,60 +430,321 @@ app.post("/admin/settings", (req, res) => {
   config.heroText = heroText || config.heroText;
   config.web3Domain = web3Domain || config.web3Domain;
   config.logoPath = logoPath || config.logoPath;
+  config.theme = config.theme || {};
+  config.theme.menuBg = themeMenuBg || config.theme.menuBg || '#111111';
+  config.theme.menuText = themeMenuText || config.theme.menuText || '#ffffff';
+  config.theme.menuActiveBg =
+    themeMenuActiveBg || config.theme.menuActiveBg || '#f06292';
+  config.theme.menuActiveText =
+    themeMenuActiveText || config.theme.menuActiveText || '#ffffff';
+  config.theme.buttonRadius =
+    themeButtonRadius || config.theme.buttonRadius || '4px';
 
-  saveJson(CONFIG_FILE, config);
+  saveJson(req.tenantPaths.config, config);
 
-  const products = loadProducts();
-
-  res.render("admin", {
-    config,
-    productsJson: JSON.stringify(products, null, 2),
-    message: "Οι ρυθμίσεις αποθηκεύτηκαν.",
-    error: null
-  });
+  res.render(
+    'admin',
+    buildAdminViewModel(req, { message: 'Οι ρυθμίσεις αποθηκεύτηκαν.' })
+  );
 });
 
-app.post("/admin/products", (req, res) => {
-  const { password, productsJson } = req.body;
+// Categories CRUD
+app.post('/admin/categories/add', async (req, res) => {
+  const { password, id, name, slug } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories) {
+    return res
+      .status(403)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή κατηγοριών.'
+        })
+      );
+  }
 
-  if (password !== ADMIN_PASSWORD) {
-    const config = loadConfig();
-    const products = loadProducts();
-    return res.status(401).render("admin", {
-      config,
-      productsJson: JSON.stringify(products, null, 2),
-      message: null,
-      error: "Λάθος κωδικός διαχειριστή."
-    });
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res
+      .status(401)
+      .render(
+        'admin',
+        buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' })
+      );
+  }
+
+  const categories = loadTenantCategories(req);
+  if (categories.some((c) => c.id === id || c.slug === slug)) {
+    return res
+      .status(400)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Υπάρχει ήδη κατηγορία με αυτό το id ή slug.'
+        })
+      );
+  }
+
+  categories.push({ id, name, slug });
+  saveTenantCategories(req, categories);
+
+  res.render(
+    'admin',
+    buildAdminViewModel(req, { message: 'Η κατηγορία προστέθηκε.' })
+  );
+});
+
+app.post('/admin/categories/update', async (req, res) => {
+  const { password, categoryId, name, slug } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories) {
+    return res
+      .status(403)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή κατηγοριών.'
+        })
+      );
+  }
+
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res
+      .status(401)
+      .render(
+        'admin',
+        buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' })
+      );
+  }
+
+  const categories = loadTenantCategories(req);
+  const idx = categories.findIndex((c) => c.id === categoryId);
+  if (idx === -1) {
+    return res
+      .status(404)
+      .render(
+        'admin',
+        buildAdminViewModel(req, { error: 'Η κατηγορία δεν βρέθηκε.' })
+      );
+  }
+
+  if (
+    slug &&
+    categories.some((c) => c.id !== categoryId && c.slug === slug)
+  ) {
+    return res
+      .status(400)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Το slug χρησιμοποιείται ήδη από άλλη κατηγορία.'
+        })
+      );
+  }
+
+  categories[idx].name = name || categories[idx].name;
+  categories[idx].slug = slug || categories[idx].slug;
+  saveTenantCategories(req, categories);
+
+  res.render(
+    'admin',
+    buildAdminViewModel(req, { message: 'Η κατηγορία ενημερώθηκε.' })
+  );
+});
+
+app.post('/admin/categories/delete', async (req, res) => {
+  const { password, categoryId } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories) {
+    return res
+      .status(403)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή κατηγοριών.'
+        })
+      );
+  }
+
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res
+      .status(401)
+      .render(
+        'admin',
+        buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' })
+      );
+  }
+
+  const categories = loadTenantCategories(req);
+  const filtered = categories.filter((c) => c.id !== categoryId);
+  saveTenantCategories(req, filtered);
+
+  res.render(
+    'admin',
+    buildAdminViewModel(req, { message: 'Η κατηγορία διαγράφηκε.' })
+  );
+});
+
+// Product JSON editor
+app.post('/admin/products', async (req, res) => {
+  const { password, productsJson } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditProducts) {
+    return res
+      .status(403)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή προϊόντων.',
+          productsJson
+        })
+      );
+  }
+
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res
+      .status(401)
+      .render(
+        'admin',
+        buildAdminViewModel(req, {
+          error: 'Λάθος κωδικός διαχειριστή.',
+          productsJson
+        })
+      );
   }
 
   try {
     const parsed = JSON.parse(productsJson);
     if (!Array.isArray(parsed)) {
-      throw new Error("Products JSON must be an array.");
+      throw new Error('Το JSON πρέπει να είναι array.');
     }
-    saveJson(PRODUCTS_FILE, parsed);
-
-    const config = loadConfig();
-    res.render("admin", {
-      config,
-      productsJson: JSON.stringify(parsed, null, 2),
-      message: "Τα προϊόντα αποθηκεύτηκαν.",
-      error: null
-    });
+    saveJson(req.tenantPaths.products, parsed);
+    res.render(
+      'admin',
+      buildAdminViewModel(req, {
+        message: 'Τα προϊόντα αποθηκεύτηκαν.',
+        productsJson: JSON.stringify(parsed, null, 2)
+      })
+    );
   } catch (err) {
-    const config = loadConfig();
-    const currentProducts = loadProducts();
-    res.status(400).render("admin", {
-      config,
-      productsJson: productsJson,
-      message: null,
-      error: "Σφάλμα στο JSON προϊόντων: " + err.message
-    });
+    res.status(400).render(
+      'admin',
+      buildAdminViewModel(req, {
+        error: 'Σφάλμα στο JSON προϊόντων: ' + err.message,
+        productsJson
+      })
+    );
   }
 });
 
-// Start
+// Image upload
+app.post(
+  '/admin/upload-image',
+  upload.single('image'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia) {
+      return res
+        .status(403)
+        .json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+
+    const password = req.body.password;
+    const ok = await verifyAdminPassword(req.tenant, password);
+    if (!ok) {
+      return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    }
+
+    const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+// Thronos Commerce marketing landing
+app.get('/thronos-commerce', (req, res) => {
+  const packages = [
+    {
+      id: 'MANAGEMENT_START',
+      title: 'Management Start',
+      description:
+        'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
+      features: [
+        'Στήσιμο e‑shop πάνω στο Thronos Commerce',
+        'Βασικό theme & λογότυπο',
+        'Admin panel για προϊόντα',
+        'Σύνδεση με δικό σας domain & email'
+      ]
+    },
+    {
+      id: 'FULL_OPS_START',
+      title: 'Full Ops Start',
+      description:
+        'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
+      features: [
+        'Όλα του Management Start',
+        'Πλήρης διαχείριση προϊόντων & περιεχομένου',
+        'Παρακολούθηση παραγγελιών & επικοινωνίας',
+        'Συμβουλευτικό growth roadmap'
+      ]
+    }
+  ];
+
+  res.render('landing', { packages, message: null });
+});
+
+app.post('/thronos-commerce/offer', (req, res) => {
+  const lead = {
+    id: `lead_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    ...req.body
+  };
+  console.log('New Thronos Commerce lead:', lead);
+
+  const leadsFile = path.join(DATA_ROOT, 'leads.json');
+  const leads = loadJson(leadsFile, []);
+  leads.push(lead);
+  saveJson(leadsFile, leads);
+
+  const packages = [
+    {
+      id: 'MANAGEMENT_START',
+      title: 'Management Start',
+      description:
+        'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
+      features: [
+        'Στήσιμο e‑shop πάνω στο Thronos Commerce',
+        'Βασικό theme & λογότυπο',
+        'Admin panel για προϊόντα',
+        'Σύνδεση με δικό σας domain & email'
+      ]
+    },
+    {
+      id: 'FULL_OPS_START',
+      title: 'Full Ops Start',
+      description:
+        'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
+      features: [
+        'Όλα του Management Start',
+        'Πλήρης διαχείριση προϊόντων & περιεχομένου',
+        'Παρακολούθηση παραγγελιών & επικοινωνίας',
+        'Συμβουλευτικό growth roadmap'
+      ]
+    }
+  ];
+
+  res.render('landing', {
+    packages,
+    message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.'
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Thronos Commerce running on port ${PORT}`);
