@@ -151,6 +151,7 @@
         <a href="#tab-products"><%= t('admin.tabProducts') %></a>
         <a href="#tab-upload"><%= t('admin.tabImages') %></a>
         <a href="#tab-shipping"><%= t('admin.tabShipping') %></a>
+        <a href="#tab-notifications"><%= t('admin.tabNotifications') %></a>
         <a href="/admin/orders"><%= t('admin.tabOrders') %></a>
       </nav>
 
@@ -347,6 +348,7 @@
               <th><%= t('admin.catColId') %></th>
               <th><%= t('admin.catColName') %></th>
               <th><%= t('admin.catColSlug') %></th>
+              <th><%= t('admin.catColParent') %></th>
               <th><%= t('admin.catColAction') %></th>
             </tr>
           </thead>
@@ -356,6 +358,7 @@
                 <td><code><%= cat.id %></code></td>
                 <td><%= cat.name %></td>
                 <td><%= cat.slug %></td>
+                <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
                   <form method="POST" action="/admin/categories/delete" class="inline-form">
                     <input type="hidden" name="categoryId" value="<%= cat.id %>" />
@@ -380,6 +383,12 @@
           <input type="text" name="id" placeholder="Κωδικός (π.χ. bags)" required />
           <input type="text" name="name" placeholder="Όνομα (π.χ. Τσάντες)" required />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
+          <select name="parentId">
+            <option value=""><%= t('admin.catNoParent') %></option>
+            <% categories.forEach(function(cat){ %>
+              <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
+            <% }) %>
+          </select>
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
           <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
@@ -393,6 +402,12 @@
           </select>
           <input type="text" name="name" placeholder="Νέο όνομα" required />
           <input type="text" name="slug" placeholder="Νέο slug" required />
+          <select name="parentId">
+            <option value=""><%= t('admin.catNoParent') %></option>
+            <% categories.forEach(function(cat){ %>
+              <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
+            <% }) %>
+          </select>
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
           <button type="submit" class="button"><%= t('admin.catUpdateBtn') %></button>
         </form>
@@ -542,7 +557,6 @@
                 <th><%= t('admin.payColId') %></th>
                 <th><%= t('admin.payColLabel') %></th>
                 <th><%= t('admin.payColType') %></th>
-                <th><%= t('admin.payColSurcharge') %></th>
               </tr>
             </thead>
             <tbody>
@@ -555,19 +569,11 @@
                          <%= permissions.canEditSettings ? 'required' : 'readonly' %> />
                 </td>
                 <td><span class="sp-badge"><%= opt.type || '–' %></span></td>
-                <td>
-                  <input type="number" name="pay_surcharge_<%= i %>"
-                         value="<%= opt.gatewaySurchargePercent !== undefined ? opt.gatewaySurchargePercent : 0 %>"
-                         min="0" step="0.001"
-                         <%= permissions.canEditSettings ? '' : 'readonly' %> />
-                </td>
               </tr>
               <% }) %>
             </tbody>
           </table>
           <% } %>
-          <p class="helper" style="margin-top:6px;"><%= t('admin.paySurchargeHelper') %></p>
-
           <% if (permissions.canEditSettings) { %>
           <div class="save-row">
             <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
@@ -577,6 +583,35 @@
           <% } %>
 
         </form>
+      </section>
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 7 – NOTIFICATIONS                                   %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <section id="tab-notifications" class="admin-block">
+        <h2><%= t('admin.notificationsTitle') %></h2>
+        <p class="helper"><%= t('admin.notificationsHelper') %></p>
+
+        <div class="notifications-skeleton">
+          <table class="sp-table" style="opacity:.5;">
+            <thead>
+              <tr>
+                <th><%= t('admin.notifColDate') %></th>
+                <th><%= t('admin.notifColSubject') %></th>
+                <th><%= t('admin.notifColRecipients') %></th>
+                <th><%= t('admin.notifColStatus') %></th>
+                <th><%= t('admin.notifColHash') %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="5" style="text-align:center;color:#aaa;font-style:italic;padding:24px 0;">
+                  <%= t('admin.notificationsComingSoon') %>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
     </main>
@@ -617,6 +652,16 @@
           </label>
           <label class="full"><span><%= t('admin.modalDescription') %></span>
             <textarea id="f-description" rows="3" placeholder="Σύντομη περιγραφή προϊόντος..."></textarea>
+          </label>
+          <label class="full"><span><%= t('admin.modalSeoTitle') %></span>
+            <input type="text" id="f-seoTitle" placeholder="<%= t('admin.modalSeoTitlePlaceholder') %>" />
+          </label>
+          <label class="full"><span><%= t('admin.modalSeoDescription') %></span>
+            <input type="text" id="f-seoDescription" placeholder="<%= t('admin.modalSeoDescPlaceholder') %>" />
+          </label>
+          <label class="full"><span><%= t('admin.modalGallery') %></span>
+            <textarea id="f-gallery" rows="3" placeholder="<%= t('admin.modalGalleryPlaceholder') %>"></textarea>
+            <small style="color:#888;font-size:0.78rem;"><%= t('admin.modalGalleryHelper') %></small>
           </label>
         </div>
         <div class="modal-actions">
@@ -686,16 +731,19 @@
       // ── Modal logic ─────────────────────────────────────────────
       let editingIdx = -1; // -1 = new product
 
-      const modal    = document.getElementById('product-modal');
-      const fName    = document.getElementById('f-name');
-      const fId      = document.getElementById('f-id');
-      const fSku     = document.getElementById('f-sku');
-      const fPrice   = document.getElementById('f-price');
-      const fStock   = document.getElementById('f-stock');
-      const fCat     = document.getElementById('f-category');
-      const fImg     = document.getElementById('f-imageUrl');
-      const fDesc    = document.getElementById('f-description');
-      const mTitle   = document.getElementById('modal-title');
+      const modal      = document.getElementById('product-modal');
+      const fName      = document.getElementById('f-name');
+      const fId        = document.getElementById('f-id');
+      const fSku       = document.getElementById('f-sku');
+      const fPrice     = document.getElementById('f-price');
+      const fStock     = document.getElementById('f-stock');
+      const fCat       = document.getElementById('f-category');
+      const fImg       = document.getElementById('f-imageUrl');
+      const fDesc      = document.getElementById('f-description');
+      const fSeoTitle  = document.getElementById('f-seoTitle');
+      const fSeoDesc   = document.getElementById('f-seoDescription');
+      const fGallery   = document.getElementById('f-gallery');
+      const mTitle     = document.getElementById('modal-title');
 
       function openAdd() {
         editingIdx = -1;
@@ -703,6 +751,7 @@
         fName.value = ''; fId.value = ''; fSku.value = '';
         fPrice.value = ''; fStock.value = '1';
         fCat.value = ''; fImg.value = ''; fDesc.value = '';
+        fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         modal.classList.add('open');
         fName.focus();
       }
@@ -711,14 +760,17 @@
         editingIdx = i;
         const p = products[i];
         mTitle.textContent = i18nJs.editPrefix + (p.name || '');
-        fName.value  = p.name || '';
-        fId.value    = p.id || '';
-        fSku.value   = p.sku || '';
-        fPrice.value = p.price !== undefined ? p.price : '';
-        fStock.value = p.stock !== undefined ? p.stock : '';
-        fCat.value   = p.categoryId || '';
-        fImg.value   = p.imageUrl || '';
-        fDesc.value  = p.description || '';
+        fName.value     = p.name || '';
+        fId.value       = p.id || '';
+        fSku.value      = p.sku || '';
+        fPrice.value    = p.price !== undefined ? p.price : '';
+        fStock.value    = p.stock !== undefined ? p.stock : '';
+        fCat.value      = p.categoryId || '';
+        fImg.value      = p.imageUrl || '';
+        fDesc.value     = p.description || '';
+        fSeoTitle.value = p.seoTitle || '';
+        fSeoDesc.value  = p.seoDescription || '';
+        fGallery.value  = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
         modal.classList.add('open');
         fName.focus();
       }
@@ -735,15 +787,19 @@
           alert(i18nJs.nameRequired);
           return;
         }
+        const galleryRaw = fGallery.value.split('\n').map(l => l.trim()).filter(Boolean);
         const product = {
           id,
           name,
-          sku:         fSku.value.trim() || undefined,
-          price:       parseFloat(fPrice.value) || 0,
-          stock:       parseInt(fStock.value, 10) || 0,
-          categoryId:  fCat.value || undefined,
-          imageUrl:    fImg.value.trim() || undefined,
-          description: fDesc.value.trim() || undefined
+          sku:            fSku.value.trim() || undefined,
+          price:          parseFloat(fPrice.value) || 0,
+          stock:          parseInt(fStock.value, 10) || 0,
+          categoryId:     fCat.value || undefined,
+          imageUrl:       fImg.value.trim() || undefined,
+          description:    fDesc.value.trim() || undefined,
+          seoTitle:       fSeoTitle.value.trim() || undefined,
+          seoDescription: fSeoDesc.value.trim() || undefined,
+          gallery:        galleryRaw.length ? galleryRaw : undefined
         };
         // Remove undefined fields
         Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);

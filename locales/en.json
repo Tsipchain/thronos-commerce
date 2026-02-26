@@ -5,7 +5,10 @@
     "noProducts": "No products found in this category.",
     "viewProduct": "View product",
     "web3Domain": "Web3 domain",
-    "langLabel": "Language"
+    "langLabel": "Language",
+    "cartTitle": "Shopping cart",
+    "cartEmpty": "Your cart is empty.",
+    "cartCheckout": "Proceed to checkout →"
   },
   "checkout": {
     "fullName": "Full name",
@@ -56,7 +59,16 @@
     "tabProducts": "Products",
     "tabImages": "Images",
     "tabShipping": "Shipping & Payment",
+    "tabNotifications": "Notifications",
     "tabOrders": "Orders",
+    "notificationsTitle": "Notifications & Attestations",
+    "notificationsHelper": "Email send history and ThronosChain attestation records. This feature will be activated soon.",
+    "notifColDate": "Date",
+    "notifColSubject": "Subject",
+    "notifColRecipients": "Recipients",
+    "notifColStatus": "Status",
+    "notifColHash": "Hash",
+    "notificationsComingSoon": "No records yet — feature coming soon.",
     "adminPass": "Admin password",
     "saveSettings": "Save settings",
     "saveAll": "Save all",
@@ -89,5 +101,16 @@
     "statusPendingStripe": "Awaiting payment",
     "statusPaid": "Paid",
     "statusCancelled": "Cancelled"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "writeReview": "Write a review",
+    "labelName": "Name *",
+    "labelRating": "Rating",
+    "labelComment": "Comment *",
+    "submit": "Submit review",
+    "noReviews": "No reviews yet. Be the first!",
+    "submitOk": "Your review has been submitted. Thank you!",
+    "submitErr": "Submission failed. Please try again."
   }
 }

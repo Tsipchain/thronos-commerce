@@ -174,6 +174,7 @@ function tenantPaths(tenantId) {
     products: path.join(base, 'products.json'),
     categories: path.join(base, 'categories.json'),
     orders: path.join(base, 'orders.json'),
+    reviews: path.join(base, 'reviews.json'),
     media
   };
 }
@@ -565,19 +566,31 @@ async function sendOrderEmails(order, config) {
 
 async function attestMailToThronos(order, meta) {
   const nodeUrl = (process.env.THRONOS_NODE_URL || '').replace(/\/$/, '');
-  const apiKey = process.env.THRONOS_COMMERCE_API_KEY || null;
   if (!nodeUrl) return null;
 
-  const from = meta.from || '';
-  const to = meta.to || '';
-  const subject = meta.subject || '';
-  const canonical = `${from}|${to}|${subject}|${order.id}|${order.total}|${order.createdAt}`;
-  const hash = crypto.createHash('sha256').update(canonical).digest('hex');
+  const from      = meta.from || '';
+  const toRaw     = meta.to || '';
+  const to        = Array.isArray(toRaw) ? toRaw : [toRaw].filter(Boolean);
+  const subject   = meta.subject || '';
+  const timestamp = meta.timestamp || order.createdAt || new Date().toISOString();
+  const tenantId  = order.tenantId || (order.tenant && order.tenant.id) || '';
+  const canonical = `${from}|${to.join(',')}|${subject}|${order.id}|${order.total}|${timestamp}`;
+  const hash      = crypto.createHash('sha256').update(canonical).digest('hex');
 
   try {
     const response = await axios.post(
       `${nodeUrl}/api/mail/attest`,
-      { orderId: order.id, from, to, subject, hash, apiKey },
+      {
+        from,
+        to,
+        subject,
+        timestamp,
+        hash,
+        tenantId,
+        orderId:  order.id,
+        apiKey:   process.env.THRONOS_COMMERCE_API_KEY || null,
+        meta:     meta.extra || {}
+      },
       { timeout: 4000 }
     );
     console.log('[Thronos Commerce] attestMailToThronos response:', response.data);
@@ -771,7 +784,7 @@ app.post('/checkout', async (req, res) => {
   sendOrderEmails(order, config).catch((err) =>
     console.error('[Thronos Commerce] sendOrderEmails failed:', err.message)
   );
-  attestMailToThronos(order, { from: mailFrom, to: order.email, subject: mailSubject }).catch(
+  attestMailToThronos(order, { from: mailFrom, to: [order.email], subject: mailSubject }).catch(
     (err) => console.error('[Thronos Commerce] attestMailToThronos failed:', err.message)
   );
 
@@ -781,6 +794,35 @@ app.post('/checkout', async (req, res) => {
     proofHash,
     tenant: req.tenant
   });
+});
+
+// ── Reviews API ──────────────────────────────────────────────────────────────
+
+app.get('/api/products/:productId/reviews', (req, res) => {
+  const reviews = loadJson(req.tenantPaths.reviews, []);
+  const filtered = reviews.filter((r) => r.productId === req.params.productId);
+  res.json(filtered);
+});
+
+app.post('/api/products/:productId/reviews', (req, res) => {
+  const { name, rating, comment } = req.body;
+  const ratingNum = parseInt(rating, 10);
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Το όνομα είναι υποχρεωτικό.' });
+  if (!comment || !comment.trim()) return res.status(400).json({ error: 'Το σχόλιο είναι υποχρεωτικό.' });
+  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) return res.status(400).json({ error: 'Η βαθμολογία πρέπει να είναι 1–5.' });
+
+  const review = {
+    id: Date.now().toString(36),
+    productId: req.params.productId,
+    name: name.trim(),
+    rating: ratingNum,
+    comment: comment.trim(),
+    createdAt: new Date().toISOString()
+  };
+  const reviews = loadJson(req.tenantPaths.reviews, []);
+  reviews.push(review);
+  saveJson(req.tenantPaths.reviews, reviews);
+  res.json({ ok: true, review });
 });
 
 // Admin panel
@@ -906,12 +948,10 @@ app.post('/admin/shipping-payment', async (req, res) => {
     if (codFee !== undefined) opt.codFee = parseFloat(codFee) || 0;
   });
 
-  // Update paymentOptions: only label, gatewaySurchargePercent — never touch id or type
+  // Update paymentOptions: label only — gatewaySurchargePercent is root-admin-only
   (config.paymentOptions || []).forEach((opt, i) => {
-    const label     = req.body[`pay_label_${i}`];
-    const surcharge = req.body[`pay_surcharge_${i}`];
-    if (label     !== undefined) opt.label                   = label;
-    if (surcharge !== undefined) opt.gatewaySurchargePercent = parseFloat(surcharge) || 0;
+    const label = req.body[`pay_label_${i}`];
+    if (label !== undefined) opt.label = label;
   });
 
   saveJson(req.tenantPaths.config, config);
@@ -923,7 +963,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug } = req.body;
+  const { password, id, name, slug, parentId } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -958,7 +998,9 @@ app.post('/admin/categories/add', async (req, res) => {
       );
   }
 
-  categories.push({ id, name, slug });
+  const newCat = { id, name, slug };
+  if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
+  categories.push(newCat);
   saveTenantCategories(req, categories);
 
   res.render(
@@ -968,7 +1010,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug } = req.body;
+  const { password, categoryId, name, slug, parentId } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -1018,6 +1060,13 @@ app.post('/admin/categories/update', async (req, res) => {
 
   categories[idx].name = name || categories[idx].name;
   categories[idx].slug = slug || categories[idx].slug;
+  if (parentId !== undefined) {
+    if (parentId && parentId.trim() && parentId.trim() !== categoryId) {
+      categories[idx].parentId = parentId.trim();
+    } else {
+      delete categories[idx].parentId;
+    }
+  }
   saveTenantCategories(req, categories);
 
   res.render(
@@ -1094,6 +1143,21 @@ app.post('/admin/products', async (req, res) => {
     if (!Array.isArray(parsed)) {
       throw new Error('Το JSON πρέπει να είναι array.');
     }
+    const categories = loadTenantCategories(req);
+    const config = loadTenantConfig(req);
+    const storeName = (config.storeName || '').trim();
+    parsed.forEach((p) => {
+      if (!p.seoTitle) {
+        const catObj = categories.find((c) => c.id === p.categoryId);
+        const catName = catObj ? catObj.name : '';
+        p.seoTitle = [p.name, catName, storeName].filter(Boolean).join(' | ');
+      }
+      if (!p.seoDescription) {
+        const desc = (p.description || '').trim();
+        p.seoDescription = desc.length > 160 ? desc.slice(0, 157) + '…' : desc || p.seoTitle;
+      }
+      if (!Array.isArray(p.gallery)) p.gallery = [];
+    });
     saveJson(req.tenantPaths.products, parsed);
     res.render(
       'admin',
@@ -1224,7 +1288,17 @@ const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START'];
 
 function buildRootViewModel(extra) {
   const tenants = loadTenantsRegistry();
-  return { tenants, message: null, error: null, ...(extra || {}) };
+  const tenantPaymentConfigs = {};
+  tenants.forEach((t) => {
+    try {
+      const cfgPath = path.join(TENANTS_DIR, t.id, 'config.json');
+      const cfg = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
+      tenantPaymentConfigs[t.id] = cfg.paymentOptions || [];
+    } catch (_) {
+      tenantPaymentConfigs[t.id] = [];
+    }
+  });
+  return { tenants, tenantPaymentConfigs, message: null, error: null, ...(extra || {}) };
 }
 
 app.get('/root/tenants', (req, res) => {
@@ -1329,6 +1403,35 @@ app.post('/root/tenants/reset-admin-password', async (req, res) => {
 
   res.render('root-tenants',
     buildRootViewModel({ message: `Ο κωδικός admin για τον tenant "${tenantId}" ενημερώθηκε.` }));
+});
+
+// Root: update gateway surcharge for a tenant's payment options
+app.post('/root/tenants/payment-config', (req, res) => {
+  const { rootPassword, tenantId } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants',
+      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+
+  const tenants = loadTenantsRegistry();
+  const tenant = tenants.find((t) => t.id === tenantId);
+  if (!tenant) {
+    return res.status(404).render('root-tenants',
+      buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+  }
+
+  const cfgPath = path.join(TENANTS_DIR, tenantId, 'config.json');
+  const config = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
+  (config.paymentOptions || []).forEach((opt, i) => {
+    const surcharge = req.body[`surcharge_${i}`];
+    if (surcharge !== undefined) opt.gatewaySurchargePercent = parseFloat(surcharge) || 0;
+  });
+  saveJson(cfgPath, config);
+  console.log(`[Root Admin] Updated payment surcharges for tenant: ${tenantId}`);
+
+  res.render('root-tenants',
+    buildRootViewModel({ message: `Τα surcharges για τον tenant "${tenantId}" αποθηκεύτηκαν.` }));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
