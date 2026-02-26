@@ -590,6 +590,53 @@ app.post('/admin/settings', async (req, res) => {
   );
 });
 
+// Shipping & Payment options editor
+app.post('/admin/shipping-payment', async (req, res) => {
+  const { password } = req.body;
+
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res
+      .status(403)
+      .render('admin', buildAdminViewModel(req, {
+        error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή μεταφορικών/πληρωμών.'
+      }));
+  }
+
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res
+      .status(401)
+      .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+
+  // Update shippingOptions: only label, base, codFee — never touch id or allowedPaymentMethods
+  (config.shippingOptions || []).forEach((opt, i) => {
+    const label  = req.body[`ship_label_${i}`];
+    const base   = req.body[`ship_base_${i}`];
+    const codFee = req.body[`ship_codFee_${i}`];
+    if (label  !== undefined) opt.label  = label;
+    if (base   !== undefined) opt.base   = parseFloat(base)   || 0;
+    if (codFee !== undefined) opt.codFee = parseFloat(codFee) || 0;
+  });
+
+  // Update paymentOptions: only label, gatewaySurchargePercent — never touch id or type
+  (config.paymentOptions || []).forEach((opt, i) => {
+    const label     = req.body[`pay_label_${i}`];
+    const surcharge = req.body[`pay_surcharge_${i}`];
+    if (label     !== undefined) opt.label                   = label;
+    if (surcharge !== undefined) opt.gatewaySurchargePercent = parseFloat(surcharge) || 0;
+  });
+
+  saveJson(req.tenantPaths.config, config);
+
+  res.render('admin', buildAdminViewModel(req, {
+    message: 'Τα μεταφορικά και οι τρόποι πληρωμής αποθηκεύτηκαν.'
+  }));
+});
+
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
   const { password, id, name, slug } = req.body;
