@@ -101,6 +101,14 @@ function loadTenantsRegistry() {
   return Array.isArray(tenants) ? tenants : [];
 }
 
+function saveTenantsRegistry(tenants) {
+  saveJson(TENANTS_REGISTRY, tenants);
+}
+
+function findTenantById(tenantId) {
+  return loadTenantsRegistry().find((t) => t.id === tenantId) || null;
+}
+
 function tenantPaths(tenantId) {
   const base = path.join(TENANTS_DIR, tenantId);
   ensureDir(base);
@@ -111,8 +119,30 @@ function tenantPaths(tenantId) {
     config: path.join(base, 'config.json'),
     products: path.join(base, 'products.json'),
     categories: path.join(base, 'categories.json'),
+    orders: path.join(base, 'orders.json'),
     media
   };
+}
+
+function loadTenantOrders(req) {
+  try {
+    const raw = fs.readFileSync(req.tenantPaths.orders, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('not an array');
+    return parsed;
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`[Thronos Commerce] Malformed orders.json for tenant ${req.tenant.id}: ${err.message} – falling back to empty array.`);
+    }
+    return [];
+  }
+}
+
+function appendTenantOrder(req, order) {
+  ensureDir(req.tenantPaths.base);
+  const orders = loadTenantOrders(req);
+  orders.push(order);
+  saveJson(req.tenantPaths.orders, orders);
 }
 
 function getTenantByHost(hostname) {
@@ -275,6 +305,45 @@ async function verifyAdminPassword(tenant, plainPassword) {
   return ok;
 }
 
+// Root operator auth
+const ROOT_ADMIN_PASSWORD = process.env.THRONOS_ROOT_ADMIN_PASSWORD || '';
+
+function verifyRootPassword(plain) {
+  if (!ROOT_ADMIN_PASSWORD) return false;
+  return (plain || '') === ROOT_ADMIN_PASSWORD;
+}
+
+// Seed a new tenant's files from a template tenant (default: 'demo')
+function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
+  const newPaths = tenantPaths(tenantId);
+  const tplPaths = tenantPaths(templateId);
+
+  if (!fs.existsSync(newPaths.config)) {
+    const tplConfig = loadJson(tplPaths.config, {
+      storeName: tenantId,
+      primaryColor: '#222222',
+      accentColor: '#00ff88',
+      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      heroText: 'Καλωσήρθατε στο κατάστημά μας!',
+      web3Domain: '',
+      logoPath: '/logo.svg',
+      shippingOptions: [],
+      paymentOptions: [],
+      theme: { menuBg: '#111111', menuText: '#ffffff', menuActiveBg: '#f06292', menuActiveText: '#ffffff', buttonRadius: '4px' }
+    });
+    tplConfig.storeName = tenantId;
+    saveJson(newPaths.config, tplConfig);
+  }
+
+  if (!fs.existsSync(newPaths.products)) {
+    saveJson(newPaths.products, loadJson(tplPaths.products, []));
+  }
+
+  if (!fs.existsSync(newPaths.categories)) {
+    saveJson(newPaths.categories, loadJson(tplPaths.categories, []));
+  }
+}
+
 // Multer storage for per-tenant media
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -304,8 +373,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tenants', express.static(TENANTS_DIR));
 app.use(express.urlencoded({ extended: true }));
 
-// Tenant resolution middleware
+// Tenant resolution middleware (skips root operator panel)
 app.use((req, res, next) => {
+  if (req.path.startsWith('/root')) return next();
   const hostHeader = (req.headers.host || '').split(':')[0];
   const tenant = getTenantByHost(hostHeader);
   if (!tenant) {
@@ -424,8 +494,9 @@ app.post('/checkout', async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  console.log('New order received:', order);
+  console.log('[Thronos Commerce] New order:', JSON.stringify(order));
 
+  appendTenantOrder(req, order);
   const proofHash = await recordOrderOnChain(order, req.tenant);
 
   res.render('thanks', {
@@ -439,6 +510,19 @@ app.post('/checkout', async (req, res) => {
 // Admin panel
 app.get('/admin', (req, res) => {
   res.render('admin', buildAdminViewModel(req));
+});
+
+// Admin orders view
+app.get('/admin/orders', (req, res) => {
+  const config = loadTenantConfig(req);
+  const allOrders = loadTenantOrders(req);
+  const orders = allOrders.slice(-100).reverse();
+  res.render('admin-orders', {
+    tenant: req.tenant,
+    config,
+    orders,
+    permissions: getSupportPermissions(req.tenant.supportTier)
+  });
 });
 
 app.post('/admin/settings', async (req, res) => {
@@ -802,6 +886,121 @@ app.post('/thronos-commerce/offer', (req, res) => {
     message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.'
   });
 });
+
+// ─── Root Admin: Tenants Management ──────────────────────────────────────────
+
+const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START'];
+
+function buildRootViewModel(extra) {
+  const tenants = loadTenantsRegistry();
+  return { tenants, message: null, error: null, ...(extra || {}) };
+}
+
+app.get('/root/tenants', (req, res) => {
+  res.render('root-tenants', buildRootViewModel());
+});
+
+app.post('/root/tenants/create', async (req, res) => {
+  const { rootPassword, id, domain, supportTier, adminPasswordPlain, templateId } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants',
+      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+
+  const cleanId = (id || '').trim();
+  if (!cleanId || !/^[a-z0-9_-]+$/i.test(cleanId)) {
+    return res.status(400).render('root-tenants',
+      buildRootViewModel({ error: 'Το tenant id είναι υποχρεωτικό και επιτρέπονται μόνο a-z, 0-9, _ και -.' }));
+  }
+
+  if (!adminPasswordPlain) {
+    return res.status(400).render('root-tenants',
+      buildRootViewModel({ error: 'Ο κωδικός admin είναι υποχρεωτικός.' }));
+  }
+
+  const tenants = loadTenantsRegistry();
+  if (tenants.some((t) => t.id === cleanId)) {
+    return res.status(400).render('root-tenants',
+      buildRootViewModel({ error: `Υπάρχει ήδη tenant με id "${cleanId}".` }));
+  }
+
+  const adminPasswordHash = await bcrypt.hash(adminPasswordPlain, 10);
+  const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
+
+  const newTenant = {
+    id: cleanId,
+    domain: (domain || '').trim(),
+    supportTier: resolvedTier,
+    adminPasswordHash,
+    createdAt: new Date().toISOString(),
+    active: true
+  };
+
+  seedTenantFilesFromTemplate(cleanId, (templateId || '').trim() || 'demo');
+  tenants.push(newTenant);
+  saveTenantsRegistry(tenants);
+  console.log(`[Root Admin] Created tenant: ${cleanId} (${resolvedTier})`);
+
+  res.render('root-tenants',
+    buildRootViewModel({ message: `Ο tenant "${cleanId}" δημιουργήθηκε επιτυχώς.` }));
+});
+
+app.post('/root/tenants/update', (req, res) => {
+  const { rootPassword, tenantId, domain, supportTier, active } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants',
+      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex((t) => t.id === tenantId);
+  if (idx === -1) {
+    return res.status(404).render('root-tenants',
+      buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+  }
+
+  if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
+  if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
+  tenants[idx].active = active === 'true' || active === '1' || active === 'on';
+
+  saveTenantsRegistry(tenants);
+  console.log(`[Root Admin] Updated tenant: ${tenantId}`);
+
+  res.render('root-tenants',
+    buildRootViewModel({ message: `Ο tenant "${tenantId}" ενημερώθηκε.` }));
+});
+
+app.post('/root/tenants/reset-admin-password', async (req, res) => {
+  const { rootPassword, tenantId, newPassword } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants',
+      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+
+  if (!newPassword) {
+    return res.status(400).render('root-tenants',
+      buildRootViewModel({ error: 'Ο νέος κωδικός είναι υποχρεωτικός.' }));
+  }
+
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex((t) => t.id === tenantId);
+  if (idx === -1) {
+    return res.status(404).render('root-tenants',
+      buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+  }
+
+  tenants[idx].adminPasswordHash = await bcrypt.hash(newPassword, 10);
+  saveTenantsRegistry(tenants);
+  console.log(`[Root Admin] Reset admin password for tenant: ${tenantId}`);
+
+  res.render('root-tenants',
+    buildRootViewModel({ message: `Ο κωδικός admin για τον tenant "${tenantId}" ενημερώθηκε.` }));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
