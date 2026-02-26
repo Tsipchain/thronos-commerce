@@ -14,6 +14,74 @@ function ensureDir(dirPath) {
   }
 }
 
+// Data root config + auto-seeding for volumes
+const EMBEDDED_DATA_ROOT = path.join(__dirname, 'data');
+
+function copyDirRecursiveSync(srcDir, destDir) {
+  ensureDir(destDir);
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirRecursiveSync(srcPath, destPath);
+    } else if (entry.isFile()) {
+      // μην overwrite αν υπάρχει ήδη
+      if (!fs.existsSync(destPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+}
+
+let DATA_ROOT = EMBEDDED_DATA_ROOT;
+
+if (process.env.THRC_DATA_ROOT) {
+  const candidateRoot = process.env.THRC_DATA_ROOT;
+
+  try {
+    ensureDir(candidateRoot);
+    const candidateRegistry = path.join(candidateRoot, 'tenants.json');
+
+    if (fs.existsSync(candidateRegistry)) {
+      // υπάρχει ήδη tenants.json στο volume → δουλεύουμε από εκεί
+      DATA_ROOT = candidateRoot;
+      console.log(
+        '[Thronos Commerce] Using data root from THRC_DATA_ROOT:',
+        candidateRoot
+      );
+    } else {
+      // δεν υπάρχει tenants.json → seed από το embedded ./data
+      console.warn(
+        '[Thronos Commerce] THRC_DATA_ROOT is set to',
+        candidateRoot,
+        'but tenants.json is missing – seeding from embedded ./data.'
+      );
+      copyDirRecursiveSync(EMBEDDED_DATA_ROOT, candidateRoot);
+      DATA_ROOT = candidateRoot;
+    }
+  } catch (err) {
+    console.error(
+      '[Thronos Commerce] Failed to use THRC_DATA_ROOT, falling back to embedded ./data:',
+      err.message
+    );
+    DATA_ROOT = EMBEDDED_DATA_ROOT;
+  }
+} else {
+  console.log(
+    '[Thronos Commerce] THRC_DATA_ROOT not set – using embedded ./data as DATA_ROOT.'
+  );
+}
+
+// Ensure base dirs for the final DATA_ROOT
+ensureDir(DATA_ROOT);
+
+const TENANTS_DIR = path.join(DATA_ROOT, 'tenants');
+ensureDir(TENANTS_DIR);
+
+const TENANTS_REGISTRY = path.join(DATA_ROOT, 'tenants.json');
+
 // Data root config
 const DEFAULT_DATA_ROOT = path.join(__dirname, 'data');
 const DATA_ROOT = process.env.THRC_DATA_ROOT || DEFAULT_DATA_ROOT;
