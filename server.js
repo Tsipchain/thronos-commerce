@@ -82,16 +82,6 @@ ensureDir(TENANTS_DIR);
 
 const TENANTS_REGISTRY = path.join(DATA_ROOT, 'tenants.json');
 
-// Data root config
-const DEFAULT_DATA_ROOT = path.join(__dirname, 'data');
-const DATA_ROOT = process.env.THRC_DATA_ROOT || DEFAULT_DATA_ROOT;
-ensureDir(DATA_ROOT);
-
-const TENANTS_DIR = path.join(DATA_ROOT, 'tenants');
-ensureDir(TENANTS_DIR);
-
-const TENANTS_REGISTRY = path.join(DATA_ROOT, 'tenants.json');
-
 function loadJson(filePath, fallback) {
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
@@ -143,22 +133,22 @@ function getTenantByHost(hostname) {
 // Tenant-scoped loaders
 function loadTenantConfig(req) {
   const fallback = {
-     storeName: 'Thronos Demo Store',
-     primaryColor: '#222222',
-     accentColor: '#00ff88',
-     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-     heroText: 'Καλωσήρθατε στο Thronos Commerce!',
-     web3Domain: '',
-     logoPath: '/logo.svg',
-     shippingOptions: [],
-     paymentOptions: [],
-     theme: {
-        menuBg: '#111111',
-        menuText: '#ffffff',
-        menuActiveBg: '#f06292',
-        menuActiveText: '#ffffff',
-        buttonRadius: '4px'
-     }
+    storeName: 'Thronos Demo Store',
+    primaryColor: '#222222',
+    accentColor: '#00ff88',
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    heroText: 'Καλωσήρθατε στο Thronos Commerce!',
+    web3Domain: '',
+    logoPath: '/logo.svg',
+    shippingOptions: [],
+    paymentOptions: [],
+    theme: {
+      menuBg: '#111111',
+      menuText: '#ffffff',
+      menuActiveBg: '#f06292',
+      menuActiveText: '#ffffff',
+      buttonRadius: '4px'
+    }
   };
   return loadJson(req.tenantPaths.config, fallback);
 }
@@ -744,7 +734,7 @@ app.get('/thronos-commerce', (req, res) => {
       description:
         'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
       features: [
-        'Στήσιμο e‑shop πάνω στο Thronos Commerce',
+        'Στήσιμο e-shop πάνω στο Thronos Commerce',
         'Βασικό theme & λογότυπο',
         'Admin panel για προϊόντα',
         'Σύνδεση με δικό σας domain & email'
@@ -787,7 +777,7 @@ app.post('/thronos-commerce/offer', (req, res) => {
       description:
         'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
       features: [
-        'Στήσιμο e‑shop πάνω στο Thronos Commerce',
+        'Στήσιμο e-shop πάνω στο Thronos Commerce',
         'Βασικό theme & λογότυπο',
         'Admin panel για προϊόντα',
         'Σύνδεση με δικό σας domain & email'
