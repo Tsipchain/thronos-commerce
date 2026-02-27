@@ -52,5 +52,11 @@
         </p>
       </section>
     </main>
+    <% if (locals.clearCart) { %>
+    <script>
+      // Clear cart after successful order
+      try { localStorage.removeItem('thrc_cart'); } catch(e) {}
+    </script>
+    <% } %>
   </body>
 </html>

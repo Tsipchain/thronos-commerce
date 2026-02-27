@@ -8,15 +8,40 @@
     "langLabel": "Language",
     "cartTitle": "Shopping cart",
     "cartEmpty": "Your cart is empty.",
-    "cartCheckout": "Proceed to checkout →"
+    "cartCheckout": "Proceed to checkout →",
+    "cartSubtotal": "Total"
+  },
+  "product": {
+    "specsTitle": "Technical specifications"
   },
   "checkout": {
+    "pageTitle": "Checkout",
+    "backToStore": "← Back to store",
+    "orderSummary": "Order summary",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "codFee": "COD fee",
+    "gatewayFee": "Payment fee",
+    "total": "Total",
+    "cartEmptyMsg": "Your cart is empty.",
     "fullName": "Full name",
     "email": "Email",
+    "phone": "Mobile phone",
+    "address": "Delivery address",
+    "addressPlaceholder": "e.g. Main St 12",
+    "doorbell": "Doorbell name",
+    "doorbellPlaceholder": "e.g. Smith",
+    "tk": "Postal code",
     "web3Wallet": "Web3 Wallet (optional)",
     "shippingMethod": "Shipping method",
     "paymentMethod": "Payment method",
+    "city": "City / Area",
+    "cityPlaceholder": "e.g. Athens",
     "notes": "Notes",
+    "notesPlaceholder": "Delivery instructions...",
+    "inStock": "In stock",
+    "stockLow": "Low stock",
+    "stockOut": "Out of stock",
     "submit": "Place order"
   },
   "thankyou": {
@@ -73,6 +98,8 @@
     "saveSettings": "Save settings",
     "saveAll": "Save all",
     "uploadBtn": "Upload",
+    "modalSpecs": "Technical specifications",
+    "modalSpecsHelper": "E.g. «Weight» → «1.2 kg». Displayed as a table on the product page.",
     "faviconTitle": "Store favicon",
     "faviconHelper": "Upload the icon shown in the browser tab. Recommended: 64×64 px PNG.",
     "faviconUploadBtn": "Upload favicon",
@@ -117,7 +144,10 @@
     "submit": "Submit review",
     "noReviews": "No reviews yet. Be the first!",
     "submitOk": "Your review has been submitted. Thank you!",
-    "submitErr": "Submission failed. Please try again."
+    "submitErr": "Submission failed. Please try again.",
+    "verifiedNote": "Only verified buyers can write a review. Enter the email you used for your order.",
+    "verifyBtn": "Verify purchase",
+    "notVerified": "No order found with this email for this product."
   },
   "referral": {
     "title": "Referral Partners",

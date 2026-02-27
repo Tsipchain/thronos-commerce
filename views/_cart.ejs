@@ -1,0 +1,181 @@
+<%# ── Shared floating cart widget ────────────────────────────────────────── %>
+<%# Include this in any storefront page EXCEPT /checkout.                     %>
+<style>
+  #floating-cart {
+    position: fixed; right: 24px; bottom: 24px; z-index: 900;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--primary-color, #4f46e5); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; cursor: grab; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+    user-select: none; touch-action: none;
+  }
+  #floating-cart:active { transform: scale(.93); }
+  #cart-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: #ef4444; color: #fff; border-radius: 50%;
+    width: 20px; height: 20px; font-size: .72rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #cart-panel {
+    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 901;
+    width: 300px; background: #fff; border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18); padding: 16px;
+  }
+  #cart-panel h4 { margin: 0 0 10px; font-size: .95rem; }
+  #cart-items { list-style: none; padding: 0; margin: 0 0 8px; }
+  #cart-items li {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 0; border-bottom: 1px solid #f3f4f6; font-size: .84rem;
+  }
+  #cart-items li .ci-name { flex: 1; }
+  #cart-items li .ci-price { white-space: nowrap; }
+  #cart-items li .ci-remove {
+    cursor: pointer; color: #ef4444; font-size: 1rem; line-height: 1;
+    background: none; border: none; padding: 0 2px; flex-shrink: 0;
+  }
+  #cart-empty-msg { color: #aaa; font-style: italic; font-size: .85rem; }
+  #cart-subtotal { font-weight: 600; font-size: .9rem; margin: 6px 0; }
+  #cart-checkout-btn {
+    display: block; margin-top: 10px; text-align: center;
+    background: var(--primary-color, #4f46e5); color: #fff;
+    border-radius: var(--button-radius, 4px); padding: 9px 14px;
+    text-decoration: none; font-size: .88rem; font-weight: 600;
+  }
+  #cart-checkout-btn:hover { opacity: .88; }
+</style>
+
+<div id="floating-cart" title="<%= t('storefront.cartTitle') %>">
+  🛒
+  <span id="cart-badge" style="display:none;">0</span>
+</div>
+<div id="cart-panel">
+  <h4><%= t('storefront.cartTitle') %></h4>
+  <ul id="cart-items"></ul>
+  <p id="cart-empty-msg"><%= t('storefront.cartEmpty') %></p>
+  <p id="cart-subtotal" style="display:none;"></p>
+  <a id="cart-checkout-btn" href="/checkout" style="display:none;"><%= t('storefront.cartCheckout') %></a>
+</div>
+
+<script>
+  (function() {
+    const CART_KEY   = 'thrc_cart';
+    const POS_KEY    = 'thrc_cart_position';
+    const widget     = document.getElementById('floating-cart');
+    const panel      = document.getElementById('cart-panel');
+    const badge      = document.getElementById('cart-badge');
+    const itemsEl    = document.getElementById('cart-items');
+    const emptyMsg   = document.getElementById('cart-empty-msg');
+    const subtotalEl = document.getElementById('cart-subtotal');
+    const checkoutBtn= document.getElementById('cart-checkout-btn');
+
+    // ── Position persistence ──────────────────────────────────────────
+    (function applyPos() {
+      try {
+        const p = JSON.parse(localStorage.getItem(POS_KEY));
+        if (!p) return;
+        widget.style.right = 'auto'; widget.style.bottom = 'auto';
+        widget.style.left = p.x + 'px'; widget.style.top = p.y + 'px';
+      } catch(e) {}
+    })();
+
+    function savePos(x, y) {
+      localStorage.setItem(POS_KEY, JSON.stringify({ x, y }));
+    }
+
+    // ── Drag ─────────────────────────────────────────────────────────
+    let dragging = false, startX, startY, origLeft, origTop;
+
+    function onMoveStart(cx, cy) {
+      dragging = true; startX = cx; startY = cy;
+      const r = widget.getBoundingClientRect();
+      origLeft = r.left; origTop = r.top;
+      widget.style.right = 'auto'; widget.style.bottom = 'auto';
+      widget.style.left = origLeft + 'px'; widget.style.top = origTop + 'px';
+    }
+    function onMove(cx, cy) {
+      if (!dragging) return;
+      widget.style.left = (origLeft + cx - startX) + 'px';
+      widget.style.top  = (origTop  + cy - startY) + 'px';
+    }
+    function onMoveEnd(cx, cy) {
+      if (!dragging) return; dragging = false;
+      const nl = origLeft + cx - startX, nt = origTop + cy - startY;
+      savePos(nl, nt);
+      if (Math.abs(cx - startX) < 4 && Math.abs(cy - startY) < 4) {
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+      }
+    }
+
+    widget.addEventListener('mousedown', function(e) { e.preventDefault(); onMoveStart(e.clientX, e.clientY); });
+    document.addEventListener('mousemove', function(e) { onMove(e.clientX, e.clientY); });
+    document.addEventListener('mouseup',   function(e) { onMoveEnd(e.clientX, e.clientY); });
+    widget.addEventListener('touchstart', function(e) { const t = e.touches[0]; onMoveStart(t.clientX, t.clientY); }, { passive: true });
+    document.addEventListener('touchmove', function(e) { const t = e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: true });
+    document.addEventListener('touchend',  function(e) { const t = e.changedTouches[0]; onMoveEnd(t.clientX, t.clientY); });
+
+    document.addEventListener('click', function(e) {
+      if (!widget.contains(e.target) && !panel.contains(e.target)) {
+        panel.style.display = 'none';
+      }
+    });
+
+    // ── Cart state ────────────────────────────────────────────────────
+    function loadCart() {
+      try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) { return []; }
+    }
+    function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
+
+    function removeItem(id) {
+      const cart = loadCart();
+      const idx = cart.findIndex(function(i) { return i.id === id; });
+      if (idx < 0) return;
+      if ((cart[idx].qty || 1) > 1) { cart[idx].qty -= 1; }
+      else { cart.splice(idx, 1); }
+      saveCart(cart);
+      renderCart();
+    }
+
+    function renderCart() {
+      const cart = loadCart();
+      const total = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
+      const count = cart.reduce(function(s, i) { return s + (i.qty || 1); }, 0);
+      badge.textContent = count;
+      badge.style.display = count ? 'flex' : 'none';
+      if (!cart.length) {
+        itemsEl.innerHTML = '';
+        emptyMsg.style.display = '';
+        subtotalEl.style.display = 'none';
+        checkoutBtn.style.display = 'none';
+      } else {
+        emptyMsg.style.display = 'none';
+        itemsEl.innerHTML = cart.map(function(item) {
+          const safeId   = String(item.id).replace(/'/g, "\\'");
+          const safeName = (item.name || '?').replace(/</g, '&lt;');
+          return '<li>' +
+            '<span class="ci-name">' + safeName + ' &times;' + (item.qty || 1) + '</span>' +
+            '<span class="ci-price">' + ((item.price || 0) * (item.qty || 1)).toFixed(2) + ' &euro;</span>' +
+            '<button class="ci-remove" onclick="thrcRemoveFromCart(\'' + safeId + '\')" title="Αφαίρεση">&times;</button>' +
+            '</li>';
+        }).join('');
+        subtotalEl.textContent = '<%= t("storefront.cartSubtotal") %>: ' + total.toFixed(2) + ' \u20ac';
+        subtotalEl.style.display = '';
+        checkoutBtn.style.display = 'block';
+      }
+    }
+
+    renderCart();
+
+    // ── Global API ────────────────────────────────────────────────────
+    window.thrcAddToCart = function(product) {
+      const cart = loadCart();
+      const idx = cart.findIndex(function(i) { return i.id === product.id; });
+      if (idx >= 0) { cart[idx].qty = (cart[idx].qty || 1) + 1; }
+      else { cart.push(Object.assign({ qty: 1 }, product)); }
+      saveCart(cart);
+      renderCart();
+      panel.style.display = 'block';
+    };
+
+    window.thrcRemoveFromCart = function(id) { removeItem(id); };
+  })();
+</script>

@@ -378,6 +378,25 @@ function calculateTotals(config, product, shippingMethodId, paymentMethodId) {
   };
 }
 
+// Multi-item cart totals
+function calculateCartTotals(config, cartItems, shippingMethodId, paymentMethodId) {
+  const shippingMethod = (config.shippingOptions || []).find((s) => s.id === shippingMethodId);
+  const paymentMethod  = (config.paymentOptions  || []).find((p) => p.id === paymentMethodId);
+  if (!shippingMethod) throw new Error('Invalid shipping method');
+  if (!paymentMethod)  throw new Error('Invalid payment method');
+  if (
+    Array.isArray(shippingMethod.allowedPaymentMethods) &&
+    !shippingMethod.allowedPaymentMethods.includes(paymentMethod.id)
+  ) throw new Error('Ο συγκεκριμένος τρόπος πληρωμής δεν είναι διαθέσιμος για αυτή τη μέθοδο αποστολής.');
+
+  const subtotal     = cartItems.reduce((s, i) => s + (Number(i.price) || 0) * (i.qty || 1), 0);
+  const shippingCost = Number(shippingMethod.base) || 0;
+  const codFee       = paymentMethod.id === 'COD' ? Number(shippingMethod.codFee || 0) : 0;
+  const gatewayFee   = subtotal * (Number(paymentMethod.gatewaySurchargePercent) || 0);
+  const total        = subtotal + shippingCost + codFee + gatewayFee;
+  return { subtotal, shippingCost, codFee, gatewayFee, total, shippingMethod, paymentMethod };
+}
+
 async function recordOrderOnChain(order, tenant) {
   const payload = {
     orderId: order.id,
@@ -838,73 +857,109 @@ app.get('/product/:id', (req, res) => {
   });
 });
 
-// Checkout
+// Checkout page
+app.get('/checkout', (req, res) => {
+  const config = loadTenantConfig(req);
+  res.render('checkout', { config, tenant: req.tenant });
+});
+
+// Checkout submit (multi-item cart)
 app.post('/checkout', async (req, res) => {
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
-  const { name, email, wallet, productId, notes, shippingMethodId, paymentMethodId, city } =
-    req.body;
+  const {
+    name, email, wallet, notes, shippingMethodId, paymentMethodId,
+    city, phone, address, doorbell, tk, cartJson
+  } = req.body;
 
-  const product = products.find((p) => p.id === productId);
-  if (!product) {
-    return res.status(400).send('Invalid product');
+  // ── Parse cart items ──────────────────────────────────────────────
+  let cartItems = [];
+  try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    return res.status(400).send('Cart is empty');
   }
+
+  // Validate & enrich items from server-side product catalog
+  const allProductsCatalog = loadTenantProducts(req);
+  const enrichedItems = [];
+  for (const ci of cartItems) {
+    const found = allProductsCatalog.find((p) => p.id === ci.id);
+    if (found) {
+      enrichedItems.push({
+        id: found.id,
+        name: found.name,
+        price: Number(found.price) || 0,
+        qty: Math.max(1, parseInt(ci.qty, 10) || 1)
+      });
+    }
+  }
+  if (!enrichedItems.length) return res.status(400).send('No valid products in cart');
 
   let totals;
   try {
-    totals = calculateTotals(config, product, shippingMethodId, paymentMethodId);
+    totals = calculateCartTotals(config, enrichedItems, shippingMethodId, paymentMethodId);
   } catch (err) {
     return res.status(400).send(err.message);
   }
 
+  const orderId = Date.now().toString();
   const order = {
-    id: Date.now().toString(),
+    id: orderId,
     tenantId: req.tenant.id,
-    productId: product.id,
-    productName: product.name,
-    price: Number(product.price) || 0,
+    // Keep single-product fields for backward compat (first item)
+    productId:   enrichedItems[0].id,
+    productName: enrichedItems.map((i) => `${i.name} ×${i.qty}`).join(', '),
+    price:       enrichedItems[0].price,
+    // Multi-item
+    items: enrichedItems,
     customerName: name,
     email,
-    wallet: wallet || '',
-    notes: notes || '',
+    phone:    (phone    || '').trim(),
+    address:  (address  || '').trim(),
+    doorbell: (doorbell || '').trim(),
+    tk:       (tk       || '').trim(),
+    city:     (city     || '').trim(),
+    wallet:   wallet || '',
+    notes:    notes  || '',
     shippingMethodId,
     paymentMethodId,
     shippingMethodLabel: totals.shippingMethod.label,
-    paymentMethodLabel: totals.paymentMethod.label,
-    subtotal: totals.subtotal,
+    paymentMethodLabel:  totals.paymentMethod.label,
+    subtotal:    totals.subtotal,
     shippingCost: totals.shippingCost,
-    codFee: totals.codFee,
-    gatewayFee: totals.gatewayFee,
-    total: totals.total,
-    city:        (city || '').trim(),
+    codFee:      totals.codFee,
+    gatewayFee:  totals.gatewayFee,
+    total:       totals.total,
     paymentStatus: paymentMethodId === 'CARD' ? 'PENDING_STRIPE' : 'PENDING_COD',
     createdAt: new Date().toISOString()
   };
 
-  console.log('[Thronos Commerce] New order:', JSON.stringify(order));
+  console.log('[Thronos Commerce] New cart order:', JSON.stringify(order));
 
   const proofHash = await recordOrderOnChain(order, req.tenant);
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
 
-  // ── Stock deduction ────────────────────────────────────────────
-  const allProducts = loadTenantProducts(req);
-  const pIdx = allProducts.findIndex((p) => p.id === order.productId);
-  if (pIdx >= 0 && allProducts[pIdx].stock > 0) {
-    allProducts[pIdx].stock = Math.max(0, (allProducts[pIdx].stock || 0) - 1);
-    saveJson(req.tenantPaths.products, allProducts);
-    const stockLog = loadJson(req.tenantPaths.stockLog, []);
-    stockLog.push({
-      id:          Date.now().toString(36),
-      productId:   order.productId,
-      productName: order.productName,
-      delta:       -1,
-      reason:      'order',
-      orderId:     order.id,
-      createdAt:   order.createdAt
-    });
-    saveJson(req.tenantPaths.stockLog, stockLog);
-  }
+  // ── Stock deduction (per item) ────────────────────────────────────
+  const allProductsMut = loadTenantProducts(req);
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  enrichedItems.forEach((ci) => {
+    const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
+    if (pIdx >= 0 && (allProductsMut[pIdx].stock || 0) > 0) {
+      allProductsMut[pIdx].stock = Math.max(0, allProductsMut[pIdx].stock - ci.qty);
+      stockLog.push({
+        id:          Date.now().toString(36) + '_' + ci.id,
+        productId:   ci.id,
+        productName: ci.name,
+        delta:       -ci.qty,
+        reason:      'order',
+        orderId,
+        createdAt:   order.createdAt
+      });
+    }
+  });
+  saveJson(req.tenantPaths.products, allProductsMut);
+  saveJson(req.tenantPaths.stockLog, stockLog);
 
   // ── Analytics: track city ──────────────────────────────────────
   if (order.city) {
@@ -928,7 +983,7 @@ app.post('/checkout', async (req, res) => {
   }
 
   const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
-  const mailSubject = `Νέα παραγγελία #${order.id} – ${order.productName}`;
+  const mailSubject = `Νέα παραγγελία #${order.id} – ${config.storeName}`;
   sendOrderEmails(order, config).catch((err) =>
     console.error('[Thronos Commerce] sendOrderEmails failed:', err.message)
   );
@@ -936,11 +991,13 @@ app.post('/checkout', async (req, res) => {
     (err) => console.error('[Thronos Commerce] attestMailToThronos failed:', err.message)
   );
 
+  // Clear localStorage cart via redirect with flag
   res.render('thanks', {
     config,
     order,
     proofHash,
-    tenant: req.tenant
+    tenant: req.tenant,
+    clearCart: true
   });
 });
 
@@ -952,12 +1009,42 @@ app.get('/api/products/:productId/reviews', (req, res) => {
   res.json(filtered);
 });
 
+// Verified-purchase check
+app.get('/api/products/:productId/can-review', (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email) return res.json({ canReview: false });
+  const orders = loadTenantOrders(req);
+  const hasBought = orders.some(
+    (o) =>
+      (o.email || '').toLowerCase() === email &&
+      (o.productId === req.params.productId ||
+        (Array.isArray(o.items) && o.items.some((i) => i.id === req.params.productId)))
+  );
+  res.json({ canReview: hasBought });
+});
+
 app.post('/api/products/:productId/reviews', (req, res) => {
-  const { name, rating, comment } = req.body;
+  const { name, rating, comment, email } = req.body;
   const ratingNum = parseInt(rating, 10);
   if (!name || !name.trim()) return res.status(400).json({ error: 'Το όνομα είναι υποχρεωτικό.' });
   if (!comment || !comment.trim()) return res.status(400).json({ error: 'Το σχόλιο είναι υποχρεωτικό.' });
   if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) return res.status(400).json({ error: 'Η βαθμολογία πρέπει να είναι 1–5.' });
+
+  // Server-side verified-purchase check
+  const reviewerEmail = (email || '').trim().toLowerCase();
+  const orders = loadTenantOrders(req);
+  const verified = reviewerEmail
+    ? orders.some(
+        (o) =>
+          (o.email || '').toLowerCase() === reviewerEmail &&
+          (o.productId === req.params.productId ||
+            (Array.isArray(o.items) && o.items.some((i) => i.id === req.params.productId)))
+      )
+    : false;
+
+  if (!verified) {
+    return res.status(403).json({ error: 'Μόνο επαληθευμένοι αγοραστές μπορούν να γράψουν αξιολόγηση.' });
+  }
 
   const review = {
     id: Date.now().toString(36),
@@ -965,6 +1052,7 @@ app.post('/api/products/:productId/reviews', (req, res) => {
     name: name.trim(),
     rating: ratingNum,
     comment: comment.trim(),
+    verified: true,
     createdAt: new Date().toISOString()
   };
   const reviews = loadJson(req.tenantPaths.reviews, []);
