@@ -484,6 +484,35 @@
         <% if (!permissions.canUploadMedia) { %>
           <p class="helper"><%= t('admin.imagesManagedNote') %></p>
         <% } %>
+
+        <%# ── Favicon ── %>
+        <hr style="margin:28px 0 22px;border:none;border-top:1px solid #e5e7eb;" />
+        <h3 style="margin-bottom:6px;"><%= t('admin.faviconTitle') %></h3>
+        <p class="helper"><%= t('admin.faviconHelper') %></p>
+
+        <% if (hasFavicon) { %>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+            <img src="/favicon.ico?v=<%= Date.now() %>" alt="favicon"
+                 style="width:48px;height:48px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#f9fafb;" />
+            <div>
+              <p style="margin:0 0 6px;font-size:0.85rem;color:#374151;font-weight:500;">Τρέχον favicon</p>
+              <form method="POST" action="/admin/favicon/delete" style="display:inline;">
+                <input type="hidden" name="password" id="fav-del-pw" value="" />
+                <button class="button" type="button" style="font-size:0.8rem;padding:4px 10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;"
+                        onclick="deleteFavicon(this)"><%= t('admin.faviconDelete') %></button>
+              </form>
+            </div>
+          </div>
+        <% } else { %>
+          <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:14px;"><%= t('admin.faviconNone') %></p>
+        <% } %>
+
+        <form method="POST" action="/admin/favicon" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <input type="file" name="favicon" accept="image/png,image/jpeg,image/x-icon,image/svg+xml" required />
+          <input type="password" name="password" placeholder="<%= t('admin.passwordPlaceholder') %>" required style="width:180px;" />
+          <button class="button" type="submit"><%= t('admin.faviconUploadBtn') %></button>
+        </form>
+        <p style="font-size:0.78rem;color:#9ca3af;margin-top:6px;">PNG / ICO / SVG · max 512 KB</p>
       </section>
 
       <%# ══════════════════════════════════════════════════════════ %>
@@ -1052,6 +1081,15 @@
             logoUploadStatus.textContent = j.error || i18nJs.uploadErr;
           }
         });
+      }
+
+      // ── Favicon delete (prompt for password inline) ──
+      function deleteFavicon(btn) {
+        const pw = prompt('Root admin κωδικός για διαγραφή favicon:');
+        if (!pw) return;
+        const form = btn.closest('form');
+        form.querySelector('#fav-del-pw').value = pw;
+        form.submit();
       }
     </script>
   </body>

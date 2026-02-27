@@ -241,6 +241,7 @@ function tenantPaths(tenantId) {
     reviews: path.join(base, 'reviews.json'),
     stockLog: path.join(base, 'stock_log.json'),
     analytics: path.join(base, 'analytics.json'),
+    favicon: path.join(base, 'favicon.png'),
     media
   };
 }
@@ -690,6 +691,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// Separate multer for favicon (memory storage, 512 KB limit)
+const favUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 512 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(png|jpeg|x-icon|vnd\.microsoft\.icon|svg\+xml)$/.test(file.mimetype);
+    cb(null, ok);
+  }
+});
+
 // View engine & middleware
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -756,6 +767,7 @@ function buildAdminViewModel(req, extra) {
     analytics,
     orderCounts,
     cityCounts,
+    hasFavicon: fs.existsSync(req.tenantPaths.favicon),
     message: null,
     error: null,
     ...(extra || {})
@@ -763,6 +775,17 @@ function buildAdminViewModel(req, extra) {
 }
 
 // Routes
+
+// Per-tenant favicon
+app.get('/favicon.ico', (req, res) => {
+  const faviconPath = req.tenantPaths && req.tenantPaths.favicon;
+  if (faviconPath && fs.existsSync(faviconPath)) {
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(faviconPath);
+  }
+  res.status(204).end();
+});
 
 // Storefront home
 app.get('/', (req, res) => {
@@ -1365,6 +1388,36 @@ app.post(
     return res.json({ ok: true, url });
   }
 );
+
+// Favicon upload
+app.post(
+  '/admin/favicon',
+  favUpload.single('favicon'),
+  async (req, res) => {
+    const password = req.body.password;
+    const ok = await verifyAdminPassword(req.tenant, password);
+    if (!ok) {
+      return res.redirect('/admin?error=Λάθος+κωδικός+διαχειριστή#tab-upload');
+    }
+    if (!req.file) {
+      return res.redirect('/admin?error=Δεν+επιλέχθηκε+αρχείο#tab-upload');
+    }
+    fs.writeFileSync(req.tenantPaths.favicon, req.file.buffer);
+    return res.redirect('/admin?message=Favicon+αποθηκεύτηκε#tab-upload');
+  }
+);
+
+// Favicon delete
+app.post('/admin/favicon/delete', async (req, res) => {
+  const ok = await verifyAdminPassword(req.tenant, req.body.password);
+  if (!ok) {
+    return res.redirect('/admin?error=Λάθος+κωδικός+διαχειριστή#tab-upload');
+  }
+  if (fs.existsSync(req.tenantPaths.favicon)) {
+    fs.unlinkSync(req.tenantPaths.favicon);
+  }
+  return res.redirect('/admin?message=Favicon+διαγράφηκε#tab-upload');
+});
 
 // Thronos Commerce marketing landing
 app.get('/thronos-commerce', (req, res) => {
