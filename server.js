@@ -897,16 +897,32 @@ app.post('/checkout', async (req, res) => {
   }
 
   // Validate & enrich items from server-side product catalog
+  // Resolves variant price & label server-side (never trust client price)
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
     const found = allProductsCatalog.find((p) => p.id === ci.id);
     if (found) {
+      let serverPrice = Number(found.price) || 0;
+      let variantLabel = '';
+      let variantId = (ci.variantId || '').trim();
+      // Resolve variant price
+      if (variantId && Array.isArray(found.variants)) {
+        const variant = found.variants.find((v) => v.id === variantId);
+        if (variant) {
+          serverPrice  = Number(variant.price) || serverPrice;
+          variantLabel = variant.label || '';
+        } else {
+          variantId = ''; // invalid variant → clear
+        }
+      }
       enrichedItems.push({
-        id: found.id,
-        name: found.name,
-        price: Number(found.price) || 0,
-        qty: Math.max(1, parseInt(ci.qty, 10) || 1)
+        id:           found.id,
+        name:         found.name,
+        variantId:    variantId || undefined,
+        variantLabel: variantLabel || undefined,
+        price:        serverPrice,
+        qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
       });
     }
   }
@@ -925,7 +941,9 @@ app.post('/checkout', async (req, res) => {
     tenantId: req.tenant.id,
     // Keep single-product fields for backward compat (first item)
     productId:   enrichedItems[0].id,
-    productName: enrichedItems.map((i) => `${i.name} ×${i.qty}`).join(', '),
+    productName: enrichedItems.map((i) =>
+      i.variantLabel ? `${i.name} – ${i.variantLabel} ×${i.qty}` : `${i.name} ×${i.qty}`
+    ).join(', '),
     price:       enrichedItems[0].price,
     // Multi-item
     items: enrichedItems,
@@ -962,8 +980,26 @@ app.post('/checkout', async (req, res) => {
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   enrichedItems.forEach((ci) => {
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
-    if (pIdx >= 0 && (allProductsMut[pIdx].stock || 0) > 0) {
-      allProductsMut[pIdx].stock = Math.max(0, allProductsMut[pIdx].stock - ci.qty);
+    if (pIdx < 0) return;
+    const prod = allProductsMut[pIdx];
+    if (ci.variantId && Array.isArray(prod.variants)) {
+      const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
+      if (vIdx >= 0) {
+        prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        stockLog.push({
+          id:           Date.now().toString(36) + '_' + ci.id,
+          productId:    ci.id,
+          productName:  ci.name,
+          variantId:    ci.variantId,
+          variantLabel: ci.variantLabel,
+          delta:        -ci.qty,
+          reason:       'order',
+          orderId,
+          createdAt:    order.createdAt
+        });
+      }
+    } else if ((prod.stock || 0) > 0) {
+      prod.stock = Math.max(0, prod.stock - ci.qty);
       stockLog.push({
         id:          Date.now().toString(36) + '_' + ci.id,
         productId:   ci.id,
@@ -1576,12 +1612,25 @@ app.get('/content/:orderId', (req, res) => {
   const config   = loadTenantConfig(req);
   const products = loadTenantProducts(req);
 
-  // Collect all products in this order
+  // Collect all products in this order, merging per-variant content overrides
   let orderItems = [];
   if (Array.isArray(order.items) && order.items.length) {
-    orderItems = order.items
-      .map((i) => products.find((p) => p.id === i.id))
-      .filter(Boolean);
+    orderItems = order.items.map((i) => {
+      const p = products.find((pr) => pr.id === i.id);
+      if (!p) return null;
+      // Merge variant-specific content fields if applicable
+      if (i.variantId && Array.isArray(p.variants)) {
+        const v = p.variants.find((vr) => vr.id === i.variantId);
+        if (v) {
+          return Object.assign({}, p, {
+            videoUrl:           v.videoUrl           || p.videoUrl,
+            contentDescription: v.contentDescription || p.contentDescription,
+            _variantLabel:      v.label || ''
+          });
+        }
+      }
+      return p;
+    }).filter(Boolean);
   } else if (order.productId) {
     const p = products.find((p) => p.id === order.productId);
     if (p) orderItems = [p];

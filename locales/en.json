@@ -97,6 +97,13 @@
     "uploadBtn": "Upload",
     "modalSpecs": "Technical specifications",
     "modalSpecsHelper": "E.g. «Weight» → «1.2 kg». Displayed as a table on the product page.",
+    "modalVariants": "Product variants",
+    "modalVariantsHelper": "Add variants (e.g. Basic, Premium). Each variant can have a different price, stock and content.",
+    "addVariant": "Add variant",
+    "variantLabel": "Label (e.g. Basic)",
+    "variantPrice": "Price €",
+    "variantStock": "Stock",
+    "variantDesc": "Description (e.g. Includes 12-min video)",
     "faviconTitle": "Store favicon",
     "faviconHelper": "Upload the icon shown in the browser tab. Recommended: 64×64 px PNG.",
     "faviconUploadBtn": "Upload favicon",
@@ -189,6 +196,7 @@
     "contentIncluded": "Includes digital content",
     "contentManual": "Instruction manual (PDF)",
     "contentVideo": "Installation video",
-    "contentAfterPurchase": "You receive access immediately after purchase via your confirmation email."
+    "contentAfterPurchase": "You receive access immediately after purchase via your confirmation email.",
+    "variantsTitle": "Choose variant"
   }
 }
