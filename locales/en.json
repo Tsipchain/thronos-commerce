@@ -72,7 +72,13 @@
     "adminPass": "Admin password",
     "saveSettings": "Save settings",
     "saveAll": "Save all",
-    "uploadBtn": "Upload"
+    "uploadBtn": "Upload",
+    "faviconTitle": "Store favicon",
+    "faviconHelper": "Upload the icon shown in the browser tab. Recommended: 64×64 px PNG.",
+    "faviconUploadBtn": "Upload favicon",
+    "faviconDelete": "Delete favicon",
+    "faviconNone": "No favicon set. The browser default will be used.",
+    "passwordPlaceholder": "Admin password"
   },
   "orders": {
     "headerTitle": "Thronos Commerce · Orders",
