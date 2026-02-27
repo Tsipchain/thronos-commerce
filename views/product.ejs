@@ -28,6 +28,13 @@
       .gallery-thumbs img:hover,
       .gallery-thumbs img.active { border-color: var(--accent-color); }
       .product-hero-image img { transition: opacity .15s; }
+      .stock-badge {
+        display: inline-block; padding: 3px 10px; border-radius: 20px;
+        font-size: 0.8rem; font-weight: 600; margin: 4px 0 12px;
+      }
+      .stock-badge.ok  { background: #d1fae5; color: #065f46; }
+      .stock-badge.low { background: #fef3c7; color: #92400e; }
+      .stock-badge.out { background: #fee2e2; color: #991b1b; }
     </style>
   </head>
   <body>
@@ -60,6 +67,13 @@
         <h2><%= product.name %></h2>
         <p><%= product.description %></p>
         <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
+        <% if (product.stock !== undefined) { %>
+          <p class="stock-badge <%= product.stock === 0 ? 'out' : product.stock < 3 ? 'low' : 'ok' %>">
+            <% if (product.stock === 0) { %><%= t('checkout.stockOut') %>
+            <% } else if (product.stock < 3) { %><%= t('checkout.stockLow') %> (<%= product.stock %>)
+            <% } else { %><%= t('checkout.inStock') %><% } %>
+          </p>
+        <% } %>
 
         <form action="/checkout" method="POST" class="checkout-form">
           <input type="hidden" name="productId" value="<%= product.id %>" />
@@ -98,11 +112,19 @@
           </label>
 
           <label>
+            <%= t('checkout.city') %>
+            <input type="text" name="city" placeholder="<%= t('checkout.cityPlaceholder') %>" />
+          </label>
+
+          <label>
             <%= t('checkout.notes') %>
             <textarea name="notes" rows="3"></textarea>
           </label>
 
-          <button type="submit" class="button"><%= t('checkout.submit') %></button>
+          <button type="submit" class="button"
+                  <%= product.stock === 0 ? 'disabled' : '' %>>
+            <%= t('checkout.submit') %>
+          </button>
         </form>
       </article>
 

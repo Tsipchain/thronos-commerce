@@ -61,6 +61,32 @@
                          -webkit-box-orient: vertical; overflow: hidden; }
       .product-card .price { font-size: 1.1rem; font-weight: 700; color: var(--primary-color); margin: 0 0 12px; }
       .product-card .button { align-self: flex-start; font-size: 0.85rem; padding: 7px 16px; }
+      .product-card .card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+      .btn-cart {
+        padding: 7px 14px; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer;
+        border-radius: var(--button-radius, 4px); background: var(--primary-color);
+        color: #fff; transition: opacity .15s;
+      }
+      .btn-cart:hover { opacity: .85; }
+      .btn-cart:disabled { opacity: .45; cursor: not-allowed; }
+      .featured-badge {
+        position: absolute; top: 8px; left: 8px;
+        background: #f59e0b; color: #fff; font-size: 0.68rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 20px; letter-spacing: .04em; pointer-events: none;
+      }
+      .product-thumb { position: relative; }
+      .featured-section { margin-bottom: 32px; }
+      .featured-section h2 {
+        font-size: 1.1rem; font-weight: 700; margin: 0 0 14px;
+        color: var(--primary-color); display: flex; align-items: center; gap: 8px;
+      }
+      .stock-pill {
+        font-size: 0.72rem; padding: 1px 7px; border-radius: 20px; margin-left: 4px;
+        font-weight: 600;
+      }
+      .stock-pill.ok  { background: #d1fae5; color: #065f46; }
+      .stock-pill.low { background: #fef3c7; color: #92400e; }
+      .stock-pill.out { background: #fee2e2; color: #991b1b; }
     </style>
   </head>
   <body>
@@ -104,25 +130,26 @@
         <p><%= config.heroText %></p>
       </section>
 
+      <%# ── Featured products ── %>
+      <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
+      <% if (featuredProducts.length > 0) { %>
+      <section class="featured-section">
+        <h2>⭐ <%= t('storefront.featuredTitle') %></h2>
+        <div class="product-list">
+          <% featuredProducts.forEach(function (product) { %>
+            <%- include('_product-card', { product, lang, t }) %>
+          <% }); %>
+        </div>
+      </section>
+      <% } %>
+
       <section class="product-list">
         <% if (products.length === 0) { %>
           <p><%= t('storefront.noProducts') %></p>
         <% } %>
 
         <% products.forEach(function (product) { %>
-          <article class="product-card">
-            <% if (product.imageUrl) { %>
-              <div class="product-thumb">
-                <img src="<%= product.imageUrl %>" alt="<%= product.name %>" loading="lazy" />
-              </div>
-            <% } %>
-            <div class="product-card-body">
-              <h2><%= product.name %></h2>
-              <p><%= product.description %></p>
-              <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
-              <a class="button" href="/product/<%= product.id %><%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.viewProduct') %></a>
-            </div>
-          </article>
+          <%- include('_product-card', { product, lang, t }) %>
         <% }); %>
       </section>
     </main>

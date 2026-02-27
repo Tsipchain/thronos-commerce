@@ -175,6 +175,8 @@ function tenantPaths(tenantId) {
     categories: path.join(base, 'categories.json'),
     orders: path.join(base, 'orders.json'),
     reviews: path.join(base, 'reviews.json'),
+    stockLog: path.join(base, 'stock_log.json'),
+    analytics: path.join(base, 'analytics.json'),
     media
   };
 }
@@ -660,13 +662,33 @@ function buildAdminViewModel(req, extra) {
   const products = loadTenantProducts(req);
   const categories = loadTenantCategories(req);
   const permissions = getSupportPermissions(req.tenant.supportTier);
+  const orders = loadTenantOrders(req);
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
+
+  // Build per-product order counts for chart
+  const orderCounts = {};
+  orders.forEach((o) => {
+    orderCounts[o.productId] = (orderCounts[o.productId] || 0) + 1;
+  });
+  // Build top cities
+  const cityCounts = {};
+  orders.forEach((o) => {
+    const city = (o.city || '').trim();
+    if (city) cityCounts[city] = (cityCounts[city] || 0) + 1;
+  });
 
   return {
     tenant: req.tenant,
     permissions,
     config,
     categories,
+    products,
     productsJson: JSON.stringify(products, null, 2),
+    stockLog: stockLog.slice(-100).reverse(),
+    analytics,
+    orderCounts,
+    cityCounts,
     message: null,
     error: null,
     ...(extra || {})
@@ -712,6 +734,13 @@ app.get('/product/:id', (req, res) => {
     return res.status(404).send('Product not found');
   }
 
+  // Track page views (fire-and-forget)
+  try {
+    const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
+    analytics.pageViews[product.id] = (analytics.pageViews[product.id] || 0) + 1;
+    saveJson(req.tenantPaths.analytics, analytics);
+  } catch (_) { /* non-critical */ }
+
   res.render('product', {
     config,
     product,
@@ -723,7 +752,7 @@ app.get('/product/:id', (req, res) => {
 app.post('/checkout', async (req, res) => {
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
-  const { name, email, wallet, productId, notes, shippingMethodId, paymentMethodId } =
+  const { name, email, wallet, productId, notes, shippingMethodId, paymentMethodId, city } =
     req.body;
 
   const product = products.find((p) => p.id === productId);
@@ -757,6 +786,7 @@ app.post('/checkout', async (req, res) => {
     codFee: totals.codFee,
     gatewayFee: totals.gatewayFee,
     total: totals.total,
+    city:        (city || '').trim(),
     paymentStatus: paymentMethodId === 'CARD' ? 'PENDING_STRIPE' : 'PENDING_COD',
     createdAt: new Date().toISOString()
   };
@@ -766,6 +796,34 @@ app.post('/checkout', async (req, res) => {
   const proofHash = await recordOrderOnChain(order, req.tenant);
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
+
+  // ── Stock deduction ────────────────────────────────────────────
+  const allProducts = loadTenantProducts(req);
+  const pIdx = allProducts.findIndex((p) => p.id === order.productId);
+  if (pIdx >= 0 && allProducts[pIdx].stock > 0) {
+    allProducts[pIdx].stock = Math.max(0, (allProducts[pIdx].stock || 0) - 1);
+    saveJson(req.tenantPaths.products, allProducts);
+    const stockLog = loadJson(req.tenantPaths.stockLog, []);
+    stockLog.push({
+      id:          Date.now().toString(36),
+      productId:   order.productId,
+      productName: order.productName,
+      delta:       -1,
+      reason:      'order',
+      orderId:     order.id,
+      createdAt:   order.createdAt
+    });
+    saveJson(req.tenantPaths.stockLog, stockLog);
+  }
+
+  // ── Analytics: track city ──────────────────────────────────────
+  if (order.city) {
+    try {
+      const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
+      analytics.cities[order.city] = (analytics.cities[order.city] || 0) + 1;
+      saveJson(req.tenantPaths.analytics, analytics);
+    } catch (_) { /* non-critical */ }
+  }
 
   try {
     await sendOrderEmail({ tenant: req.tenant, config, order });
@@ -1175,6 +1233,43 @@ app.post('/admin/products', async (req, res) => {
       })
     );
   }
+});
+
+// Manual stock adjustment
+app.post('/admin/stock/adjust', async (req, res) => {
+  const { password, productId, newStock, reason } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditProducts) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται.' }));
+  }
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  }
+  const products = loadTenantProducts(req);
+  const pIdx = products.findIndex((p) => p.id === productId);
+  if (pIdx === -1) {
+    return res.status(404).render('admin', buildAdminViewModel(req, { error: 'Προϊόν δεν βρέθηκε.' }));
+  }
+  const oldStock = products[pIdx].stock || 0;
+  const qty = Math.max(0, parseInt(newStock, 10) || 0);
+  const delta = qty - oldStock;
+  products[pIdx].stock = qty;
+  saveJson(req.tenantPaths.products, products);
+
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  stockLog.push({
+    id:          Date.now().toString(36),
+    productId,
+    productName: products[pIdx].name,
+    delta,
+    reason:      reason || 'manual',
+    orderId:     null,
+    createdAt:   new Date().toISOString()
+  });
+  saveJson(req.tenantPaths.stockLog, stockLog);
+
+  res.render('admin', buildAdminViewModel(req, { message: `Απόθεμα "${products[pIdx].name}" ενημερώθηκε σε ${qty}.` }));
 });
 
 // Image upload

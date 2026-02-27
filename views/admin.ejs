@@ -152,6 +152,7 @@
         <a href="#tab-upload"><%= t('admin.tabImages') %></a>
         <a href="#tab-shipping"><%= t('admin.tabShipping') %></a>
         <a href="#tab-notifications"><%= t('admin.tabNotifications') %></a>
+        <a href="#tab-inventory"><%= t('admin.tabInventory') %></a>
         <a href="/admin/orders"><%= t('admin.tabOrders') %></a>
       </nav>
 
@@ -614,6 +615,157 @@
         </div>
       </section>
 
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 8 – INVENTORY                                       %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <section id="tab-inventory" class="admin-block">
+        <h2><%= t('admin.inventoryTitle') %></h2>
+        <p class="helper"><%= t('admin.inventoryHelper') %></p>
+
+        <%# ── Stock table ── %>
+        <h3><%= t('admin.inventoryStockTitle') %></h3>
+        <table class="sp-table" id="inv-stock-table">
+          <thead>
+            <tr>
+              <th><%= t('admin.invColProduct') %></th>
+              <th><%= t('admin.invColSku') %></th>
+              <th><%= t('admin.invColStock') %></th>
+              <th><%= t('admin.invColStatus') %></th>
+              <th><%= t('admin.invColViews') %></th>
+              <th><%= t('admin.invColOrders') %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% products.forEach(function(p) { %>
+              <% const s = p.stock !== undefined ? p.stock : '–'; %>
+              <% const sNum = typeof s === 'number' ? s : parseInt(s); %>
+              <% const statusClass = s === '–' ? '' : sNum === 0 ? 'stock-out' : sNum < 3 ? 'stock-low' : 'stock-ok'; %>
+              <tr>
+                <td>
+                  <% if (p.imageUrl) { %><img src="<%= p.imageUrl %>" style="width:28px;height:28px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:6px;" /><% } %>
+                  <%= p.name %>
+                  <% if (p.featured) { %><span style="color:#f59e0b;font-size:.75rem;margin-left:4px;">⭐</span><% } %>
+                </td>
+                <td style="color:#888;font-size:.82rem;"><%= p.sku || '–' %></td>
+                <td style="font-weight:600;"><%= s %></td>
+                <td>
+                  <% if (s !== '–') { %>
+                    <% if (sNum === 0) { %>
+                      <span class="sp-badge" style="background:#fee2e2;color:#991b1b;"><%= t('admin.invStatusOut') %></span>
+                    <% } else if (sNum < 3) { %>
+                      <span class="sp-badge" style="background:#fef3c7;color:#92400e;"><%= t('admin.invStatusLow') %></span>
+                    <% } else { %>
+                      <span class="sp-badge" style="background:#d1fae5;color:#065f46;"><%= t('admin.invStatusOk') %></span>
+                    <% } %>
+                  <% } else { %>–<% } %>
+                </td>
+                <td style="font-size:.85rem;"><%= analytics.pageViews[p.id] || 0 %></td>
+                <td style="font-size:.85rem;font-weight:600;"><%= orderCounts[p.id] || 0 %></td>
+              </tr>
+            <% }) %>
+            <% if (!products.length) { %>
+              <tr><td colspan="6" style="color:#aaa;text-align:center;padding:20px;"><%= t('admin.noProductsYet') %></td></tr>
+            <% } %>
+          </tbody>
+        </table>
+
+        <%# ── Orders by product bar chart ── %>
+        <% const chartProducts = products.filter(function(p){ return (orderCounts[p.id]||0) > 0; }); %>
+        <% if (chartProducts.length > 0) { %>
+        <h3 style="margin-top:24px;"><%= t('admin.chartOrdersTitle') %></h3>
+        <% const maxOrders = Math.max.apply(null, chartProducts.map(function(p){ return orderCounts[p.id]||0; })); %>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;">
+          <% chartProducts.sort(function(a,b){ return (orderCounts[b.id]||0)-(orderCounts[a.id]||0); }).forEach(function(p) { %>
+            <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;">
+              <span style="width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%= p.name %></span>
+              <div style="flex:1;background:#f0f2fa;border-radius:4px;overflow:hidden;height:18px;">
+                <div style="width:<%= Math.round((orderCounts[p.id]||0)/maxOrders*100) %>%;background:var(--accent-color,#5b6af5);height:100%;border-radius:4px;"></div>
+              </div>
+              <span style="width:28px;text-align:right;font-weight:700;"><%= orderCounts[p.id]||0 %></span>
+            </div>
+          <% }); %>
+        </div>
+        <% } %>
+
+        <%# ── Top cities ── %>
+        <% const cityEntries = Object.entries(cityCounts).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10); %>
+        <% if (cityEntries.length > 0) { %>
+        <h3 style="margin-top:24px;"><%= t('admin.chartCitiesTitle') %></h3>
+        <% const maxCityOrders = cityEntries[0][1]; %>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;">
+          <% cityEntries.forEach(function(entry) { %>
+            <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;">
+              <span style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 <%= entry[0] %></span>
+              <div style="flex:1;background:#f0f2fa;border-radius:4px;overflow:hidden;height:18px;">
+                <div style="width:<%= Math.round(entry[1]/maxCityOrders*100) %>%;background:#10b981;height:100%;border-radius:4px;"></div>
+              </div>
+              <span style="width:28px;text-align:right;font-weight:700;"><%= entry[1] %></span>
+            </div>
+          <% }); %>
+        </div>
+        <% } %>
+
+        <%# ── Manual stock adjustment ── %>
+        <% if (permissions.canEditProducts) { %>
+        <h3 style="margin-top:24px;"><%= t('admin.invAdjustTitle') %></h3>
+        <form method="POST" action="/admin/stock/adjust" class="admin-subform" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <label style="flex:1;min-width:140px;">
+            <%= t('admin.invAdjustProduct') %>
+            <select name="productId" style="margin-top:4px;">
+              <% products.forEach(function(p) { %>
+                <option value="<%= p.id %>"><%= p.name %> (<%= p.stock !== undefined ? p.stock : '–' %>)</option>
+              <% }) %>
+            </select>
+          </label>
+          <label style="flex:0 0 90px;">
+            <%= t('admin.invAdjustQty') %>
+            <input type="number" name="newStock" min="0" step="1" value="0" style="margin-top:4px;" />
+          </label>
+          <label style="flex:1;min-width:140px;">
+            <%= t('admin.invAdjustReason') %>
+            <input type="text" name="reason" placeholder="π.χ. αναπλήρωση" style="margin-top:4px;" />
+          </label>
+          <label style="flex:0 0 160px;">
+            <%= t('admin.adminPass') %>
+            <input type="password" name="password" required style="margin-top:4px;" />
+          </label>
+          <button class="button" type="submit" style="align-self:flex-end;"><%= t('admin.invAdjustBtn') %></button>
+        </form>
+        <% } %>
+
+        <%# ── Stock movement log ── %>
+        <h3 style="margin-top:24px;"><%= t('admin.invLogTitle') %></h3>
+        <% if (stockLog.length === 0) { %>
+          <p class="helper" style="color:#aaa;"><%= t('admin.invLogEmpty') %></p>
+        <% } else { %>
+        <table class="sp-table" style="font-size:.83rem;">
+          <thead>
+            <tr>
+              <th><%= t('admin.invLogDate') %></th>
+              <th><%= t('admin.invLogProduct') %></th>
+              <th><%= t('admin.invLogDelta') %></th>
+              <th><%= t('admin.invLogReason') %></th>
+              <th><%= t('admin.invLogOrder') %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% stockLog.forEach(function(e) { %>
+            <tr>
+              <td style="white-space:nowrap;color:#666;"><%= new Date(e.createdAt).toLocaleDateString(lang) %></td>
+              <td><%= e.productName || e.productId %></td>
+              <td style="font-weight:700;color:<%= e.delta < 0 ? '#dc2626' : '#16a34a' %>">
+                <%= e.delta > 0 ? '+' + e.delta : e.delta %>
+              </td>
+              <td><%= e.reason %></td>
+              <td style="font-size:.78rem;color:#aaa;font-family:monospace;"><%= e.orderId || '–' %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </section>
+
     </main>
 
 
@@ -638,6 +790,10 @@
           </label>
           <label><span><%= t('admin.modalStock') %></span>
             <input type="number" id="f-stock" min="0" step="1" placeholder="0" />
+          </label>
+          <label style="flex-direction:row;align-items:center;gap:8px;">
+            <input type="checkbox" id="f-featured" style="width:auto;margin:0;" />
+            <span><%= t('admin.modalFeatured') %></span>
           </label>
           <label class="full"><span><%= t('admin.modalCategory') %></span>
             <select id="f-category">
@@ -731,25 +887,26 @@
       // ── Modal logic ─────────────────────────────────────────────
       let editingIdx = -1; // -1 = new product
 
-      const modal      = document.getElementById('product-modal');
-      const fName      = document.getElementById('f-name');
-      const fId        = document.getElementById('f-id');
-      const fSku       = document.getElementById('f-sku');
-      const fPrice     = document.getElementById('f-price');
-      const fStock     = document.getElementById('f-stock');
-      const fCat       = document.getElementById('f-category');
-      const fImg       = document.getElementById('f-imageUrl');
-      const fDesc      = document.getElementById('f-description');
-      const fSeoTitle  = document.getElementById('f-seoTitle');
-      const fSeoDesc   = document.getElementById('f-seoDescription');
-      const fGallery   = document.getElementById('f-gallery');
-      const mTitle     = document.getElementById('modal-title');
+      const modal       = document.getElementById('product-modal');
+      const fName       = document.getElementById('f-name');
+      const fId         = document.getElementById('f-id');
+      const fSku        = document.getElementById('f-sku');
+      const fPrice      = document.getElementById('f-price');
+      const fStock      = document.getElementById('f-stock');
+      const fFeatured   = document.getElementById('f-featured');
+      const fCat        = document.getElementById('f-category');
+      const fImg        = document.getElementById('f-imageUrl');
+      const fDesc       = document.getElementById('f-description');
+      const fSeoTitle   = document.getElementById('f-seoTitle');
+      const fSeoDesc    = document.getElementById('f-seoDescription');
+      const fGallery    = document.getElementById('f-gallery');
+      const mTitle      = document.getElementById('modal-title');
 
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
         fName.value = ''; fId.value = ''; fSku.value = '';
-        fPrice.value = ''; fStock.value = '1';
+        fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDesc.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         modal.classList.add('open');
@@ -760,17 +917,18 @@
         editingIdx = i;
         const p = products[i];
         mTitle.textContent = i18nJs.editPrefix + (p.name || '');
-        fName.value     = p.name || '';
-        fId.value       = p.id || '';
-        fSku.value      = p.sku || '';
-        fPrice.value    = p.price !== undefined ? p.price : '';
-        fStock.value    = p.stock !== undefined ? p.stock : '';
-        fCat.value      = p.categoryId || '';
-        fImg.value      = p.imageUrl || '';
-        fDesc.value     = p.description || '';
-        fSeoTitle.value = p.seoTitle || '';
-        fSeoDesc.value  = p.seoDescription || '';
-        fGallery.value  = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
+        fName.value       = p.name || '';
+        fId.value         = p.id || '';
+        fSku.value        = p.sku || '';
+        fPrice.value      = p.price !== undefined ? p.price : '';
+        fStock.value      = p.stock !== undefined ? p.stock : '';
+        fFeatured.checked = !!p.featured;
+        fCat.value        = p.categoryId || '';
+        fImg.value        = p.imageUrl || '';
+        fDesc.value       = p.description || '';
+        fSeoTitle.value   = p.seoTitle || '';
+        fSeoDesc.value    = p.seoDescription || '';
+        fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
         modal.classList.add('open');
         fName.focus();
       }
@@ -794,6 +952,7 @@
           sku:            fSku.value.trim() || undefined,
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
+          featured:       fFeatured.checked || undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,
           description:    fDesc.value.trim() || undefined,
