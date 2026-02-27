@@ -159,12 +159,18 @@
                 <% (config.paymentOptions || []).forEach(function(opt) { %>
                   <option value="<%= opt.id %>"
                           data-surcharge="<%= Number(opt.gatewaySurchargePercent)||0 %>"
-                          data-iscod="<%= opt.id === 'COD' ? '1' : '0' %>">
+                          data-iscod="<%= opt.id === 'COD' ? '1' : '0' %>"
+                          data-type="<%= opt.type || '' %>">
                     <%= opt.label %>
                   </option>
                 <% }); %>
               </select>
             </label>
+          </div>
+
+          <%# Stripe badge (shown when stripe payment selected) %>
+          <div id="stripe-badge" style="display:none;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;color:#5b21b6;">
+            🔒 <%= t('checkout.stripeSecure') %>
           </div>
 
           <div class="form-row full">
@@ -182,7 +188,7 @@
           </div>
 
           <button class="btn-place-order" type="submit" id="btn-submit" disabled>
-            <%= t('checkout.submit') %>
+            <span id="btn-submit-text"><%= t('checkout.submit') %></span>
           </button>
         </form>
       </section>
@@ -239,6 +245,9 @@
         }).join('');
       }
 
+      const STRIPE_SUBMIT_TEXT  = '<%= t("checkout.submitStripe") %>';
+      const DEFAULT_SUBMIT_TEXT = '<%= t("checkout.submit") %>';
+
       // ── Live price calculation ────────────────────────────────────
       function recalc() {
         const subtotal = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
@@ -265,6 +274,13 @@
         gwRow.style.display  = gatewayFee > 0 ? '' : 'none';
         document.getElementById('sum-cod').textContent     = codFee.toFixed(2)     + ' €';
         document.getElementById('sum-gateway').textContent = gatewayFee.toFixed(2) + ' €';
+
+        // ── Stripe indicator ──────────────────────────────────────
+        const isStripe  = payOpt && payOpt.dataset.type === 'stripe';
+        const badge     = document.getElementById('stripe-badge');
+        const btnText   = document.getElementById('btn-submit-text');
+        if (badge)   badge.style.display   = isStripe ? '' : 'none';
+        if (btnText) btnText.textContent    = isStripe ? STRIPE_SUBMIT_TEXT : DEFAULT_SUBMIT_TEXT;
       }
 
       // ── On submit: inject cart JSON ───────────────────────────────

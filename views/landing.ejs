@@ -1,71 +1,261 @@
 <!DOCTYPE html>
-<html lang="<%= lang %>">
+<html lang="el">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thronos Commerce</title>
+    <title>Thronos Commerce — Multi-tenant E-commerce Platform</title>
+    <meta name="description" content="Ανοίξτε το online κατάστημά σας σε 24 ώρες. Διαχείριση, digital products, Stripe πληρωμές και πολλά άλλα." />
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f8fafc; color: #1e293b; }
+
+      /* ── Hero ── */
+      .lp-hero {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        color: #fff; text-align: center; padding: 80px 20px 90px;
+      }
+      .lp-hero .badge {
+        display: inline-block; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+        border-radius: 20px; padding: 4px 14px; font-size: .78rem; font-weight: 600;
+        letter-spacing: .04em; margin-bottom: 20px; text-transform: uppercase;
+      }
+      .lp-hero h1 {
+        font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; margin: 0 0 18px;
+        line-height: 1.15; letter-spacing: -.02em;
+      }
+      .lp-hero h1 span { color: #a5b4fc; }
+      .lp-hero p {
+        font-size: clamp(1rem, 2vw, 1.2rem); color: rgba(255,255,255,.8);
+        max-width: 620px; margin: 0 auto 36px; line-height: 1.6;
+      }
+      .lp-hero-cta {
+        display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+      }
+      .btn-hero {
+        display: inline-block; padding: 14px 32px; border-radius: 8px;
+        font-weight: 700; font-size: 1rem; cursor: pointer; text-decoration: none;
+        transition: opacity .15s, transform .1s;
+      }
+      .btn-hero:active { transform: scale(.97); }
+      .btn-hero.primary { background: #fff; color: #4338ca; }
+      .btn-hero.primary:hover { opacity: .9; }
+      .btn-hero.outline { border: 2px solid rgba(255,255,255,.6); color: #fff; }
+      .btn-hero.outline:hover { background: rgba(255,255,255,.1); }
+
+      /* ── Features strip ── */
+      .lp-features {
+        background: #fff; border-bottom: 1px solid #e2e8f0;
+        display: flex; flex-wrap: wrap; justify-content: center; gap: 0;
+      }
+      .lp-feature-item {
+        flex: 1 1 200px; padding: 22px 24px; text-align: center;
+        border-right: 1px solid #e2e8f0; min-width: 160px;
+      }
+      .lp-feature-item:last-child { border-right: none; }
+      .lp-feature-item .icon { font-size: 1.8rem; margin-bottom: 6px; }
+      .lp-feature-item p { font-size: .82rem; color: #64748b; margin: 4px 0 0; line-height: 1.4; }
+      .lp-feature-item strong { display: block; font-size: .9rem; color: #1e293b; margin-top: 2px; }
+
+      /* ── Pricing section ── */
+      .lp-pricing {
+        max-width: 1100px; margin: 0 auto; padding: 70px 20px 60px;
+      }
+      .lp-pricing h2 {
+        text-align: center; font-size: 2rem; font-weight: 800; margin: 0 0 10px;
+      }
+      .lp-pricing .sub {
+        text-align: center; color: #64748b; font-size: 1rem; margin: 0 0 48px;
+      }
+      .pricing-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
+      }
+      .pricing-card {
+        background: #fff; border: 2px solid #e2e8f0; border-radius: 16px;
+        padding: 28px 24px 24px; display: flex; flex-direction: column;
+        position: relative; transition: box-shadow .2s, border-color .2s;
+      }
+      .pricing-card:hover { box-shadow: 0 8px 32px rgba(67,56,202,.1); border-color: #c7d2fe; }
+      .pricing-card.popular {
+        border-color: #4338ca; box-shadow: 0 4px 24px rgba(67,56,202,.15);
+      }
+      .popular-badge {
+        position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+        background: #4338ca; color: #fff; font-size: .72rem; font-weight: 700;
+        padding: 3px 14px; border-radius: 20px; white-space: nowrap; letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .pricing-card h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 6px; color: #1e293b; }
+      .pricing-card .price-row {
+        display: flex; align-items: baseline; gap: 4px; margin: 8px 0 4px;
+      }
+      .price-amount { font-size: 2.4rem; font-weight: 800; color: #1e293b; }
+      .price-note { font-size: .84rem; color: #64748b; }
+      .pricing-card .desc { font-size: .83rem; color: #64748b; margin: 0 0 18px; line-height: 1.5; min-height: 50px; }
+      .pricing-card ul {
+        list-style: none; padding: 0; margin: 0 0 22px; flex: 1;
+      }
+      .pricing-card ul li {
+        font-size: .84rem; color: #374151; padding: 5px 0;
+        border-bottom: 1px solid #f1f5f9; display: flex; gap: 8px; align-items: flex-start;
+      }
+      .pricing-card ul li:last-child { border: none; }
+      .pricing-card ul li::before { content: '✓'; color: #4338ca; font-weight: 700; flex-shrink: 0; }
+      .btn-plan {
+        display: block; width: 100%; padding: 12px; border-radius: 8px;
+        text-align: center; font-weight: 700; font-size: .95rem; cursor: pointer;
+        text-decoration: none; border: 2px solid #4338ca; color: #4338ca;
+        background: transparent; transition: background .15s, color .15s;
+      }
+      .btn-plan:hover, .pricing-card.popular .btn-plan {
+        background: #4338ca; color: #fff;
+      }
+      .pricing-card.popular .btn-plan:hover { opacity: .88; }
+
+      /* ── Contact form ── */
+      .lp-contact {
+        background: #fff; border-top: 1px solid #e2e8f0;
+        padding: 60px 20px 70px;
+      }
+      .lp-contact-inner { max-width: 680px; margin: 0 auto; }
+      .lp-contact h2 { font-size: 1.8rem; font-weight: 800; margin: 0 0 8px; text-align: center; }
+      .lp-contact .sub { text-align: center; color: #64748b; margin: 0 0 36px; }
+      .contact-form { display: flex; flex-direction: column; gap: 14px; }
+      .contact-form input, .contact-form textarea, .contact-form select {
+        padding: 10px 13px; border: 1.5px solid #e2e8f0; border-radius: 7px;
+        font-size: .9rem; font-family: inherit; width: 100%;
+        transition: border-color .15s;
+      }
+      .contact-form input:focus, .contact-form textarea:focus, .contact-form select:focus {
+        outline: none; border-color: #4338ca;
+      }
+      .contact-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      @media (max-width: 520px) { .contact-form-row { grid-template-columns: 1fr; } }
+      .btn-contact {
+        display: block; width: 100%; padding: 14px; background: #4338ca;
+        color: #fff; border: none; border-radius: 8px; font-size: 1rem;
+        font-weight: 700; cursor: pointer; transition: opacity .15s;
+      }
+      .btn-contact:hover { opacity: .88; }
+      .lp-success {
+        background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;
+        border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; font-size: .9rem;
+      }
+
+      /* ── Footer ── */
+      .lp-footer {
+        text-align: center; padding: 24px 20px; background: #1e1b4b; color: rgba(255,255,255,.5);
+        font-size: .8rem;
+      }
+      .lp-footer a { color: rgba(255,255,255,.7); }
+    </style>
   </head>
   <body>
-    <header>
-      <h1>Thronos Commerce</h1>
-      <p class="subtitle">Multi-tenant · Web3-ready e-commerce platform</p>
-    </header>
 
-    <main>
-      <section class="hero">
-        <h2><%= t('landing.hero') %></h2>
-      </section>
+    <%# ── Hero ── %>
+    <section class="lp-hero">
+      <div class="badge">🚀 Thronos Commerce</div>
+      <h1>E-commerce <span>χωρίς WordPress</span>,<br>χωρίς κόπο.</h1>
+      <p>Multi-tenant platform για brands, creators & DIY επιχειρήσεις. Ανοίξτε το online κατάστημά σας σε 24 ώρες με Stripe, digital content και πλήρη admin panel.</p>
+      <div class="lp-hero-cta">
+        <a href="#pricing" class="btn-hero primary">Δείτε τα πακέτα →</a>
+        <a href="#contact" class="btn-hero outline">Επικοινωνήστε μαζί μας</a>
+      </div>
+    </section>
 
-      <section class="product-list">
-        <% packages.forEach(function(pkg){ %>
-          <article class="product-card">
+    <%# ── Feature strip ── %>
+    <div class="lp-features">
+      <div class="lp-feature-item">
+        <div class="icon">🛒</div>
+        <strong>Admin Panel</strong>
+        <p>Προϊόντα, παραλλαγές, κατηγορίες & παραγγελίες σε ένα μέρος</p>
+      </div>
+      <div class="lp-feature-item">
+        <div class="icon">💳</div>
+        <strong>Stripe Payments</strong>
+        <p>Online πληρωμές με κάρτα άμεσα, με τα δικά σας Stripe keys</p>
+      </div>
+      <div class="lp-feature-item">
+        <div class="icon">🎁</div>
+        <strong>Digital Products</strong>
+        <p>Πουλήστε PDF εγχειρίδια & βίντεο οδηγιών με gated access</p>
+      </div>
+      <div class="lp-feature-item">
+        <div class="icon">📦</div>
+        <strong>Multi-variant</strong>
+        <p>Παραλλαγές προϊόντων με δικές τους τιμές, απόθεμα & περιεχόμενο</p>
+      </div>
+      <div class="lp-feature-item">
+        <div class="icon">⛓</div>
+        <strong>Web3 Ready</strong>
+        <p>On-chain proof of orders, wallet integration, referral system</p>
+      </div>
+    </div>
+
+    <%# ── Pricing ── %>
+    <section class="lp-pricing" id="pricing">
+      <h2>Τιμοκατάλογος υπηρεσιών</h2>
+      <p class="sub">Επιλέξτε το πακέτο που ταιριάζει στη επιχείρησή σας. Χωρίς setup fees, χωρίς δεσμεύσεις.</p>
+
+      <div class="pricing-grid">
+        <% packages.forEach(function(pkg) { %>
+          <div class="pricing-card <%= pkg.popular ? 'popular' : '' %>">
+            <% if (pkg.popular) { %><div class="popular-badge">⭐ Πιο δημοφιλές</div><% } %>
             <h3><%= pkg.title %></h3>
-            <p><%= pkg.description %></p>
+            <div class="price-row">
+              <span class="price-amount"><%= pkg.price %> €</span>
+              <span class="price-note"><%= pkg.priceNote %></span>
+            </div>
+            <p class="desc"><%= pkg.description %></p>
             <ul>
-              <% pkg.features.forEach(function(feature){ %>
-                <li><%= feature %></li>
+              <% pkg.features.forEach(function(f) { %>
+                <li><%= f %></li>
               <% }) %>
             </ul>
-          </article>
+            <a href="#contact" class="btn-plan" onclick="document.getElementById('sel-package').value='<%= pkg.id %>'">
+              Ξεκινήστε →
+            </a>
+          </div>
         <% }) %>
-      </section>
+      </div>
+    </section>
 
-      <section class="admin-block">
-        <h2><%= t('landing.offer') %></h2>
-        <% if (message) { %><p class="admin-msg success"><%= message %></p><% } %>
-        <form method="POST" action="/thronos-commerce/offer" class="checkout-form">
-          <label><%= t('landing.name') %>
-            <input type="text" name="name" required />
-          </label>
-          <label><%= t('landing.email') || 'Email' %>
-            <input type="email" name="email" required />
-          </label>
-          <label><%= t('landing.phone') %>
-            <input type="text" name="phone" required />
-          </label>
-          <label><%= t('landing.brand') %>
-            <input type="text" name="brand" required />
-          </label>
-          <label><%= t('landing.domain') %>
-            <input type="text" name="domain" placeholder="π.χ. fashionmm.gr" />
-          </label>
-          <label><%= t('landing.productsCount') %>
-            <input type="number" name="products" min="1" />
-          </label>
-          <label><%= t('landing.package') %>
-            <select name="packageId" required>
-              <% packages.forEach(function(pkg){ %>
-                <option value="<%= pkg.id %>"><%= pkg.title %></option>
-              <% }) %>
-            </select>
-          </label>
-          <label><%= t('landing.message') %>
-            <textarea name="message" rows="4"></textarea>
-          </label>
-          <button class="button" type="submit"><%= t('landing.send') %></button>
+    <%# ── Contact / request form ── %>
+    <section class="lp-contact" id="contact">
+      <div class="lp-contact-inner">
+        <h2>Ξεκινήστε σήμερα</h2>
+        <p class="sub">Συμπληρώστε τη φόρμα και η ομάδα μας θα επικοινωνήσει μαζί σας εντός 24 ωρών.</p>
+
+        <% if (message) { %><div class="lp-success">✓ <%= message %></div><% } %>
+
+        <form method="POST" action="/thronos-commerce/offer" class="contact-form">
+          <div class="contact-form-row">
+            <input type="text" name="name" placeholder="Ονοματεπώνυμο *" required />
+            <input type="email" name="email" placeholder="Email *" required />
+          </div>
+          <div class="contact-form-row">
+            <input type="text" name="phone" placeholder="Κινητό τηλέφωνο *" required />
+            <input type="text" name="brand" placeholder="Όνομα brand / επιχείρησης *" required />
+          </div>
+          <div class="contact-form-row">
+            <input type="text" name="domain" placeholder="Domain (π.χ. myshop.gr)" />
+            <input type="number" name="products" min="1" placeholder="Αριθμός προϊόντων" />
+          </div>
+          <select name="packageId" id="sel-package" required>
+            <option value="">— Επιλέξτε πακέτο —</option>
+            <% packages.forEach(function(pkg) { %>
+              <option value="<%= pkg.id %>"><%= pkg.title %> — <%= pkg.price %> € / μήνα</option>
+            <% }) %>
+          </select>
+          <textarea name="message" rows="4" placeholder="Πείτε μας λίγο για την επιχείρησή σας, τι πουλάτε και τι χρειάζεστε..."></textarea>
+          <button type="submit" class="btn-contact">Αποστολή αιτήματος →</button>
         </form>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <footer class="lp-footer">
+      <p>© <%= new Date().getFullYear() %> Thronos Commerce &mdash; Multi-tenant E-commerce Platform</p>
+    </footer>
+
   </body>
 </html>

@@ -322,6 +322,37 @@
           </label>
         </div>
 
+        <%# ── Stripe Integration ── %>
+        <div style="margin-top:24px;padding:18px 20px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;">
+          <p style="margin:0 0 12px;font-weight:700;font-size:.95rem;color:#5b21b6;">💳 Stripe — Online πληρωμές με κάρτα</p>
+          <p class="helper" style="margin:0 0 14px;color:#6b7280;font-size:.82rem;">
+            Για να ενεργοποιήσετε πληρωμές με κάρτα, εισάγετε τα κλειδιά σας από το
+            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a>.
+            Μετά προσθέστε μέθοδο πληρωμής με <code>type: "stripe"</code> από τον root admin.
+          </p>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
+            <span>Publishable Key <small style="color:#888;">(pk_live_… ή pk_test_…)</small></span>
+            <input type="text" name="stripePublishableKey"
+                   value="<%= config.stripePublishableKey || '' %>"
+                   placeholder="pk_live_..."
+                   <%= permissions.canEditSettings ? '' : 'readonly' %>
+                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
+            <span>Secret Key <small style="color:#888;">(sk_live_… ή sk_test_…)</small></span>
+            <input type="password" name="stripeSecretKey"
+                   value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>"
+                   placeholder="sk_live_..."
+                   <%= permissions.canEditSettings ? '' : 'readonly' %>
+                   autocomplete="new-password"
+                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
+            <small style="color:#888;font-size:.76rem;">Αφήστε κενό αν δεν θέλετε να αλλάξετε το υπάρχον κλειδί.</small>
+          </label>
+          <% if (config.stripeSecretKey) { %>
+            <p style="margin:10px 0 0;font-size:.8rem;color:#059669;">✓ Stripe ενεργοποιημένο</p>
+          <% } %>
+        </div>
+
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
                  <%= permissions.canEditSettings ? 'required' : 'disabled' %> />

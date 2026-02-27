@@ -39,7 +39,9 @@
     "inStock": "In stock",
     "stockLow": "Low stock",
     "stockOut": "Out of stock",
-    "submit": "Place order"
+    "submit": "Place order",
+    "submitStripe": "💳 Pay by card via Stripe →",
+    "stripeSecure": "Secure payment via Stripe. You will be redirected to the payment page."
   },
   "thankyou": {
     "pageTitle": "Thank you",

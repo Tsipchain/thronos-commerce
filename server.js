@@ -10,6 +10,14 @@ function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
 }
 const nodemailer = safeRequire('nodemailer');
+const StripeLib  = safeRequire('stripe');
+
+// ── Stripe per-tenant helper ──────────────────────────────────────────────────
+function stripeForTenant(config) {
+  const key = (config.stripeSecretKey || '').trim();
+  if (!key || !StripeLib) return null;
+  try { return StripeLib(key); } catch (e) { return null; }
+}
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
 const LOCALES_DIR = path.join(__dirname, 'locales');
@@ -239,9 +247,10 @@ function tenantPaths(tenantId) {
     categories: path.join(base, 'categories.json'),
     orders: path.join(base, 'orders.json'),
     reviews: path.join(base, 'reviews.json'),
-    stockLog: path.join(base, 'stock_log.json'),
-    analytics: path.join(base, 'analytics.json'),
-    favicon: path.join(base, 'favicon.png'),
+    stockLog:      path.join(base, 'stock_log.json'),
+    analytics:     path.join(base, 'analytics.json'),
+    favicon:       path.join(base, 'favicon.png'),
+    pendingOrders: path.join(base, 'pending_orders.json'),
     media
   };
 }
@@ -965,11 +974,55 @@ app.post('/checkout', async (req, res) => {
     codFee:      totals.codFee,
     gatewayFee:  totals.gatewayFee,
     total:       totals.total,
-    paymentStatus: paymentMethodId === 'CARD' ? 'PENDING_STRIPE' : 'PENDING_COD',
+    paymentStatus: totals.paymentMethod.type === 'stripe' ? 'PENDING_STRIPE' : 'PENDING_COD',
     createdAt: new Date().toISOString()
   };
 
   console.log('[Thronos Commerce] New cart order:', JSON.stringify(order));
+
+  // ── Stripe Checkout redirect ──────────────────────────────────────
+  if (totals.paymentMethod.type === 'stripe') {
+    const stripe = stripeForTenant(config);
+    if (stripe) {
+      try {
+        // Save pending order before redirecting to Stripe
+        const pendingId = `po_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const pending   = loadJson(req.tenantPaths.pendingOrders, {});
+        pending[pendingId] = { order, enrichedItems };
+        saveJson(req.tenantPaths.pendingOrders, pending);
+
+        const baseUrl   = `${req.protocol}://${req.get('host')}`;
+        const lineItems = enrichedItems.map((item) => ({
+          price_data: {
+            currency:     'eur',
+            product_data: { name: item.variantLabel ? `${item.name} – ${item.variantLabel}` : item.name },
+            unit_amount:  Math.round(item.price * 100)
+          },
+          quantity: item.qty
+        }));
+        if (totals.shippingCost > 0) {
+          lineItems.push({ price_data: { currency: 'eur', product_data: { name: totals.shippingMethod.label || 'Μεταφορικά' }, unit_amount: Math.round(totals.shippingCost * 100) }, quantity: 1 });
+        }
+        if (totals.codFee > 0) {
+          lineItems.push({ price_data: { currency: 'eur', product_data: { name: 'Επιβάρυνση αντικαταβολής' }, unit_amount: Math.round(totals.codFee * 100) }, quantity: 1 });
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          mode:                 'payment',
+          line_items:           lineItems,
+          customer_email:       email,
+          success_url: `${baseUrl}/checkout/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url:  `${baseUrl}/checkout`
+        });
+
+        return res.redirect(303, session.url);
+      } catch (stripeErr) {
+        console.error('[Stripe] create session failed:', stripeErr.message);
+        // Fall through to normal order if Stripe fails
+      }
+    }
+  }
 
   const proofHash = await recordOrderOnChain(order, req.tenant);
   order.proofHash = proofHash;
@@ -1060,6 +1113,87 @@ app.post('/checkout', async (req, res) => {
     contentUrl: hasDigital ? `/content/${order.id}` : null
   });
 });
+
+// ── Stripe success / cancel ───────────────────────────────────────────────────
+app.get('/checkout/stripe-success', async (req, res) => {
+  const { pending_id, session_id } = req.query;
+  const config = loadTenantConfig(req);
+  const stripe = stripeForTenant(config);
+
+  if (!stripe || !pending_id || !session_id) return res.redirect('/checkout');
+
+  const pending = loadJson(req.tenantPaths.pendingOrders, {});
+  const entry   = pending[pending_id];
+  if (!entry) {
+    return res.redirect('/checkout?error=order_not_found');
+  }
+
+  // Verify payment
+  try {
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (session.payment_status !== 'paid') return res.redirect('/checkout?error=payment_failed');
+  } catch (err) {
+    console.error('[Stripe] retrieve session failed:', err.message);
+    return res.redirect('/checkout?error=payment_error');
+  }
+
+  const { order, enrichedItems } = entry;
+  order.paymentStatus   = 'PAID';
+  order.stripeSessionId = session_id;
+
+  delete pending[pending_id];
+  saveJson(req.tenantPaths.pendingOrders, pending);
+
+  const proofHash = await recordOrderOnChain(order, req.tenant);
+  order.proofHash = proofHash;
+  appendTenantOrder(req, order);
+
+  // Stock deduction
+  const allProductsMut = loadTenantProducts(req);
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  enrichedItems.forEach((ci) => {
+    const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
+    if (pIdx < 0) return;
+    const prod = allProductsMut[pIdx];
+    if (ci.variantId && Array.isArray(prod.variants)) {
+      const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
+      if (vIdx >= 0) {
+        prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, variantLabel: ci.variantLabel, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
+      }
+    } else if ((prod.stock || 0) > 0) {
+      prod.stock = Math.max(0, prod.stock - ci.qty);
+      stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
+    }
+  });
+  saveJson(req.tenantPaths.products, allProductsMut);
+  saveJson(req.tenantPaths.stockLog, stockLog);
+
+  if (order.city) {
+    try {
+      const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
+      analytics.cities[order.city] = (analytics.cities[order.city] || 0) + 1;
+      saveJson(req.tenantPaths.analytics, analytics);
+    } catch (_) {}
+  }
+
+  try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
+  try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
+  sendOrderEmails(order, config).catch(() => {});
+
+  const allProductsForContent = loadTenantProducts(req);
+  const hasDigital = enrichedItems.some((ci) => {
+    const p = allProductsForContent.find((pp) => pp.id === ci.id);
+    return p && p.hasDigitalContent;
+  });
+
+  res.render('thanks', {
+    config, order, proofHash, tenant: req.tenant,
+    clearCart: true, contentUrl: hasDigital ? `/content/${order.id}` : null
+  });
+});
+
+app.get('/checkout/stripe-cancel', (req, res) => res.redirect('/checkout'));
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
 
@@ -1203,6 +1337,14 @@ app.post('/admin/settings', async (req, res) => {
   config.notificationFromName   = (req.body.notificationFromName   || '').trim();
   config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
   config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
+
+  // Stripe keys
+  if (req.body.stripePublishableKey !== undefined)
+    config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
+  if (req.body.stripeSecretKey !== undefined) {
+    const sk = (req.body.stripeSecretKey || '').trim();
+    if (sk) config.stripeSecretKey = sk; // only overwrite if non-empty
+  }
 
   saveJson(req.tenantPaths.config, config);
 
@@ -1650,49 +1792,64 @@ app.get('/content/:orderId', (req, res) => {
 function getLandingPackages() {
   return [
     {
-      id: 'MANAGEMENT_START',
-      title: 'Management Start',
-      description: 'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
+      id:          'MANAGEMENT_START',
+      title:       'Management Start',
+      price:       49,
+      priceNote:   '/ μήνα',
+      description: 'Ιδανικό για μικρά brands που θέλουν managed e-shop, χωρίς WordPress / WooCommerce.',
       features: [
         'Στήσιμο e-shop πάνω στο Thronos Commerce',
-        'Βασικό theme & λογότυπο',
-        'Admin panel για προϊόντα',
-        'Σύνδεση με δικό σας domain & email'
+        'Θεματολογία & λογότυπο',
+        'Admin panel για προϊόντα, κατηγορίες & παραγγελίες',
+        'Σύνδεση με domain & επαγγελματικό email',
+        'Παραλλαγές προϊόντων & πλήρης κατάλογος',
+        'Αξιολογήσεις επαληθευμένων αγοραστών'
       ]
     },
     {
-      id: 'FULL_OPS_START',
-      title: 'Full Ops Start',
+      id:          'FULL_OPS_START',
+      title:       'Full Ops',
+      price:       149,
+      priceNote:   '/ μήνα',
+      popular:     true,
       description: 'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
       features: [
         'Όλα του Management Start',
         'Πλήρης διαχείριση προϊόντων & περιεχομένου',
-        'Παρακολούθηση παραγγελιών & επικοινωνίας',
+        'Διαχείριση παραγγελιών & επικοινωνίας πελατών',
+        'Stripe online πληρωμές',
+        'Analytics & αναφορές πωλήσεων',
         'Συμβουλευτικό growth roadmap'
       ]
     },
     {
-      id: 'DIGITAL_STARTER',
-      title: 'Digital Starter',
-      description: 'Για creators & DIY brands που πουλούν digital προϊόντα: εγχειρίδια, βίντεο οδηγιών και ψηφιακό περιεχόμενο.',
+      id:          'DIGITAL_STARTER',
+      title:       'Digital Starter',
+      price:       79,
+      priceNote:   '/ μήνα',
+      description: 'Για creators & DIY brands που πουλούν digital προϊόντα: εγχειρίδια, βίντεο οδηγιών.',
       features: [
         'Όλα του Management Start',
         'Ανέβασμα PDF εγχειριδίων ανά προϊόν (έως 50 MB)',
         'Ενσωμάτωση βίντεο οδηγιών (YouTube / Vimeo / MP4)',
-        'Gated content page για αγοραστές (μόνο με αριθμό παραγγελίας)',
-        'Αυτόματος σύνδεσμος πρόσβασης στο email επιβεβαίωσης'
+        'Gated content page για αγοραστές',
+        'Αυτόματος σύνδεσμος πρόσβασης στο email επιβεβαίωσης',
+        'Παραλλαγές kit με διαφορετικό περιεχόμενο'
       ]
     },
     {
-      id: 'DIGITAL_PRO',
-      title: 'Digital Pro',
+      id:          'DIGITAL_PRO',
+      title:       'Digital Pro',
+      price:       199,
+      priceNote:   '/ μήνα',
       description: 'Πλήρες πακέτο για digital-first επιχειρήσεις με πολλαπλά προϊόντα και ανεπτυγμένο περιεχόμενο.',
       features: [
         'Όλα του Digital Starter',
         'Πλήρης διαχείριση περιεχομένου από την ομάδα Thronos',
         'Unlimited εγχειρίδια & βίντεο ανά προϊόν',
+        'Stripe online πληρωμές',
         'Analytics πρόσβασης περιεχομένου',
-        'Προτεραιότητα support'
+        'Προτεραιότητα support 7/7'
       ]
     }
   ];
