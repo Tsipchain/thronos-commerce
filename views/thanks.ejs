@@ -50,6 +50,18 @@
           <%= t('thankyou.proofHash') %>:<br />
           <code><%= proofHash %></code>
         </p>
+
+        <% if (locals.contentUrl) { %>
+        <div style="margin-top:24px;padding:20px;background:#f0fdf4;border:2px solid #22c55e;border-radius:10px;text-align:center;">
+          <p style="margin:0 0 6px;font-size:1.05rem;font-weight:700;color:#15803d;">🔐 <%= t('content.accessReady') %></p>
+          <p style="margin:0 0 14px;font-size:.88rem;color:#166534;"><%= t('content.accessSub') %></p>
+          <a href="<%= contentUrl %>"
+             style="display:inline-block;background:#16a34a;color:#fff;padding:11px 28px;border-radius:var(--button-radius,4px);text-decoration:none;font-weight:700;font-size:.95rem;">
+            📄🎬 <%= t('content.accessBtn') %>
+          </a>
+          <p style="margin:10px 0 0;font-size:.75rem;color:#6b7280;"><%= t('content.saveLink') %></p>
+        </div>
+        <% } %>
       </section>
     </main>
     <% if (locals.clearCart) { %>

@@ -169,6 +169,21 @@
           </table>
         <% } %>
 
+        <%# ── Digital content preview ── %>
+        <% if (product.hasDigitalContent && (product.manualUrl || product.videoUrl || product.contentDescription)) { %>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:18px 0;">
+            <p style="margin:0 0 8px;font-weight:700;color:#15803d;font-size:.95rem;">🎁 <%= t('product.contentIncluded') %></p>
+            <% if (product.contentDescription) { %>
+              <p style="margin:0 0 8px;font-size:.86rem;color:#166534;"><%= product.contentDescription %></p>
+            <% } %>
+            <ul style="margin:0;padding-left:18px;font-size:.83rem;color:#166534;">
+              <% if (product.manualUrl) { %><li>📄 <%= t('product.contentManual') %></li><% } %>
+              <% if (product.videoUrl) { %><li>🎬 <%= t('product.contentVideo') %></li><% } %>
+            </ul>
+            <p style="margin:8px 0 0;font-size:.75rem;color:#6b7280;"><%= t('product.contentAfterPurchase') %></p>
+          </div>
+        <% } %>
+
         <%# ── Add to Cart button ── %>
         <button class="btn-add-cart" id="btn-add-cart"
                 <%= product.stock === 0 ? 'disabled' : '' %>

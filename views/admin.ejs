@@ -854,6 +854,42 @@
             <div id="specs-rows"></div>
             <button type="button" onclick="addSpecRow()" style="margin-top:6px;font-size:.8rem;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;">+ Προσθήκη χαρακτηριστικού</button>
           </div>
+
+          <% if (permissions.canDigitalContent) { %>
+          <div class="full" style="margin-top:16px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+            <p style="margin:0 0 10px;font-weight:700;font-size:.9rem;color:#15803d;">🎁 Digital Content (εγχειρίδιο / βίντεο)</p>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:.87rem;">
+              <input type="checkbox" id="f-hasDigitalContent" style="width:auto;margin:0;" />
+              <span>Αυτό το προϊόν περιλαμβάνει digital περιεχόμενο μετά την αγορά</span>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
+              <span>Περιγραφή περιεχομένου <small style="color:#6b7280;">(εμφανίζεται στη σελίδα του προϊόντος)</small></span>
+              <textarea id="f-contentDescription" rows="2"
+                        style="padding:7px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:.85rem;resize:vertical;"
+                        placeholder="π.χ. Εγχειρίδιο εγκατάστασης 28 σελίδων + βίντεο τοποθέτησης 12 λεπτών"></textarea>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
+              <span>URL εγχειριδίου PDF <small style="color:#6b7280;">(ή ανεβάστε παρακάτω)</small></span>
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="f-manualUrl"
+                       style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:.85rem;"
+                       placeholder="/tenants/demo/media/manual.pdf" />
+                <label style="cursor:pointer;white-space:nowrap;">
+                  <input type="file" id="f-manual-file" accept="application/pdf,video/mp4,video/webm" style="display:none;" onchange="uploadManual(this)" />
+                  <span style="display:inline-block;padding:7px 12px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:4px;font-size:.82rem;font-weight:600;">⬆ Ανέβασμα</span>
+                </label>
+              </div>
+              <small id="manual-upload-status" style="color:#6b7280;font-size:.77rem;"></small>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
+              <span>URL βίντεο οδηγιών <small style="color:#6b7280;">(YouTube, Vimeo ή .mp4)</small></span>
+              <input type="text" id="f-videoUrl"
+                     style="padding:7px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:.85rem;"
+                     placeholder="https://youtu.be/..." />
+            </label>
+          </div>
+          <% } %>
+
         </div>
         <div class="modal-actions">
           <button class="button" type="button" id="modal-cancel"
@@ -937,6 +973,40 @@
       const fGallery    = document.getElementById('f-gallery');
       const mTitle      = document.getElementById('modal-title');
 
+      // ── Digital content fields (may be null if tier doesn't support) ──
+      const fHasDigital    = document.getElementById('f-hasDigitalContent');
+      const fContentDesc   = document.getElementById('f-contentDescription');
+      const fManualUrl     = document.getElementById('f-manualUrl');
+      const fVideoUrl      = document.getElementById('f-videoUrl');
+
+      async function uploadManual(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('manual-upload-status');
+        const pw = document.querySelector('input[name="password"]') ||
+                   { value: prompt('Κωδικός διαχειριστή για ανέβασμα:') };
+        statusEl.textContent = 'Ανέβασμα...';
+        const fd = new FormData();
+        fd.append('manual', file);
+        fd.append('password', pw.value || '');
+        try {
+          const res = await fetch('/admin/upload-manual', { method: 'POST', body: fd });
+          const j = await res.json();
+          if (j.ok) {
+            if (fManualUrl) fManualUrl.value = j.url;
+            statusEl.style.color = '#059669';
+            statusEl.textContent = '✓ Ανέβηκε: ' + j.url;
+          } else {
+            statusEl.style.color = '#dc2626';
+            statusEl.textContent = j.error || 'Σφάλμα ανεβάσματος.';
+          }
+        } catch(e) {
+          statusEl.style.color = '#dc2626';
+          statusEl.textContent = 'Σφάλμα δικτύου.';
+        }
+        input.value = '';
+      }
+
       // ── Specs dynamic rows ───────────────────────────────────────
       function renderSpecRows(specs) {
         const container = document.getElementById('specs-rows');
@@ -966,6 +1036,29 @@
         return result;
       }
 
+      function clearDigitalFields() {
+        if (fHasDigital)  fHasDigital.checked = false;
+        if (fContentDesc) fContentDesc.value  = '';
+        if (fManualUrl)   fManualUrl.value    = '';
+        if (fVideoUrl)    fVideoUrl.value     = '';
+      }
+
+      function fillDigitalFields(p) {
+        if (fHasDigital)  fHasDigital.checked = !!p.hasDigitalContent;
+        if (fContentDesc) fContentDesc.value  = p.contentDescription || '';
+        if (fManualUrl)   fManualUrl.value    = p.manualUrl  || '';
+        if (fVideoUrl)    fVideoUrl.value     = p.videoUrl   || '';
+      }
+
+      function readDigitalFields() {
+        return {
+          hasDigitalContent: fHasDigital  ? fHasDigital.checked || undefined : undefined,
+          contentDescription: fContentDesc ? fContentDesc.value.trim() || undefined : undefined,
+          manualUrl:  fManualUrl ? fManualUrl.value.trim()  || undefined : undefined,
+          videoUrl:   fVideoUrl  ? fVideoUrl.value.trim()   || undefined : undefined
+        };
+      }
+
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
@@ -974,6 +1067,7 @@
         fCat.value = ''; fImg.value = ''; fDesc.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         renderSpecRows([]);
+        clearDigitalFields();
         modal.classList.add('open');
         fName.focus();
       }
@@ -995,6 +1089,7 @@
         fSeoDesc.value    = p.seoDescription || '';
         fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
         renderSpecRows(Array.isArray(p.specs) ? p.specs : []);
+        fillDigitalFields(p);
         modal.classList.add('open');
         fName.focus();
       }
@@ -1011,8 +1106,9 @@
           alert(i18nJs.nameRequired);
           return;
         }
-        const galleryRaw = fGallery.value.split('\n').map(l => l.trim()).filter(Boolean);
-        const specsRows  = readSpecRows();
+        const galleryRaw    = fGallery.value.split('\n').map(l => l.trim()).filter(Boolean);
+        const specsRows     = readSpecRows();
+        const digitalFields = readDigitalFields();
         const product = {
           id,
           name,
@@ -1026,7 +1122,8 @@
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
           gallery:        galleryRaw.length ? galleryRaw : undefined,
-          specs:          specsRows.length  ? specsRows  : undefined
+          specs:          specsRows.length  ? specsRows  : undefined,
+          ...digitalFields
         };
         // Remove undefined fields
         Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);
