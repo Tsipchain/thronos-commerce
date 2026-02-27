@@ -1,0 +1,39 @@
+<article class="product-card">
+  <% if (product.imageUrl) { %>
+    <div class="product-thumb">
+      <img src="<%= product.imageUrl %>" alt="<%= product.name %>" loading="lazy" />
+      <% if (product.featured) { %><span class="featured-badge">⭐ <%= t('storefront.featured') %></span><% } %>
+    </div>
+  <% } else if (product.featured) { %>
+    <div class="product-thumb" style="background:#fffbeb;min-height:60px;">
+      <span class="featured-badge" style="position:relative;top:0;left:0;display:inline-block;margin:10px;">⭐ <%= t('storefront.featured') %></span>
+    </div>
+  <% } %>
+  <div class="product-card-body">
+    <h2><%= product.name %></h2>
+    <p><%= product.description %></p>
+    <p class="price">
+      <%= Number(product.price).toFixed(2) %> €
+      <% if (product.stock !== undefined) { %>
+        <% if (product.stock === 0) { %>
+          <span class="stock-pill out"><%= t('checkout.stockOut') %></span>
+        <% } else if (product.stock < 3) { %>
+          <span class="stock-pill low"><%= t('checkout.stockLow') %> (<%= product.stock %>)</span>
+        <% } else { %>
+          <span class="stock-pill ok"><%= t('checkout.inStock') %></span>
+        <% } %>
+      <% } %>
+    </p>
+    <div class="card-actions">
+      <a class="button" href="/product/<%= product.id %><%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.viewProduct') %></a>
+      <% if (product.stock !== 0) { %>
+        <button class="btn-cart" type="button"
+          onclick="window.thrcAddToCart && window.thrcAddToCart({id:'<%= product.id %>',name:'<%= product.name.replace(/'/g,"\\'") %>',price:<%= Number(product.price) || 0 %>,imageUrl:'<%= (product.imageUrl||'').replace(/'/g,"\\'") %>'})">
+          <%= t('storefront.addToCart') %>
+        </button>
+      <% } else { %>
+        <button class="btn-cart" type="button" disabled><%= t('checkout.stockOut') %></button>
+      <% } %>
+    </div>
+  </div>
+</article>
