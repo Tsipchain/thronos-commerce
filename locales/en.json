@@ -11,9 +11,6 @@
     "cartCheckout": "Proceed to checkout →",
     "cartSubtotal": "Total"
   },
-  "product": {
-    "specsTitle": "Technical specifications"
-  },
   "checkout": {
     "pageTitle": "Checkout",
     "backToStore": "← Back to store",
@@ -100,6 +97,13 @@
     "uploadBtn": "Upload",
     "modalSpecs": "Technical specifications",
     "modalSpecsHelper": "E.g. «Weight» → «1.2 kg». Displayed as a table on the product page.",
+    "modalVariants": "Product variants",
+    "modalVariantsHelper": "Add variants (e.g. Basic, Premium). Each variant can have a different price, stock and content.",
+    "addVariant": "Add variant",
+    "variantLabel": "Label (e.g. Basic)",
+    "variantPrice": "Price €",
+    "variantStock": "Stock",
+    "variantDesc": "Description (e.g. Includes 12-min video)",
     "faviconTitle": "Store favicon",
     "faviconHelper": "Upload the icon shown in the browser tab. Recommended: 64×64 px PNG.",
     "faviconUploadBtn": "Upload favicon",
@@ -166,5 +170,33 @@
     "payoutMode": "Payout method",
     "wallet": "Crypto wallet",
     "fiatMethod": "IBAN / Fiat"
+  },
+  "content": {
+    "pageTitle": "Your purchase content",
+    "heroSub": "Digital content unlocked with your order",
+    "orderRef": "Order",
+    "purchasedProduct": "Purchased product",
+    "whatsIncluded": "What's included",
+    "manualTitle": "Instruction manual",
+    "manual": "Manual",
+    "manualSub": "Click to download or view the PDF",
+    "download": "Download",
+    "videoTitle": "Instruction video",
+    "watchVideo": "Watch the video",
+    "noDigitalContent": "No digital content found",
+    "noDigitalContentSub": "This order does not include digital products.",
+    "securityNote": "This page is private. Save the link for future access.",
+    "accessReady": "Your digital content is ready!",
+    "accessSub": "Click to access your instruction manual and video.",
+    "accessBtn": "Open your content",
+    "saveLink": "Save this link — you'll need it for future access"
+  },
+  "product": {
+    "specsTitle": "Technical specifications",
+    "contentIncluded": "Includes digital content",
+    "contentManual": "Instruction manual (PDF)",
+    "contentVideo": "Installation video",
+    "contentAfterPurchase": "You receive access immediately after purchase via your confirmation email.",
+    "variantsTitle": "Choose variant"
   }
 }

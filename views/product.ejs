@@ -90,6 +90,23 @@
         background: #f9fafb; width: 38%; font-weight: 600; color: #374151;
       }
 
+      /* ── Variant selector ────────────────────────────────────────── */
+      .variant-selector { margin: 14px 0 4px; }
+      .variant-selector > p { font-size: .88rem; font-weight: 600; color: #374151; margin: 0 0 8px; }
+      .variant-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+      .variant-pill {
+        padding: 7px 18px; border-radius: 20px; border: 2px solid #e5e7eb;
+        background: #fff; cursor: pointer; font-size: .88rem; font-weight: 500;
+        transition: border-color .15s, background .15s, color .15s;
+        line-height: 1.3;
+      }
+      .variant-pill:hover:not(:disabled) { border-color: var(--primary-color, #4f46e5); }
+      .variant-pill.selected {
+        border-color: var(--primary-color, #4f46e5);
+        background: var(--primary-color, #4f46e5); color: #fff;
+      }
+      .variant-pill:disabled { opacity: .4; cursor: not-allowed; }
+
       /* ── Reviews ──────────────────────────────────────────────────── */
       .reviews-section { margin-top: 36px; }
       .review-card {
@@ -108,6 +125,38 @@
       }
       .review-gate label { display: block; margin-bottom: 10px; font-size: .9rem; }
     </style>
+    <%
+      const _offers = [];
+      if (Array.isArray(product.variants) && product.variants.length) {
+        product.variants.forEach(function(v) {
+          _offers.push({
+            "@type": "Offer",
+            "name": v.label,
+            "price": (Number(v.price) || 0).toFixed(2),
+            "priceCurrency": "EUR",
+            "availability": (v.stock === 0) ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
+          });
+        });
+      } else {
+        _offers.push({
+          "@type": "Offer",
+          "price": (Number(product.price) || 0).toFixed(2),
+          "priceCurrency": "EUR",
+          "availability": (product.stock === 0) ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
+        });
+      }
+      const _ldJson = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": product.name,
+        "description": product.description || product.seoDescription || '',
+        "sku": product.sku || '',
+        "image": product.imageUrl || '',
+        "brand": { "@type": "Brand", "name": config.storeName },
+        "offers": _offers.length === 1 ? _offers[0] : _offers
+      };
+    %>
+    <script type="application/ld+json"><%- JSON.stringify(_ldJson, null, 2) %></script>
   </head>
   <body>
     <header>
@@ -143,14 +192,36 @@
         <% if (product.sku) { %><p style="color:#888;font-size:.82rem;margin:-6px 0 6px;">SKU: <%= product.sku %></p><% } %>
 
         <% if (product.stock !== undefined) { %>
-          <p class="stock-badge <%= product.stock === 0 ? 'out' : product.stock < 3 ? 'low' : 'ok' %>">
+          <p id="stock-badge" class="stock-badge <%= product.stock === 0 ? 'out' : product.stock < 3 ? 'low' : 'ok' %>">
             <% if (product.stock === 0) { %><%= t('checkout.stockOut') %>
             <% } else if (product.stock < 3) { %><%= t('checkout.stockLow') %> (<%= product.stock %>)
             <% } else { %><%= t('checkout.inStock') %><% } %>
           </p>
+        <% } else { %>
+          <p id="stock-badge" class="stock-badge ok" style="display:none;"></p>
         <% } %>
 
-        <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
+        <p class="price"><span id="product-price"><%= Number(product.price).toFixed(2) %></span> €</p>
+
+        <%# ── Variant selector ── %>
+        <% if (Array.isArray(product.variants) && product.variants.length) { %>
+          <div class="variant-selector">
+            <p><%= t('product.variantsTitle') %>: <strong id="variant-label"><%= product.variants[0].label %></strong></p>
+            <div class="variant-pills">
+              <% product.variants.forEach(function(v, vi) { %>
+                <button class="variant-pill <%= vi === 0 ? 'selected' : '' %>"
+                        data-vid="<%= v.id %>"
+                        <%= v.stock === 0 ? 'disabled' : '' %>
+                        onclick="selectVariant(this)">
+                  <%= v.label %>
+                  <% if (Number(v.price) !== Number(product.price)) { %>
+                    <span style="font-size:.76rem;opacity:.82;"> &ndash; <%= Number(v.price).toFixed(2) %> &euro;</span>
+                  <% } %>
+                </button>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
 
         <% if (product.description) { %>
           <p class="product-description"><%= product.description %></p>
@@ -167,6 +238,22 @@
               <% }) %>
             </tbody>
           </table>
+        <% } %>
+
+        <%# ── Digital content preview ── %>
+        <% if (product.hasDigitalContent) { %>
+          <input type="hidden" id="has-manual" value="<%= product.manualUrl ? '1' : '' %>" />
+          <div id="content-preview" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:18px 0;<%= (product.manualUrl || product.videoUrl || product.contentDescription) ? '' : 'display:none' %>">
+            <p style="margin:0 0 8px;font-weight:700;color:#15803d;font-size:.95rem;">🎁 <%= t('product.contentIncluded') %></p>
+            <% if (product.contentDescription) { %>
+              <p style="margin:0 0 8px;font-size:.86rem;color:#166534;"><%= product.contentDescription %></p>
+            <% } %>
+            <ul style="margin:0;padding-left:18px;font-size:.83rem;color:#166534;">
+              <% if (product.manualUrl) { %><li>📄 <%= t('product.contentManual') %></li><% } %>
+              <% if (product.videoUrl) { %><li>🎬 <%= t('product.contentVideo') %></li><% } %>
+            </ul>
+            <p style="margin:8px 0 0;font-size:.75rem;color:#6b7280;"><%= t('product.contentAfterPurchase') %></p>
+          </div>
         <% } %>
 
         <%# ── Add to Cart button ── %>
@@ -239,12 +326,99 @@
         price: <%= Number(product.price) || 0 %>,
         imageUrl: '<%- (product.imageUrl || '').replace(/'/g, "\\'") %>'
       };
+      const VARIANTS = <%- JSON.stringify(Array.isArray(product.variants) ? product.variants : []) %>;
+      const HAS_DIGITAL = <%= product.hasDigitalContent ? 'true' : 'false' %>;
+      const BASE_MANUAL  = '<%= product.manualUrl ? '1' : '' %>';
+      const BASE_VIDEO   = '<%- (product.videoUrl || '').replace(/'/g, "\\'") %>';
+      const BASE_DESC    = '<%- (product.contentDescription || '').replace(/'/g, "\\'").replace(/\n/g, ' ') %>';
+      const STOCK_OUT    = '<%= t("checkout.stockOut") %>';
+      const STOCK_LOW    = '<%= t("checkout.stockLow") %>';
+      const IN_STOCK     = '<%= t("checkout.inStock") %>';
+
+      let selectedVariant = VARIANTS.length ? VARIANTS[0] : null;
+
+      // ── Variant selection ─────────────────────────────────────────
+      function selectVariant(btn) {
+        document.querySelectorAll('.variant-pill').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        const vid = btn.dataset.vid;
+        const v   = VARIANTS.find(function(vv) { return vv.id === vid; });
+        if (!v) return;
+        selectedVariant = v;
+
+        // Update label
+        const lbl = document.getElementById('variant-label');
+        if (lbl) lbl.textContent = v.label;
+
+        // Update price
+        const priceEl = document.getElementById('product-price');
+        if (priceEl) priceEl.textContent = (Number(v.price) || PRODUCT.price).toFixed(2);
+
+        // Update stock badge
+        const stock = (v.stock !== undefined) ? Number(v.stock) : -1;
+        updateStockBadge(stock);
+
+        // Update add-to-cart disabled state
+        const btnCart = document.getElementById('btn-add-cart');
+        if (btnCart) btnCart.disabled = (Number(v.stock) === 0);
+
+        // Update digital content preview
+        if (HAS_DIGITAL) {
+          updateContentPreview(
+            v.videoUrl  || BASE_VIDEO,
+            v.contentDescription || BASE_DESC,
+            BASE_MANUAL
+          );
+        }
+      }
+
+      function updateStockBadge(stock) {
+        const badge = document.getElementById('stock-badge');
+        if (!badge) return;
+        if (stock < 0) { badge.style.display = 'none'; return; }
+        badge.style.display = '';
+        if (stock === 0) {
+          badge.className = 'stock-badge out';
+          badge.textContent = STOCK_OUT;
+        } else if (stock < 3) {
+          badge.className = 'stock-badge low';
+          badge.textContent = STOCK_LOW + ' (' + stock + ')';
+        } else {
+          badge.className = 'stock-badge ok';
+          badge.textContent = IN_STOCK;
+        }
+      }
+
+      function updateContentPreview(videoUrl, desc, hasManual) {
+        const box = document.getElementById('content-preview');
+        if (!box) return;
+        const hasVideo = !!videoUrl;
+        if (!hasManual && !hasVideo && !desc) { box.style.display = 'none'; return; }
+        box.style.display = '';
+        let html = '<p style="margin:0 0 8px;font-weight:700;color:#15803d;font-size:.95rem;">🎁 <%= t("product.contentIncluded") %></p>';
+        if (desc) html += '<p style="margin:0 0 8px;font-size:.86rem;color:#166534;">' + desc.replace(/</g,'&lt;') + '</p>';
+        html += '<ul style="margin:0;padding-left:18px;font-size:.83rem;color:#166534;">';
+        if (hasManual) html += '<li>📄 <%= t("product.contentManual") %></li>';
+        if (hasVideo)  html += '<li>🎬 <%= t("product.contentVideo") %></li>';
+        html += '</ul>';
+        html += '<p style="margin:8px 0 0;font-size:.75rem;color:#6b7280;"><%= t("product.contentAfterPurchase") %></p>';
+        box.innerHTML = html;
+      }
 
       // ── Add to Cart ───────────────────────────────────────────────
       function addThisToCart() {
-        if (typeof window.thrcAddToCart === 'function') {
-          window.thrcAddToCart(PRODUCT);
+        if (typeof window.thrcAddToCart !== 'function') return;
+        const p = {
+          id:       PRODUCT.id,
+          name:     PRODUCT.name,
+          price:    selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price,
+          imageUrl: PRODUCT.imageUrl
+        };
+        if (selectedVariant) {
+          p.variantId    = selectedVariant.id;
+          p.variantLabel = selectedVariant.label;
         }
+        window.thrcAddToCart(p);
       }
 
       // ── Gallery swap ──────────────────────────────────────────────

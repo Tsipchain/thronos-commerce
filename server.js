@@ -323,19 +323,36 @@ function getSupportPermissions(supportTier) {
       canEditSettings: true,
       canEditProducts: true,
       canUploadMedia: true,
-      canEditCategories: true
+      canEditCategories: true,
+      canDigitalContent: false
     },
     MANAGEMENT_START: {
       canEditSettings: true,
       canEditProducts: true,
       canUploadMedia: true,
-      canEditCategories: true
+      canEditCategories: true,
+      canDigitalContent: false
     },
     FULL_OPS_START: {
       canEditSettings: false,
       canEditProducts: false,
       canUploadMedia: false,
-      canEditCategories: false
+      canEditCategories: false,
+      canDigitalContent: false
+    },
+    DIGITAL_STARTER: {
+      canEditSettings: true,
+      canEditProducts: true,
+      canUploadMedia: true,
+      canEditCategories: true,
+      canDigitalContent: true
+    },
+    DIGITAL_PRO: {
+      canEditSettings: true,
+      canEditProducts: true,
+      canUploadMedia: true,
+      canEditCategories: true,
+      canDigitalContent: true
     }
   };
   return map[supportTier] || map.SELF_SERVICE;
@@ -880,16 +897,32 @@ app.post('/checkout', async (req, res) => {
   }
 
   // Validate & enrich items from server-side product catalog
+  // Resolves variant price & label server-side (never trust client price)
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
     const found = allProductsCatalog.find((p) => p.id === ci.id);
     if (found) {
+      let serverPrice = Number(found.price) || 0;
+      let variantLabel = '';
+      let variantId = (ci.variantId || '').trim();
+      // Resolve variant price
+      if (variantId && Array.isArray(found.variants)) {
+        const variant = found.variants.find((v) => v.id === variantId);
+        if (variant) {
+          serverPrice  = Number(variant.price) || serverPrice;
+          variantLabel = variant.label || '';
+        } else {
+          variantId = ''; // invalid variant → clear
+        }
+      }
       enrichedItems.push({
-        id: found.id,
-        name: found.name,
-        price: Number(found.price) || 0,
-        qty: Math.max(1, parseInt(ci.qty, 10) || 1)
+        id:           found.id,
+        name:         found.name,
+        variantId:    variantId || undefined,
+        variantLabel: variantLabel || undefined,
+        price:        serverPrice,
+        qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
       });
     }
   }
@@ -908,7 +941,9 @@ app.post('/checkout', async (req, res) => {
     tenantId: req.tenant.id,
     // Keep single-product fields for backward compat (first item)
     productId:   enrichedItems[0].id,
-    productName: enrichedItems.map((i) => `${i.name} ×${i.qty}`).join(', '),
+    productName: enrichedItems.map((i) =>
+      i.variantLabel ? `${i.name} – ${i.variantLabel} ×${i.qty}` : `${i.name} ×${i.qty}`
+    ).join(', '),
     price:       enrichedItems[0].price,
     // Multi-item
     items: enrichedItems,
@@ -945,8 +980,26 @@ app.post('/checkout', async (req, res) => {
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   enrichedItems.forEach((ci) => {
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
-    if (pIdx >= 0 && (allProductsMut[pIdx].stock || 0) > 0) {
-      allProductsMut[pIdx].stock = Math.max(0, allProductsMut[pIdx].stock - ci.qty);
+    if (pIdx < 0) return;
+    const prod = allProductsMut[pIdx];
+    if (ci.variantId && Array.isArray(prod.variants)) {
+      const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
+      if (vIdx >= 0) {
+        prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        stockLog.push({
+          id:           Date.now().toString(36) + '_' + ci.id,
+          productId:    ci.id,
+          productName:  ci.name,
+          variantId:    ci.variantId,
+          variantLabel: ci.variantLabel,
+          delta:        -ci.qty,
+          reason:       'order',
+          orderId,
+          createdAt:    order.createdAt
+        });
+      }
+    } else if ((prod.stock || 0) > 0) {
+      prod.stock = Math.max(0, prod.stock - ci.qty);
       stockLog.push({
         id:          Date.now().toString(36) + '_' + ci.id,
         productId:   ci.id,
@@ -991,13 +1044,20 @@ app.post('/checkout', async (req, res) => {
     (err) => console.error('[Thronos Commerce] attestMailToThronos failed:', err.message)
   );
 
-  // Clear localStorage cart via redirect with flag
+  // Compute content URL if any purchased product has digital content
+  const allProductsForContent = loadTenantProducts(req);
+  const hasDigital = enrichedItems.some((ci) => {
+    const p = allProductsForContent.find((pp) => pp.id === ci.id);
+    return p && p.hasDigitalContent;
+  });
+
   res.render('thanks', {
     config,
     order,
     proofHash,
     tenant: req.tenant,
-    clearCart: true
+    clearCart: true,
+    contentUrl: hasDigital ? `/content/${order.id}` : null
   });
 });
 
@@ -1507,14 +1567,92 @@ app.post('/admin/favicon/delete', async (req, res) => {
   return res.redirect('/admin?message=Favicon+διαγράφηκε#tab-upload');
 });
 
-// Thronos Commerce marketing landing
-app.get('/thronos-commerce', (req, res) => {
-  const packages = [
+// ── Digital content: manual upload ───────────────────────────────────────────
+const manualUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = (req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.pdf';
+      cb(null, `manual-${Date.now()}${ext}`);
+    }
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter: (_req, file, cb) => {
+    const ok = /^(application\/pdf|video\/(mp4|webm|ogg))$/.test(file.mimetype);
+    cb(null, ok);
+  }
+});
+
+app.post(
+  '/admin/upload-manual',
+  manualUpload.single('manual'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canDigitalContent) {
+      return res.status(403).json({ ok: false, error: 'Digital content not available on this plan.' });
+    }
+    const ok = await verifyAdminPassword(req.tenant, req.body.password);
+    if (!ok) return res.status(401).json({ ok: false, error: 'Invalid password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file.' });
+    const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
+    res.json({ ok: true, url, filename: req.file.filename });
+  }
+);
+
+// ── Digital content: gated access page ───────────────────────────────────────
+app.get('/content/:orderId', (req, res) => {
+  const orders = loadTenantOrders(req);
+  const order  = orders.find((o) => o.id === req.params.orderId);
+  if (!order) return res.status(404).send('Η παραγγελία δεν βρέθηκε.');
+
+  const config   = loadTenantConfig(req);
+  const products = loadTenantProducts(req);
+
+  // Collect all products in this order, merging per-variant content overrides
+  let orderItems = [];
+  if (Array.isArray(order.items) && order.items.length) {
+    orderItems = order.items.map((i) => {
+      const p = products.find((pr) => pr.id === i.id);
+      if (!p) return null;
+      // Merge variant-specific content fields if applicable
+      if (i.variantId && Array.isArray(p.variants)) {
+        const v = p.variants.find((vr) => vr.id === i.variantId);
+        if (v) {
+          return Object.assign({}, p, {
+            videoUrl:           v.videoUrl           || p.videoUrl,
+            contentDescription: v.contentDescription || p.contentDescription,
+            _variantLabel:      v.label || ''
+          });
+        }
+      }
+      return p;
+    }).filter(Boolean);
+  } else if (order.productId) {
+    const p = products.find((p) => p.id === order.productId);
+    if (p) orderItems = [p];
+  }
+
+  const digitalItems = orderItems.filter((p) => p.hasDigitalContent);
+
+  res.render('content', {
+    config,
+    order,
+    digitalItems,
+    tenant: req.tenant
+  });
+});
+
+// ── Shared packages list ──────────────────────────────────────────────────────
+function getLandingPackages() {
+  return [
     {
       id: 'MANAGEMENT_START',
       title: 'Management Start',
-      description:
-        'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
+      description: 'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
       features: [
         'Στήσιμο e-shop πάνω στο Thronos Commerce',
         'Βασικό theme & λογότυπο',
@@ -1525,18 +1663,44 @@ app.get('/thronos-commerce', (req, res) => {
     {
       id: 'FULL_OPS_START',
       title: 'Full Ops Start',
-      description:
-        'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
+      description: 'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
       features: [
         'Όλα του Management Start',
         'Πλήρης διαχείριση προϊόντων & περιεχομένου',
         'Παρακολούθηση παραγγελιών & επικοινωνίας',
         'Συμβουλευτικό growth roadmap'
       ]
+    },
+    {
+      id: 'DIGITAL_STARTER',
+      title: 'Digital Starter',
+      description: 'Για creators & DIY brands που πουλούν digital προϊόντα: εγχειρίδια, βίντεο οδηγιών και ψηφιακό περιεχόμενο.',
+      features: [
+        'Όλα του Management Start',
+        'Ανέβασμα PDF εγχειριδίων ανά προϊόν (έως 50 MB)',
+        'Ενσωμάτωση βίντεο οδηγιών (YouTube / Vimeo / MP4)',
+        'Gated content page για αγοραστές (μόνο με αριθμό παραγγελίας)',
+        'Αυτόματος σύνδεσμος πρόσβασης στο email επιβεβαίωσης'
+      ]
+    },
+    {
+      id: 'DIGITAL_PRO',
+      title: 'Digital Pro',
+      description: 'Πλήρες πακέτο για digital-first επιχειρήσεις με πολλαπλά προϊόντα και ανεπτυγμένο περιεχόμενο.',
+      features: [
+        'Όλα του Digital Starter',
+        'Πλήρης διαχείριση περιεχομένου από την ομάδα Thronos',
+        'Unlimited εγχειρίδια & βίντεο ανά προϊόν',
+        'Analytics πρόσβασης περιεχομένου',
+        'Προτεραιότητα support'
+      ]
     }
   ];
+}
 
-  res.render('landing', { packages, message: null });
+// Thronos Commerce marketing landing
+app.get('/thronos-commerce', (req, res) => {
+  res.render('landing', { packages: getLandingPackages(), message: null });
 });
 
 app.post('/thronos-commerce/offer', (req, res) => {
@@ -1552,32 +1716,7 @@ app.post('/thronos-commerce/offer', (req, res) => {
   leads.push(lead);
   saveJson(leadsFile, leads);
 
-  const packages = [
-    {
-      id: 'MANAGEMENT_START',
-      title: 'Management Start',
-      description:
-        'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
-      features: [
-        'Στήσιμο e-shop πάνω στο Thronos Commerce',
-        'Βασικό theme & λογότυπο',
-        'Admin panel για προϊόντα',
-        'Σύνδεση με δικό σας domain & email'
-      ]
-    },
-    {
-      id: 'FULL_OPS_START',
-      title: 'Full Ops Start',
-      description:
-        'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
-      features: [
-        'Όλα του Management Start',
-        'Πλήρης διαχείριση προϊόντων & περιεχομένου',
-        'Παρακολούθηση παραγγελιών & επικοινωνίας',
-        'Συμβουλευτικό growth roadmap'
-      ]
-    }
-  ];
+  const packages = getLandingPackages();
 
   res.render('landing', {
     packages,
@@ -1587,7 +1726,7 @@ app.post('/thronos-commerce/offer', (req, res) => {
 
 // ─── Root Admin: Tenants Management ──────────────────────────────────────────
 
-const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START'];
+const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START', 'DIGITAL_STARTER', 'DIGITAL_PRO'];
 
 function buildRootViewModel(extra) {
   const tenants = loadTenantsRegistry();
