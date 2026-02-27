@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= t('checkout.pageTitle') %> – <%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.ico" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color:  <%= config.accentColor %>;
+        --font-family:   <%= config.fontFamily %>;
+        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+      }
+      .checkout-layout {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 32px;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+        align-items: start;
+      }
+      @media (max-width: 700px) {
+        .checkout-layout { grid-template-columns: 1fr; }
+        .checkout-summary { order: -1; }
+      }
+      .checkout-form-section h2 { margin-top: 0; font-size: 1.2rem; }
+      .form-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;
+      }
+      .form-row.full { grid-template-columns: 1fr; }
+      .form-row label { display: flex; flex-direction: column; gap: 4px; font-size: .88rem; }
+      .form-row input, .form-row select, .form-row textarea {
+        padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 5px;
+        font-size: .9rem; font-family: inherit; box-sizing: border-box; width: 100%;
+      }
+      .form-row textarea { resize: vertical; }
+
+      /* ── Order summary card ── */
+      .checkout-summary {
+        background: #f9fafb; border: 1px solid #e5e7eb;
+        border-radius: 12px; padding: 20px;
+        position: sticky; top: 16px;
+      }
+      .checkout-summary h3 { margin: 0 0 14px; font-size: 1rem; }
+      #summary-items { list-style: none; padding: 0; margin: 0 0 14px; }
+      #summary-items li {
+        display: flex; justify-content: space-between;
+        padding: 6px 0; border-bottom: 1px solid #e5e7eb;
+        font-size: .86rem;
+      }
+      #summary-items li:last-child { border: none; }
+      .summary-line {
+        display: flex; justify-content: space-between;
+        font-size: .86rem; margin: 4px 0;
+      }
+      .summary-line.total {
+        font-size: 1rem; font-weight: 700; margin-top: 10px;
+        border-top: 2px solid #e5e7eb; padding-top: 10px;
+      }
+      #empty-cart-msg {
+        text-align: center; padding: 40px 0; color: #aaa; font-style: italic;
+      }
+      .btn-place-order {
+        width: 100%; padding: 13px; margin-top: 18px;
+        background: var(--primary-color, #4f46e5); color: #fff;
+        border: none; border-radius: var(--button-radius, 4px);
+        font-size: 1rem; font-weight: 700; cursor: pointer;
+      }
+      .btn-place-order:hover { opacity: .88; }
+      .btn-place-order:disabled { opacity: .45; cursor: not-allowed; }
+      .back-link {
+        display: inline-block; margin-bottom: 18px;
+        font-size: .86rem; color: var(--primary-color, #4f46e5);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo-title">
+        <% if (config.logoPath) { %>
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+        <% } %>
+        <a href="/" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+      </div>
+    </header>
+
+    <div id="empty-cart-msg" style="display:none;">
+      <p><%= t('checkout.cartEmptyMsg') %></p>
+      <a href="/" class="button"><%= t('checkout.backToStore') %></a>
+    </div>
+
+    <div class="checkout-layout" id="checkout-layout" style="display:none;">
+
+      <%# ── Left: Form ── %>
+      <section class="checkout-form-section">
+        <a href="/" class="back-link">← <%= t('checkout.backToStore') %></a>
+        <h2><%= t('checkout.pageTitle') %></h2>
+
+        <form id="checkout-form" method="POST" action="/checkout">
+          <input type="hidden" name="cartJson" id="cart-json-input" value="" />
+
+          <div class="form-row">
+            <label>
+              <%= t('checkout.fullName') %> *
+              <input type="text" name="name" required />
+            </label>
+            <label>
+              <%= t('checkout.email') %> *
+              <input type="email" name="email" required />
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <%= t('checkout.phone') %> *
+              <input type="tel" name="phone" required placeholder="π.χ. 6912345678" />
+            </label>
+            <label>
+              <%= t('checkout.tk') %>
+              <input type="text" name="tk" placeholder="π.χ. 15123" maxlength="10" />
+            </label>
+          </div>
+
+          <div class="form-row full">
+            <label>
+              <%= t('checkout.address') %> *
+              <input type="text" name="address" required placeholder="<%= t('checkout.addressPlaceholder') %>" />
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <%= t('checkout.doorbell') %>
+              <input type="text" name="doorbell" placeholder="<%= t('checkout.doorbellPlaceholder') %>" />
+            </label>
+            <label>
+              <%= t('checkout.city') %>
+              <input type="text" name="city" placeholder="<%= t('checkout.cityPlaceholder') %>" />
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <%= t('checkout.shippingMethod') %> *
+              <select name="shippingMethodId" id="sel-shipping" required onchange="recalc()">
+                <% (config.shippingOptions || []).forEach(function(opt) { %>
+                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>">
+                    <%= opt.label %><% if (opt.base > 0) { %> (+<%= Number(opt.base).toFixed(2) %> €)<% } %>
+                  </option>
+                <% }); %>
+              </select>
+            </label>
+            <label>
+              <%= t('checkout.paymentMethod') %> *
+              <select name="paymentMethodId" id="sel-payment" required onchange="recalc()">
+                <% (config.paymentOptions || []).forEach(function(opt) { %>
+                  <option value="<%= opt.id %>"
+                          data-surcharge="<%= Number(opt.gatewaySurchargePercent)||0 %>"
+                          data-iscod="<%= opt.id === 'COD' ? '1' : '0' %>">
+                    <%= opt.label %>
+                  </option>
+                <% }); %>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-row full">
+            <label>
+              <%= t('checkout.web3Wallet') %>
+              <input type="text" name="wallet" placeholder="0x…" />
+            </label>
+          </div>
+
+          <div class="form-row full">
+            <label>
+              <%= t('checkout.notes') %>
+              <textarea name="notes" rows="3" placeholder="<%= t('checkout.notesPlaceholder') %>"></textarea>
+            </label>
+          </div>
+
+          <button class="btn-place-order" type="submit" id="btn-submit" disabled>
+            <%= t('checkout.submit') %>
+          </button>
+        </form>
+      </section>
+
+      <%# ── Right: Order summary ── %>
+      <aside class="checkout-summary">
+        <h3><%= t('checkout.orderSummary') %></h3>
+        <ul id="summary-items"></ul>
+        <div class="summary-line">
+          <span><%= t('checkout.subtotal') %></span>
+          <span id="sum-subtotal">–</span>
+        </div>
+        <div class="summary-line">
+          <span><%= t('checkout.shipping') %></span>
+          <span id="sum-shipping">–</span>
+        </div>
+        <div class="summary-line" id="sum-cod-row" style="display:none;">
+          <span><%= t('checkout.codFee') %></span>
+          <span id="sum-cod">–</span>
+        </div>
+        <div class="summary-line" id="sum-gw-row" style="display:none;">
+          <span><%= t('checkout.gatewayFee') %></span>
+          <span id="sum-gateway">–</span>
+        </div>
+        <div class="summary-line total">
+          <span><%= t('checkout.total') %></span>
+          <span id="sum-total">–</span>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      const CART_KEY = 'thrc_cart';
+
+      // ── Load & validate cart ──────────────────────────────────────
+      let cart = [];
+      try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) {}
+
+      if (!cart.length) {
+        document.getElementById('empty-cart-msg').style.display = '';
+      } else {
+        document.getElementById('checkout-layout').style.display = 'grid';
+        document.getElementById('btn-submit').disabled = false;
+        renderSummaryItems();
+        recalc();
+      }
+
+      function renderSummaryItems() {
+        const el = document.getElementById('summary-items');
+        el.innerHTML = cart.map(function(item) {
+          const safeName = (item.name || '?').replace(/</g,'&lt;');
+          return '<li><span>' + safeName + ' &times;' + (item.qty || 1) + '</span>' +
+            '<span>' + ((item.price || 0) * (item.qty || 1)).toFixed(2) + ' &euro;</span></li>';
+        }).join('');
+      }
+
+      // ── Live price calculation ────────────────────────────────────
+      function recalc() {
+        const subtotal = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
+
+        const shipSel  = document.getElementById('sel-shipping');
+        const paySel   = document.getElementById('sel-payment');
+        const shipOpt  = shipSel && shipSel.options[shipSel.selectedIndex];
+        const payOpt   = paySel  && paySel.options[paySel.selectedIndex];
+
+        const shippingCost = shipOpt ? parseFloat(shipOpt.dataset.base  || 0) : 0;
+        const codFee       = (payOpt && payOpt.dataset.iscod === '1')
+                             ? parseFloat(shipOpt ? shipOpt.dataset.codfee || 0 : 0) : 0;
+        const surcharge    = payOpt  ? parseFloat(payOpt.dataset.surcharge || 0) : 0;
+        const gatewayFee   = subtotal * surcharge;
+        const total        = subtotal + shippingCost + codFee + gatewayFee;
+
+        document.getElementById('sum-subtotal').textContent = subtotal.toFixed(2)      + ' €';
+        document.getElementById('sum-shipping').textContent = shippingCost.toFixed(2)  + ' €';
+        document.getElementById('sum-total').textContent    = total.toFixed(2)         + ' €';
+
+        const codRow = document.getElementById('sum-cod-row');
+        const gwRow  = document.getElementById('sum-gw-row');
+        codRow.style.display = codFee > 0     ? '' : 'none';
+        gwRow.style.display  = gatewayFee > 0 ? '' : 'none';
+        document.getElementById('sum-cod').textContent     = codFee.toFixed(2)     + ' €';
+        document.getElementById('sum-gateway').textContent = gatewayFee.toFixed(2) + ' €';
+      }
+
+      // ── On submit: inject cart JSON ───────────────────────────────
+      document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        if (!cart.length) { e.preventDefault(); return; }
+        document.getElementById('cart-json-input').value = JSON.stringify(cart);
+      });
+    </script>
+  </body>
+</html>

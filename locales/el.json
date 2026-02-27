@@ -9,23 +9,43 @@
     "cartTitle": "Καλάθι αγορών",
     "cartEmpty": "Το καλάθι είναι άδειο.",
     "cartCheckout": "Ολοκλήρωση παραγγελίας →",
+    "cartSubtotal": "Σύνολο",
     "addToCart": "Προσθήκη στο καλάθι",
     "featuredTitle": "Προτεινόμενα προϊόντα",
     "featured": "Προτεινόμενο"
   },
+  "product": {
+    "specsTitle": "Τεχνικά χαρακτηριστικά"
+  },
   "checkout": {
+    "pageTitle": "Ολοκλήρωση παραγγελίας",
+    "backToStore": "← Επιστροφή στο κατάστημα",
+    "orderSummary": "Σύνοψη παραγγελίας",
+    "subtotal": "Υποσύνολο",
+    "shipping": "Μεταφορικά",
+    "codFee": "Επιβάρυνση αντικαταβολής",
+    "gatewayFee": "Επιβάρυνση gateway",
+    "total": "Σύνολο",
+    "cartEmptyMsg": "Το καλάθι σας είναι άδειο.",
     "fullName": "Ονοματεπώνυμο",
     "email": "Email",
+    "phone": "Κινητό τηλέφωνο",
+    "address": "Διεύθυνση παράδοσης",
+    "addressPlaceholder": "π.χ. Ερμού 12",
+    "doorbell": "Όνομα κουδουνιού",
+    "doorbellPlaceholder": "π.χ. Παπαδόπουλος",
+    "tk": "Ταχυδρομικός κωδικός (ΤΚ)",
     "web3Wallet": "Web3 Wallet (προαιρετικό)",
     "shippingMethod": "Τρόπος αποστολής",
     "paymentMethod": "Τρόπος πληρωμής",
     "city": "Πόλη / Περιοχή",
     "cityPlaceholder": "π.χ. Αθήνα",
     "notes": "Σημειώσεις",
+    "notesPlaceholder": "Τυχόν οδηγίες παράδοσης...",
     "inStock": "Διαθέσιμο",
     "stockLow": "Λίγα τεμάχια",
     "stockOut": "Εξαντλήθηκε",
-    "submit": "Ολοκλήρωση παραγγελίας"
+    "submit": "Υποβολή παραγγελίας"
   },
   "thankyou": {
     "pageTitle": "Ευχαριστούμε",
@@ -189,6 +209,8 @@
     "modalGallery": "Gallery (URLs επιπλέον εικόνων)",
     "modalGalleryPlaceholder": "/tenants/.../media/img1.jpg\n/tenants/.../media/img2.jpg",
     "modalGalleryHelper": "Ένα URL ανά γραμμή. Εμφανίζονται ως thumbnails κάτω από την κύρια εικόνα.",
+    "modalSpecs": "Τεχνικά χαρακτηριστικά",
+    "modalSpecsHelper": "Π.χ. «Βάρος» → «1.2 kg». Εμφανίζονται σε πίνακα στη σελίδα του προϊόντος.",
     "modalCancel": "Ακύρωση",
     "modalSave": "Αποθήκευση",
     "jsNameIdRequired": "Το όνομα και ο κωδικός είναι υποχρεωτικά.",
@@ -266,7 +288,10 @@
     "submit": "Υποβολή αξιολόγησης",
     "noReviews": "Δεν υπάρχουν αξιολογήσεις ακόμα. Γίνετε ο πρώτος!",
     "submitOk": "Η αξιολόγησή σας υποβλήθηκε. Ευχαριστούμε!",
-    "submitErr": "Σφάλμα κατά την υποβολή. Παρακαλώ δοκιμάστε ξανά."
+    "submitErr": "Σφάλμα κατά την υποβολή. Παρακαλώ δοκιμάστε ξανά.",
+    "verifiedNote": "Μόνο επαληθευμένοι αγοραστές μπορούν να γράψουν αξιολόγηση. Εισάγετε το email που χρησιμοποιήσατε στην παραγγελία σας.",
+    "verifyBtn": "Επαλήθευση αγοράς",
+    "notVerified": "Δεν βρέθηκε παραγγελία με αυτό το email για αυτό το προϊόν."
   },
   "referral": {
     "title": "Referral Partners",

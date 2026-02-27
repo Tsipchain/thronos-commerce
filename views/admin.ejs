@@ -848,6 +848,12 @@
             <textarea id="f-gallery" rows="3" placeholder="<%= t('admin.modalGalleryPlaceholder') %>"></textarea>
             <small style="color:#888;font-size:0.78rem;"><%= t('admin.modalGalleryHelper') %></small>
           </label>
+          <div class="full">
+            <span style="font-size:.86rem;font-weight:600;display:block;margin-bottom:6px;"><%= t('admin.modalSpecs') %></span>
+            <small style="color:#888;font-size:.78rem;display:block;margin-bottom:8px;"><%= t('admin.modalSpecsHelper') %></small>
+            <div id="specs-rows"></div>
+            <button type="button" onclick="addSpecRow()" style="margin-top:6px;font-size:.8rem;padding:4px 10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;">+ Προσθήκη χαρακτηριστικού</button>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="button" type="button" id="modal-cancel"
@@ -931,6 +937,35 @@
       const fGallery    = document.getElementById('f-gallery');
       const mTitle      = document.getElementById('modal-title');
 
+      // ── Specs dynamic rows ───────────────────────────────────────
+      function renderSpecRows(specs) {
+        const container = document.getElementById('specs-rows');
+        container.innerHTML = '';
+        (specs || []).forEach(function(s) { addSpecRow(s.k, s.v); });
+      }
+
+      function addSpecRow(k, v) {
+        const container = document.getElementById('specs-rows');
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+        row.innerHTML =
+          '<input type="text" placeholder="Χαρακτηριστικό" value="' + (k || '').replace(/"/g,'&quot;') + '" class="spec-k" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
+          '<input type="text" placeholder="Τιμή" value="' + (v || '').replace(/"/g,'&quot;') + '" class="spec-v" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
+          '<button type="button" onclick="this.closest(\'div\').remove()" style="background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;">×</button>';
+        container.appendChild(row);
+      }
+
+      function readSpecRows() {
+        const rows = document.querySelectorAll('#specs-rows > div');
+        const result = [];
+        rows.forEach(function(row) {
+          const k = (row.querySelector('.spec-k').value || '').trim();
+          const v = (row.querySelector('.spec-v').value || '').trim();
+          if (k && v) result.push({ k, v });
+        });
+        return result;
+      }
+
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
@@ -938,6 +973,7 @@
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDesc.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
+        renderSpecRows([]);
         modal.classList.add('open');
         fName.focus();
       }
@@ -958,6 +994,7 @@
         fSeoTitle.value   = p.seoTitle || '';
         fSeoDesc.value    = p.seoDescription || '';
         fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
+        renderSpecRows(Array.isArray(p.specs) ? p.specs : []);
         modal.classList.add('open');
         fName.focus();
       }
@@ -975,6 +1012,7 @@
           return;
         }
         const galleryRaw = fGallery.value.split('\n').map(l => l.trim()).filter(Boolean);
+        const specsRows  = readSpecRows();
         const product = {
           id,
           name,
@@ -987,7 +1025,8 @@
           description:    fDesc.value.trim() || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
-          gallery:        galleryRaw.length ? galleryRaw : undefined
+          gallery:        galleryRaw.length ? galleryRaw : undefined,
+          specs:          specsRows.length  ? specsRows  : undefined
         };
         // Remove undefined fields
         Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);

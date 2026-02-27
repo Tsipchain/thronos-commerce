@@ -11,31 +11,102 @@
     <style>
       :root {
         --primary-color: <%= config.primaryColor %>;
-        --accent-color: <%= config.accentColor %>;
-        --font-family: <%= config.fontFamily %>;
-        --menu-bg: <%= (config.theme && config.theme.menuBg) || '#111' %>;
-        --menu-text: <%= (config.theme && config.theme.menuText) || '#fff' %>;
-        --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
-        --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
-        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+        --accent-color:  <%= config.accentColor %>;
+        --font-family:   <%= config.fontFamily %>;
+        --menu-bg:         <%= (config.theme && config.theme.menuBg)         || '#111' %>;
+        --menu-text:       <%= (config.theme && config.theme.menuText)       || '#fff' %>;
+        --menu-active-bg:  <%= (config.theme && config.theme.menuActiveBg)   || '#f06292' %>;
+        --menu-active-text:<%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
+        --button-radius:   <%= (config.theme && config.theme.buttonRadius)   || '4px' %>;
       }
-      .gallery-thumbs {
-        display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+
+      /* ── Hero image ───────────────────────────────────────────────── */
+      .product-hero-image {
+        overflow: hidden; border-radius: 10px; cursor: zoom-in;
+        display: inline-block; max-width: 100%;
       }
+      .product-hero-image img {
+        display: block; max-width: 100%; max-height: 420px;
+        object-fit: contain; border-radius: 10px;
+        transition: transform .3s ease, opacity .15s;
+      }
+      .product-hero-image:hover img { transform: scale(1.08); }
+
+      /* ── Lightbox ─────────────────────────────────────────────────── */
+      #lightbox {
+        display: none; position: fixed; inset: 0; z-index: 1100;
+        background: rgba(0,0,0,.85); align-items: center; justify-content: center;
+      }
+      #lightbox.open { display: flex; }
+      #lightbox img {
+        max-width: 92vw; max-height: 88vh; object-fit: contain;
+        border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,.5);
+      }
+      #lightbox-close {
+        position: absolute; top: 20px; right: 28px;
+        color: #fff; font-size: 2.2rem; cursor: pointer; line-height: 1;
+        background: none; border: none; padding: 0;
+      }
+
+      /* ── Thumbnails ───────────────────────────────────────────────── */
+      .gallery-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
       .gallery-thumbs img {
         width: 72px; height: 72px; object-fit: cover; border-radius: 4px;
         cursor: pointer; border: 2px solid transparent; transition: border-color .15s;
       }
-      .gallery-thumbs img:hover,
-      .gallery-thumbs img.active { border-color: var(--accent-color); }
-      .product-hero-image img { transition: opacity .15s; }
+      .gallery-thumbs img:hover, .gallery-thumbs img.active { border-color: var(--accent-color); }
+
+      /* ── Stock badge ──────────────────────────────────────────────── */
       .stock-badge {
         display: inline-block; padding: 3px 10px; border-radius: 20px;
-        font-size: 0.8rem; font-weight: 600; margin: 4px 0 12px;
+        font-size: .8rem; font-weight: 600; margin: 4px 0 12px;
       }
       .stock-badge.ok  { background: #d1fae5; color: #065f46; }
       .stock-badge.low { background: #fef3c7; color: #92400e; }
       .stock-badge.out { background: #fee2e2; color: #991b1b; }
+
+      /* ── Add to Cart button ───────────────────────────────────────── */
+      .btn-add-cart {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--primary-color, #4f46e5); color: #fff;
+        border: none; border-radius: var(--button-radius, 4px);
+        padding: 12px 26px; font-size: 1rem; font-weight: 600;
+        cursor: pointer; margin-top: 10px;
+        transition: opacity .15s, transform .1s;
+      }
+      .btn-add-cart:hover:not(:disabled) { opacity: .88; }
+      .btn-add-cart:active:not(:disabled) { transform: scale(.96); }
+      .btn-add-cart:disabled { opacity: .45; cursor: not-allowed; }
+
+      /* ── Specs table ──────────────────────────────────────────────── */
+      .specs-table {
+        width: 100%; border-collapse: collapse; margin: 18px 0;
+        font-size: .88rem;
+      }
+      .specs-table th, .specs-table td {
+        padding: 7px 12px; border: 1px solid #e5e7eb; text-align: left;
+      }
+      .specs-table th {
+        background: #f9fafb; width: 38%; font-weight: 600; color: #374151;
+      }
+
+      /* ── Reviews ──────────────────────────────────────────────────── */
+      .reviews-section { margin-top: 36px; }
+      .review-card {
+        border-bottom: 1px solid #eee; padding: 12px 0;
+      }
+      .review-card .rv-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+      .rv-stars { color: #f59e0b; }
+      .rv-date  { color: #aaa; font-size: .78rem; }
+      .rv-comment { font-size: .88rem; margin: 4px 0 0; }
+      .review-gate {
+        background: #f9fafb; border-radius: 8px; padding: 18px 20px; margin-top: 16px;
+      }
+      .review-gate input, .review-gate textarea, .review-gate select {
+        width: 100%; margin-top: 4px; padding: 7px 10px;
+        border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+      }
+      .review-gate label { display: block; margin-bottom: 10px; font-size: .9rem; }
     </style>
   </head>
   <body>
@@ -44,17 +115,19 @@
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
-        <h1><%= config.storeName %></h1>
+        <a href="/" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
       </div>
     </header>
 
     <main>
       <article class="product-detail">
-        <% if (product.imageUrl) { %>
-          <div class="product-hero-image">
-            <img src="<%= product.imageUrl %>" alt="<%= product.name %>" id="hero-img" />
+
+        <%# ── Hero image + lightbox trigger ── %>
+        <% const allImgs = [product.imageUrl].concat(Array.isArray(product.gallery) ? product.gallery : []).filter(Boolean); %>
+        <% if (allImgs.length) { %>
+          <div class="product-hero-image" onclick="openLightbox('<%= allImgs[0] %>')" id="hero-wrap">
+            <img src="<%= allImgs[0] %>" alt="<%= product.name %>" id="hero-img" />
           </div>
-          <% const allImgs = [product.imageUrl].concat(Array.isArray(product.gallery) ? product.gallery : []).filter(Boolean); %>
           <% if (allImgs.length > 1) { %>
           <div class="gallery-thumbs">
             <% allImgs.forEach(function(url, gi) { %>
@@ -65,9 +138,10 @@
           <% } %>
         <% } %>
 
+        <%# ── Product info ── %>
         <h2><%= product.name %></h2>
-        <p><%= product.description %></p>
-        <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
+        <% if (product.sku) { %><p style="color:#888;font-size:.82rem;margin:-6px 0 6px;">SKU: <%= product.sku %></p><% } %>
+
         <% if (product.stock !== undefined) { %>
           <p class="stock-badge <%= product.stock === 0 ? 'out' : product.stock < 3 ? 'low' : 'ok' %>">
             <% if (product.stock === 0) { %><%= t('checkout.stockOut') %>
@@ -76,74 +150,62 @@
           </p>
         <% } %>
 
-        <form action="/checkout" method="POST" class="checkout-form">
-          <input type="hidden" name="productId" value="<%= product.id %>" />
+        <p class="price"><%= Number(product.price).toFixed(2) %> €</p>
 
-          <label>
-            <%= t('checkout.fullName') %>
-            <input type="text" name="name" required />
-          </label>
+        <% if (product.description) { %>
+          <p class="product-description"><%= product.description %></p>
+        <% } %>
 
-          <label>
-            <%= t('checkout.email') %>
-            <input type="email" name="email" required />
-          </label>
+        <%# ── Technical specs ── %>
+        <% const specs = Array.isArray(product.specs) ? product.specs.filter(function(s){ return s.k && s.v; }) : []; %>
+        <% if (specs.length) { %>
+          <h3 style="margin-top:22px;margin-bottom:8px;font-size:1rem;"><%= t('product.specsTitle') %></h3>
+          <table class="specs-table">
+            <tbody>
+              <% specs.forEach(function(s) { %>
+                <tr><th><%= s.k %></th><td><%= s.v %></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
 
-          <label>
-            <%= t('checkout.web3Wallet') %>
-            <input type="text" name="wallet" placeholder="0x..." />
-          </label>
+        <%# ── Add to Cart button ── %>
+        <button class="btn-add-cart" id="btn-add-cart"
+                <%= product.stock === 0 ? 'disabled' : '' %>
+                onclick="addThisToCart()">
+          🛒 <%= t('storefront.addToCart') %>
+        </button>
 
-          <label>
-            <%= t('checkout.shippingMethod') %>
-            <select name="shippingMethodId" required>
-              <% config.shippingOptions.forEach(function (opt) { %>
-                <option value="<%= opt.id %>"><%= opt.label %></option>
-              <% }); %>
-            </select>
-          </label>
-
-          <label>
-            <%= t('checkout.paymentMethod') %>
-            <select name="paymentMethodId" required>
-              <% config.paymentOptions.forEach(function (opt) { %>
-                <option value="<%= opt.id %>"><%= opt.label %></option>
-              <% }); %>
-            </select>
-          </label>
-
-          <label>
-            <%= t('checkout.city') %>
-            <input type="text" name="city" placeholder="<%= t('checkout.cityPlaceholder') %>" />
-          </label>
-
-          <label>
-            <%= t('checkout.notes') %>
-            <textarea name="notes" rows="3"></textarea>
-          </label>
-
-          <button type="submit" class="button"
-                  <%= product.stock === 0 ? 'disabled' : '' %>>
-            <%= t('checkout.submit') %>
-          </button>
-        </form>
       </article>
 
-      <%# ── Reviews ── %>
-      <section class="reviews-section" style="margin-top:32px;">
-        <h3 style="margin-bottom:12px;"><%= t('reviews.title') %></h3>
-        <div id="reviews-list" style="margin-bottom:20px;"></div>
+      <%# ── Reviews section ── %>
+      <section class="reviews-section">
+        <h3><%= t('reviews.title') %></h3>
+        <div id="reviews-list"></div>
 
-        <div class="review-form-wrap" style="background:#f9f9f9;border-radius:8px;padding:20px;">
-          <h4 style="margin:0 0 14px;"><%= t('reviews.writeReview') %></h4>
-          <div id="review-msg" style="margin-bottom:10px;font-size:0.88rem;"></div>
-          <label style="display:block;margin-bottom:8px;">
-            <%= t('reviews.labelName') %>
-            <input type="text" id="rv-name" style="display:block;width:100%;margin-top:4px;padding:7px 10px;border:1px solid #ddd;border-radius:4px;" />
+        <div class="review-gate" id="review-gate">
+          <p style="margin:0 0 12px;font-size:.88rem;color:#6b7280;"><%= t('reviews.verifiedNote') %></p>
+          <label>
+            Email αγοράς
+            <input type="email" id="rv-email-check" placeholder="Το email που χρησιμοποιήσατε στην παραγγελία" />
           </label>
-          <label style="display:block;margin-bottom:8px;">
+          <button class="button" type="button" id="rv-verify-btn" onclick="verifyPurchase()" style="margin-top:2px;">
+            <%= t('reviews.verifyBtn') %>
+          </button>
+          <p id="rv-verify-msg" style="font-size:.83rem;margin-top:8px;"></p>
+        </div>
+
+        <div id="review-form-wrap" class="review-gate" style="display:none;">
+          <h4 style="margin:0 0 14px;"><%= t('reviews.writeReview') %></h4>
+          <p id="review-msg" style="font-size:.88rem;margin-bottom:10px;"></p>
+          <input type="hidden" id="rv-verified-email" value="" />
+          <label>
+            <%= t('reviews.labelName') %>
+            <input type="text" id="rv-name" />
+          </label>
+          <label>
             <%= t('reviews.labelRating') %>
-            <select id="rv-rating" style="display:block;margin-top:4px;padding:7px 10px;border:1px solid #ddd;border-radius:4px;">
+            <select id="rv-rating">
               <option value="5">★★★★★</option>
               <option value="4">★★★★☆</option>
               <option value="3">★★★☆☆</option>
@@ -151,88 +213,140 @@
               <option value="1">★☆☆☆☆</option>
             </select>
           </label>
-          <label style="display:block;margin-bottom:14px;">
+          <label>
             <%= t('reviews.labelComment') %>
-            <textarea id="rv-comment" rows="3" style="display:block;width:100%;margin-top:4px;padding:7px 10px;border:1px solid #ddd;border-radius:4px;resize:vertical;box-sizing:border-box;"></textarea>
+            <textarea id="rv-comment" rows="3" style="resize:vertical;"></textarea>
           </label>
-          <button id="rv-submit" class="button" type="button"><%= t('reviews.submit') %></button>
+          <button class="button" id="rv-submit" type="button" onclick="submitReview()"><%= t('reviews.submit') %></button>
         </div>
       </section>
-
     </main>
+
+    <%# ── Lightbox overlay ── %>
+    <div id="lightbox" onclick="closeLightbox()">
+      <button id="lightbox-close" onclick="closeLightbox()" aria-label="Κλείσιμο">&times;</button>
+      <img id="lightbox-img" src="" alt="" onclick="event.stopPropagation()" />
+    </div>
+
+    <%# ── Floating cart ── %>
+    <%- include('_cart') %>
+
     <script>
+      // ── Product data ──────────────────────────────────────────────
+      const PRODUCT = {
+        id:    '<%= product.id %>',
+        name:  '<%- (product.name || '').replace(/'/g, "\\'") %>',
+        price: <%= Number(product.price) || 0 %>,
+        imageUrl: '<%- (product.imageUrl || '').replace(/'/g, "\\'") %>'
+      };
+
+      // ── Add to Cart ───────────────────────────────────────────────
+      function addThisToCart() {
+        if (typeof window.thrcAddToCart === 'function') {
+          window.thrcAddToCart(PRODUCT);
+        }
+      }
+
+      // ── Gallery swap ──────────────────────────────────────────────
       function swapHero(thumb, url) {
         const hero = document.getElementById('hero-img');
+        const wrap = document.getElementById('hero-wrap');
         if (hero) { hero.src = url; }
+        if (wrap) { wrap.onclick = function() { openLightbox(url); }; }
         document.querySelectorAll('.gallery-thumbs img').forEach(function(t) { t.classList.remove('active'); });
         thumb.classList.add('active');
       }
 
-      // ── Reviews ──────────────────────────────────────────────────
-      const PRODUCT_ID = '<%= product.id %>';
-      const reviewI18n = {
-        noReviews: '<%= t("reviews.noReviews") %>',
-        stars: ['', '★☆☆☆☆', '★★☆☆☆', '★★★☆☆', '★★★★☆', '★★★★★'],
-        submitOk:  '<%= t("reviews.submitOk") %>',
-        submitErr: '<%= t("reviews.submitErr") %>'
-      };
+      // ── Lightbox ──────────────────────────────────────────────────
+      function openLightbox(url) {
+        const lb = document.getElementById('lightbox');
+        document.getElementById('lightbox-img').src = url;
+        lb.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeLightbox() {
+        document.getElementById('lightbox').classList.remove('open');
+        document.body.style.overflow = '';
+      }
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeLightbox();
+      });
 
-      function renderStars(n) { return reviewI18n.stars[n] || n + '/5'; }
+      // ── Reviews ───────────────────────────────────────────────────
+      const PRODUCT_ID = '<%= product.id %>';
+      const STARS = ['', '★☆☆☆☆', '★★☆☆☆', '★★★☆☆', '★★★★☆', '★★★★★'];
 
       function renderReviews(list) {
         const el = document.getElementById('reviews-list');
         if (!list.length) {
-          el.innerHTML = '<p style="color:#aaa;font-style:italic;">' + reviewI18n.noReviews + '</p>';
+          el.innerHTML = '<p style="color:#aaa;font-style:italic;font-size:.86rem;"><%= t("reviews.noReviews") %></p>';
           return;
         }
-        el.innerHTML = list.slice(-5).reverse().map(function(r) {
+        el.innerHTML = list.slice(-20).reverse().map(function(r) {
           const d = new Date(r.createdAt).toLocaleDateString('<%= lang %>');
-          return '<div style="border-bottom:1px solid #eee;padding:12px 0;">' +
-            '<strong>' + r.name.replace(/</g,'&lt;') + '</strong> ' +
-            '<span style="color:#f59e0b;">' + renderStars(r.rating) + '</span> ' +
-            '<span style="color:#aaa;font-size:0.8rem;">' + d + '</span>' +
-            '<p style="margin:6px 0 0;font-size:0.88rem;">' + r.comment.replace(/</g,'&lt;') + '</p>' +
+          const verified = r.verified ? '<span style="color:#059669;font-size:.75rem;margin-left:6px;">✓ Επαληθευμένη αγορά</span>' : '';
+          return '<div class="review-card">' +
+            '<div class="rv-meta"><strong>' + (r.name || '').replace(/</g,'&lt;') + '</strong>' +
+            verified +
+            '<span class="rv-stars">' + (STARS[r.rating] || r.rating) + '</span>' +
+            '<span class="rv-date">' + d + '</span></div>' +
+            '<p class="rv-comment">' + (r.comment || '').replace(/</g,'&lt;') + '</p>' +
             '</div>';
         }).join('');
       }
 
       fetch('/api/products/' + PRODUCT_ID + '/reviews')
-        .then(function(r) { return r.json(); })
-        .then(renderReviews)
-        .catch(function() {});
+        .then(function(r) { return r.json(); }).then(renderReviews).catch(function(){});
 
-      document.getElementById('rv-submit').addEventListener('click', function() {
-        const name    = document.getElementById('rv-name').value.trim();
+      // ── Verified purchase gate ────────────────────────────────────
+      function verifyPurchase() {
+        const email = (document.getElementById('rv-email-check').value || '').trim();
+        const msg   = document.getElementById('rv-verify-msg');
+        if (!email) { msg.style.color = '#dc2626'; msg.textContent = 'Εισάγετε email.'; return; }
+        msg.style.color = '#6b7280'; msg.textContent = 'Έλεγχος...';
+        fetch('/api/products/' + PRODUCT_ID + '/can-review?email=' + encodeURIComponent(email))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.canReview) {
+              document.getElementById('rv-verified-email').value = email;
+              document.getElementById('review-gate').style.display = 'none';
+              document.getElementById('review-form-wrap').style.display = '';
+            } else {
+              msg.style.color = '#dc2626';
+              msg.textContent = '<%= t("reviews.notVerified") %>';
+            }
+          })
+          .catch(function() { msg.style.color='#dc2626'; msg.textContent='Σφάλμα ελέγχου.'; });
+      }
+
+      function submitReview() {
+        const name    = (document.getElementById('rv-name').value    || '').trim();
+        const comment = (document.getElementById('rv-comment').value || '').trim();
         const rating  = document.getElementById('rv-rating').value;
-        const comment = document.getElementById('rv-comment').value.trim();
+        const email   = document.getElementById('rv-verified-email').value;
         const msgEl   = document.getElementById('review-msg');
         msgEl.textContent = '';
-
         fetch('/api/products/' + PRODUCT_ID + '/reviews', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, rating, comment })
+          body: JSON.stringify({ name, rating, comment, email })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.ok) {
             msgEl.style.color = '#155724';
-            msgEl.textContent = reviewI18n.submitOk;
+            msgEl.textContent = '<%= t("reviews.submitOk") %>';
             document.getElementById('rv-name').value = '';
             document.getElementById('rv-comment').value = '';
             fetch('/api/products/' + PRODUCT_ID + '/reviews')
-              .then(function(r) { return r.json(); })
-              .then(renderReviews);
+              .then(function(r) { return r.json(); }).then(renderReviews);
           } else {
             msgEl.style.color = '#721c24';
-            msgEl.textContent = data.error || reviewI18n.submitErr;
+            msgEl.textContent = data.error || '<%= t("reviews.submitErr") %>';
           }
         })
-        .catch(function() {
-          msgEl.style.color = '#721c24';
-          msgEl.textContent = reviewI18n.submitErr;
-        });
-      });
+        .catch(function() { msgEl.style.color='#721c24'; msgEl.textContent='<%= t("reviews.submitErr") %>'; });
+      }
     </script>
   </body>
 </html>
