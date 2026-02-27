@@ -134,7 +134,9 @@ ensureDir(DATA_ROOT);
 const TENANTS_DIR = path.join(DATA_ROOT, 'tenants');
 ensureDir(TENANTS_DIR);
 
-const TENANTS_REGISTRY = path.join(DATA_ROOT, 'tenants.json');
+const TENANTS_REGISTRY       = path.join(DATA_ROOT, 'tenants.json');
+const REFERRAL_ACCOUNTS_FILE = path.join(DATA_ROOT, 'referral_accounts.json');
+const REFERRAL_EARNINGS_FILE = path.join(DATA_ROOT, 'referral_earnings.json');
 
 function loadJson(filePath, fallback) {
   try {
@@ -161,6 +163,68 @@ function saveTenantsRegistry(tenants) {
 
 function findTenantById(tenantId) {
   return loadTenantsRegistry().find((t) => t.id === tenantId) || null;
+}
+
+// ── Referral helpers ──────────────────────────────────────────────────────────
+function loadReferralAccounts() {
+  const data = loadJson(REFERRAL_ACCOUNTS_FILE, {});
+  return typeof data === 'object' && !Array.isArray(data) ? data : {};
+}
+function saveReferralAccounts(accounts) { saveJson(REFERRAL_ACCOUNTS_FILE, accounts); }
+
+function loadReferralEarnings() {
+  const arr = loadJson(REFERRAL_EARNINGS_FILE, []);
+  return Array.isArray(arr) ? arr : [];
+}
+function saveReferralEarnings(earnings) { saveJson(REFERRAL_EARNINGS_FILE, earnings); }
+
+/** Ensure a referral account record exists for a code */
+function ensureReferralAccount(code, percent = 0.1) {
+  const accounts = loadReferralAccounts();
+  if (!accounts[code]) {
+    accounts[code] = {
+      code,
+      percent,
+      payoutMode: 'offchain_fiat',
+      wallet: null,
+      fiatMethod: { type: 'bank', iban: '', holder: '' },
+      tenants: [],
+      totals: { earnedFiat: 0, paidFiat: 0 }
+    };
+  }
+  return accounts;
+}
+
+/** Fire-and-forget: call ThronosChain core /api/referrals/register */
+async function coreReferralRegister(tenantId, refCode, percent) {
+  const nodeUrl = (process.env.THRONOS_NODE_URL || '').replace(/\/$/, '');
+  if (!nodeUrl || !refCode) return;
+  try {
+    await axios.post(
+      `${nodeUrl}/api/referrals/register`,
+      { tenantId, refCode, percent },
+      { headers: { 'X-API-Key': process.env.THRONOS_COMMERCE_API_KEY || '' }, timeout: 5000 }
+    );
+    console.log(`[Referral] Registered refCode=${refCode} tenant=${tenantId} with core`);
+  } catch (err) {
+    console.error(`[Referral] core register failed (will retry on next update): ${err.message}`);
+  }
+}
+
+/** Fire-and-forget: call ThronosChain core /api/referrals/earn */
+async function coreReferralEarn(payload) {
+  const nodeUrl = (process.env.THRONOS_NODE_URL || '').replace(/\/$/, '');
+  if (!nodeUrl) return;
+  try {
+    await axios.post(
+      `${nodeUrl}/api/referrals/earn`,
+      payload,
+      { headers: { 'X-API-Key': process.env.THRONOS_COMMERCE_API_KEY || '' }, timeout: 5000 }
+    );
+    console.log(`[Referral] Earned event sent to core: ${JSON.stringify(payload)}`);
+  } catch (err) {
+    console.error(`[Referral] core earn failed: ${err.message}`);
+  }
 }
 
 function tenantPaths(tenantId) {
@@ -632,7 +696,10 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tenants', express.static(TENANTS_DIR));
+// Raw body for Stripe webhook signature verification (must be before urlencoded)
+app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 // i18n middleware – sets req.lang, res.locals.lang, res.locals.t
 app.use((req, res, next) => {
@@ -1393,7 +1460,28 @@ function buildRootViewModel(extra) {
       tenantPaymentConfigs[t.id] = [];
     }
   });
-  return { tenants, tenantPaymentConfigs, message: null, error: null, ...(extra || {}) };
+
+  const refAccounts = loadReferralAccounts();
+  const refEarnings = loadReferralEarnings();
+
+  // Group pending earnings by refCode for the payouts UI
+  const pendingByCode = {};
+  refEarnings.filter((e) => e.status === 'pending').forEach((e) => {
+    if (!pendingByCode[e.refCode]) pendingByCode[e.refCode] = { total: 0, rows: [] };
+    pendingByCode[e.refCode].total = +(pendingByCode[e.refCode].total + e.amountFiat).toFixed(2);
+    pendingByCode[e.refCode].rows.push(e);
+  });
+
+  return {
+    tenants,
+    tenantPaymentConfigs,
+    refAccounts,
+    refEarnings: refEarnings.slice(-200).reverse(),
+    pendingByCode,
+    message: null,
+    error: null,
+    ...(extra || {})
+  };
 }
 
 app.get('/root/tenants', (req, res) => {
@@ -1401,7 +1489,7 @@ app.get('/root/tenants', (req, res) => {
 });
 
 app.post('/root/tenants/create', async (req, res) => {
-  const { rootPassword, id, domain, supportTier, adminPasswordPlain, templateId } = req.body;
+  const { rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
     return res.status(401).render('root-tenants',
@@ -1428,19 +1516,33 @@ app.post('/root/tenants/create', async (req, res) => {
   const adminPasswordHash = await bcrypt.hash(adminPasswordPlain, 10);
   const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
 
+  const cleanRefCode = (refCode || '').trim();
   const newTenant = {
     id: cleanId,
     domain: (domain || '').trim(),
     supportTier: resolvedTier,
     adminPasswordHash,
     createdAt: new Date().toISOString(),
-    active: true
+    active: true,
+    referral: cleanRefCode
+      ? { code: cleanRefCode, percent: Math.min(0.5, parseFloat(refPercent) || 0.1) }
+      : null
   };
 
   seedTenantFilesFromTemplate(cleanId, (templateId || '').trim() || 'demo');
   tenants.push(newTenant);
   saveTenantsRegistry(tenants);
   console.log(`[Root Admin] Created tenant: ${cleanId} (${resolvedTier})`);
+
+  // Register referral with core if provided
+  if (newTenant.referral && newTenant.referral.code) {
+    const accounts = ensureReferralAccount(newTenant.referral.code, newTenant.referral.percent);
+    if (!accounts[newTenant.referral.code].tenants.includes(cleanId)) {
+      accounts[newTenant.referral.code].tenants.push(cleanId);
+    }
+    saveReferralAccounts(accounts);
+    coreReferralRegister(cleanId, newTenant.referral.code, newTenant.referral.percent).catch(() => {});
+  }
 
   res.render('root-tenants',
     buildRootViewModel({ message: `Ο tenant "${cleanId}" δημιουργήθηκε επιτυχώς.` }));
@@ -1527,6 +1629,197 @@ app.post('/root/tenants/payment-config', (req, res) => {
 
   res.render('root-tenants',
     buildRootViewModel({ message: `Τα surcharges για τον tenant "${tenantId}" αποθηκεύτηκαν.` }));
+});
+
+// ── Stripe webhook → referral earnings ───────────────────────────────────────
+app.post('/stripe/webhook', async (req, res) => {
+  const sig    = req.headers['stripe-signature'] || '';
+  const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
+  let event;
+
+  // Verify signature when secret is configured
+  if (secret) {
+    try {
+      // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
+      const payload   = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      const parts     = sig.split(',').reduce((acc, p) => {
+        const [k, v] = p.split('='); acc[k] = v; return acc;
+      }, {});
+      const ts        = parts.t;
+      const expected  = crypto.createHmac('sha256', secret)
+                              .update(`${ts}.${payload.toString()}`)
+                              .digest('hex');
+      if (expected !== parts.v1) {
+        console.warn('[Stripe Webhook] Invalid signature');
+        return res.status(400).json({ error: 'Invalid signature' });
+      }
+      event = JSON.parse(payload.toString());
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  } else {
+    // No secret configured — accept raw JSON (dev/testing)
+    try {
+      event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+  }
+
+  const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
+  if (!HANDLED.includes(event.type)) return res.json({ received: true });
+
+  const obj       = event.data && event.data.object;
+  if (!obj) return res.json({ received: true });
+
+  // Resolve tenantId from metadata
+  const tenantId  = (obj.metadata && obj.metadata.tenantId) || '';
+  const externalId = obj.id || '';
+  const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
+  const amountFiat = +(amountRaw / 100).toFixed(2);
+  const currency  = (obj.currency || 'eur').toUpperCase();
+
+  if (!tenantId || amountFiat <= 0) return res.json({ received: true });
+
+  const tenants   = loadTenantsRegistry();
+  const tenant    = tenants.find((t) => t.id === tenantId);
+  if (!tenant || !tenant.referral || !tenant.referral.code) return res.json({ received: true });
+
+  const refCode   = tenant.referral.code;
+  const percent   = typeof tenant.referral.percent === 'number' ? tenant.referral.percent : 0.1;
+  const commission = +(amountFiat * percent).toFixed(2);
+
+  // Write earning row
+  const earnings  = loadReferralEarnings();
+  const earningId = `re_${Date.now().toString(36)}`;
+  earnings.push({
+    id:          earningId,
+    tenantId,
+    refCode,
+    amountFiat:  commission,
+    currency,
+    source:      event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout',
+    externalId,
+    status:      'pending',
+    createdAt:   new Date().toISOString(),
+    paidAt:      null,
+    paidVia:     null,
+    txId:        null
+  });
+  saveReferralEarnings(earnings);
+
+  // Update account totals
+  const accounts  = ensureReferralAccount(refCode, percent);
+  accounts[refCode].totals.earnedFiat = +(accounts[refCode].totals.earnedFiat + commission).toFixed(2);
+  if (!accounts[refCode].tenants.includes(tenantId)) accounts[refCode].tenants.push(tenantId);
+  saveReferralAccounts(accounts);
+
+  console.log(`[Referral] Earning recorded: refCode=${refCode} tenant=${tenantId} commission=${commission} ${currency}`);
+
+  // Notify core (fire-and-forget)
+  coreReferralEarn({
+    tenantId,
+    refCode,
+    amountFiat: commission,
+    currency,
+    source:     event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout',
+    externalId,
+    payoutMode: 'offchain_fiat',
+    meta:       { stripeEvent: event.type }
+  }).catch(() => {});
+
+  res.json({ received: true });
+});
+
+// ── Root: referral config per tenant ─────────────────────────────────────────
+app.post('/root/tenants/referral', async (req, res) => {
+  const { rootPassword, tenantId, refCode, refPercent } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+
+  const tenants = loadTenantsRegistry();
+  const idx     = tenants.findIndex((t) => t.id === tenantId);
+  if (idx === -1) {
+    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+  }
+
+  const cleanCode    = (refCode || '').trim();
+  const percent      = Math.min(0.5, Math.max(0, parseFloat(refPercent) || 0.1));
+  tenants[idx].referral = cleanCode ? { code: cleanCode, percent } : null;
+  saveTenantsRegistry(tenants);
+
+  // Ensure account record & sync with core
+  if (cleanCode) {
+    const accounts = ensureReferralAccount(cleanCode, percent);
+    if (!accounts[cleanCode].tenants.includes(tenantId)) accounts[cleanCode].tenants.push(tenantId);
+    accounts[cleanCode].percent = percent;
+    saveReferralAccounts(accounts);
+    coreReferralRegister(tenantId, cleanCode, percent).catch(() => {});
+  }
+
+  console.log(`[Referral] Updated referral for tenant ${tenantId}: code=${cleanCode} percent=${percent}`);
+  res.render('root-tenants', buildRootViewModel({ message: `Referral για τον tenant "${tenantId}" αποθηκεύτηκε.` }));
+});
+
+// ── Root: referral account fiat method update ─────────────────────────────────
+app.post('/root/referral/account', (req, res) => {
+  const { rootPassword, code, payoutMode, iban, holder, wallet } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+  const accounts = loadReferralAccounts();
+  if (!accounts[code]) {
+    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Referral account "${code}" δεν βρέθηκε.` }));
+  }
+  accounts[code].payoutMode  = payoutMode || 'offchain_fiat';
+  accounts[code].wallet      = (wallet || '').trim() || null;
+  accounts[code].fiatMethod  = { type: 'bank', iban: (iban || '').trim(), holder: (holder || '').trim() };
+  saveReferralAccounts(accounts);
+
+  res.render('root-tenants', buildRootViewModel({ message: `Account "${code}" ενημερώθηκε.` }));
+});
+
+// ── Root: mark earning(s) as paid ────────────────────────────────────────────
+app.post('/root/referral/mark-paid', (req, res) => {
+  const { rootPassword, earningId, refCode, paidVia, txId } = req.body;
+
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+
+  const earnings  = loadReferralEarnings();
+  const paidAt    = new Date().toISOString();
+  let   totalPaid = 0;
+
+  // If earningId given, mark single; if refCode given, mark all pending for that code
+  earnings.forEach((e) => {
+    const match = earningId ? e.id === earningId : (e.refCode === refCode && e.status === 'pending');
+    if (match && e.status === 'pending') {
+      e.status  = 'paid';
+      e.paidAt  = paidAt;
+      e.paidVia = (paidVia || 'bank').trim();
+      e.txId    = (txId || '').trim() || null;
+      totalPaid = +(totalPaid + e.amountFiat).toFixed(2);
+    }
+  });
+  saveReferralEarnings(earnings);
+
+  // Update account totals
+  const codeToUpdate = earningId
+    ? (earnings.find((e) => e.id === earningId) || {}).refCode
+    : refCode;
+  if (codeToUpdate) {
+    const accounts = loadReferralAccounts();
+    if (accounts[codeToUpdate]) {
+      accounts[codeToUpdate].totals.paidFiat = +(accounts[codeToUpdate].totals.paidFiat + totalPaid).toFixed(2);
+      saveReferralAccounts(accounts);
+    }
+  }
+
+  res.render('root-tenants', buildRootViewModel({ message: `Πληρωμή ${totalPaid.toFixed(2)} € καταγράφηκε.` }));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

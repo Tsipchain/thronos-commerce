@@ -138,6 +138,7 @@
                 <th>ID</th>
                 <th>Domain</th>
                 <th>Πακέτο</th>
+                <th>Referral</th>
                 <th>Ενεργό</th>
                 <th>Δημιουργία</th>
                 <th>Admin hash</th>
@@ -149,6 +150,14 @@
                 <td><code><%= t.id %></code></td>
                 <td><%= t.domain || '–' %></td>
                 <td><span class="tier-badge tier-<%= t.supportTier %>"><%= t.supportTier %></span></td>
+                <td style="font-size:0.8rem;">
+                  <% if (t.referral && t.referral.code) { %>
+                    <code style="background:#f0f2fa;padding:1px 5px;border-radius:3px;"><%= t.referral.code %></code>
+                    <span style="color:#888;"> <%= (t.referral.percent * 100).toFixed(0) %>%</span>
+                  <% } else { %>
+                    <span style="color:#ccc;">–</span>
+                  <% } %>
+                </td>
                 <td>
                   <% if (t.active) { %>
                     <span class="active-yes">✓ Ναι</span>
@@ -225,6 +234,18 @@
               <input type="text" name="adminPasswordPlain" required autocomplete="new-password"
                      placeholder="Αρχικός κωδικός για τον ιδιοκτήτη" />
               <span class="hint">Θα αποθηκευτεί ως bcrypt hash</span>
+            </label>
+
+            <label>
+              Referral κωδικός (προαιρετικό)
+              <input type="text" name="refCode" placeholder="π.χ. partner-giannis" />
+              <span class="hint">Αφήστε κενό αν δεν ανήκει σε referral partner</span>
+            </label>
+
+            <label>
+              Referral ποσοστό %
+              <input type="number" name="refPercent" value="10" min="1" max="50" step="1" />
+              <span class="hint">Ποσοστό προμήθειας (1–50%)</span>
             </label>
 
             <label class="full">
@@ -384,6 +405,220 @@
         <% } %>
       </div>
 
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   REFERRAL CONFIG (per tenant)                            %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Referral Config (ανά tenant)</h2>
+        <p class="helper">Σύνδεση tenant με referral partner και ορισμός ποσοστού προμήθειας.</p>
+
+        <% if (tenants.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
+        <% } else { %>
+        <form method="POST" action="/root/tenants/referral">
+          <div class="form-grid">
+            <label>
+              Tenant
+              <select name="tenantId">
+                <% tenants.forEach(function(t) { %>
+                  <option value="<%= t.id %>">
+                    <%= t.id %><%= (t.referral && t.referral.code) ? ' (' + t.referral.code + ')' : '' %>
+                  </option>
+                <% }) %>
+              </select>
+            </label>
+
+            <label>
+              Referral κωδικός
+              <input type="text" name="refCode" placeholder="π.χ. partner-giannis" />
+              <span class="hint">Αφήστε κενό για κατάργηση referral</span>
+            </label>
+
+            <label>
+              Referral ποσοστό %
+              <input type="number" name="refPercent" value="10" min="1" max="50" step="1" />
+            </label>
+
+            <label class="full">
+              Root κωδικός *
+              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Αποθήκευση Referral Config</button>
+          </div>
+        </form>
+        <% } %>
+      </div>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   REFERRAL ACCOUNTS (payout settings)                     %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Referral Accounts (στοιχεία πληρωμής)</h2>
+        <p class="helper">Ορισμός τρόπου πληρωμής ανά referral account (crypto wallet ή IBAN).</p>
+
+        <% const refAccountKeys = Object.keys(refAccounts); %>
+        <% if (refAccountKeys.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν referral accounts.</p>
+        <% } else { %>
+          <% refAccountKeys.forEach(function(code) { %>
+            <% const acc = refAccounts[code]; %>
+            <details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;">
+              <summary style="cursor:pointer;font-weight:600;">
+                <code><%= code %></code>
+                <span style="color:#6b7280;font-size:0.83rem;margin-left:8px;">
+                  <%= (acc.percent * 100).toFixed(0) %>% &middot;
+                  Tenants: <%= (acc.tenants || []).join(', ') || '–' %>
+                </span>
+              </summary>
+              <form method="POST" action="/root/referral/account" style="margin-top:14px;">
+                <input type="hidden" name="refCode" value="<%= code %>" />
+                <div class="form-grid">
+                  <label>
+                    Τρόπος πληρωμής
+                    <select name="payoutMode">
+                      <option value="crypto" <%= acc.payoutMode === 'crypto' ? 'selected' : '' %>>Crypto</option>
+                      <option value="fiat"   <%= acc.payoutMode === 'fiat'   ? 'selected' : '' %>>Fiat (IBAN)</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Crypto Wallet
+                    <input type="text" name="wallet" value="<%= acc.wallet || '' %>" placeholder="0x…" />
+                  </label>
+
+                  <label>
+                    IBAN / Fiat λεπτομέρειες
+                    <input type="text" name="fiatMethod" value="<%= acc.fiatMethod || '' %>"
+                           placeholder="IBAN GR… ή σημείωση" />
+                  </label>
+
+                  <label class="full">
+                    Root κωδικός *
+                    <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
+                  </label>
+                </div>
+                <div class="form-actions">
+                  <button class="btn btn-primary" type="submit">Αποθήκευση</button>
+                </div>
+              </form>
+            </details>
+          <% }) %>
+        <% } %>
+      </div>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   REFERRAL PAYOUTS                                        %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <div class="card">
+        <h2>Referral Payouts</h2>
+        <p class="helper">Εκκρεμείς προμήθειες ανά referral partner. Σημειώστε ως πληρωμένες μετά την εκτέλεση.</p>
+
+        <% const pendingCodes = Object.keys(pendingByCode); %>
+        <% if (pendingCodes.length === 0) { %>
+          <p style="color:#888;font-style:italic;">Δεν υπάρχουν εκκρεμείς πληρωμές. 🎉</p>
+        <% } else { %>
+          <% pendingCodes.forEach(function(code) { %>
+            <% const grp = pendingByCode[code]; %>
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                <div>
+                  <strong style="font-size:1.05rem;"><code><%= code %></code></strong>
+                  <% const acc2 = refAccounts[code]; %>
+                  <% if (acc2) { %>
+                    <span style="color:#6b7280;font-size:0.82rem;margin-left:8px;">
+                      <%= acc2.payoutMode === 'crypto' ? '🔗 ' + (acc2.wallet || '—') : '🏦 ' + (acc2.fiatMethod || '—') %>
+                    </span>
+                  <% } %>
+                </div>
+                <span style="font-size:1.1rem;font-weight:700;color:#059669;">
+                  Σύνολο: <%= grp.total.toFixed(2) %> €
+                </span>
+              </div>
+
+              <table style="width:100%;border-collapse:collapse;font-size:0.83rem;margin-bottom:14px;">
+                <thead>
+                  <tr style="background:#f0f2fa;">
+                    <th style="padding:5px 8px;text-align:left;">Tenant</th>
+                    <th style="padding:5px 8px;text-align:left;">Event</th>
+                    <th style="padding:5px 8px;text-align:right;">Ποσό €</th>
+                    <th style="padding:5px 8px;text-align:left;">Ημ/νία</th>
+                    <th style="padding:5px 8px;text-align:center;">Ενέργεια</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% grp.rows.forEach(function(row) { %>
+                    <tr style="border-bottom:1px solid #f3f4f6;">
+                      <td style="padding:5px 8px;"><code><%= row.tenantId %></code></td>
+                      <td style="padding:5px 8px;color:#6b7280;"><%= row.eventType || '–' %></td>
+                      <td style="padding:5px 8px;text-align:right;font-weight:600;"><%= row.amountFiat.toFixed(2) %></td>
+                      <td style="padding:5px 8px;color:#6b7280;"><%= new Date(row.createdAt).toLocaleDateString('el') %></td>
+                      <td style="padding:5px 8px;text-align:center;">
+                        <form method="POST" action="/root/referral/mark-paid" style="display:inline;">
+                          <input type="hidden" name="earningId" value="<%= row.id %>" />
+                          <input type="hidden" name="refCode"   value="<%= code %>" />
+                          <input type="text"   name="paidVia"   placeholder="crypto/IBAN" style="width:80px;padding:3px 5px;border:1px solid #d1d5db;border-radius:3px;font-size:0.8rem;" />
+                          <input type="text"   name="txId"      placeholder="tx/ref" style="width:80px;padding:3px 5px;border:1px solid #d1d5db;border-radius:3px;font-size:0.8rem;" />
+                          <input type="hidden" name="rootPassword" class="root-pw-payouts" value="" />
+                          <button class="btn btn-sm" type="submit" style="font-size:0.78rem;padding:3px 8px;">✓ Πλήρωσα</button>
+                        </form>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+
+              <%# Mark ALL pending for this code as paid %>
+              <form method="POST" action="/root/referral/mark-paid" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <input type="hidden" name="refCode" value="<%= code %>" />
+                <strong style="font-size:0.88rem;">Σημείωσε ΟΛΑ ως πληρωμένα:</strong>
+                <input type="text" name="paidVia" placeholder="crypto/IBAN" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;width:120px;" />
+                <input type="text" name="txId"    placeholder="tx/ref #" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;width:120px;" />
+                <input type="password" name="rootPassword" required placeholder="Root κωδικός" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;width:140px;" />
+                <button class="btn btn-warning" type="submit">✓ Mark All Paid (<%= grp.total.toFixed(2) %> €)</button>
+              </form>
+            </div>
+          <% }) %>
+        <% } %>
+
+        <%# Paid history (last 20) %>
+        <% const paidRows = refEarnings.filter(function(e) { return e.status === 'paid'; }).slice(-20).reverse(); %>
+        <% if (paidRows.length > 0) { %>
+          <details style="margin-top:20px;">
+            <summary style="cursor:pointer;color:#6b7280;font-size:0.88rem;">Ιστορικό πληρωμών (τελευταία <%= paidRows.length %>)</summary>
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-top:10px;">
+              <thead>
+                <tr style="background:#f0f2fa;">
+                  <th style="padding:5px 8px;text-align:left;">Code</th>
+                  <th style="padding:5px 8px;text-align:left;">Tenant</th>
+                  <th style="padding:5px 8px;text-align:right;">Ποσό €</th>
+                  <th style="padding:5px 8px;text-align:left;">Via</th>
+                  <th style="padding:5px 8px;text-align:left;">Tx/Ref</th>
+                  <th style="padding:5px 8px;text-align:left;">Ημ/νία</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% paidRows.forEach(function(row) { %>
+                  <tr style="border-bottom:1px solid #f3f4f6;">
+                    <td style="padding:5px 8px;"><code><%= row.refCode %></code></td>
+                    <td style="padding:5px 8px;"><code><%= row.tenantId %></code></td>
+                    <td style="padding:5px 8px;text-align:right;"><%= row.amountFiat.toFixed(2) %></td>
+                    <td style="padding:5px 8px;color:#6b7280;"><%= row.paidVia || '–' %></td>
+                    <td style="padding:5px 8px;color:#6b7280;font-size:0.78rem;"><%= row.txId || '–' %></td>
+                    <td style="padding:5px 8px;color:#6b7280;"><%= row.paidAt ? new Date(row.paidAt).toLocaleDateString('el') : '–' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </details>
+        <% } %>
+      </div>
+
+
       <div class="root-pass-note">
         <strong>Σημείωση ασφαλείας:</strong> Το root password ορίζεται μέσω της env μεταβλητής
         <code>THRONOS_ROOT_ADMIN_PASSWORD</code>. Χωρίς αυτή, κανένα root action δεν εκτελείται.
@@ -450,6 +685,22 @@
       // Pre-fill on page load
       const sel = document.getElementById('update-tenant-select');
       if (sel) prefillUpdate(sel);
+
+      // ── Referral payouts: sync root password to inline per-row forms ──
+      // Each per-row form has a hidden input.root-pw-payouts; user types
+      // the root password in the "Mark All" form and we mirror it upward.
+      document.querySelectorAll('form[action="/root/referral/mark-paid"]').forEach(function(form) {
+        const pwInput = form.querySelector('input[name="rootPassword"]');
+        if (!pwInput) return;
+        pwInput.addEventListener('input', function() {
+          // If this is the "mark all" form (visible password field), mirror to sibling inline forms
+          const card = form.closest('div');
+          if (!card) return;
+          card.querySelectorAll('input.root-pw-payouts').forEach(function(hidden) {
+            hidden.value = pwInput.value;
+          });
+        });
+      });
     </script>
   </body>
 </html>

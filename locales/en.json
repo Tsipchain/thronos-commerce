@@ -112,5 +112,23 @@
     "noReviews": "No reviews yet. Be the first!",
     "submitOk": "Your review has been submitted. Thank you!",
     "submitErr": "Submission failed. Please try again."
+  },
+  "referral": {
+    "title": "Referral Partners",
+    "configTitle": "Referral Config (per tenant)",
+    "payoutsTitle": "Referral Payouts",
+    "accountsTitle": "Referral Accounts",
+    "refCode": "Referral code",
+    "refPercent": "Commission %",
+    "pendingAmount": "Pending amount",
+    "markPaid": "Mark as paid",
+    "markAllPaid": "Mark ALL as paid",
+    "paidVia": "Via",
+    "txId": "Tx / Ref #",
+    "noPayouts": "No pending payouts.",
+    "payoutHistory": "Payment history",
+    "payoutMode": "Payout method",
+    "wallet": "Crypto wallet",
+    "fiatMethod": "IBAN / Fiat"
   }
 }
