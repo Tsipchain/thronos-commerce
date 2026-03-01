@@ -10,6 +10,41 @@ function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
 }
 const nodemailer = safeRequire('nodemailer');
+const StripeLib  = safeRequire('stripe');
+
+// ── Stripe helpers ────────────────────────────────────────────────────────────
+function stripeForTenant(config) {
+  const key = (config.stripeSecretKey || '').trim();
+  if (!key || !StripeLib) return null;
+  try { return StripeLib(key); } catch (e) { return null; }
+}
+
+// Platform-level Stripe (for selling Thronos subscriptions)
+function platformStripe() {
+  const key = (process.env.STRIPE_SECRET_KEY || '').trim();
+  if (!key || !StripeLib) return null;
+  try { return StripeLib(key); } catch (e) { return null; }
+}
+
+// Subscription info from tenant record
+const PACKAGE_PRICES = { MANAGEMENT_START: 49, FULL_OPS_START: 149, DIGITAL_STARTER: 79, DIGITAL_PRO: 199 };
+
+function getSubscriptionInfo(tenant) {
+  if (!tenant) return null;
+  if (!tenant.subscriptionExpiry) {
+    return { plan: tenant.supportTier, status: 'manual', daysLeft: null, isExpired: false, isExpiringSoon: false, expiryStr: null };
+  }
+  const expiry   = new Date(tenant.subscriptionExpiry);
+  const daysLeft = Math.ceil((expiry - Date.now()) / 86400000);
+  return {
+    plan:          tenant.subscriptionPlan || tenant.supportTier,
+    status:        daysLeft <= 0 ? 'expired' : 'active',
+    expiryStr:     expiry.toLocaleDateString('el-GR'),
+    daysLeft:      Math.max(0, daysLeft),
+    isExpired:     daysLeft <= 0,
+    isExpiringSoon: daysLeft > 0 && daysLeft <= 7
+  };
+}
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
 const LOCALES_DIR = path.join(__dirname, 'locales');
@@ -239,9 +274,11 @@ function tenantPaths(tenantId) {
     categories: path.join(base, 'categories.json'),
     orders: path.join(base, 'orders.json'),
     reviews: path.join(base, 'reviews.json'),
-    stockLog: path.join(base, 'stock_log.json'),
-    analytics: path.join(base, 'analytics.json'),
-    favicon: path.join(base, 'favicon.png'),
+    stockLog:      path.join(base, 'stock_log.json'),
+    analytics:     path.join(base, 'analytics.json'),
+    favicon:       path.join(base, 'favicon.png'),
+    pendingOrders: path.join(base, 'pending_orders.json'),
+    tickets:       path.join(base, 'tickets.json'),
     media
   };
 }
@@ -792,6 +829,8 @@ function buildAdminViewModel(req, extra) {
     if (city) cityCounts[city] = (cityCounts[city] || 0) + 1;
   });
 
+  const tickets = loadJson(req.tenantPaths.tickets, []);
+
   return {
     tenant: req.tenant,
     permissions,
@@ -804,6 +843,8 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     hasFavicon: fs.existsSync(req.tenantPaths.favicon),
+    subscription: getSubscriptionInfo(req.tenant),
+    tickets: tickets.slice().reverse(),
     message: null,
     error: null,
     ...(extra || {})
@@ -965,11 +1006,55 @@ app.post('/checkout', async (req, res) => {
     codFee:      totals.codFee,
     gatewayFee:  totals.gatewayFee,
     total:       totals.total,
-    paymentStatus: paymentMethodId === 'CARD' ? 'PENDING_STRIPE' : 'PENDING_COD',
+    paymentStatus: totals.paymentMethod.type === 'stripe' ? 'PENDING_STRIPE' : 'PENDING_COD',
     createdAt: new Date().toISOString()
   };
 
   console.log('[Thronos Commerce] New cart order:', JSON.stringify(order));
+
+  // ── Stripe Checkout redirect ──────────────────────────────────────
+  if (totals.paymentMethod.type === 'stripe') {
+    const stripe = stripeForTenant(config);
+    if (stripe) {
+      try {
+        // Save pending order before redirecting to Stripe
+        const pendingId = `po_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const pending   = loadJson(req.tenantPaths.pendingOrders, {});
+        pending[pendingId] = { order, enrichedItems };
+        saveJson(req.tenantPaths.pendingOrders, pending);
+
+        const baseUrl   = `${req.protocol}://${req.get('host')}`;
+        const lineItems = enrichedItems.map((item) => ({
+          price_data: {
+            currency:     'eur',
+            product_data: { name: item.variantLabel ? `${item.name} – ${item.variantLabel}` : item.name },
+            unit_amount:  Math.round(item.price * 100)
+          },
+          quantity: item.qty
+        }));
+        if (totals.shippingCost > 0) {
+          lineItems.push({ price_data: { currency: 'eur', product_data: { name: totals.shippingMethod.label || 'Μεταφορικά' }, unit_amount: Math.round(totals.shippingCost * 100) }, quantity: 1 });
+        }
+        if (totals.codFee > 0) {
+          lineItems.push({ price_data: { currency: 'eur', product_data: { name: 'Επιβάρυνση αντικαταβολής' }, unit_amount: Math.round(totals.codFee * 100) }, quantity: 1 });
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          mode:                 'payment',
+          line_items:           lineItems,
+          customer_email:       email,
+          success_url: `${baseUrl}/checkout/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url:  `${baseUrl}/checkout`
+        });
+
+        return res.redirect(303, session.url);
+      } catch (stripeErr) {
+        console.error('[Stripe] create session failed:', stripeErr.message);
+        // Fall through to normal order if Stripe fails
+      }
+    }
+  }
 
   const proofHash = await recordOrderOnChain(order, req.tenant);
   order.proofHash = proofHash;
@@ -1060,6 +1145,87 @@ app.post('/checkout', async (req, res) => {
     contentUrl: hasDigital ? `/content/${order.id}` : null
   });
 });
+
+// ── Stripe success / cancel ───────────────────────────────────────────────────
+app.get('/checkout/stripe-success', async (req, res) => {
+  const { pending_id, session_id } = req.query;
+  const config = loadTenantConfig(req);
+  const stripe = stripeForTenant(config);
+
+  if (!stripe || !pending_id || !session_id) return res.redirect('/checkout');
+
+  const pending = loadJson(req.tenantPaths.pendingOrders, {});
+  const entry   = pending[pending_id];
+  if (!entry) {
+    return res.redirect('/checkout?error=order_not_found');
+  }
+
+  // Verify payment
+  try {
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (session.payment_status !== 'paid') return res.redirect('/checkout?error=payment_failed');
+  } catch (err) {
+    console.error('[Stripe] retrieve session failed:', err.message);
+    return res.redirect('/checkout?error=payment_error');
+  }
+
+  const { order, enrichedItems } = entry;
+  order.paymentStatus   = 'PAID';
+  order.stripeSessionId = session_id;
+
+  delete pending[pending_id];
+  saveJson(req.tenantPaths.pendingOrders, pending);
+
+  const proofHash = await recordOrderOnChain(order, req.tenant);
+  order.proofHash = proofHash;
+  appendTenantOrder(req, order);
+
+  // Stock deduction
+  const allProductsMut = loadTenantProducts(req);
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  enrichedItems.forEach((ci) => {
+    const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
+    if (pIdx < 0) return;
+    const prod = allProductsMut[pIdx];
+    if (ci.variantId && Array.isArray(prod.variants)) {
+      const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
+      if (vIdx >= 0) {
+        prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, variantLabel: ci.variantLabel, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
+      }
+    } else if ((prod.stock || 0) > 0) {
+      prod.stock = Math.max(0, prod.stock - ci.qty);
+      stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
+    }
+  });
+  saveJson(req.tenantPaths.products, allProductsMut);
+  saveJson(req.tenantPaths.stockLog, stockLog);
+
+  if (order.city) {
+    try {
+      const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
+      analytics.cities[order.city] = (analytics.cities[order.city] || 0) + 1;
+      saveJson(req.tenantPaths.analytics, analytics);
+    } catch (_) {}
+  }
+
+  try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
+  try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
+  sendOrderEmails(order, config).catch(() => {});
+
+  const allProductsForContent = loadTenantProducts(req);
+  const hasDigital = enrichedItems.some((ci) => {
+    const p = allProductsForContent.find((pp) => pp.id === ci.id);
+    return p && p.hasDigitalContent;
+  });
+
+  res.render('thanks', {
+    config, order, proofHash, tenant: req.tenant,
+    clearCart: true, contentUrl: hasDigital ? `/content/${order.id}` : null
+  });
+});
+
+app.get('/checkout/stripe-cancel', (req, res) => res.redirect('/checkout'));
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
 
@@ -1203,6 +1369,14 @@ app.post('/admin/settings', async (req, res) => {
   config.notificationFromName   = (req.body.notificationFromName   || '').trim();
   config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
   config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
+
+  // Stripe keys
+  if (req.body.stripePublishableKey !== undefined)
+    config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
+  if (req.body.stripeSecretKey !== undefined) {
+    const sk = (req.body.stripeSecretKey || '').trim();
+    if (sk) config.stripeSecretKey = sk; // only overwrite if non-empty
+  }
 
   saveJson(req.tenantPaths.config, config);
 
@@ -1650,49 +1824,64 @@ app.get('/content/:orderId', (req, res) => {
 function getLandingPackages() {
   return [
     {
-      id: 'MANAGEMENT_START',
-      title: 'Management Start',
-      description: 'Ιδανικό για μικρά brands που θέλουν managed setup, χωρίς WordPress / WooCommerce.',
+      id:          'MANAGEMENT_START',
+      title:       'Management Start',
+      price:       49,
+      priceNote:   '/ μήνα',
+      description: 'Ιδανικό για μικρά brands που θέλουν managed e-shop, χωρίς WordPress / WooCommerce.',
       features: [
         'Στήσιμο e-shop πάνω στο Thronos Commerce',
-        'Βασικό theme & λογότυπο',
-        'Admin panel για προϊόντα',
-        'Σύνδεση με δικό σας domain & email'
+        'Θεματολογία & λογότυπο',
+        'Admin panel για προϊόντα, κατηγορίες & παραγγελίες',
+        'Σύνδεση με domain & επαγγελματικό email',
+        'Παραλλαγές προϊόντων & πλήρης κατάλογος',
+        'Αξιολογήσεις επαληθευμένων αγοραστών'
       ]
     },
     {
-      id: 'FULL_OPS_START',
-      title: 'Full Ops Start',
+      id:          'FULL_OPS_START',
+      title:       'Full Ops',
+      price:       149,
+      priceNote:   '/ μήνα',
+      popular:     true,
       description: 'Για brands που θέλουν πλήρη διαχείριση λειτουργίας από την ομάδα Thronos.',
       features: [
         'Όλα του Management Start',
         'Πλήρης διαχείριση προϊόντων & περιεχομένου',
-        'Παρακολούθηση παραγγελιών & επικοινωνίας',
+        'Διαχείριση παραγγελιών & επικοινωνίας πελατών',
+        'Stripe online πληρωμές',
+        'Analytics & αναφορές πωλήσεων',
         'Συμβουλευτικό growth roadmap'
       ]
     },
     {
-      id: 'DIGITAL_STARTER',
-      title: 'Digital Starter',
-      description: 'Για creators & DIY brands που πουλούν digital προϊόντα: εγχειρίδια, βίντεο οδηγιών και ψηφιακό περιεχόμενο.',
+      id:          'DIGITAL_STARTER',
+      title:       'Digital Starter',
+      price:       79,
+      priceNote:   '/ μήνα',
+      description: 'Για creators & DIY brands που πουλούν digital προϊόντα: εγχειρίδια, βίντεο οδηγιών.',
       features: [
         'Όλα του Management Start',
         'Ανέβασμα PDF εγχειριδίων ανά προϊόν (έως 50 MB)',
         'Ενσωμάτωση βίντεο οδηγιών (YouTube / Vimeo / MP4)',
-        'Gated content page για αγοραστές (μόνο με αριθμό παραγγελίας)',
-        'Αυτόματος σύνδεσμος πρόσβασης στο email επιβεβαίωσης'
+        'Gated content page για αγοραστές',
+        'Αυτόματος σύνδεσμος πρόσβασης στο email επιβεβαίωσης',
+        'Παραλλαγές kit με διαφορετικό περιεχόμενο'
       ]
     },
     {
-      id: 'DIGITAL_PRO',
-      title: 'Digital Pro',
+      id:          'DIGITAL_PRO',
+      title:       'Digital Pro',
+      price:       199,
+      priceNote:   '/ μήνα',
       description: 'Πλήρες πακέτο για digital-first επιχειρήσεις με πολλαπλά προϊόντα και ανεπτυγμένο περιεχόμενο.',
       features: [
         'Όλα του Digital Starter',
         'Πλήρης διαχείριση περιεχομένου από την ομάδα Thronos',
         'Unlimited εγχειρίδια & βίντεο ανά προϊόν',
+        'Stripe online πληρωμές',
         'Analytics πρόσβασης περιεχομένου',
-        'Προτεραιότητα support'
+        'Προτεραιότητα support 7/7'
       ]
     }
   ];
@@ -1724,6 +1913,254 @@ app.post('/thronos-commerce/offer', (req, res) => {
   });
 });
 
+// ── Platform Stripe: buy a Thronos Commerce subscription ─────────────────────
+const PENDING_SUBS_FILE = path.join(DATA_ROOT, 'pending_subscriptions.json');
+
+app.post('/thronos-commerce/subscribe', async (req, res) => {
+  const { name, email, phone, brand, domain, packageId } = req.body;
+  const pkg = getLandingPackages().find((p) => p.id === packageId);
+  if (!pkg) return res.redirect('/thronos-commerce#pricing');
+
+  // Save lead regardless
+  const leadsFile = path.join(DATA_ROOT, 'leads.json');
+  const leads = loadJson(leadsFile, []);
+  const leadData = { id: `lead_${Date.now()}`, createdAt: new Date().toISOString(), name, email, phone, brand, domain, packageId, source: 'stripe_buy' };
+  leads.push(leadData);
+  saveJson(leadsFile, leads);
+
+  const stripe = platformStripe();
+  if (!stripe) {
+    // No platform Stripe configured – fall back to lead-only flow
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+  }
+
+  const pendingId = `psub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pending   = loadJson(PENDING_SUBS_FILE, {});
+  pending[pendingId] = { ...leadData, pendingId };
+  saveJson(PENDING_SUBS_FILE, pending);
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode:                 'payment',
+      customer_email:       email,
+      line_items: [{
+        price_data: {
+          currency:     'eur',
+          product_data: { name: `Thronos Commerce — ${pkg.title}`, description: `Πρώτος μήνας συνδρομής` },
+          unit_amount:  pkg.price * 100
+        },
+        quantity: 1
+      }],
+      success_url: `${baseUrl}/thronos-commerce/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${baseUrl}/thronos-commerce#pricing`,
+      metadata:    { pendingId, packageId, brand: brand || '' }
+    });
+    return res.redirect(303, session.url);
+  } catch (err) {
+    console.error('[Platform Stripe] session create failed:', err.message);
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+  }
+});
+
+app.get('/thronos-commerce/stripe-success', async (req, res) => {
+  const { pending_id, session_id } = req.query;
+  const stripe = platformStripe();
+
+  const pending = loadJson(PENDING_SUBS_FILE, {});
+  const entry   = pending[pending_id];
+
+  if (stripe && session_id && entry) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      if (session.payment_status === 'paid') {
+        entry.paid      = true;
+        entry.paidAt    = new Date().toISOString();
+        entry.sessionId = session_id;
+        delete pending[pending_id];
+        saveJson(PENDING_SUBS_FILE, pending);
+        // Save as paid lead
+        const paidLeadsFile = path.join(DATA_ROOT, 'paid_leads.json');
+        const paidLeads = loadJson(paidLeadsFile, []);
+        paidLeads.push(entry);
+        saveJson(paidLeadsFile, paidLeads);
+        // Notify Thronos team via email
+        const pkg = getLandingPackages().find((p) => p.id === entry.packageId);
+        const amount = pkg ? `${pkg.price} €` : '–';
+        if (nodemailer) {
+          try {
+            const smtpUser = process.env.THRC_MAIL_SMTP_USER;
+            const smtpPass = process.env.THRC_MAIL_SMTP_PASS;
+            if (smtpUser && smtpPass) {
+              const transporter = nodemailer.createTransport({ host: process.env.THRC_MAIL_SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.THRC_MAIL_SMTP_PORT || 587), secure: false, auth: { user: smtpUser, pass: smtpPass } });
+              await transporter.sendMail({
+                from: smtpUser,
+                to: 'support@thronoschain.org',
+                subject: `💳 Νέα πληρωμένη συνδρομή — ${entry.brand} (${entry.packageId})`,
+                text: `Νέος πελάτης πλήρωσε:\n\nΌνομα: ${entry.name}\nEmail: ${entry.email}\nΤηλ: ${entry.phone}\nBrand: ${entry.brand}\nDomain: ${entry.domain || '–'}\nΠακέτο: ${entry.packageId} — ${amount}\nSession: ${session_id}\n\nΕνεργοποιήστε τον tenant στον root admin.`
+              });
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  res.render('landing', {
+    packages: getLandingPackages(),
+    message: `✓ Η πληρωμή ολοκληρώθηκε! Η ομάδα Thronos θα επικοινωνήσει μαζί σας εντός 24 ωρών για την ενεργοποίηση του καταστήματός σας.`
+  });
+});
+
+// ── Tenant subscription renewal (from admin dashboard) ────────────────────────
+app.post('/admin/subscribe/renew', async (req, res) => {
+  const { password } = req.body;
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+
+  const stripe = platformStripe();
+  if (!stripe) return res.render('admin', buildAdminViewModel(req, { error: 'Η πλατφόρμα δεν έχει ρυθμιστεί για online πληρωμές ακόμα. Επικοινωνήστε μαζί μας.' }));
+
+  const tenantRec = findTenantById(req.tenant.id);
+  const plan      = (tenantRec && tenantRec.subscriptionPlan) || tenantRec?.supportTier || 'MANAGEMENT_START';
+  const price     = PACKAGE_PRICES[plan] || 49;
+  const pkg       = getLandingPackages().find((p) => p.id === plan);
+
+  const pendingId = `pren_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pending   = loadJson(PENDING_SUBS_FILE, {});
+  pending[pendingId] = { tenantId: req.tenant.id, plan, price, pendingId };
+  saveJson(PENDING_SUBS_FILE, pending);
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode:                 'payment',
+      customer_email:       req.body.email || undefined,
+      line_items: [{
+        price_data: {
+          currency:     'eur',
+          product_data: { name: `Ανανέωση συνδρομής — ${pkg ? pkg.title : plan}` },
+          unit_amount:  price * 100
+        },
+        quantity: 1
+      }],
+      success_url: `${baseUrl}/admin/subscribe/success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${baseUrl}/admin`
+    });
+    return res.redirect(303, session.url);
+  } catch (err) {
+    return res.render('admin', buildAdminViewModel(req, { error: 'Σφάλμα σύνδεσης με Stripe: ' + err.message }));
+  }
+});
+
+app.get('/admin/subscribe/success', async (req, res) => {
+  const { pending_id, session_id } = req.query;
+  const stripe = platformStripe();
+
+  const pending = loadJson(PENDING_SUBS_FILE, {});
+  const entry   = pending[pending_id];
+
+  if (stripe && session_id && entry && entry.tenantId === req.tenant.id) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      if (session.payment_status === 'paid') {
+        // Extend subscription by 30 days from now (or from current expiry if still active)
+        const tenants = loadTenantsRegistry();
+        const idx     = tenants.findIndex((t) => t.id === req.tenant.id);
+        if (idx >= 0) {
+          const current   = tenants[idx].subscriptionExpiry ? new Date(tenants[idx].subscriptionExpiry) : new Date();
+          const base      = current > new Date() ? current : new Date();
+          base.setDate(base.getDate() + 30);
+          tenants[idx].subscriptionExpiry   = base.toISOString();
+          tenants[idx].subscriptionPlan     = entry.plan;
+          tenants[idx].subscriptionStatus   = 'active';
+          saveTenantsRegistry(tenants);
+        }
+        delete pending[pending_id];
+        saveJson(PENDING_SUBS_FILE, pending);
+      }
+    } catch (_) {}
+  }
+
+  res.render('admin', buildAdminViewModel(req, { message: '✓ Η ανανέωση συνδρομής ολοκληρώθηκε.' }));
+});
+
+// ── Ticket system ─────────────────────────────────────────────────────────────
+app.post('/admin/tickets/new', async (req, res) => {
+  const { password, subject, message: body, category } = req.body;
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  if (!subject || !body) return res.render('admin', buildAdminViewModel(req, { error: 'Συμπληρώστε θέμα και μήνυμα.' }));
+
+  const ticket = {
+    id:        `tkt_${Date.now()}`,
+    tenantId:  req.tenant.id,
+    subject:   subject.trim(),
+    body:      body.trim(),
+    category:  category || 'general',
+    status:    'open',
+    createdAt: new Date().toISOString(),
+    replies:   []
+  };
+
+  const tickets = loadJson(req.tenantPaths.tickets, []);
+  tickets.push(ticket);
+  saveJson(req.tenantPaths.tickets, tickets);
+
+  // Email to support
+  if (nodemailer) {
+    try {
+      const smtpUser = process.env.THRC_MAIL_SMTP_USER;
+      const smtpPass = process.env.THRC_MAIL_SMTP_PASS;
+      if (smtpUser && smtpPass) {
+        const transporter = nodemailer.createTransport({ host: process.env.THRC_MAIL_SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.THRC_MAIL_SMTP_PORT || 587), secure: false, auth: { user: smtpUser, pass: smtpPass } });
+        const config = loadTenantConfig(req);
+        await transporter.sendMail({
+          from:    smtpUser,
+          to:      'support@thronoschain.org',
+          subject: `[Ticket #${ticket.id}] [${req.tenant.id}] ${ticket.subject}`,
+          text:    `Tenant: ${req.tenant.id} (${config.storeName || ''})\nΚατηγορία: ${ticket.category}\n\n${ticket.body}\n\n---\nΑπαντήστε σε αυτό το email για να απαντήσετε στον tenant.`
+        });
+      }
+    } catch (_) {}
+  }
+
+  res.render('admin', buildAdminViewModel(req, { message: '✓ Το αίτημα υποστήριξης στάλθηκε. Θα επικοινωνήσουμε σύντομα.' }));
+});
+
+// Root admin: add reply to ticket
+app.post('/root/tickets/reply', async (req, res) => {
+  const { password, tenantId, ticketId, replyText } = req.body;
+  const ROOT_PASS = process.env.ROOT_ADMIN_PASSWORD || 'thronos-root-2024';
+  if (password !== ROOT_PASS) return res.redirect('/root/tenants?error=wrong_password');
+
+  const tenantPaths = tenantPaths(tenantId);
+  const tickets = loadJson(tenantPaths.tickets, []);
+  const tIdx    = tickets.findIndex((t) => t.id === ticketId);
+  if (tIdx >= 0) {
+    tickets[tIdx].replies.push({ from: 'support', text: replyText.trim(), createdAt: new Date().toISOString() });
+    tickets[tIdx].status = 'replied';
+    saveJson(tenantPaths.tickets, tickets);
+  }
+
+  res.redirect('/root/tenants?message=reply_sent');
+});
+
+// Root admin: close ticket
+app.post('/root/tickets/close', async (req, res) => {
+  const { password, tenantId, ticketId } = req.body;
+  const ROOT_PASS = process.env.ROOT_ADMIN_PASSWORD || 'thronos-root-2024';
+  if (password !== ROOT_PASS) return res.redirect('/root/tenants?error=wrong_password');
+
+  const tenantPaths = tenantPaths(tenantId);
+  const tickets = loadJson(tenantPaths.tickets, []);
+  const tIdx    = tickets.findIndex((t) => t.id === ticketId);
+  if (tIdx >= 0) { tickets[tIdx].status = 'resolved'; saveJson(tenantPaths.tickets, tickets); }
+  res.redirect('/root/tenants');
+});
+
 // ─── Root Admin: Tenants Management ──────────────────────────────────────────
 
 const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START', 'DIGITAL_STARTER', 'DIGITAL_PRO'];
@@ -1752,12 +2189,26 @@ function buildRootViewModel(extra) {
     pendingByCode[e.refCode].rows.push(e);
   });
 
+  // Collect all open tickets across tenants for root admin
+  const allTickets = [];
+  tenants.forEach((t) => {
+    try {
+      const tks = loadJson(tenantPaths(t.id).tickets, []);
+      tks.filter((tk) => tk.status !== 'resolved').forEach((tk) => {
+        allTickets.push({ ...tk, _tenantId: t.id });
+      });
+    } catch (_) {}
+  });
+
   return {
     tenants,
     tenantPaymentConfigs,
     refAccounts,
     refEarnings: refEarnings.slice(-200).reverse(),
     pendingByCode,
+    allTickets: allTickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    getSubscriptionInfo,
+    PACKAGE_PRICES,
     message: null,
     error: null,
     ...(extra || {})
@@ -1846,6 +2297,16 @@ app.post('/root/tenants/update', (req, res) => {
   if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';
+
+  const { subscriptionExpiry } = req.body;
+  if (subscriptionExpiry) {
+    const expDate = new Date(subscriptionExpiry);
+    if (!isNaN(expDate)) {
+      tenants[idx].subscriptionExpiry = expDate.toISOString();
+      tenants[idx].subscriptionPlan   = tenants[idx].subscriptionPlan || tenants[idx].supportTier;
+      tenants[idx].subscriptionStatus = 'active';
+    }
+  }
 
   saveTenantsRegistry(tenants);
   console.log(`[Root Admin] Updated tenant: ${tenantId}`);

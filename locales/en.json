@@ -39,7 +39,9 @@
     "inStock": "In stock",
     "stockLow": "Low stock",
     "stockOut": "Out of stock",
-    "submit": "Place order"
+    "submit": "Place order",
+    "submitStripe": "💳 Pay by card via Stripe →",
+    "stripeSecure": "Secure payment via Stripe. You will be redirected to the payment page."
   },
   "thankyou": {
     "pageTitle": "Thank you",
@@ -109,7 +111,22 @@
     "faviconUploadBtn": "Upload favicon",
     "faviconDelete": "Delete favicon",
     "faviconNone": "No favicon set. The browser default will be used.",
-    "passwordPlaceholder": "Admin password"
+    "passwordPlaceholder": "Admin password",
+    "tabSupport": "Support",
+    "supportTitle": "Internal Support",
+    "supportHelper": "Send a ticket to the Thronos Commerce team for changes, technical issues or billing.",
+    "supportHistory": "Ticket history",
+    "supportNewTicket": "New ticket",
+    "supportCategory": "Category",
+    "supportSubject": "Subject",
+    "supportMessage": "Message",
+    "supportSend": "Send",
+    "subscriptionTitle": "Subscription",
+    "subscriptionExpired": "Your subscription has expired.",
+    "subscriptionExpiringSoon": "Your subscription is expiring soon.",
+    "subscriptionDaysLeft": "days",
+    "subscriptionRenew": "💳 Renew",
+    "subscriptionActive": "Active subscription"
   },
   "orders": {
     "headerTitle": "Thronos Commerce · Orders",

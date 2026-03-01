@@ -42,7 +42,9 @@
     "inStock": "Διαθέσιμο",
     "stockLow": "Λίγα τεμάχια",
     "stockOut": "Εξαντλήθηκε",
-    "submit": "Υποβολή παραγγελίας"
+    "submit": "Υποβολή παραγγελίας",
+    "submitStripe": "💳 Πληρωμή με κάρτα μέσω Stripe →",
+    "stripeSecure": "Ασφαλής πληρωμή μέσω Stripe. Θα μεταφερθείτε στη σελίδα πληρωμής."
   },
   "thankyou": {
     "pageTitle": "Ευχαριστούμε",
@@ -251,7 +253,22 @@
     "invLogProduct": "Προϊόν",
     "invLogDelta": "Μεταβολή",
     "invLogReason": "Αιτία",
-    "invLogOrder": "Παραγγελία"
+    "invLogOrder": "Παραγγελία",
+    "tabSupport": "Υποστήριξη",
+    "supportTitle": "Εσωτερική Υποστήριξη",
+    "supportHelper": "Αποστείλετε ticket στην ομάδα Thronos Commerce για αλλαγές, τεχνικά θέματα ή χρέωση.",
+    "supportHistory": "Ιστορικό tickets",
+    "supportNewTicket": "Νέο ticket",
+    "supportCategory": "Κατηγορία",
+    "supportSubject": "Θέμα",
+    "supportMessage": "Μήνυμα",
+    "supportSend": "Αποστολή",
+    "subscriptionTitle": "Συνδρομή",
+    "subscriptionExpired": "Η συνδρομή σας έχει λήξει.",
+    "subscriptionExpiringSoon": "Η συνδρομή σας λήγει σύντομα.",
+    "subscriptionDaysLeft": "ημέρες",
+    "subscriptionRenew": "💳 Ανανέωση",
+    "subscriptionActive": "Ενεργή συνδρομή"
   },
   "orders": {
     "headerTitle": "Thronos Commerce · Παραγγελίες",

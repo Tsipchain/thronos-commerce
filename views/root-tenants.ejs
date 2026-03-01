@@ -143,6 +143,7 @@
                 <th>Referral</th>
                 <th>Ενεργό</th>
                 <th>Δημιουργία</th>
+                <th>Συνδρομή</th>
                 <th>Admin hash</th>
               </tr>
             </thead>
@@ -172,6 +173,15 @@
                     <%= new Date(t.createdAt).toLocaleDateString('el-GR') %>
                   <% } else { %>–<% } %>
                 </td>
+                <td>
+                  <% const sub = getSubscriptionInfo(t); %>
+                  <% if (sub && sub.expiryStr) { %>
+                    <span style="font-size:.75rem;padding:2px 8px;border-radius:12px;font-weight:600;background:<%= sub.isExpired ? '#fee2e2' : sub.isExpiringSoon ? '#fef3c7' : '#d1fae5' %>;color:<%= sub.isExpired ? '#991b1b' : sub.isExpiringSoon ? '#92400e' : '#065f46' %>;">
+                      <%= sub.isExpired ? '⚠ Ληγμένη' : sub.daysLeft + ' μέρες' %>
+                    </span>
+                    <span style="font-size:.7rem;color:#9ca3af;display:block;margin-top:2px;"><%= sub.expiryStr %></span>
+                  <% } else { %><span style="color:#ccc;font-size:.8rem;">–</span><% } %>
+                </td>
                 <td style="font-size:0.74rem;color:#999;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                   <%= t.adminPasswordHash ? t.adminPasswordHash.slice(0, 20) + '…' : '–' %>
                 </td>
@@ -180,6 +190,51 @@
             </tbody>
           </table>
         </div>
+
+        <%# ── Open tickets ── %>
+        <% if (allTickets && allTickets.length) { %>
+        <h3 style="margin-top:32px;font-size:1rem;">🎫 Ανοιχτά tickets (<%= allTickets.length %>)</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+          <% allTickets.forEach(function(tk) { %>
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;">
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+              <strong style="font-size:.88rem;">[<%= tk._tenantId %>] <%= tk.subject %></strong>
+              <span style="font-size:.74rem;padding:2px 10px;border-radius:20px;font-weight:600;background:<%= tk.status === 'replied' ? '#dbeafe' : '#fef3c7' %>;color:<%= tk.status === 'replied' ? '#1e40af' : '#92400e' %>;">
+                <%= tk.status === 'replied' ? '💬 Απαντήθηκε' : '⏳ Εκκρεμεί' %>
+              </span>
+            </div>
+            <p style="font-size:.82rem;color:#374151;margin:6px 0;"><%= (tk.body || '').slice(0, 200) %><%= (tk.body||'').length > 200 ? '…' : '' %></p>
+            <span style="font-size:.74rem;color:#9ca3af;"><%= new Date(tk.createdAt).toLocaleString('el-GR') %> · <%= tk.category %></span>
+            <form method="POST" action="/root/tickets/reply" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="hidden" name="tenantId" value="<%= tk._tenantId %>" />
+              <input type="hidden" name="ticketId" value="<%= tk.id %>" />
+              <input type="password" name="password" placeholder="Root κωδικός" style="flex:0 0 150px;padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.8rem;" required />
+              <textarea name="replyText" placeholder="Απάντηση..." rows="2" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.8rem;resize:vertical;" required></textarea>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <button type="submit" style="padding:6px 14px;background:#3b82f6;color:#fff;border:none;border-radius:5px;font-size:.8rem;cursor:pointer;">Απάντηση</button>
+                <button type="submit" form="close-form-<%= tk.id %>" style="padding:6px 14px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;font-size:.8rem;cursor:pointer;">✓ Κλείσιμο</button>
+              </div>
+            </form>
+            <form id="close-form-<%= tk.id %>" method="POST" action="/root/tickets/close" style="display:none;">
+              <input type="hidden" name="tenantId" value="<%= tk._tenantId %>" />
+              <input type="hidden" name="ticketId" value="<%= tk.id %>" />
+              <input type="hidden" name="password" id="close-pw-<%= tk.id %>" />
+            </form>
+            <script>
+              (function() {
+                var f = document.getElementById('close-form-<%= tk.id %>');
+                var btn = f ? f.previousElementSibling : null;
+                if (btn) btn.addEventListener('click', function() {
+                  var pw = document.querySelector('form[action="/root/tickets/reply"] input[name="password"]');
+                  if (pw) document.getElementById('close-pw-<%= tk.id %>').value = pw.value;
+                });
+              })();
+            </script>
+          </div>
+          <% }) %>
+        </div>
+        <% } %>
+
         <% } %>
       </div>
 
@@ -315,7 +370,12 @@
               </select>
             </label>
 
-            <label class="full">
+            <label>
+              Λήξη συνδρομής
+              <input type="date" name="subscriptionExpiry" id="update-subexpiry" />
+            </label>
+
+            <label>
               Root κωδικός *
               <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
             </label>
