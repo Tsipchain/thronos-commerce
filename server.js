@@ -12,11 +12,38 @@ function safeRequire(mod) {
 const nodemailer = safeRequire('nodemailer');
 const StripeLib  = safeRequire('stripe');
 
-// ── Stripe per-tenant helper ──────────────────────────────────────────────────
+// ── Stripe helpers ────────────────────────────────────────────────────────────
 function stripeForTenant(config) {
   const key = (config.stripeSecretKey || '').trim();
   if (!key || !StripeLib) return null;
   try { return StripeLib(key); } catch (e) { return null; }
+}
+
+// Platform-level Stripe (for selling Thronos subscriptions)
+function platformStripe() {
+  const key = (process.env.STRIPE_SECRET_KEY || '').trim();
+  if (!key || !StripeLib) return null;
+  try { return StripeLib(key); } catch (e) { return null; }
+}
+
+// Subscription info from tenant record
+const PACKAGE_PRICES = { MANAGEMENT_START: 49, FULL_OPS_START: 149, DIGITAL_STARTER: 79, DIGITAL_PRO: 199 };
+
+function getSubscriptionInfo(tenant) {
+  if (!tenant) return null;
+  if (!tenant.subscriptionExpiry) {
+    return { plan: tenant.supportTier, status: 'manual', daysLeft: null, isExpired: false, isExpiringSoon: false, expiryStr: null };
+  }
+  const expiry   = new Date(tenant.subscriptionExpiry);
+  const daysLeft = Math.ceil((expiry - Date.now()) / 86400000);
+  return {
+    plan:          tenant.subscriptionPlan || tenant.supportTier,
+    status:        daysLeft <= 0 ? 'expired' : 'active',
+    expiryStr:     expiry.toLocaleDateString('el-GR'),
+    daysLeft:      Math.max(0, daysLeft),
+    isExpired:     daysLeft <= 0,
+    isExpiringSoon: daysLeft > 0 && daysLeft <= 7
+  };
 }
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
@@ -251,6 +278,7 @@ function tenantPaths(tenantId) {
     analytics:     path.join(base, 'analytics.json'),
     favicon:       path.join(base, 'favicon.png'),
     pendingOrders: path.join(base, 'pending_orders.json'),
+    tickets:       path.join(base, 'tickets.json'),
     media
   };
 }
@@ -801,6 +829,8 @@ function buildAdminViewModel(req, extra) {
     if (city) cityCounts[city] = (cityCounts[city] || 0) + 1;
   });
 
+  const tickets = loadJson(req.tenantPaths.tickets, []);
+
   return {
     tenant: req.tenant,
     permissions,
@@ -813,6 +843,8 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     hasFavicon: fs.existsSync(req.tenantPaths.favicon),
+    subscription: getSubscriptionInfo(req.tenant),
+    tickets: tickets.slice().reverse(),
     message: null,
     error: null,
     ...(extra || {})
@@ -1881,6 +1913,254 @@ app.post('/thronos-commerce/offer', (req, res) => {
   });
 });
 
+// ── Platform Stripe: buy a Thronos Commerce subscription ─────────────────────
+const PENDING_SUBS_FILE = path.join(DATA_ROOT, 'pending_subscriptions.json');
+
+app.post('/thronos-commerce/subscribe', async (req, res) => {
+  const { name, email, phone, brand, domain, packageId } = req.body;
+  const pkg = getLandingPackages().find((p) => p.id === packageId);
+  if (!pkg) return res.redirect('/thronos-commerce#pricing');
+
+  // Save lead regardless
+  const leadsFile = path.join(DATA_ROOT, 'leads.json');
+  const leads = loadJson(leadsFile, []);
+  const leadData = { id: `lead_${Date.now()}`, createdAt: new Date().toISOString(), name, email, phone, brand, domain, packageId, source: 'stripe_buy' };
+  leads.push(leadData);
+  saveJson(leadsFile, leads);
+
+  const stripe = platformStripe();
+  if (!stripe) {
+    // No platform Stripe configured – fall back to lead-only flow
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+  }
+
+  const pendingId = `psub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pending   = loadJson(PENDING_SUBS_FILE, {});
+  pending[pendingId] = { ...leadData, pendingId };
+  saveJson(PENDING_SUBS_FILE, pending);
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode:                 'payment',
+      customer_email:       email,
+      line_items: [{
+        price_data: {
+          currency:     'eur',
+          product_data: { name: `Thronos Commerce — ${pkg.title}`, description: `Πρώτος μήνας συνδρομής` },
+          unit_amount:  pkg.price * 100
+        },
+        quantity: 1
+      }],
+      success_url: `${baseUrl}/thronos-commerce/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${baseUrl}/thronos-commerce#pricing`,
+      metadata:    { pendingId, packageId, brand: brand || '' }
+    });
+    return res.redirect(303, session.url);
+  } catch (err) {
+    console.error('[Platform Stripe] session create failed:', err.message);
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+  }
+});
+
+app.get('/thronos-commerce/stripe-success', async (req, res) => {
+  const { pending_id, session_id } = req.query;
+  const stripe = platformStripe();
+
+  const pending = loadJson(PENDING_SUBS_FILE, {});
+  const entry   = pending[pending_id];
+
+  if (stripe && session_id && entry) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      if (session.payment_status === 'paid') {
+        entry.paid      = true;
+        entry.paidAt    = new Date().toISOString();
+        entry.sessionId = session_id;
+        delete pending[pending_id];
+        saveJson(PENDING_SUBS_FILE, pending);
+        // Save as paid lead
+        const paidLeadsFile = path.join(DATA_ROOT, 'paid_leads.json');
+        const paidLeads = loadJson(paidLeadsFile, []);
+        paidLeads.push(entry);
+        saveJson(paidLeadsFile, paidLeads);
+        // Notify Thronos team via email
+        const pkg = getLandingPackages().find((p) => p.id === entry.packageId);
+        const amount = pkg ? `${pkg.price} €` : '–';
+        if (nodemailer) {
+          try {
+            const smtpUser = process.env.THRC_MAIL_SMTP_USER;
+            const smtpPass = process.env.THRC_MAIL_SMTP_PASS;
+            if (smtpUser && smtpPass) {
+              const transporter = nodemailer.createTransport({ host: process.env.THRC_MAIL_SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.THRC_MAIL_SMTP_PORT || 587), secure: false, auth: { user: smtpUser, pass: smtpPass } });
+              await transporter.sendMail({
+                from: smtpUser,
+                to: 'support@thronoschain.org',
+                subject: `💳 Νέα πληρωμένη συνδρομή — ${entry.brand} (${entry.packageId})`,
+                text: `Νέος πελάτης πλήρωσε:\n\nΌνομα: ${entry.name}\nEmail: ${entry.email}\nΤηλ: ${entry.phone}\nBrand: ${entry.brand}\nDomain: ${entry.domain || '–'}\nΠακέτο: ${entry.packageId} — ${amount}\nSession: ${session_id}\n\nΕνεργοποιήστε τον tenant στον root admin.`
+              });
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  res.render('landing', {
+    packages: getLandingPackages(),
+    message: `✓ Η πληρωμή ολοκληρώθηκε! Η ομάδα Thronos θα επικοινωνήσει μαζί σας εντός 24 ωρών για την ενεργοποίηση του καταστήματός σας.`
+  });
+});
+
+// ── Tenant subscription renewal (from admin dashboard) ────────────────────────
+app.post('/admin/subscribe/renew', async (req, res) => {
+  const { password } = req.body;
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+
+  const stripe = platformStripe();
+  if (!stripe) return res.render('admin', buildAdminViewModel(req, { error: 'Η πλατφόρμα δεν έχει ρυθμιστεί για online πληρωμές ακόμα. Επικοινωνήστε μαζί μας.' }));
+
+  const tenantRec = findTenantById(req.tenant.id);
+  const plan      = (tenantRec && tenantRec.subscriptionPlan) || tenantRec?.supportTier || 'MANAGEMENT_START';
+  const price     = PACKAGE_PRICES[plan] || 49;
+  const pkg       = getLandingPackages().find((p) => p.id === plan);
+
+  const pendingId = `pren_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pending   = loadJson(PENDING_SUBS_FILE, {});
+  pending[pendingId] = { tenantId: req.tenant.id, plan, price, pendingId };
+  saveJson(PENDING_SUBS_FILE, pending);
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode:                 'payment',
+      customer_email:       req.body.email || undefined,
+      line_items: [{
+        price_data: {
+          currency:     'eur',
+          product_data: { name: `Ανανέωση συνδρομής — ${pkg ? pkg.title : plan}` },
+          unit_amount:  price * 100
+        },
+        quantity: 1
+      }],
+      success_url: `${baseUrl}/admin/subscribe/success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${baseUrl}/admin`
+    });
+    return res.redirect(303, session.url);
+  } catch (err) {
+    return res.render('admin', buildAdminViewModel(req, { error: 'Σφάλμα σύνδεσης με Stripe: ' + err.message }));
+  }
+});
+
+app.get('/admin/subscribe/success', async (req, res) => {
+  const { pending_id, session_id } = req.query;
+  const stripe = platformStripe();
+
+  const pending = loadJson(PENDING_SUBS_FILE, {});
+  const entry   = pending[pending_id];
+
+  if (stripe && session_id && entry && entry.tenantId === req.tenant.id) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      if (session.payment_status === 'paid') {
+        // Extend subscription by 30 days from now (or from current expiry if still active)
+        const tenants = loadTenantsRegistry();
+        const idx     = tenants.findIndex((t) => t.id === req.tenant.id);
+        if (idx >= 0) {
+          const current   = tenants[idx].subscriptionExpiry ? new Date(tenants[idx].subscriptionExpiry) : new Date();
+          const base      = current > new Date() ? current : new Date();
+          base.setDate(base.getDate() + 30);
+          tenants[idx].subscriptionExpiry   = base.toISOString();
+          tenants[idx].subscriptionPlan     = entry.plan;
+          tenants[idx].subscriptionStatus   = 'active';
+          saveTenantsRegistry(tenants);
+        }
+        delete pending[pending_id];
+        saveJson(PENDING_SUBS_FILE, pending);
+      }
+    } catch (_) {}
+  }
+
+  res.render('admin', buildAdminViewModel(req, { message: '✓ Η ανανέωση συνδρομής ολοκληρώθηκε.' }));
+});
+
+// ── Ticket system ─────────────────────────────────────────────────────────────
+app.post('/admin/tickets/new', async (req, res) => {
+  const { password, subject, message: body, category } = req.body;
+  const ok = await verifyAdminPassword(req.tenant, password);
+  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  if (!subject || !body) return res.render('admin', buildAdminViewModel(req, { error: 'Συμπληρώστε θέμα και μήνυμα.' }));
+
+  const ticket = {
+    id:        `tkt_${Date.now()}`,
+    tenantId:  req.tenant.id,
+    subject:   subject.trim(),
+    body:      body.trim(),
+    category:  category || 'general',
+    status:    'open',
+    createdAt: new Date().toISOString(),
+    replies:   []
+  };
+
+  const tickets = loadJson(req.tenantPaths.tickets, []);
+  tickets.push(ticket);
+  saveJson(req.tenantPaths.tickets, tickets);
+
+  // Email to support
+  if (nodemailer) {
+    try {
+      const smtpUser = process.env.THRC_MAIL_SMTP_USER;
+      const smtpPass = process.env.THRC_MAIL_SMTP_PASS;
+      if (smtpUser && smtpPass) {
+        const transporter = nodemailer.createTransport({ host: process.env.THRC_MAIL_SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.THRC_MAIL_SMTP_PORT || 587), secure: false, auth: { user: smtpUser, pass: smtpPass } });
+        const config = loadTenantConfig(req);
+        await transporter.sendMail({
+          from:    smtpUser,
+          to:      'support@thronoschain.org',
+          subject: `[Ticket #${ticket.id}] [${req.tenant.id}] ${ticket.subject}`,
+          text:    `Tenant: ${req.tenant.id} (${config.storeName || ''})\nΚατηγορία: ${ticket.category}\n\n${ticket.body}\n\n---\nΑπαντήστε σε αυτό το email για να απαντήσετε στον tenant.`
+        });
+      }
+    } catch (_) {}
+  }
+
+  res.render('admin', buildAdminViewModel(req, { message: '✓ Το αίτημα υποστήριξης στάλθηκε. Θα επικοινωνήσουμε σύντομα.' }));
+});
+
+// Root admin: add reply to ticket
+app.post('/root/tickets/reply', async (req, res) => {
+  const { password, tenantId, ticketId, replyText } = req.body;
+  const ROOT_PASS = process.env.ROOT_ADMIN_PASSWORD || 'thronos-root-2024';
+  if (password !== ROOT_PASS) return res.redirect('/root/tenants?error=wrong_password');
+
+  const tenantPaths = tenantPaths(tenantId);
+  const tickets = loadJson(tenantPaths.tickets, []);
+  const tIdx    = tickets.findIndex((t) => t.id === ticketId);
+  if (tIdx >= 0) {
+    tickets[tIdx].replies.push({ from: 'support', text: replyText.trim(), createdAt: new Date().toISOString() });
+    tickets[tIdx].status = 'replied';
+    saveJson(tenantPaths.tickets, tickets);
+  }
+
+  res.redirect('/root/tenants?message=reply_sent');
+});
+
+// Root admin: close ticket
+app.post('/root/tickets/close', async (req, res) => {
+  const { password, tenantId, ticketId } = req.body;
+  const ROOT_PASS = process.env.ROOT_ADMIN_PASSWORD || 'thronos-root-2024';
+  if (password !== ROOT_PASS) return res.redirect('/root/tenants?error=wrong_password');
+
+  const tenantPaths = tenantPaths(tenantId);
+  const tickets = loadJson(tenantPaths.tickets, []);
+  const tIdx    = tickets.findIndex((t) => t.id === ticketId);
+  if (tIdx >= 0) { tickets[tIdx].status = 'resolved'; saveJson(tenantPaths.tickets, tickets); }
+  res.redirect('/root/tenants');
+});
+
 // ─── Root Admin: Tenants Management ──────────────────────────────────────────
 
 const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START', 'DIGITAL_STARTER', 'DIGITAL_PRO'];
@@ -1909,12 +2189,26 @@ function buildRootViewModel(extra) {
     pendingByCode[e.refCode].rows.push(e);
   });
 
+  // Collect all open tickets across tenants for root admin
+  const allTickets = [];
+  tenants.forEach((t) => {
+    try {
+      const tks = loadJson(tenantPaths(t.id).tickets, []);
+      tks.filter((tk) => tk.status !== 'resolved').forEach((tk) => {
+        allTickets.push({ ...tk, _tenantId: t.id });
+      });
+    } catch (_) {}
+  });
+
   return {
     tenants,
     tenantPaymentConfigs,
     refAccounts,
     refEarnings: refEarnings.slice(-200).reverse(),
     pendingByCode,
+    allTickets: allTickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    getSubscriptionInfo,
+    PACKAGE_PRICES,
     message: null,
     error: null,
     ...(extra || {})
@@ -2003,6 +2297,16 @@ app.post('/root/tenants/update', (req, res) => {
   if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';
+
+  const { subscriptionExpiry } = req.body;
+  if (subscriptionExpiry) {
+    const expDate = new Date(subscriptionExpiry);
+    if (!isNaN(expDate)) {
+      tenants[idx].subscriptionExpiry = expDate.toISOString();
+      tenants[idx].subscriptionPlan   = tenants[idx].subscriptionPlan || tenants[idx].supportTier;
+      tenants[idx].subscriptionStatus = 'active';
+    }
+  }
 
   saveTenantsRegistry(tenants);
   console.log(`[Root Admin] Updated tenant: ${tenantId}`);

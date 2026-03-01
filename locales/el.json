@@ -253,7 +253,22 @@
     "invLogProduct": "Προϊόν",
     "invLogDelta": "Μεταβολή",
     "invLogReason": "Αιτία",
-    "invLogOrder": "Παραγγελία"
+    "invLogOrder": "Παραγγελία",
+    "tabSupport": "Υποστήριξη",
+    "supportTitle": "Εσωτερική Υποστήριξη",
+    "supportHelper": "Αποστείλετε ticket στην ομάδα Thronos Commerce για αλλαγές, τεχνικά θέματα ή χρέωση.",
+    "supportHistory": "Ιστορικό tickets",
+    "supportNewTicket": "Νέο ticket",
+    "supportCategory": "Κατηγορία",
+    "supportSubject": "Θέμα",
+    "supportMessage": "Μήνυμα",
+    "supportSend": "Αποστολή",
+    "subscriptionTitle": "Συνδρομή",
+    "subscriptionExpired": "Η συνδρομή σας έχει λήξει.",
+    "subscriptionExpiringSoon": "Η συνδρομή σας λήγει σύντομα.",
+    "subscriptionDaysLeft": "ημέρες",
+    "subscriptionRenew": "💳 Ανανέωση",
+    "subscriptionActive": "Ενεργή συνδρομή"
   },
   "orders": {
     "headerTitle": "Thronos Commerce · Παραγγελίες",

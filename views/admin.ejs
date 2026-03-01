@@ -145,6 +145,32 @@
       <% if (message) { %><p class="admin-msg success"><%= message %></p><% } %>
       <% if (error)   { %><p class="admin-msg error"><%= error %></p><% } %>
 
+      <%# ── Subscription status widget ── %>
+      <% if (subscription) { %>
+      <div style="background:<%= subscription.isExpired ? '#fef2f2' : subscription.isExpiringSoon ? '#fffbeb' : '#f0fdf4' %>;border:1px solid <%= subscription.isExpired ? '#fca5a5' : subscription.isExpiringSoon ? '#fde68a' : '#bbf7d0' %>;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <span style="font-weight:700;font-size:.9rem;color:<%= subscription.isExpired ? '#dc2626' : subscription.isExpiringSoon ? '#d97706' : '#15803d' %>;">
+            <% if (subscription.isExpired) { %>⚠️ Η συνδρομή σας έχει λήξει
+            <% } else if (subscription.isExpiringSoon) { %>⏳ Η συνδρομή λήγει σύντομα (<%= subscription.daysLeft %> μέρες)
+            <% } else if (subscription.daysLeft !== null) { %>✓ Ενεργή συνδρομή — <%= subscription.daysLeft %> μέρες απομένουν
+            <% } else { %>✓ Ενεργή συνδρομή (διαχειριζόμενη)<% } %>
+          </span>
+          <span style="display:block;font-size:.78rem;color:#6b7280;margin-top:2px;">
+            Πακέτο: <strong><%= subscription.plan %></strong>
+            <% if (subscription.expiryStr) { %> · Λήξη: <strong><%= subscription.expiryStr %></strong><% } %>
+          </span>
+        </div>
+        <% if (subscription.isExpired || subscription.isExpiringSoon) { %>
+        <div>
+          <form method="POST" action="/admin/subscribe/renew" style="display:inline-flex;gap:8px;align-items:center;">
+            <input type="password" name="password" placeholder="Κωδικός admin" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.82rem;" required />
+            <button type="submit" style="padding:7px 16px;background:#4338ca;color:#fff;border:none;border-radius:5px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">💳 Ανανέωση</button>
+          </form>
+        </div>
+        <% } %>
+      </div>
+      <% } %>
+
       <nav class="admin-tabs">
         <a href="#tab-theme"><%= t('admin.tabTheme') %></a>
         <a href="#tab-categories"><%= t('admin.tabCategories') %></a>
@@ -153,6 +179,7 @@
         <a href="#tab-shipping"><%= t('admin.tabShipping') %></a>
         <a href="#tab-notifications"><%= t('admin.tabNotifications') %></a>
         <a href="#tab-inventory"><%= t('admin.tabInventory') %></a>
+        <a href="#tab-support">💬 <%= t('admin.tabSupport') %></a>
         <a href="/admin/orders"><%= t('admin.tabOrders') %></a>
       </nav>
 
@@ -824,6 +851,73 @@
           </tbody>
         </table>
         <% } %>
+      </section>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB 9 – SUPPORT / TICKETS                               %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <section id="tab-support" class="admin-block">
+        <h2>💬 <%= t('admin.supportTitle') %></h2>
+        <p class="helper"><%= t('admin.supportHelper') %></p>
+
+        <%# ── Ticket list ── %>
+        <% if (tickets && tickets.length) { %>
+          <h3 style="font-size:.9rem;margin-bottom:10px;"><%= t('admin.supportHistory') %></h3>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px;">
+            <% tickets.forEach(function(tk) { %>
+              <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;background:#fafafa;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
+                  <strong style="font-size:.9rem;"><%= tk.subject %></strong>
+                  <span style="font-size:.74rem;padding:2px 10px;border-radius:20px;font-weight:600;background:<%= tk.status === 'resolved' ? '#d1fae5' : tk.status === 'replied' ? '#dbeafe' : '#fef3c7' %>;color:<%= tk.status === 'resolved' ? '#065f46' : tk.status === 'replied' ? '#1e40af' : '#92400e' %>;">
+                    <%= tk.status === 'resolved' ? '✓ Επιλύθηκε' : tk.status === 'replied' ? '💬 Απάντηση' : '⏳ Εκκρεμεί' %>
+                  </span>
+                </div>
+                <p style="font-size:.82rem;color:#374151;margin:6px 0 4px;white-space:pre-wrap;"><%= tk.body %></p>
+                <span style="font-size:.74rem;color:#9ca3af;"><%= new Date(tk.createdAt).toLocaleString('el-GR') %> · <%= tk.category %></span>
+                <% if (tk.replies && tk.replies.length) { %>
+                  <% tk.replies.forEach(function(r) { %>
+                    <div style="margin-top:10px;padding:10px 12px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:4px;">
+                      <strong style="font-size:.8rem;color:#1d4ed8;">Support</strong>
+                      <p style="font-size:.82rem;margin:4px 0 0;white-space:pre-wrap;color:#1e3a8a;"><%= r.text %></p>
+                      <span style="font-size:.72rem;color:#93c5fd;"><%= new Date(r.createdAt).toLocaleString('el-GR') %></span>
+                    </div>
+                  <% }) %>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <%# ── New ticket form ── %>
+        <h3 style="font-size:.9rem;margin-bottom:10px;"><%= t('admin.supportNewTicket') %></h3>
+        <form method="POST" action="/admin/tickets/new" style="display:flex;flex-direction:column;gap:12px;max-width:600px;">
+          <label style="font-size:.86rem;display:flex;flex-direction:column;gap:4px;">
+            <%= t('admin.supportCategory') %>
+            <select name="category" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;">
+              <option value="product_change">🛍 Αλλαγή προϊόντων / περιεχομένου</option>
+              <option value="design_change">🎨 Αλλαγή σχεδιασμού / theme</option>
+              <option value="billing">💳 Τιμολόγηση / συνδρομή</option>
+              <option value="technical">🔧 Τεχνικό πρόβλημα</option>
+              <option value="general">💬 Γενική ερώτηση</option>
+            </select>
+          </label>
+          <label style="font-size:.86rem;display:flex;flex-direction:column;gap:4px;">
+            <%= t('admin.supportSubject') %>
+            <input type="text" name="subject" required placeholder="π.χ. Θέλω να προσθέσω 3 νέα προϊόντα" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;" />
+          </label>
+          <label style="font-size:.86rem;display:flex;flex-direction:column;gap:4px;">
+            <%= t('admin.supportMessage') %>
+            <textarea name="message" required rows="5" placeholder="Περιγράψτε αναλυτικά τι χρειάζεστε. Αν έχετε εικόνες, στείλτε τες και στο support@thronoschain.org." style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;resize:vertical;"></textarea>
+          </label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" style="flex:0 0 180px;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;" />
+            <button type="submit" class="button" style="white-space:nowrap;">📨 <%= t('admin.supportSend') %></button>
+          </div>
+        </form>
+        <p style="margin-top:14px;font-size:.78rem;color:#9ca3af;">
+          Μπορείτε επίσης να επικοινωνήσετε απευθείας: <a href="mailto:support@thronoschain.org" style="color:#4338ca;">support@thronoschain.org</a>
+        </p>
       </section>
 
     </main>

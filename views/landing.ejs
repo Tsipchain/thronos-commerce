@@ -212,19 +212,67 @@
                 <li><%= f %></li>
               <% }) %>
             </ul>
-            <a href="#contact" class="btn-plan" onclick="document.getElementById('sel-package').value='<%= pkg.id %>'">
-              Ξεκινήστε →
+            <%# Primary: direct Stripe buy %>
+            <button type="button" class="btn-plan"
+                    onclick="openBuyModal('<%= pkg.id %>', '<%= pkg.title %>', '<%= pkg.price %>')">
+              💳 Αγορά τώρα
+            </button>
+            <%# Secondary: contact form %>
+            <a href="#contact" style="display:block;text-align:center;font-size:.78rem;color:#64748b;margin-top:8px;text-decoration:underline;"
+               onclick="document.getElementById('sel-package').value='<%= pkg.id %>'">
+              Στείλτε αίτημα →
             </a>
           </div>
         <% }) %>
       </div>
     </section>
 
+    <%# ── Quick-buy modal ── %>
+    <div id="buy-modal" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:16px;padding:32px 28px;max-width:440px;width:94%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <h3 id="bm-title" style="margin:0 0 4px;font-size:1.15rem;">Αγορά πακέτου</h3>
+        <p id="bm-price" style="margin:0 0 20px;color:#4338ca;font-weight:700;font-size:1.1rem;"></p>
+        <form method="POST" action="/thronos-commerce/subscribe" id="buy-form">
+          <input type="hidden" name="packageId" id="bm-pkg" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <input type="text" name="name" placeholder="Ονοματεπώνυμο *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
+            <input type="email" name="email" placeholder="Email *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <input type="text" name="phone" placeholder="Κινητό *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
+            <input type="text" name="brand" placeholder="Brand / επιχείρηση *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
+          </div>
+          <input type="text" name="domain" placeholder="Domain (π.χ. myshop.gr)" style="width:100%;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;box-sizing:border-box;margin-bottom:14px;" />
+          <button type="submit" style="width:100%;padding:13px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;">💳 Πληρωμή με κάρτα →</button>
+          <button type="button" onclick="closeBuyModal()" style="width:100%;padding:9px;margin-top:8px;background:transparent;border:1px solid #e2e8f0;border-radius:8px;font-size:.86rem;color:#64748b;cursor:pointer;">Ακύρωση</button>
+        </form>
+        <p style="margin:10px 0 0;font-size:.75rem;color:#9ca3af;text-align:center;">🔒 Ασφαλής πληρωμή μέσω Stripe. Δεν αποθηκεύουμε στοιχεία κάρτας.</p>
+      </div>
+    </div>
+    <script>
+      function openBuyModal(pkgId, title, price) {
+        document.getElementById('bm-pkg').value   = pkgId;
+        document.getElementById('bm-title').textContent = 'Αγορά: ' + title;
+        document.getElementById('bm-price').textContent = price + ' € / μήνα';
+        const m = document.getElementById('buy-modal');
+        m.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+      function closeBuyModal() {
+        document.getElementById('buy-modal').style.display = 'none';
+        document.body.style.overflow = '';
+      }
+      document.getElementById('buy-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeBuyModal();
+      });
+      document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeBuyModal(); });
+    </script>
+
     <%# ── Contact / request form ── %>
     <section class="lp-contact" id="contact">
       <div class="lp-contact-inner">
         <h2>Ξεκινήστε σήμερα</h2>
-        <p class="sub">Συμπληρώστε τη φόρμα και η ομάδα μας θα επικοινωνήσει μαζί σας εντός 24 ωρών.</p>
+        <p class="sub">Ή αποστείλτε αίτημα για να επικοινωνήσουμε μαζί σας εντός 24 ωρών.</p>
 
         <% if (message) { %><div class="lp-success">✓ <%= message %></div><% } %>
 
