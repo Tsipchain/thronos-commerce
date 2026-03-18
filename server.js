@@ -505,7 +505,10 @@ const ROOT_ADMIN_PASSWORD = process.env.THRONOS_ROOT_ADMIN_PASSWORD || '';
 
 function verifyRootPassword(plain) {
   if (!ROOT_ADMIN_PASSWORD) return false;
-  return (plain || '') === ROOT_ADMIN_PASSWORD;
+  const a = Buffer.from(plain || '');
+  const b = Buffer.from(ROOT_ADMIN_PASSWORD);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 // Seed a new tenant's files from a template tenant (default: 'demo')
@@ -778,6 +781,19 @@ const favUpload = multer({
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tenants', express.static(TENANTS_DIR));
 // Raw body for Stripe webhook signature verification (must be before urlencoded)
@@ -976,7 +992,7 @@ app.post('/checkout', async (req, res) => {
     return res.status(400).send(err.message);
   }
 
-  const orderId = Date.now().toString();
+  const orderId = Date.now().toString() + '_' + crypto.randomBytes(6).toString('hex');
   const order = {
     id: orderId,
     tenantId: req.tenant.id,
@@ -1018,7 +1034,7 @@ app.post('/checkout', async (req, res) => {
     if (stripe) {
       try {
         // Save pending order before redirecting to Stripe
-        const pendingId = `po_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const pendingId = `po_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
         const pending   = loadJson(req.tenantPaths.pendingOrders, {});
         pending[pendingId] = { order, enrichedItems };
         saveJson(req.tenantPaths.pendingOrders, pending);
@@ -1934,7 +1950,7 @@ app.post('/thronos-commerce/subscribe', async (req, res) => {
     return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
   }
 
-  const pendingId = `psub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pendingId = `psub_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   const pending   = loadJson(PENDING_SUBS_FILE, {});
   pending[pendingId] = { ...leadData, pendingId };
   saveJson(PENDING_SUBS_FILE, pending);
@@ -2027,7 +2043,7 @@ app.post('/admin/subscribe/renew', async (req, res) => {
   const price     = PACKAGE_PRICES[plan] || 49;
   const pkg       = getLandingPackages().find((p) => p.id === plan);
 
-  const pendingId = `pren_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pendingId = `pren_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   const pending   = loadJson(PENDING_SUBS_FILE, {});
   pending[pendingId] = { tenantId: req.tenant.id, plan, price, pendingId };
   saveJson(PENDING_SUBS_FILE, pending);
@@ -2133,8 +2149,7 @@ app.post('/admin/tickets/new', async (req, res) => {
 // Root admin: add reply to ticket
 app.post('/root/tickets/reply', async (req, res) => {
   const { password, tenantId, ticketId, replyText } = req.body;
-  const ROOT_PASS = process.env.ROOT_ADMIN_PASSWORD || 'thronos-root-2024';
-  if (password !== ROOT_PASS) return res.redirect('/root/tenants?error=wrong_password');
+  if (!verifyRootPassword(password)) return res.redirect('/root/tenants?error=wrong_password');
 
   const tenantPaths = tenantPaths(tenantId);
   const tickets = loadJson(tenantPaths.tickets, []);
@@ -2151,8 +2166,7 @@ app.post('/root/tickets/reply', async (req, res) => {
 // Root admin: close ticket
 app.post('/root/tickets/close', async (req, res) => {
   const { password, tenantId, ticketId } = req.body;
-  const ROOT_PASS = process.env.ROOT_ADMIN_PASSWORD || 'thronos-root-2024';
-  if (password !== ROOT_PASS) return res.redirect('/root/tenants?error=wrong_password');
+  if (!verifyRootPassword(password)) return res.redirect('/root/tenants?error=wrong_password');
 
   const tenantPaths = tenantPaths(tenantId);
   const tickets = loadJson(tenantPaths.tickets, []);
@@ -2399,7 +2413,12 @@ app.post('/stripe/webhook', async (req, res) => {
       return res.status(400).json({ error: err.message });
     }
   } else {
-    // No secret configured — accept raw JSON (dev/testing)
+    // In production, webhook secret is required — reject unverified events
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+    // Dev/testing only — accept raw JSON
     try {
       event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
     } catch (err) {
