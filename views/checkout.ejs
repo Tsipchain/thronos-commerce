@@ -75,6 +75,26 @@
         display: inline-block; margin-bottom: 18px;
         font-size: .86rem; color: var(--primary-color, #4f46e5);
       }
+      .auth-links {
+        display: flex; gap: 12px; margin: 8px 0 18px;
+        font-size: .85rem;
+      }
+      .auth-note {
+        margin: 0 0 14px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: .84rem;
+      }
+      .auth-note.info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+      }
+      .auth-note.warn {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+      }
     </style>
   </head>
   <body>
@@ -97,7 +117,22 @@
       <%# ── Left: Form ── %>
       <section class="checkout-form-section">
         <a href="/" class="back-link">← <%= t('checkout.backToStore') %></a>
+        <div class="auth-links">
+          <% if (!user) { %>
+            <a href="/login">Login</a>
+            <a href="/signup">Signup</a>
+          <% } else { %>
+            <a href="/account">My Account</a>
+            <a href="/my-orders">My Orders</a>
+            <a href="/logout">Logout</a>
+          <% } %>
+        </div>
         <h2><%= t('checkout.pageTitle') %></h2>
+        <% if (user) { %>
+          <p class="auth-note info">Συνδεδεμένος ως <strong><%= user.email %></strong>. Το email συμπληρώθηκε αυτόματα.</p>
+        <% } else { %>
+          <p class="auth-note warn">Κάνε εγγραφή για να έχεις πρόσβαση στα DIY videos.</p>
+        <% } %>
 
         <form id="checkout-form" method="POST" action="/checkout">
           <input type="hidden" name="cartJson" id="cart-json-input" value="" />
@@ -109,7 +144,7 @@
             </label>
             <label>
               <%= t('checkout.email') %> *
-              <input type="email" name="email" required />
+              <input type="email" name="email" required value="<%= user ? user.email : '' %>" <%= user ? 'readonly' : '' %> />
             </label>
           </div>
 
