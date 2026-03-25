@@ -1,309 +1,139 @@
 <!DOCTYPE html>
 <html lang="el">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thronos Commerce — Multi-tenant E-commerce Platform</title>
-    <meta name="description" content="Ανοίξτε το online κατάστημά σας σε 24 ώρες. Διαχείριση, digital products, Stripe πληρωμές και πολλά άλλα." />
-    <link rel="stylesheet" href="/styles.css" />
-    <style>
-      * { box-sizing: border-box; }
-      body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f8fafc; color: #1e293b; }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thronos Commerce | Multi-tenant Commerce Platform</title>
+  <meta name="description" content="Thronos Commerce: πλατφόρμα για multi-tenant e-shop, preview πριν το live, custom themes και managed ops." />
+  <style>
+    :root{--bg:#0a1020;--bg2:#121a33;--card:#121a2b;--text:#e5e7eb;--muted:#9ca3af;--brand:#7c3aed;--accent:#22d3ee}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:linear-gradient(180deg,#090f1e,#0f172a);color:var(--text)}
+    .wrap{max-width:1140px;margin:0 auto;padding:0 20px}.section{padding:72px 0;border-top:1px solid rgba(255,255,255,.06)}
+    .nav{position:sticky;top:0;z-index:20;background:rgba(9,15,30,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(255,255,255,.08)}
+    .nav-in{display:flex;align-items:center;justify-content:space-between;height:72px;gap:16px}.brand{font-weight:800;letter-spacing:.02em}
+    .links{display:flex;gap:16px;flex-wrap:wrap}.links a{color:#cbd5e1;text-decoration:none;font-size:.92rem}
+    .btns{display:flex;gap:10px}.btn{padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:.85rem}
+    .btn.ghost{border:1px solid #475569;color:#e2e8f0}.btn.pri{background:linear-gradient(90deg,var(--brand),#4f46e5);color:#fff}
+    .hero{padding:88px 0 80px}.badge{display:inline-block;background:rgba(34,211,238,.15);border:1px solid rgba(34,211,238,.35);padding:5px 12px;border-radius:999px;font-size:.78rem;color:#67e8f9}
+    h1{font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;margin:18px 0 14px}.lead{color:#cbd5e1;font-size:1.05rem;max-width:860px;line-height:1.65}
+    .cta{margin-top:28px;display:flex;gap:12px;flex-wrap:wrap}.cta .btn{font-size:.95rem;padding:13px 18px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px}
+    .card h3{margin:0 0 8px;font-size:1.02rem}.card p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.55}
+    .section h2{margin:0 0 8px;font-size:1.9rem}.section .intro{color:#94a3b8;max-width:780px;line-height:1.6;margin:0 0 24px}
+    .pkg .price{font-size:1.8rem;font-weight:800}.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}.step{background:#0f1b33;border:1px solid rgba(124,58,237,.28);padding:16px;border-radius:12px}
+    .step b{display:block;margin-bottom:6px}.preview-links{display:flex;gap:10px;flex-wrap:wrap}.preview-links a{background:#0f1b33;border:1px solid #334155;color:#e2e8f0;text-decoration:none;padding:9px 12px;border-radius:10px;font-size:.86rem}
+    .cta-final{background:linear-gradient(135deg,rgba(124,58,237,.22),rgba(34,211,238,.12));border:1px solid rgba(124,58,237,.35);border-radius:18px;padding:32px}
+    footer{padding:34px 0 40px;border-top:1px solid rgba(255,255,255,.08);color:#94a3b8}
+    @media(max-width:840px){.links{display:none}.btns .btn{padding:9px 11px}}
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <div class="brand">Thronos Commerce</div>
+      <nav class="links">
+        <a href="#features">Features</a><a href="#packages">Packages</a><a href="#how">How it works</a><a href="#preview">Demo / Preview</a><a href="#contact">Contact</a>
+      </nav>
+      <div class="btns">
+        <a class="btn ghost" href="/login">Login</a>
+        <a class="btn ghost" href="/root/tenants">Admin</a>
+        <a class="btn ghost" href="#preview">Demo tenants</a>
+        <a class="btn pri" href="#contact">Request a Store</a>
+      </div>
+    </div>
+  </header>
 
-      /* ── Hero ── */
-      .lp-hero {
-        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
-        color: #fff; text-align: center; padding: 80px 20px 90px;
-      }
-      .lp-hero .badge {
-        display: inline-block; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
-        border-radius: 20px; padding: 4px 14px; font-size: .78rem; font-weight: 600;
-        letter-spacing: .04em; margin-bottom: 20px; text-transform: uppercase;
-      }
-      .lp-hero h1 {
-        font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; margin: 0 0 18px;
-        line-height: 1.15; letter-spacing: -.02em;
-      }
-      .lp-hero h1 span { color: #a5b4fc; }
-      .lp-hero p {
-        font-size: clamp(1rem, 2vw, 1.2rem); color: rgba(255,255,255,.8);
-        max-width: 620px; margin: 0 auto 36px; line-height: 1.6;
-      }
-      .lp-hero-cta {
-        display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center;
-      }
-      .btn-hero {
-        display: inline-block; padding: 14px 32px; border-radius: 8px;
-        font-weight: 700; font-size: 1rem; cursor: pointer; text-decoration: none;
-        transition: opacity .15s, transform .1s;
-      }
-      .btn-hero:active { transform: scale(.97); }
-      .btn-hero.primary { background: #fff; color: #4338ca; }
-      .btn-hero.primary:hover { opacity: .9; }
-      .btn-hero.outline { border: 2px solid rgba(255,255,255,.6); color: #fff; }
-      .btn-hero.outline:hover { background: rgba(255,255,255,.1); }
-
-      /* ── Features strip ── */
-      .lp-features {
-        background: #fff; border-bottom: 1px solid #e2e8f0;
-        display: flex; flex-wrap: wrap; justify-content: center; gap: 0;
-      }
-      .lp-feature-item {
-        flex: 1 1 200px; padding: 22px 24px; text-align: center;
-        border-right: 1px solid #e2e8f0; min-width: 160px;
-      }
-      .lp-feature-item:last-child { border-right: none; }
-      .lp-feature-item .icon { font-size: 1.8rem; margin-bottom: 6px; }
-      .lp-feature-item p { font-size: .82rem; color: #64748b; margin: 4px 0 0; line-height: 1.4; }
-      .lp-feature-item strong { display: block; font-size: .9rem; color: #1e293b; margin-top: 2px; }
-
-      /* ── Pricing section ── */
-      .lp-pricing {
-        max-width: 1100px; margin: 0 auto; padding: 70px 20px 60px;
-      }
-      .lp-pricing h2 {
-        text-align: center; font-size: 2rem; font-weight: 800; margin: 0 0 10px;
-      }
-      .lp-pricing .sub {
-        text-align: center; color: #64748b; font-size: 1rem; margin: 0 0 48px;
-      }
-      .pricing-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
-      }
-      .pricing-card {
-        background: #fff; border: 2px solid #e2e8f0; border-radius: 16px;
-        padding: 28px 24px 24px; display: flex; flex-direction: column;
-        position: relative; transition: box-shadow .2s, border-color .2s;
-      }
-      .pricing-card:hover { box-shadow: 0 8px 32px rgba(67,56,202,.1); border-color: #c7d2fe; }
-      .pricing-card.popular {
-        border-color: #4338ca; box-shadow: 0 4px 24px rgba(67,56,202,.15);
-      }
-      .popular-badge {
-        position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-        background: #4338ca; color: #fff; font-size: .72rem; font-weight: 700;
-        padding: 3px 14px; border-radius: 20px; white-space: nowrap; letter-spacing: .04em;
-        text-transform: uppercase;
-      }
-      .pricing-card h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 6px; color: #1e293b; }
-      .pricing-card .price-row {
-        display: flex; align-items: baseline; gap: 4px; margin: 8px 0 4px;
-      }
-      .price-amount { font-size: 2.4rem; font-weight: 800; color: #1e293b; }
-      .price-note { font-size: .84rem; color: #64748b; }
-      .pricing-card .desc { font-size: .83rem; color: #64748b; margin: 0 0 18px; line-height: 1.5; min-height: 50px; }
-      .pricing-card ul {
-        list-style: none; padding: 0; margin: 0 0 22px; flex: 1;
-      }
-      .pricing-card ul li {
-        font-size: .84rem; color: #374151; padding: 5px 0;
-        border-bottom: 1px solid #f1f5f9; display: flex; gap: 8px; align-items: flex-start;
-      }
-      .pricing-card ul li:last-child { border: none; }
-      .pricing-card ul li::before { content: '✓'; color: #4338ca; font-weight: 700; flex-shrink: 0; }
-      .btn-plan {
-        display: block; width: 100%; padding: 12px; border-radius: 8px;
-        text-align: center; font-weight: 700; font-size: .95rem; cursor: pointer;
-        text-decoration: none; border: 2px solid #4338ca; color: #4338ca;
-        background: transparent; transition: background .15s, color .15s;
-      }
-      .btn-plan:hover, .pricing-card.popular .btn-plan {
-        background: #4338ca; color: #fff;
-      }
-      .pricing-card.popular .btn-plan:hover { opacity: .88; }
-
-      /* ── Contact form ── */
-      .lp-contact {
-        background: #fff; border-top: 1px solid #e2e8f0;
-        padding: 60px 20px 70px;
-      }
-      .lp-contact-inner { max-width: 680px; margin: 0 auto; }
-      .lp-contact h2 { font-size: 1.8rem; font-weight: 800; margin: 0 0 8px; text-align: center; }
-      .lp-contact .sub { text-align: center; color: #64748b; margin: 0 0 36px; }
-      .contact-form { display: flex; flex-direction: column; gap: 14px; }
-      .contact-form input, .contact-form textarea, .contact-form select {
-        padding: 10px 13px; border: 1.5px solid #e2e8f0; border-radius: 7px;
-        font-size: .9rem; font-family: inherit; width: 100%;
-        transition: border-color .15s;
-      }
-      .contact-form input:focus, .contact-form textarea:focus, .contact-form select:focus {
-        outline: none; border-color: #4338ca;
-      }
-      .contact-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-      @media (max-width: 520px) { .contact-form-row { grid-template-columns: 1fr; } }
-      .btn-contact {
-        display: block; width: 100%; padding: 14px; background: #4338ca;
-        color: #fff; border: none; border-radius: 8px; font-size: 1rem;
-        font-weight: 700; cursor: pointer; transition: opacity .15s;
-      }
-      .btn-contact:hover { opacity: .88; }
-      .lp-success {
-        background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;
-        border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; font-size: .9rem;
-      }
-
-      /* ── Footer ── */
-      .lp-footer {
-        text-align: center; padding: 24px 20px; background: #1e1b4b; color: rgba(255,255,255,.5);
-        font-size: .8rem;
-      }
-      .lp-footer a { color: rgba(255,255,255,.7); }
-    </style>
-  </head>
-  <body>
-
-    <%# ── Hero ── %>
-    <section class="lp-hero">
-      <div class="badge">🚀 Thronos Commerce</div>
-      <h1>E-commerce <span>χωρίς WordPress</span>,<br>χωρίς κόπο.</h1>
-      <p>Multi-tenant platform για brands, creators & DIY επιχειρήσεις. Ανοίξτε το online κατάστημά σας σε 24 ώρες με Stripe, digital content και πλήρη admin panel.</p>
-      <div class="lp-hero-cta">
-        <a href="#pricing" class="btn-hero primary">Δείτε τα πακέτα →</a>
-        <a href="#contact" class="btn-hero outline">Επικοινωνήστε μαζί μας</a>
+  <main class="wrap">
+    <section class="hero">
+      <span class="badge">Multi-tenant Commerce Platform</span>
+      <h1>Χτίζουμε e-shop πλατφόρμες για brands, creators και DIY επιχειρήσεις</h1>
+      <p class="lead">Το Thronos Commerce στήνει multi-tenant καταστήματα με custom theme, admin panel, ψηφιακό περιεχόμενο, preview πριν το live launch και υποδομή έτοιμη για πωλήσεις.</p>
+      <div class="cta">
+        <a class="btn pri" href="#contact">Ζητήστε το δικό σας κατάστημα</a>
+        <a class="btn ghost" href="#preview">Δείτε preview παραδείγματα</a>
       </div>
     </section>
 
-    <%# ── Feature strip ── %>
-    <div class="lp-features">
-      <div class="lp-feature-item">
-        <div class="icon">🛒</div>
-        <strong>Admin Panel</strong>
-        <p>Προϊόντα, παραλλαγές, κατηγορίες & παραγγελίες σε ένα μέρος</p>
+    <section id="features" class="section">
+      <h2>Όχι άλλο πρόχειρο e-shop.</h2>
+      <p class="intro">Στήνουμε οργανωμένη πλατφόρμα για καταστήματα που θέλουν branding, έλεγχο, digital προϊόντα και καθαρή διαχείριση.</p>
+      <div class="grid">
+        <div class="card"><h3>Custom Tenant Stores</h3><p>Κάθε πελάτης αποκτά το δικό του κατάστημα με δικό του theme, domain, προϊόντα και διαχείριση.</p></div>
+        <div class="card"><h3>Preview πριν το DNS</h3><p>Το κατάστημα μπορεί να στηθεί, να δοκιμαστεί και να παραδοθεί πριν ενεργοποιηθεί το τελικό domain.</p></div>
+        <div class="card"><h3>Admin Panel για μη προγραμματιστές</h3><p>Ο ιδιοκτήτης διαχειρίζεται προϊόντα, κατηγορίες, εικόνες, παραγγελίες και περιεχόμενο χωρίς να γράφει κώδικα.</p></div>
+        <div class="card"><h3>Digital Content & DIY Videos</h3><p>Υποστήριξη για PDF, video content και gated πρόσβαση μόνο για αγοραστές ή συνδεδεμένους χρήστες.</p></div>
+        <div class="card"><h3>Multi-tenant υποδομή</h3><p>Μία κεντρική πλατφόρμα για πολλά καταστήματα με σαφή διαχωρισμό tenants, admin και χρηστών.</p></div>
+        <div class="card"><h3>Support & Managed Ops</h3><p>Από self-service μέχρι full managed λειτουργία, ανάλογα με τις ανάγκες του πελάτη.</p></div>
       </div>
-      <div class="lp-feature-item">
-        <div class="icon">💳</div>
-        <strong>Stripe Payments</strong>
-        <p>Online πληρωμές με κάρτα άμεσα, με τα δικά σας Stripe keys</p>
-      </div>
-      <div class="lp-feature-item">
-        <div class="icon">🎁</div>
-        <strong>Digital Products</strong>
-        <p>Πουλήστε PDF εγχειρίδια & βίντεο οδηγιών με gated access</p>
-      </div>
-      <div class="lp-feature-item">
-        <div class="icon">📦</div>
-        <strong>Multi-variant</strong>
-        <p>Παραλλαγές προϊόντων με δικές τους τιμές, απόθεμα & περιεχόμενο</p>
-      </div>
-      <div class="lp-feature-item">
-        <div class="icon">⛓</div>
-        <strong>Web3 Ready</strong>
-        <p>On-chain proof of orders, wallet integration, referral system</p>
-      </div>
-    </div>
+    </section>
 
-    <%# ── Pricing ── %>
-    <section class="lp-pricing" id="pricing">
-      <h2>Τιμοκατάλογος υπηρεσιών</h2>
-      <p class="sub">Επιλέξτε το πακέτο που ταιριάζει στη επιχείρησή σας. Χωρίς setup fees, χωρίς δεσμεύσεις.</p>
-
-      <div class="pricing-grid">
-        <% packages.forEach(function(pkg) { %>
-          <div class="pricing-card <%= pkg.popular ? 'popular' : '' %>">
-            <% if (pkg.popular) { %><div class="popular-badge">⭐ Πιο δημοφιλές</div><% } %>
+    <section id="packages" class="section">
+      <h2>Πακέτα συνεργασίας</h2>
+      <p class="intro">Από self-service μέχρι πλήρη διαχείριση, διαμορφώνουμε το κατάστημα και το επίπεδο υποστήριξης σύμφωνα με το μοντέλο λειτουργίας σας.</p>
+      <div class="grid">
+        <% packages.forEach(function(pkg){ %>
+          <article class="card pkg">
             <h3><%= pkg.title %></h3>
-            <div class="price-row">
-              <span class="price-amount"><%= pkg.price %> €</span>
-              <span class="price-note"><%= pkg.priceNote %></span>
-            </div>
-            <p class="desc"><%= pkg.description %></p>
-            <ul>
-              <% pkg.features.forEach(function(f) { %>
-                <li><%= f %></li>
-              <% }) %>
+            <div class="price"><%= pkg.price %>€ <small style="font-size:.8rem;color:#94a3b8;"><%= pkg.priceNote %></small></div>
+            <p style="margin:8px 0 12px;color:#94a3b8;"><%= pkg.description %></p>
+            <ul style="margin:0;padding-left:18px;color:#cbd5e1;line-height:1.6;font-size:.9rem;">
+              <% pkg.features.slice(0,4).forEach(function(f){ %><li><%= f %></li><% }) %>
             </ul>
-            <%# Primary: direct Stripe buy %>
-            <button type="button" class="btn-plan"
-                    onclick="openBuyModal('<%= pkg.id %>', '<%= pkg.title %>', '<%= pkg.price %>')">
-              💳 Αγορά τώρα
-            </button>
-            <%# Secondary: contact form %>
-            <a href="#contact" style="display:block;text-align:center;font-size:.78rem;color:#64748b;margin-top:8px;text-decoration:underline;"
-               onclick="document.getElementById('sel-package').value='<%= pkg.id %>'">
-              Στείλτε αίτημα →
-            </a>
-          </div>
+          </article>
         <% }) %>
       </div>
     </section>
 
-    <%# ── Quick-buy modal ── %>
-    <div id="buy-modal" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);align-items:center;justify-content:center;">
-      <div style="background:#fff;border-radius:16px;padding:32px 28px;max-width:440px;width:94%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-        <h3 id="bm-title" style="margin:0 0 4px;font-size:1.15rem;">Αγορά πακέτου</h3>
-        <p id="bm-price" style="margin:0 0 20px;color:#4338ca;font-weight:700;font-size:1.1rem;"></p>
-        <form method="POST" action="/thronos-commerce/subscribe" id="buy-form">
-          <input type="hidden" name="packageId" id="bm-pkg" />
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-            <input type="text" name="name" placeholder="Ονοματεπώνυμο *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
-            <input type="email" name="email" placeholder="Email *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-            <input type="text" name="phone" placeholder="Κινητό *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
-            <input type="text" name="brand" placeholder="Brand / επιχείρηση *" required style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;" />
-          </div>
-          <input type="text" name="domain" placeholder="Domain (π.χ. myshop.gr)" style="width:100%;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.88rem;box-sizing:border-box;margin-bottom:14px;" />
-          <button type="submit" style="width:100%;padding:13px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;">💳 Πληρωμή με κάρτα →</button>
-          <button type="button" onclick="closeBuyModal()" style="width:100%;padding:9px;margin-top:8px;background:transparent;border:1px solid #e2e8f0;border-radius:8px;font-size:.86rem;color:#64748b;cursor:pointer;">Ακύρωση</button>
-        </form>
-        <p style="margin:10px 0 0;font-size:.75rem;color:#9ca3af;text-align:center;">🔒 Ασφαλής πληρωμή μέσω Stripe. Δεν αποθηκεύουμε στοιχεία κάρτας.</p>
-      </div>
-    </div>
-    <script>
-      function openBuyModal(pkgId, title, price) {
-        document.getElementById('bm-pkg').value   = pkgId;
-        document.getElementById('bm-title').textContent = 'Αγορά: ' + title;
-        document.getElementById('bm-price').textContent = price + ' € / μήνα';
-        const m = document.getElementById('buy-modal');
-        m.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-      }
-      function closeBuyModal() {
-        document.getElementById('buy-modal').style.display = 'none';
-        document.body.style.overflow = '';
-      }
-      document.getElementById('buy-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeBuyModal();
-      });
-      document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeBuyModal(); });
-    </script>
-
-    <%# ── Contact / request form ── %>
-    <section class="lp-contact" id="contact">
-      <div class="lp-contact-inner">
-        <h2>Ξεκινήστε σήμερα</h2>
-        <p class="sub">Ή αποστείλτε αίτημα για να επικοινωνήσουμε μαζί σας εντός 24 ωρών.</p>
-
-        <% if (message) { %><div class="lp-success">✓ <%= message %></div><% } %>
-
-        <form method="POST" action="/thronos-commerce/offer" class="contact-form">
-          <div class="contact-form-row">
-            <input type="text" name="name" placeholder="Ονοματεπώνυμο *" required />
-            <input type="email" name="email" placeholder="Email *" required />
-          </div>
-          <div class="contact-form-row">
-            <input type="text" name="phone" placeholder="Κινητό τηλέφωνο *" required />
-            <input type="text" name="brand" placeholder="Όνομα brand / επιχείρησης *" required />
-          </div>
-          <div class="contact-form-row">
-            <input type="text" name="domain" placeholder="Domain (π.χ. myshop.gr)" />
-            <input type="number" name="products" min="1" placeholder="Αριθμός προϊόντων" />
-          </div>
-          <select name="packageId" id="sel-package" required>
-            <option value="">— Επιλέξτε πακέτο —</option>
-            <% packages.forEach(function(pkg) { %>
-              <option value="<%= pkg.id %>"><%= pkg.title %> — <%= pkg.price %> € / μήνα</option>
-            <% }) %>
-          </select>
-          <textarea name="message" rows="4" placeholder="Πείτε μας λίγο για την επιχείρησή σας, τι πουλάτε και τι χρειάζεστε..."></textarea>
-          <button type="submit" class="btn-contact">Αποστολή αιτήματος →</button>
-        </form>
+    <section id="how" class="section">
+      <h2>Πώς δουλεύει</h2>
+      <p class="intro">Ξεκινάμε με tenant setup, συνεχίζουμε σε preview mode για έλεγχο και αλλαγές, περνάμε προϊόντα και περιεχόμενο και στο τέλος βγάζουμε το κατάστημα live στο δικό του domain.</p>
+      <div class="steps">
+        <div class="step"><b>1. Στήσιμο tenant</b><span>Ορίζουμε tenant, branding, theme και βασική δομή καταστήματος.</span></div>
+        <div class="step"><b>2. Preview & αλλαγές</b><span>Ο πελάτης βλέπει το κατάστημά του σε preview mode και ζητά αλλαγές πριν το live.</span></div>
+        <div class="step"><b>3. Προϊόντα & περιεχόμενο</b><span>Περνά προϊόντα, κατηγορίες, εικόνες, digital content και admin ρυθμίσεις.</span></div>
+        <div class="step"><b>4. Go Live</b><span>Συνδέεται το domain, ολοκληρώνεται ο έλεγχος και το κατάστημα βγαίνει live.</span></div>
       </div>
     </section>
 
-    <footer class="lp-footer">
-      <p>© <%= new Date().getFullYear() %> Thronos Commerce &mdash; Multi-tenant E-commerce Platform</p>
-    </footer>
+    <section id="preview" class="section">
+      <h2>Preview πριν το live</h2>
+      <p class="intro">Κάθε κατάστημα μπορεί να στηθεί και να δοκιμαστεί σε preview mode πριν ολοκληρωθεί η σύνδεση του domain. Αυτό επιτρέπει γρήγορη παράδοση, δοκιμές και διορθώσεις χωρίς να περιμένουμε DNS αλλαγές.</p>
+      <div class="preview-links">
+        <a href="/t/demo" target="_blank">Demo tenant preview</a>
+        <a href="/t/fashionmm" target="_blank">Fashion preview</a>
+        <a href="/t/eukolakis" target="_blank">Eukolakis preview</a>
+      </div>
+    </section>
 
-  </body>
+    <section id="contact" class="section">
+      <% if (message) { %><div class="card" style="border-color:#14532d;background:#052e16;color:#bbf7d0;margin-bottom:16px;"><%= message %></div><% } %>
+      <div class="cta-final">
+        <h2 style="margin-top:0;">Θέλετε το δικό σας κατάστημα;</h2>
+        <p class="intro" style="margin-bottom:18px;">Αναλαμβάνουμε από το αρχικό στήσιμο μέχρι το live launch, με custom theme, preview access και admin panel έτοιμο για χρήση.</p>
+        <div class="cta" style="margin-top:0;">
+          <a class="btn pri" href="#offer-form">Ζητήστε προσφορά</a>
+          <a class="btn ghost" href="mailto:support@thronoschain.org">Μιλήστε μαζί μας</a>
+        </div>
+      </div>
+
+      <form id="offer-form" method="POST" action="/thronos-commerce/offer" class="card" style="margin-top:18px;display:grid;gap:10px;">
+        <input name="name" placeholder="Ονοματεπώνυμο" required style="padding:11px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#fff;" />
+        <input name="email" type="email" placeholder="Email" required style="padding:11px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#fff;" />
+        <input name="brand" placeholder="Brand / Επιχείρηση" required style="padding:11px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#fff;" />
+        <select name="packageId" style="padding:11px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#fff;">
+          <% packages.forEach(function(pkg){ %><option value="<%= pkg.id %>"><%= pkg.title %></option><% }) %>
+        </select>
+        <button class="btn pri" type="submit" style="border:none;">Ζητήστε το δικό σας κατάστημα</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div><strong>Thronos Commerce</strong><div>Platform / Services / Contact</div></div>
+      <div><a href="/root/tenants" style="color:#cbd5e1;">Root Admin</a></div>
+      <div>© <%= new Date().getFullYear() %> Thronos Commerce</div>
+    </div>
+  </footer>
+</body>
 </html>

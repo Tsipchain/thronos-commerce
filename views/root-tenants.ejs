@@ -144,6 +144,7 @@
                 <th>Ενεργό</th>
                 <th>Δημιουργία</th>
                 <th>Συνδρομή</th>
+                <th>Preview URLs</th>
                 <th>Admin hash</th>
               </tr>
             </thead>
@@ -181,6 +182,10 @@
                     </span>
                     <span style="font-size:.7rem;color:#9ca3af;display:block;margin-top:2px;"><%= sub.expiryStr %></span>
                   <% } else { %><span style="color:#ccc;font-size:.8rem;">–</span><% } %>
+                </td>
+                <td style="font-size:.75rem;">
+                  <div><a href="/t/<%= t.id %>" target="_blank">Store Preview</a></div>
+                  <div><a href="/t/<%= t.id %>/admin/login" target="_blank">Admin Preview</a></div>
                 </td>
                 <td style="font-size:0.74rem;color:#999;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                   <%= t.adminPasswordHash ? t.adminPasswordHash.slice(0, 20) + '…' : '–' %>
@@ -278,6 +283,9 @@
             <label>
               Template (αντιγραφή από)
               <select name="templateId">
+                <% (themeTemplates || []).forEach(function(tp) { %>
+                  <option value="<%= tp.id %>">template: <%= tp.id %></option>
+                <% }) %>
                 <% tenants.forEach(function(t) { %>
                   <option value="<%= t.id %>" <%= t.id === 'demo' ? 'selected' : '' %>><%= t.id %></option>
                 <% }) %>
@@ -317,6 +325,41 @@
             <button class="btn btn-primary" type="submit">+ Δημιουργία tenant</button>
           </div>
         </form>
+      </div>
+
+      <div class="card">
+        <h2>Templates / Theme Skeletons</h2>
+        <p class="helper">Αποθήκευση θέματος από tenant χωρίς προϊόντα/παραγγελίες/χρήστες.</p>
+        <form method="POST" action="/root/templates/create">
+          <div class="form-grid">
+            <label>
+              Tenant πηγή
+              <select name="tenantId" required>
+                <% tenants.forEach(function(t) { %><option value="<%= t.id %>"><%= t.id %></option><% }) %>
+              </select>
+            </label>
+            <label>
+              Template ID
+              <input type="text" name="templateId" placeholder="eukolakis-theme-v1" required pattern="[a-zA-Z0-9_-]+" />
+            </label>
+            <label>
+              Όνομα template
+              <input type="text" name="templateName" placeholder="Eukolakis Theme v1" />
+            </label>
+            <label>
+              Root κωδικός
+              <input type="password" name="rootPassword" required />
+            </label>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Αποθήκευση ως template</button></div>
+        </form>
+        <% if (themeTemplates && themeTemplates.length) { %>
+          <div style="margin-top:16px;font-size:.84rem;color:#374151;">
+            <% themeTemplates.forEach(function(tp) { %>
+              <div style="padding:6px 0;border-bottom:1px solid #eee;"><strong><%= tp.id %></strong> — <%= tp.name || tp.id %> (source: <%= tp.sourceTenantId %>)</div>
+            <% }) %>
+          </div>
+        <% } %>
       </div>
 
 

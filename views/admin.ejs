@@ -106,6 +106,11 @@
       .btn-xs { padding: 5px 12px; font-size: 0.8rem; background: #eee;
                 border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; }
       #logo-upload-status { font-size: 0.8rem; color: #555; margin-top: 4px; }
+      .logo-preview-frame { display:inline-flex; align-items:center; justify-content:center; min-width:120px; min-height:60px; margin-top:6px; }
+      .logo-preview-frame.is-dark { background:#111827; }
+      .logo-preview-frame.is-light { background:#f8fafc; border:1px solid #e5e7eb; }
+      .logo-preview-frame.is-auto { background:linear-gradient(135deg,#0f172a,#1f2937); }
+      .logo-preview-frame img { max-width: 220px; object-fit: contain; }
 
       /* ── Notifications section ── */
       .notif-section { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #ddd; }
@@ -113,6 +118,27 @@
       .checkbox-label { display: flex !important; flex-direction: row !important;
                         align-items: center; gap: 8px; cursor: pointer; }
       .checkbox-label input[type=checkbox] { width: auto; margin: 0; }
+      .admin-shell { display:grid; grid-template-columns: 250px 1fr; gap:16px; }
+      .admin-sidebar { border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff; position:sticky; top:10px; height:fit-content; }
+      .admin-sidebar a { display:block; padding:8px 10px; border-radius:8px; text-decoration:none; color:#111827; font-size:.86rem; }
+      .admin-sidebar a.active { background:#eef2ff; color:#3730a3; font-weight:700; }
+      .section-panel { display:none; }
+      .section-panel.active { display:block; }
+      .sidebar-toggle{display:none;margin-bottom:10px;}
+      @media (max-width: 900px){ .admin-shell{grid-template-columns:1fr;} .sidebar-toggle{display:inline-block;} .admin-sidebar{display:none;} .admin-shell.show-sidebar .admin-sidebar{display:block;} }
+      .cat-preview { width: 120px; height: 74px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; background: #f8fafc; }
+      .cat-upload-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size:.78rem; cursor:pointer; font-weight:600; }
+      .cat-remove-btn { background:#fff1f2; border-color:#fecdd3; color:#be123c; }
+      .cat-inline-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+      .cat-image-wrap { position: relative; display: inline-block; }
+      .cat-hover-actions {
+        position:absolute; inset:auto 6px 6px 6px; display:flex; gap:6px; opacity:0;
+        transition:opacity .15s ease-in-out;
+      }
+      .cat-image-wrap:hover .cat-hover-actions { opacity:1; }
+      .cat-helper-row { font-size:.76rem; color:#6b7280; margin-top:4px; }
+      .cat-upload-status { font-size:.82rem; margin:10px 0 14px; padding:8px 10px; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; color:#334155; display:none; }
+      .cat-meta { font-size:.76rem; color:#6b7280; margin-top:4px; line-height:1.3; }
     </style>
   </head>
   <body>
@@ -123,12 +149,19 @@
         &nbsp;·&nbsp;
         <%= t('admin.package') %>: <strong><%= tenant.supportTier %></strong>
         &nbsp;·&nbsp;
-        <a href="/admin" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
+        <a href="<%= withTenantLink('/admin') %>" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/admin/orders" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
+        <a href="<%= withTenantLink('/') %>" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
       </p>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="<%= withTenantLink('/admin') %>" class="button" style="font-size:.82rem;">💾 Αποθήκευση αλλαγών</a>
+        <a href="<%= withTenantLink('/') %>" class="button" style="font-size:.82rem;background:#111827;">👁️ Προβολή καταστήματος</a>
+        <% if (isPreviewMode) { %>
+          <span style="font-size:.8rem;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:6px 10px;border-radius:6px;">Preview tenant: <strong><%= tenant.id %></strong></span>
+        <% } %>
+      </div>
     </header>
 
     <main class="admin-layout">
@@ -162,7 +195,7 @@
         </div>
         <% if (subscription.isExpired || subscription.isExpiringSoon) { %>
         <div>
-          <form method="POST" action="/admin/subscribe/renew" style="display:inline-flex;gap:8px;align-items:center;">
+          <form method="POST" action="<%= withTenantLink('/admin/subscribe/renew') %>" style="display:inline-flex;gap:8px;align-items:center;">
             <input type="password" name="password" placeholder="Κωδικός admin" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.82rem;" required />
             <button type="submit" style="padding:7px 16px;background:#4338ca;color:#fff;border:none;border-radius:5px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">💳 Ανανέωση</button>
           </form>
@@ -171,29 +204,51 @@
       </div>
       <% } %>
 
-      <nav class="admin-tabs">
-        <a href="#tab-theme"><%= t('admin.tabTheme') %></a>
-        <a href="#tab-categories"><%= t('admin.tabCategories') %></a>
-        <a href="#tab-products"><%= t('admin.tabProducts') %></a>
-        <a href="#tab-upload"><%= t('admin.tabImages') %></a>
-        <a href="#tab-shipping"><%= t('admin.tabShipping') %></a>
-        <a href="#tab-notifications"><%= t('admin.tabNotifications') %></a>
-        <a href="#tab-inventory"><%= t('admin.tabInventory') %></a>
-        <a href="#tab-support">💬 <%= t('admin.tabSupport') %></a>
-        <a href="/admin/orders"><%= t('admin.tabOrders') %></a>
-      </nav>
+      <button class="button sidebar-toggle" type="button" onclick="document.querySelector('.admin-shell').classList.toggle('show-sidebar')">☰ Μενού</button>
+      <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a href="#tab-dashboard">📊 Dashboard</a>
+        <a href="#tab-theme">🎨 Branding</a>
+        <a href="#tab-homepage">🏠 Homepage</a>
+        <a href="#tab-categories">🗂️ Categories</a>
+        <a href="#tab-products">📦 Products</a>
+        <a href="#tab-upload">🖼️ Media</a>
+        <a href="<%= withTenantLink('/admin/orders') %>">🧾 Orders</a>
+        <a href="#tab-shipping">💳 Payments</a>
+        <a href="#tab-notifications">🔔 Notifications</a>
+        <a href="#tab-support">⚙️ Advanced</a>
+        <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
+      </aside>
+      <div class="admin-main">
+      <section id="tab-dashboard" class="admin-block section-panel">
+        <h2>Dashboard</h2>
+        <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
+      </section>
+      <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
+        <label style="font-size:.84rem;display:flex;align-items:center;gap:8px;">
+          <strong><%= lang === 'el' ? 'Γλώσσα περιεχομένου' : 'Content language' %>:</strong>
+          <select onchange="window.location.href=this.value" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;">
+            <% (contentLangs || ['el','en']).forEach(function(cl) { %>
+              <option value="<%= withTenantLink('/admin', { contentLang: cl, lang }) %>" <%= contentLang === cl ? 'selected' : '' %>><%= cl === 'el' ? 'Ελληνικά' : 'English' %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
 
 
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <form id="tab-theme" class="admin-block" method="POST" action="/admin/settings">
-        <h2><%= t('admin.themeTitle') %></h2>
+      <form id="tab-theme" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+        <h2>Store identity & εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
 
         <label><span><%= t('admin.storeName') %></span>
-          <input type="text" name="storeName" value="<%= config.storeName %>"
+          <input type="text" name="storeName_el" value="<%= resolveField(rawConfig.storeName, 'el') %>" placeholder="Ελληνικά"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="text" name="storeName_en" value="<%= resolveField(rawConfig.storeName, 'en') %>" placeholder="English"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Το όνομα που βλέπει ο πελάτης στο storefront.</small>
         </label>
 
         <label><span><%= t('admin.primaryColor') %></span>
@@ -228,8 +283,10 @@
         </label>
 
         <label><span><%= t('admin.heroTextLabel') %></span>
-          <textarea name="heroText" rows="3"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= config.heroText %></textarea>
+          <textarea name="heroText_el" rows="2" placeholder="Ελληνικά"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'el') %></textarea>
+          <textarea name="heroText_en" rows="2" placeholder="English"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'en') %></textarea>
         </label>
 
         <label><span><%= t('admin.web3DomainLabel') %></span>
@@ -239,8 +296,18 @@
 
         <label><span><%= t('admin.logoPath') %></span>
           <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
-                 placeholder="/logo.svg" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                 placeholder="/logo.svg" readonly />
+          <small class="helper">Το πεδίο ενημερώνεται αυτόματα από το upload λογότυπου.</small>
         </label>
+        <% if (config.logoPath) { %>
+          <% const logoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
+          <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
+          <div style="margin:-8px 0 10px;">
+            <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
+              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;" />
+            </div>
+          </div>
+        <% } %>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
           <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
@@ -305,6 +372,94 @@
                  value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
                  placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
+        <details style="margin:10px 0 14px;">
+          <summary style="cursor:pointer;font-weight:700;">Advanced theme settings</summary>
+          <p class="helper">Εσωτερικές ρυθμίσεις εμφάνισης. Συνήθως δεν χρειάζονται συχνές αλλαγές.</p>
+        <label><span>Διάταξη Header</span>
+          <select name="themeHeaderLayout" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default</option>
+            <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered logo + τίτλος</option>
+          </select>
+        </label>
+        <label><span>Branding mode</span>
+          <select name="themeBrandingMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Name</option>
+            <option value="logo_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'logo_only' ? 'selected' : '' %>>Logo only</option>
+            <option value="name_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'name_only' ? 'selected' : '' %>>Name only</option>
+          </select>
+        </label>
+        <label><span>Logo display mode</span>
+          <select name="themeLogoDisplayMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="contain" <%= ((config.theme && config.theme.logoDisplayMode) || 'contain') === 'contain' ? 'selected' : '' %>>Contain</option>
+            <option value="cover" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'cover' ? 'selected' : '' %>>Cover</option>
+            <option value="clean_badge" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'clean_badge' ? 'selected' : '' %>>Clean badge</option>
+            <option value="transparent_blend" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'transparent_blend' ? 'selected' : '' %>>Transparent blend</option>
+          </select>
+        </label>
+        <label><span>Logo background mode</span>
+          <select name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>None</option>
+            <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Dark badge</option>
+            <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Light badge</option>
+            <option value="auto" <%= ((config.theme && config.theme.logoBgMode) || 'auto') === 'auto' ? 'selected' : '' %>>Auto</option>
+          </select>
+        </label>
+        <label><span>Logo padding (px)</span>
+          <input type="number" min="0" max="24" name="themeLogoPadding" value="<%= Number((config.theme && config.theme.logoPadding) || 6) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Logo radius (px)</span>
+          <input type="number" min="0" max="36" name="themeLogoRadius" value="<%= Number((config.theme && config.theme.logoRadius) || 10) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Logo shadow</span>
+          <select name="themeLogoShadow" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="none" <%= ((config.theme && config.theme.logoShadow) || '') === 'none' ? 'selected' : '' %>>None</option>
+            <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating</option>
+          </select>
+        </label>
+        <label><span>Logo max height (px)</span>
+          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Hero Style</span>
+          <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="strong" <%= ((config.theme && config.theme.heroStyle) || '') === 'strong' ? 'selected' : '' %>>Strong / Branded</option>
+          </select>
+        </label>
+        <label><span>Category Menu Style</span>
+          <select name="themeCategoryMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="text" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'text' ? 'selected' : '' %>>Text only</option>
+            <option value="image" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'image' ? 'selected' : '' %>>Image only</option>
+            <option value="image_label" <%= ((config.theme && config.theme.categoryMenuStyle) || 'image_label') === 'image_label' ? 'selected' : '' %>>Image + Label</option>
+          </select>
+        </label>
+        <label><span>Card Style</span>
+          <select name="themeCardStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="soft" <%= ((config.theme && config.theme.cardStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="bold" <%= ((config.theme && config.theme.cardStyle) || '') === 'bold' ? 'selected' : '' %>>Bold</option>
+          </select>
+        </label>
+        <label><span>Section Spacing</span>
+          <select name="themeSectionSpacing" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="normal" <%= ((config.theme && config.theme.sectionSpacing) || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
+            <option value="relaxed" <%= ((config.theme && config.theme.sectionSpacing) || '') === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="themeBannerVisible" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span>Εμφάνιση banner/hero</span>
+        </label>
+        <label><span>Preview Badge Style</span>
+          <select name="themePreviewBadgeStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="soft" <%= ((config.theme && config.theme.previewBadgeStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="contrast" <%= ((config.theme && config.theme.previewBadgeStyle) || '') === 'contrast' ? 'selected' : '' %>>High contrast</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span>DIY cursor effect (μόνο desktop)</span>
+        </label>
+        </details>
 
         <%# ── Ειδοποιήσεις ── %>
         <div class="notif-section">
@@ -382,7 +537,7 @@
 
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
-                 <%= permissions.canEditSettings ? 'required' : 'disabled' %> />
+                 <%= permissions.canEditSettings ? '' : 'disabled' %> />
         </label>
 
         <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -393,18 +548,61 @@
         <% } %>
       </form>
 
+      <form id="tab-homepage" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+        <h2>Homepage</h2>
+        <p class="helper">Ρυθμίστε την αρχική σελίδα σαν branded landing-store για kits, ανταλλακτικά και εργαλεία.</p>
+        <label><span>Hero title (EL/EN)</span>
+          <input type="text" name="heroTitle_el" value="<%= resolveField(rawConfig.heroTitle, 'el') %>" placeholder="Ελληνικά" />
+          <input type="text" name="heroTitle_en" value="<%= resolveField(rawConfig.heroTitle, 'en') %>" placeholder="English" />
+        </label>
+        <label><span>Hero subtitle (EL/EN)</span>
+          <textarea name="heroSubtitle_el" rows="2" placeholder="Ελληνικά"><%= resolveField(rawConfig.heroSubtitle, 'el') %></textarea>
+          <textarea name="heroSubtitle_en" rows="2" placeholder="English"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
+        </label>
+        <label><span>Hero image / banner URL</span>
+          <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+        </label>
+        <label><span>Primary featured products (ids, comma separated)</span>
+          <input type="text" name="homepageFeaturedIds" value="<%= ((rawConfig.homepage && rawConfig.homepage.featuredIds) || []).join(', ') %>" placeholder="eukolaki-diy-roll-kit, eukolaki-diy-slide-door-kit" />
+        </label>
+        <label><span>Secondary block title (EL/EN)</span>
+          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="Ελληνικά" />
+          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="English" />
+        </label>
+        <label><span>Secondary block text (EL/EN)</span>
+          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="Ελληνικά" />
+          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="English" />
+        </label>
+        <label><span>Secondary block link</span>
+          <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="homepageShowSubscriptionsCard" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
+          <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
+        </label>
+        <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
+        <button type="submit" class="button">Αποθήκευση homepage</button>
+      </form>
+
 
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 2 – CATEGORIES                                      %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-categories" class="admin-block">
+      <section id="tab-categories" class="admin-block section-panel">
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
+        <p class="cat-helper-row">Αντικατάσταση εικόνας: πατήστε «Ανέβασμα/Αλλαγή» και διαλέξτε αρχείο. Δεν χρειάζεται επικόλληση path.</p>
+        <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:10px;">
+          Κωδικός επαναπιστοποίησης (μόνο αν ζητηθεί):
+          <input id="category-reauth-password" type="password" placeholder="προαιρετικό" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;min-width:220px;" />
+        </label>
+        <div id="cat-upload-status" class="cat-upload-status"></div>
 
         <table class="admin-table">
           <thead>
             <tr>
               <th><%= t('admin.catColId') %></th>
+              <th>Εικόνα</th>
               <th><%= t('admin.catColName') %></th>
               <th><%= t('admin.catColSlug') %></th>
               <th><%= t('admin.catColParent') %></th>
@@ -414,15 +612,44 @@
           <tbody>
             <% categories.forEach(function(cat){ %>
               <tr>
+                <% const rawCat = rawCategories.find(rc=>rc.id===cat.id); %>
                 <td><code><%= cat.id %></code></td>
-                <td><%= cat.name %></td>
+                <td>
+                  <% if (rawCat?.image) { %>
+                    <div class="cat-image-wrap">
+                      <img src="<%= rawCat.image %>" alt="<%= cat.name %>" class="cat-preview" />
+                      <div class="cat-hover-actions">
+                        <label class="cat-upload-btn" style="padding:4px 8px;font-size:.72rem;">
+                          <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="display:none;" />
+                          Αλλαγή
+                        </label>
+                        <button type="button" class="cat-upload-btn cat-remove-btn" style="padding:4px 8px;font-size:.72rem;" onclick="removeCategoryImage('<%= cat.id %>')">Αφαίρεση</button>
+                      </div>
+                    </div>
+                  <% } else { %><span style="color:#9ca3af;">—</span><% } %>
+                </td>
+                <td>
+                  <div><strong>EL:</strong> <%= resolveField(rawCat?.name, 'el') || cat.name %></div>
+                  <div style="color:#6b7280;"><strong>EN:</strong> <%= resolveField(rawCat?.name, 'en') || '—' %></div>
+                  <div class="cat-meta">
+                    <div><strong>EL desc:</strong> <%= resolveField(rawCat?.shortDescription, 'el') || '—' %></div>
+                    <div><strong>EN desc:</strong> <%= resolveField(rawCat?.shortDescription, 'en') || '—' %></div>
+                  </div>
+                </td>
                 <td><%= cat.slug %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
-                  <form method="POST" action="/admin/categories/delete" class="inline-form">
+                  <div class="cat-inline-actions">
+                    <label class="cat-upload-btn">
+                      <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="display:none;" />
+                      <%= rawCat?.image ? 'Αλλαγή εικόνας' : 'Ανέβασμα εικόνας' %>
+                    </label>
+                    <button type="button" class="cat-upload-btn cat-remove-btn" onclick="removeCategoryImage('<%= cat.id %>')" <%= rawCat?.image ? '' : 'disabled' %>>Αφαίρεση</button>
+                  </div>
+                  <form method="POST" action="<%= withTenantLink('/admin/categories/delete') %>" class="inline-form">
                     <input type="hidden" name="categoryId" value="<%= cat.id %>" />
-                    <input type="password" name="password" placeholder="Κωδικός"
-                           <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+                    <input type="password" name="password" placeholder="Κωδικός (μόνο αν ζητηθεί)"
+                           <%= permissions.canEditCategories ? '' : 'disabled' %> />
                     <button type="submit" class="button danger"
                             <%= permissions.canEditCategories ? '' : 'disabled' %>><%= t('admin.catDelete') %></button>
                   </form>
@@ -430,17 +657,20 @@
               </tr>
             <% }) %>
             <% if (categories.length === 0) { %>
-              <tr><td colspan="4" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
+              <tr><td colspan="6" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
             <% } %>
           </tbody>
         </table>
 
         <% if (permissions.canEditCategories) { %>
-        <form method="POST" action="/admin/categories/add" class="admin-subform">
+        <form method="POST" action="<%= withTenantLink('/admin/categories/add') %>" class="admin-subform">
           <h3><%= t('admin.catAddTitle') %></h3>
           <p class="helper"><%= t('admin.catAddHelper') %></p>
           <input type="text" name="id" placeholder="Κωδικός (π.χ. bags)" required />
-          <input type="text" name="name" placeholder="Όνομα (π.χ. Τσάντες)" required />
+          <input type="text" name="name_el" placeholder="Όνομα (Ελληνικά)" required />
+          <input type="text" name="name_en" placeholder="Name (English)" />
+          <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
+          <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -448,18 +678,21 @@
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
           <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
 
-        <form method="POST" action="/admin/categories/update" class="admin-subform">
+        <form method="POST" action="<%= withTenantLink('/admin/categories/update') %>" class="admin-subform">
           <h3><%= t('admin.catUpdateTitle') %></h3>
           <select name="categoryId">
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="text" name="name" placeholder="Νέο όνομα" required />
+          <input type="text" name="name_el" placeholder="Νέο όνομα (Ελληνικά)" required />
+          <input type="text" name="name_en" placeholder="New name (English)" />
+          <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
+          <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
           <input type="text" name="slug" placeholder="Νέο slug" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -467,7 +700,7 @@
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
           <button type="submit" class="button"><%= t('admin.catUpdateBtn') %></button>
         </form>
         <% } else { %>
@@ -479,7 +712,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-products" class="admin-block">
+      <section id="tab-products" class="admin-block section-panel">
         <h2><%= t('admin.productsTitle') %></h2>
         <p class="helper">
           <%= t('admin.productsHelper') %>
@@ -509,14 +742,14 @@
         </table>
 
         <%# Hidden form that submits the serialized JSON array to the backend %>
-        <form id="products-save-form" method="POST" action="/admin/products">
+        <form id="products-save-form" method="POST" action="<%= withTenantLink('/admin/products') %>">
           <input type="hidden" name="productsJson" id="products-json-input" />
           <% if (permissions.canEditProducts) { %>
           <div class="save-row">
             <label style="flex:1 1 auto;font-size:0.86rem;">
               <%= t('admin.savePassLabel') %>
             </label>
-            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" />
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
             <button type="submit" class="button"><%= t('admin.saveAll') %></button>
           </div>
           <% } %>
@@ -527,14 +760,14 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 4 – IMAGE UPLOAD                                    %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-upload" class="admin-block">
+      <section id="tab-upload" class="admin-block section-panel">
         <h2><%= t('admin.imagesTitle') %></h2>
         <p class="helper"><%= t('admin.imagesHelper') %></p>
         <form id="upload-form" enctype="multipart/form-data">
           <input type="file" name="image" accept="image/*"
                  <%= permissions.canUploadMedia ? '' : 'disabled' %> required />
-          <input type="password" name="password" placeholder="Κωδικός διαχειριστή"
-                 <%= permissions.canUploadMedia ? 'required' : 'disabled' %> />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)"
+                 <%= permissions.canUploadMedia ? '' : 'disabled' %> />
           <button class="button" type="submit"
                   <%= permissions.canUploadMedia ? '' : 'disabled' %>><%= t('admin.uploadBtn') %></button>
         </form>
@@ -554,7 +787,7 @@
                  style="width:48px;height:48px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#f9fafb;" />
             <div>
               <p style="margin:0 0 6px;font-size:0.85rem;color:#374151;font-weight:500;">Τρέχον favicon</p>
-              <form method="POST" action="/admin/favicon/delete" style="display:inline;">
+              <form method="POST" action="<%= withTenantLink('/admin/favicon/delete') %>" style="display:inline;">
                 <input type="hidden" name="password" id="fav-del-pw" value="" />
                 <button class="button" type="button" style="font-size:0.8rem;padding:4px 10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;"
                         onclick="deleteFavicon(this)"><%= t('admin.faviconDelete') %></button>
@@ -565,7 +798,7 @@
           <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:14px;"><%= t('admin.faviconNone') %></p>
         <% } %>
 
-        <form method="POST" action="/admin/favicon" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <form method="POST" action="<%= withTenantLink('/admin/favicon') %>" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           <input type="file" name="favicon" accept="image/png,image/jpeg,image/x-icon,image/svg+xml" required />
           <input type="password" name="password" placeholder="<%= t('admin.passwordPlaceholder') %>" required style="width:180px;" />
           <button class="button" type="submit"><%= t('admin.faviconUploadBtn') %></button>
@@ -576,7 +809,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 5 – SHIPPING & PAYMENT                              %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-shipping" class="admin-block">
+      <section id="tab-shipping" class="admin-block section-panel">
         <h2><%= t('admin.shippingTitle') %></h2>
         <p class="helper"><%= t('admin.shippingHelper') %></p>
 
@@ -584,7 +817,7 @@
           <p class="helper"><%= t('admin.shippingManagedNote') %></p>
         <% } %>
 
-        <form method="POST" action="/admin/shipping-payment">
+        <form method="POST" action="<%= withTenantLink('/admin/shipping-payment') %>">
 
           <%# ── Shipping options ── %>
           <h3><%= t('admin.shippingOptionsTitle') %></h3>
@@ -665,7 +898,7 @@
           <% if (permissions.canEditSettings) { %>
           <div class="save-row">
             <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
-            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" />
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
             <button type="submit" class="button"><%= t('admin.shippingSave') %></button>
           </div>
           <% } %>
@@ -676,7 +909,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 7 – NOTIFICATIONS                                   %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-notifications" class="admin-block">
+      <section id="tab-notifications" class="admin-block section-panel">
         <h2><%= t('admin.notificationsTitle') %></h2>
         <p class="helper"><%= t('admin.notificationsHelper') %></p>
 
@@ -706,7 +939,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 8 – INVENTORY                                       %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-inventory" class="admin-block">
+      <section id="tab-inventory" class="admin-block section-panel">
         <h2><%= t('admin.inventoryTitle') %></h2>
         <p class="helper"><%= t('admin.inventoryHelper') %></p>
 
@@ -796,7 +1029,7 @@
         <%# ── Manual stock adjustment ── %>
         <% if (permissions.canEditProducts) { %>
         <h3 style="margin-top:24px;"><%= t('admin.invAdjustTitle') %></h3>
-        <form method="POST" action="/admin/stock/adjust" class="admin-subform" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <form method="POST" action="<%= withTenantLink('/admin/stock/adjust') %>" class="admin-subform" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
           <label style="flex:1;min-width:140px;">
             <%= t('admin.invAdjustProduct') %>
             <select name="productId" style="margin-top:4px;">
@@ -815,7 +1048,7 @@
           </label>
           <label style="flex:0 0 160px;">
             <%= t('admin.adminPass') %>
-            <input type="password" name="password" required style="margin-top:4px;" />
+            <input type="password" name="password" style="margin-top:4px;" />
           </label>
           <button class="button" type="submit" style="align-self:flex-end;"><%= t('admin.invAdjustBtn') %></button>
         </form>
@@ -857,7 +1090,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 9 – SUPPORT / TICKETS                               %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-support" class="admin-block">
+      <section id="tab-support" class="admin-block section-panel">
         <h2>💬 <%= t('admin.supportTitle') %></h2>
         <p class="helper"><%= t('admin.supportHelper') %></p>
 
@@ -891,7 +1124,7 @@
 
         <%# ── New ticket form ── %>
         <h3 style="font-size:.9rem;margin-bottom:10px;"><%= t('admin.supportNewTicket') %></h3>
-        <form method="POST" action="/admin/tickets/new" style="display:flex;flex-direction:column;gap:12px;max-width:600px;">
+        <form method="POST" action="<%= withTenantLink('/admin/tickets/new') %>" style="display:flex;flex-direction:column;gap:12px;max-width:600px;">
           <label style="font-size:.86rem;display:flex;flex-direction:column;gap:4px;">
             <%= t('admin.supportCategory') %>
             <select name="category" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;">
@@ -911,7 +1144,7 @@
             <textarea name="message" required rows="5" placeholder="Περιγράψτε αναλυτικά τι χρειάζεστε. Αν έχετε εικόνες, στείλτε τες και στο support@thronoschain.org." style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;resize:vertical;"></textarea>
           </label>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" style="flex:0 0 180px;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;" />
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" style="flex:0 0 180px;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;" />
             <button type="submit" class="button" style="white-space:nowrap;">📨 <%= t('admin.supportSend') %></button>
           </div>
         </form>
@@ -919,7 +1152,8 @@
           Μπορείτε επίσης να επικοινωνήσετε απευθείας: <a href="mailto:support@thronoschain.org" style="color:#4338ca;">support@thronoschain.org</a>
         </p>
       </section>
-
+      </div>
+      </div>
     </main>
 
 
@@ -931,7 +1165,8 @@
         <h3 id="modal-title"><%= t('admin.modalNewProduct') %></h3>
         <div class="modal-grid">
           <label class="full"><span><%= t('admin.modalProductName') %></span>
-            <input type="text" id="f-name" placeholder="π.χ. Δερμάτινη τσάντα" />
+            <input type="text" id="f-name-el" placeholder="Όνομα (Ελληνικά)" />
+            <input type="text" id="f-name-en" placeholder="Name (English)" />
           </label>
           <label><span><%= t('admin.modalProductId') %></span>
             <input type="text" id="f-id" placeholder="π.χ. bag-001" />
@@ -961,7 +1196,8 @@
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
           </label>
           <label class="full"><span><%= t('admin.modalDescription') %></span>
-            <textarea id="f-description" rows="3" placeholder="Σύντομη περιγραφή προϊόντος..."></textarea>
+            <textarea id="f-description-el" rows="2" placeholder="Περιγραφή (Ελληνικά)"></textarea>
+            <textarea id="f-description-en" rows="2" placeholder="Description (English)"></textarea>
           </label>
           <label class="full"><span><%= t('admin.modalSeoTitle') %></span>
             <input type="text" id="f-seoTitle" placeholder="<%= t('admin.modalSeoTitlePlaceholder') %>" />
@@ -1050,7 +1286,7 @@
       };
 
       // ── Products data (server-rendered) ────────────────────────
-      let products = <%- productsJson %>;
+      let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
 
       // ── Render table ────────────────────────────────────────────
@@ -1061,6 +1297,7 @@
           return;
         }
         tbody.innerHTML = products.map((p, i) => {
+          const pName = (p.name && typeof p.name === 'object') ? (p.name.el || p.name.en || '') : (p.name || '');
           const img = p.imageUrl
             ? '<img class="thumb" src="' + escHtml(p.imageUrl) + '" alt="" loading="lazy">'
             : '<span class="no-img"></span>';
@@ -1070,7 +1307,7 @@
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
-            '<td>' + escHtml(p.name || '') + '</td>' +
+            '<td>' + escHtml(pName) + '</td>' +
             '<td>' + (p.price !== undefined ? Number(p.price).toFixed(2) : '–') + '</td>' +
             '<td>' + escHtml(p.sku || '') + '</td>' +
             '<td>' + escHtml(p.categoryId || '') + '</td>' +
@@ -1091,7 +1328,8 @@
       let editingIdx = -1; // -1 = new product
 
       const modal       = document.getElementById('product-modal');
-      const fName       = document.getElementById('f-name');
+      const fNameEl     = document.getElementById('f-name-el');
+      const fNameEn     = document.getElementById('f-name-en');
       const fId         = document.getElementById('f-id');
       const fSku        = document.getElementById('f-sku');
       const fPrice      = document.getElementById('f-price');
@@ -1099,7 +1337,8 @@
       const fFeatured   = document.getElementById('f-featured');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
-      const fDesc       = document.getElementById('f-description');
+      const fDescEl     = document.getElementById('f-description-el');
+      const fDescEn     = document.getElementById('f-description-en');
       const fSeoTitle   = document.getElementById('f-seoTitle');
       const fSeoDesc    = document.getElementById('f-seoDescription');
       const fGallery    = document.getElementById('f-gallery');
@@ -1110,6 +1349,18 @@
       const fContentDesc   = document.getElementById('f-contentDescription');
       const fManualUrl     = document.getElementById('f-manualUrl');
       const fVideoUrl      = document.getElementById('f-videoUrl');
+      function readLocalizedField(elInput, enInput) {
+        const elVal = (elInput.value || '').trim();
+        const enVal = (enInput.value || '').trim();
+        if (elVal && enVal) return { el: elVal, en: enVal };
+        if (elVal) return elVal;
+        if (enVal) return { en: enVal };
+        return '';
+      }
+      function getLocalizedForEdit(value, langCode) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
+        return langCode === 'el' ? (value || '') : '';
+      }
 
       async function uploadManual(input) {
         const file = input.files[0];
@@ -1122,7 +1373,7 @@
         fd.append('manual', file);
         fd.append('password', pw.value || '');
         try {
-          const res = await fetch('/admin/upload-manual', { method: 'POST', body: fd });
+          const res = await fetch('<%= withTenantLink("/admin/upload-manual") %>', { method: 'POST', body: fd });
           const j = await res.json();
           if (j.ok) {
             if (fManualUrl) fManualUrl.value = j.url;
@@ -1242,22 +1493,23 @@
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
-        fName.value = ''; fId.value = ''; fSku.value = '';
+        fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
-        fCat.value = ''; fImg.value = ''; fDesc.value = '';
+        fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         renderSpecRows([]);
         renderVariantRows([]);
         clearDigitalFields();
         modal.classList.add('open');
-        fName.focus();
+        fNameEl.focus();
       }
 
       function openEdit(i) {
         editingIdx = i;
         const p = products[i];
-        mTitle.textContent = i18nJs.editPrefix + (p.name || '');
-        fName.value       = p.name || '';
+        mTitle.textContent = i18nJs.editPrefix + (typeof p.name === 'string' ? p.name : (p.name && (p.name.el || p.name.en)) || '');
+        fNameEl.value     = getLocalizedForEdit(p.name, 'el');
+        fNameEn.value     = getLocalizedForEdit(p.name, 'en');
         fId.value         = p.id || '';
         fSku.value        = p.sku || '';
         fPrice.value      = p.price !== undefined ? p.price : '';
@@ -1265,7 +1517,8 @@
         fFeatured.checked = !!p.featured;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
-        fDesc.value       = p.description || '';
+        fDescEl.value     = getLocalizedForEdit(p.description, 'el');
+        fDescEn.value     = getLocalizedForEdit(p.description, 'en');
         fSeoTitle.value   = p.seoTitle || '';
         fSeoDesc.value    = p.seoDescription || '';
         fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
@@ -1273,7 +1526,7 @@
         renderVariantRows(Array.isArray(p.variants) ? p.variants : []);
         fillDigitalFields(p);
         modal.classList.add('open');
-        fName.focus();
+        fNameEl.focus();
       }
 
       function closeModal() { modal.classList.remove('open'); }
@@ -1282,7 +1535,8 @@
       modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
 
       document.getElementById('modal-save').addEventListener('click', function() {
-        const name = fName.value.trim();
+        const nameObj = readLocalizedField(fNameEl, fNameEn);
+        const name = typeof nameObj === 'string' ? nameObj.trim() : (nameObj.el || nameObj.en || '').trim();
         const id   = fId.value.trim();
         if (!name || !id) {
           alert(i18nJs.nameRequired);
@@ -1294,14 +1548,14 @@
         const digitalFields = readDigitalFields();
         const product = {
           id,
-          name,
+          name:           nameObj,
           sku:            fSku.value.trim() || undefined,
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,
-          description:    fDesc.value.trim() || undefined,
+          description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
           gallery:        galleryRaw.length  ? galleryRaw  : undefined,
@@ -1322,7 +1576,9 @@
       });
 
       function deleteProduct(i) {
-        if (!confirm(i18nJs.editPrefix.replace(': ','') + ' "' + (products[i].name || i) + '" ;')) return;
+        const p = products[i] || {};
+        const pName = (p.name && typeof p.name === 'object') ? (p.name.el || p.name.en || i) : (p.name || i);
+        if (!confirm(i18nJs.editPrefix.replace(': ','') + ' "' + pName + '" ;')) return;
         products.splice(i, 1);
         renderTable();
       }
@@ -1352,7 +1608,7 @@
           e.preventDefault();
           uploadResult.textContent = i18nJs.uploading;
           const formData = new FormData(uploadForm);
-          const response = await fetch('/admin/upload-image', { method: 'POST', body: formData });
+          const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: formData });
           const json = await response.json();
           if (json.ok) {
             uploadResult.innerHTML = i18nJs.uploadOk + '<code>' + json.url + '</code>';
@@ -1360,6 +1616,52 @@
             uploadResult.textContent = json.error || i18nJs.uploadErr;
           }
         });
+      }
+
+      async function uploadCategoryImage(categoryId, input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('cat-upload-status');
+        const pwEl = document.getElementById('category-reauth-password');
+        const fd = new FormData();
+        fd.append('categoryId', categoryId);
+        fd.append('image', file);
+        fd.append('password', (pwEl && pwEl.value) || '');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.textContent = 'Γίνεται upload εικόνας κατηγορίας...';
+        }
+        const r = await fetch('<%= withTenantLink("/admin/categories/image-upload") %>', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (!j.ok) {
+          if (statusEl) statusEl.textContent = j.error || 'Σφάλμα upload';
+          alert(j.error || 'Σφάλμα upload');
+          return;
+        }
+        if (statusEl) statusEl.textContent = 'Η εικόνα κατηγορίας αποθηκεύτηκε.';
+        window.location.reload();
+      }
+
+      async function removeCategoryImage(categoryId) {
+        if (!confirm('Να αφαιρεθεί η εικόνα κατηγορίας;')) return;
+        const statusEl = document.getElementById('cat-upload-status');
+        const pwEl = document.getElementById('category-reauth-password');
+        const body = new URLSearchParams();
+        body.set('categoryId', categoryId);
+        body.set('password', (pwEl && pwEl.value) || '');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.textContent = 'Αφαιρείται η εικόνα κατηγορίας...';
+        }
+        const r = await fetch('<%= withTenantLink("/admin/categories/image-remove") %>', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+        const j = await r.json();
+        if (!j.ok) {
+          if (statusEl) statusEl.textContent = j.error || 'Σφάλμα διαγραφής';
+          alert(j.error || 'Σφάλμα διαγραφής');
+          return;
+        }
+        if (statusEl) statusEl.textContent = 'Η εικόνα κατηγορίας αφαιρέθηκε.';
+        window.location.reload();
       }
 
       // ── Color pickers ─────────────────────────────────────────────
@@ -1378,6 +1680,23 @@
       bindColorPair('txt-themeMenuText',      'cp-themeMenuText');
       bindColorPair('txt-themeMenuActiveBg',  'cp-themeMenuActiveBg');
       bindColorPair('txt-themeMenuActiveText','cp-themeMenuActiveText');
+      function showSectionFromHash() {
+        const hash = window.location.hash || '#tab-dashboard';
+        document.querySelectorAll('.section-panel').forEach((el) => el.classList.remove('active'));
+        const activePanel = document.querySelector(hash);
+        if (activePanel) activePanel.classList.add('active');
+        document.querySelectorAll('.admin-sidebar a').forEach((a) => {
+          const href = a.getAttribute('href') || '';
+          a.classList.toggle('active', href === hash);
+        });
+      }
+      window.addEventListener('hashchange', showSectionFromHash);
+      showSectionFromHash();
+      document.querySelectorAll('.admin-sidebar a[href^="#"]').forEach((a) => {
+        a.addEventListener('click', () => {
+          if (window.innerWidth <= 900) document.querySelector('.admin-shell').classList.remove('show-sidebar');
+        });
+      });
 
       // ── Logo upload (fills logoPath-input on success) ─────────────
       const logoUploadBtn    = document.getElementById('logo-upload-btn');
@@ -1392,7 +1711,7 @@
           const fd = new FormData();
           fd.append('image', file);
           fd.append('password', pass);
-          const r = await fetch('/admin/upload-image', { method: 'POST', body: fd });
+          const r = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
           const j = await r.json();
           if (j.ok) {
             document.getElementById('logoPath-input').value = j.url;
