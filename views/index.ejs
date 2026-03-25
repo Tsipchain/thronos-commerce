@@ -290,9 +290,9 @@
             <% if (isEukolakisClassic && primaryFeaturedProduct) { %>
             <a
               class="button"
-              href="<%= withTenantLink('/product/' + primaryFeaturedProduct.id, lang !== 'el' ? { lang } : {}) %>"
-              data-kit-launch="<%= primaryFeaturedProduct.id %>"
-            ><%= lang === 'el' ? 'Ξεκίνησε τον οδηγό Kit' : 'Start kit wizard' %></a>
+              href="#"
+              data-kit-launch="<%= primaryFeaturedId %>"
+            ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
             <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
             <% } %>
@@ -313,7 +313,11 @@
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <h3 style="margin:0 0 8px;"><%= product.name %></h3>
                 <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
-                <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>" <%= tenant.id === 'eukolakis' && product.type === 'KIT' ? ('data-kit-launch="' + product.id + '"') : '' %>><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
+                <a
+                  class="button"
+                  href="<%= tenant.id === 'eukolakis' && product.type === 'KIT' ? '#' : withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"
+                  <%= tenant.id === 'eukolakis' && product.type === 'KIT' ? ('data-kit-launch="' + product.id + '"') : '' %>
+                ><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
               </div>
             </article>
           <% }) %>
@@ -397,7 +401,15 @@
       </div>
     </div>
     <script id="kit-products-json" type="application/json"><%- JSON.stringify((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })).replace(/</g, '\\u003c') %></script>
-    <script id="catalog-products-json" type="application/json"><%- JSON.stringify((allProducts || products).map(function(p){ return { id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl }; })).replace(/</g, '\\u003c') %></script>
+    <script id="catalog-products-json" type="application/json"><%- JSON.stringify((allProducts || products).map(function(p){
+      return {
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        variants: Array.isArray(p.variants) ? p.variants.map(function(v){ return { id: v.id, label: v.label, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock }; }) : []
+      };
+    })).replace(/</g, '\\u003c') %></script>
     <% } %>
     <footer class="store-footer">
       <% if (isEukolakisClassic) { %>
@@ -440,7 +452,7 @@
         const catalogProducts = JSON.parse(catalogDataEl.textContent || '[]');
         const catalogById = Object.fromEntries(catalogProducts.map(function(p){ return [p.id, p]; }));
         const kitById = Object.fromEntries(kitProducts.map(function(p){ return [p.id, p]; }));
-        const state = { product: null, step: 0, selections: {} };
+        const state = { product: null, step: 0, selections: {}, selectedVariants: {} };
         const titleEl = document.getElementById('kit-wizard-title');
         const progressEl = document.getElementById('kit-wizard-progress');
         const groupTitleEl = document.getElementById('kit-group-title');
@@ -468,7 +480,24 @@
             const sel = state.selections[g.id] || [];
             sel.forEach(function(cid){
               const c = (g.choices || []).find(function(ch){ return ch.id === cid; });
-              if (c) out.push({ groupId: g.id, groupLabel: g.label, choiceId: c.id, choiceLabel: c.label, priceDelta: Number(c.priceDelta)||0, linkedProductId: c.linkedProductId || '' });
+              if (!c) return;
+              const variantKey = g.id + '::' + c.id;
+              const variantId = state.selectedVariants[variantKey] || '';
+              const variants = Array.isArray(c.linkedVariants) ? c.linkedVariants : [];
+              const variant = variants.find(function(v){ return v.id === variantId; });
+              const priceDelta = variant && variant.price !== undefined && !Number.isNaN(Number(variant.price))
+                ? Number(variant.price)
+                : (Number(c.priceDelta) || 0);
+              out.push({
+                groupId: g.id,
+                groupLabel: g.label,
+                choiceId: c.id,
+                choiceLabel: c.label,
+                priceDelta: priceDelta,
+                linkedProductId: c.linkedProductId || '',
+                selectedVariantId: variant ? variant.id : '',
+                selectedVariantLabel: variant ? variant.label : ''
+              });
             });
           });
           return out;
@@ -480,13 +509,32 @@
         }
         function renderPreview(group) {
           const sel = state.selections[group.id] || [];
-          const imgs = sel.map(function(cid){ return (group.choices||[]).find(function(c){ return c.id === cid; }); }).filter(Boolean).filter(function(c){ return c.image; });
+          const imgs = sel.map(function(cid){
+            const c = (group.choices||[]).find(function(choice){ return choice.id === cid; });
+            if (!c) return null;
+            const variantKey = group.id + '::' + c.id;
+            const variantId = state.selectedVariants[variantKey] || '';
+            const variant = (Array.isArray(c.linkedVariants) ? c.linkedVariants : []).find(function(v){ return v.id === variantId; });
+            return {
+              label: c.label,
+              image: (variant && variant.imageUrl) || c.image || c.linkedImageUrl || '',
+              price: variant && variant.price !== undefined && !Number.isNaN(Number(variant.price)) ? Number(variant.price) : (Number(c.priceDelta) || 0),
+              variantLabel: variant ? variant.label : ''
+            };
+          }).filter(Boolean).filter(function(c){ return c.image; });
           if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;"><%= lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.' %></p>'; return; }
-          previewEl.innerHTML = imgs.map(function(c){ return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\">' + esc(c.label) + '</p></div>'; }).join('');
+          previewEl.innerHTML = imgs.map(function(c){
+            return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\"><strong>' + esc(c.label) + '</strong>' +
+              (c.variantLabel ? (' · ' + esc(c.variantLabel)) : '') + ' — ' + c.price.toFixed(2) + '€</p></div>';
+          }).join('');
         }
         function renderSummary() {
           const entries = selectedEntries();
-          summaryEl.innerHTML = entries.length ? entries.map(function(e){ return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong> (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>'; }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
+          summaryEl.innerHTML = entries.length ? entries.map(function(e){
+            return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong>' +
+              (e.selectedVariantLabel ? (' · ' + esc(e.selectedVariantLabel)) : '') +
+              ' (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>';
+          }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
         }
         function groupDone(group) {
           const sel = state.selections[group.id] || [];
@@ -520,9 +568,28 @@
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'kit-choice' + (checked ? ' selected' : '');
-            card.innerHTML = (choice.image ? ('<img src="' + esc(choice.image) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
-              '<div style="text-align:left;"><strong>' + esc(choice.label || choice.id) + '</strong><div style="font-size:.82rem;color:#0f766e;">' + ((Number(choice.priceDelta)||0)>=0?'+':'') + (Number(choice.priceDelta)||0).toFixed(2) + '€</div>' +
-              (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') + '</div>';
+            const variantKey = group.id + '::' + choice.id;
+            const variantId = state.selectedVariants[variantKey] || '';
+            const choiceVariants = Array.isArray(choice.linkedVariants) ? choice.linkedVariants : [];
+            const selectedVariant = choiceVariants.find(function(v){ return v.id === variantId; });
+            const choiceImage = (selectedVariant && selectedVariant.imageUrl) || choice.image || choice.linkedImageUrl || '';
+            const choicePrice = selectedVariant && selectedVariant.price !== undefined && !Number.isNaN(Number(selectedVariant.price))
+              ? Number(selectedVariant.price)
+              : (Number(choice.priceDelta)||0);
+            const variantSelectHtml = checked && choiceVariants.length
+              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;"><%= lang === 'el' ? 'Παραλλαγή' : 'Variant' %></label>' +
+                  '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
+                  choiceVariants.map(function(v){
+                    const vPrice = !Number.isNaN(Number(v.price)) ? Number(v.price).toFixed(2) : (Number(choice.priceDelta)||0).toFixed(2);
+                    return '<option value="' + esc(v.id) + '"' + (v.id === variantId ? ' selected' : '') + '>' + esc(v.label || v.id) + ' (' + vPrice + '€)</option>';
+                  }).join('') +
+                  '</select></div>')
+              : '';
+            card.innerHTML = (choiceImage ? ('<img src="' + esc(choiceImage) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
+              '<div style="text-align:left;"><strong>' + esc(choice.label || choice.id) + '</strong>' +
+              '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
+              (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
+              variantSelectHtml + '</div>';
             card.addEventListener('click', function(){
               state.selections[group.id] = state.selections[group.id] || [];
               if (group.inputType === 'checkbox') {
@@ -531,9 +598,21 @@
               } else {
                 state.selections[group.id] = [choice.id];
               }
+              if (!state.selections[group.id].includes(choice.id)) {
+                delete state.selectedVariants[variantKey];
+              } else if (choiceVariants.length && !state.selectedVariants[variantKey]) {
+                state.selectedVariants[variantKey] = choiceVariants[0].id;
+              }
               renderStep();
             });
             choiceGrid.appendChild(card);
+          });
+          choiceGrid.querySelectorAll('.kit-variant-select').forEach(function(selectEl){
+            selectEl.addEventListener('change', function(e){
+              const key = (e.target.getAttribute('data-group-id') || '') + '::' + (e.target.getAttribute('data-choice-id') || '');
+              state.selectedVariants[key] = e.target.value || '';
+              renderStep();
+            });
           });
           renderPreview(group);
         }
@@ -543,6 +622,7 @@
           state.product = p;
           state.step = 0;
           state.selections = {};
+          state.selectedVariants = {};
           wizard.classList.add('open');
           wizard.setAttribute('aria-hidden', 'false');
           renderStep();
@@ -567,6 +647,7 @@
         document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
         wizard.addEventListener('click', function(e){ if (e.target === wizard) closeWizard(); });
         document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wizard.classList.contains('open')) closeWizard(); });
+        window.openKitWizard = openWizard;
         btnBack.addEventListener('click', function(){ if (state.step > 0) { state.step -= 1; renderStep(); } });
         btnNext.addEventListener('click', function(){
           const groups = state.product.kitOptions || [];
@@ -579,19 +660,28 @@
           }
           const selected = selectedEntries();
           const finalPrice = totalPrice();
-          const optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
-          const cartKey = state.product.id + '::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
+          const optionSummary = selected.map(function(o){
+            return o.groupLabel + ': ' + o.choiceLabel + (o.selectedVariantLabel ? (' [' + o.selectedVariantLabel + ']') : '');
+          }).join(' | ');
+          const cartKey = state.product.id + '::' + selected.map(function(o){
+            return o.groupId + '=' + o.choiceId + (o.selectedVariantId ? (':' + o.selectedVariantId) : '');
+          }).sort().join('&');
           if (window.thrcAddToCart) {
             if (state.product.kitPayMode === 'parts_only') {
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
                 const linked = catalogById[opt.linkedProductId];
                 if (linked) {
+                  const variant = opt.selectedVariantId && Array.isArray(linked.variants)
+                    ? linked.variants.find(function(v){ return v.id === opt.selectedVariantId; })
+                    : null;
                   window.thrcAddToCart({
                     id: linked.id,
-                    name: linked.name,
-                    price: Number(linked.price) || 0,
-                    imageUrl: linked.imageUrl || '',
-                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId
+                    name: variant ? (linked.name + ' - ' + (variant.label || variant.id)) : linked.name,
+                    price: variant && variant.price !== undefined && !Number.isNaN(Number(variant.price)) ? Number(variant.price) : (Number(linked.price) || 0),
+                    imageUrl: (variant && variant.imageUrl) || linked.imageUrl || '',
+                    variantId: variant ? variant.id : undefined,
+                    variantLabel: variant ? (variant.label || variant.id) : undefined,
+                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId + (opt.selectedVariantId ? (':' + opt.selectedVariantId) : '')
                   });
                 }
               });
@@ -634,6 +724,10 @@
           }
           closeWizard();
         });
+        const wizardParam = new URLSearchParams(window.location.search).get('wizard');
+        if (wizardParam && kitById[wizardParam]) {
+          openWizard(wizardParam);
+        }
         }
       }
     </script>
