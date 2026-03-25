@@ -7,10 +7,15 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <header><div class="logo-title"><a href="/" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a></div></header>
+  <header><div class="logo-title"><a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a></div></header>
+  <% if (isPreviewMode) { %>
+  <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+    <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+  </div>
+  <% } %>
   <main style="max-width:900px;margin:30px auto;padding:0 16px;">
     <h2>My Orders</h2>
-    <p><a href="/account">My Account</a> · <a href="/logout">Logout</a></p>
+    <p><a href="<%= withTenantLink('/account') %>">My Account</a> · <a href="<%= withTenantLink('/logout') %>">Logout</a></p>
     <% if (!orders.length) { %>
       <p>No orders yet.</p>
     <% } else { %>
@@ -29,7 +34,7 @@
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= order.id %><br/><small><%= order.productName %></small></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= new Date(order.createdAt).toLocaleString() %></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= Number(order.total || 0).toFixed(2) %> €</td>
-              <td style="padding:8px;border-bottom:1px solid #eee;"><a href="/content/<%= order.id %>">Open</a></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;"><a href="<%= withTenantLink('/content/' + order.id) %>">Open</a></td>
             </tr>
           <% }) %>
         </tbody>

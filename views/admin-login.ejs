@@ -10,13 +10,18 @@
   <main style="max-width:420px;margin:48px auto;padding:0 16px;">
     <h1>Tenant Admin Login</h1>
     <% if (error) { %><p style="color:#b91c1c;"><%= error %></p><% } %>
-    <form method="POST" action="/admin/login" style="display:grid;gap:10px;">
+    <% if (isPreviewMode) { %>
+    <div style="padding:8px 0;color:#9a3412;font-size:.85rem;">
+      <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+    </div>
+    <% } %>
+    <form method="POST" action="<%= withTenantLink('/admin/login') %>" style="display:grid;gap:10px;">
       <label>Password
         <input type="password" name="password" required />
       </label>
       <button class="button" type="submit">Login</button>
     </form>
-    <p style="margin-top:10px;"><a href="/">← Back to store</a></p>
+    <p style="margin-top:10px;"><a href="<%= withTenantLink('/') %>">← Back to store</a></p>
   </main>
 </body>
 </html>

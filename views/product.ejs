@@ -164,7 +164,22 @@
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
-        <a href="/" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+      </div>
+      <% if (isPreviewMode) { %>
+      <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+        <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+      </div>
+      <% } %>
+      <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
+        <% if (!user) { %>
+          <a href="<%= withTenantLink('/login') %>">Login</a>
+          <a href="<%= withTenantLink('/signup') %>">Signup</a>
+        <% } else { %>
+          <a href="<%= withTenantLink('/account') %>">My Account</a>
+          <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
+          <a href="<%= withTenantLink('/logout') %>">Logout</a>
+        <% } %>
       </div>
       <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
         <% if (!user) { %>
@@ -179,7 +194,7 @@
     </header>
 
     <main>
-      <a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--primary-color,#4f46e5);text-decoration:none;margin-bottom:14px;opacity:.85;">
+      <a href="<%= withTenantLink('/') %>" style="display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--primary-color,#4f46e5);text-decoration:none;margin-bottom:14px;opacity:.85;">
         <%= t('checkout.backToStore') %>
       </a>
       <article class="product-detail">

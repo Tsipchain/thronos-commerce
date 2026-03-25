@@ -107,29 +107,35 @@
       <nav class="main-nav" id="main-nav">
         <ul>
           <li class="<%= !activeCategory ? 'active' : '' %>">
-            <a href="/<%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.allProducts') %></a>
+            <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
           <% categories.forEach(function(cat) { %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
-              <a href="/?category=<%= cat.slug %><%= lang !== 'el' ? '&lang=' + lang : '' %>"><%= cat.name %></a>
+              <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><%= cat.name %></a>
             </li>
           <% }); %>
           <% if (!user) { %>
-            <li><a href="/login">Login</a></li>
-            <li><a href="/signup">Signup</a></li>
+            <li><a href="<%= withTenantLink('/login') %>">Login</a></li>
+            <li><a href="<%= withTenantLink('/signup') %>">Signup</a></li>
           <% } else { %>
-            <li><a href="/account">My Account</a></li>
-            <li><a href="/my-orders">My Orders</a></li>
-            <li><a href="/logout">Logout</a></li>
+            <li><a href="<%= withTenantLink('/account') %>">My Account</a></li>
+            <li><a href="<%= withTenantLink('/my-orders') %>">My Orders</a></li>
+            <li><a href="<%= withTenantLink('/logout') %>">Logout</a></li>
           <% } %>
         </ul>
       </nav>
     </header>
 
+    <% if (isPreviewMode) { %>
+    <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+      <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+    </div>
+    <% } %>
+
     <div class="lang-switcher">
       <span><%= t('storefront.langLabel') %>:</span>
       <% ['el','en','de','es','ru','ja'].forEach(function(l) { %>
-        <a href="?<%= activeCategory ? 'category=' + activeCategory + '&' : '' %>lang=<%= l %>"
+        <a href="<%= withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, { lang: l })) %>"
            class="<%= lang === l ? 'active' : '' %>"><%= l.toUpperCase() %></a>
       <% }) %>
     </div>

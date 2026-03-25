@@ -103,28 +103,33 @@
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
-        <a href="/" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
       </div>
+      <% if (isPreviewMode) { %>
+      <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+        <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+      </div>
+      <% } %>
     </header>
 
     <div id="empty-cart-msg" style="display:none;">
       <p><%= t('checkout.cartEmptyMsg') %></p>
-      <a href="/" class="button"><%= t('checkout.backToStore') %></a>
+      <a href="<%= withTenantLink('/') %>" class="button"><%= t('checkout.backToStore') %></a>
     </div>
 
     <div class="checkout-layout" id="checkout-layout" style="display:none;">
 
       <%# ── Left: Form ── %>
       <section class="checkout-form-section">
-        <a href="/" class="back-link">← <%= t('checkout.backToStore') %></a>
+        <a href="<%= withTenantLink('/') %>" class="back-link">← <%= t('checkout.backToStore') %></a>
         <div class="auth-links">
           <% if (!user) { %>
-            <a href="/login">Login</a>
-            <a href="/signup">Signup</a>
+            <a href="<%= withTenantLink('/login') %>">Login</a>
+            <a href="<%= withTenantLink('/signup') %>">Signup</a>
           <% } else { %>
-            <a href="/account">My Account</a>
-            <a href="/my-orders">My Orders</a>
-            <a href="/logout">Logout</a>
+            <a href="<%= withTenantLink('/account') %>">My Account</a>
+            <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
+            <a href="<%= withTenantLink('/logout') %>">Logout</a>
           <% } %>
         </div>
         <h2><%= t('checkout.pageTitle') %></h2>
@@ -134,7 +139,7 @@
           <p class="auth-note warn">Κάνε εγγραφή για να έχεις πρόσβαση στα DIY videos.</p>
         <% } %>
 
-        <form id="checkout-form" method="POST" action="/checkout">
+        <form id="checkout-form" method="POST" action="<%= withTenantLink('/checkout') %>">
           <input type="hidden" name="cartJson" id="cart-json-input" value="" />
 
           <div class="form-row">
