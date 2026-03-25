@@ -107,14 +107,27 @@
       }
       .variant-pill:disabled { opacity: .4; cursor: not-allowed; }
       .kit-config { margin-top: 22px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa; }
+      .kit-layout { display:grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
       .kit-group { margin-bottom: 16px; }
       .kit-group h4 { margin: 0 0 8px; font-size: .95rem; }
       .kit-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
       .kit-choice { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; background: #fff; }
+      .kit-choice.active { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(16,185,129,.15); }
       .kit-preview-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap: 8px; margin-top: 12px; }
       .kit-preview-item { background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;font-size:.78rem; }
       .kit-preview-item img { width:100%;height:80px;object-fit:cover;border-radius:6px; }
       .final-price-box { position: sticky; bottom: 10px; background:#111827;color:#fff;padding:12px;border-radius:10px;margin-top:12px;display:flex;justify-content:space-between;align-items:center; }
+      @media (max-width: 900px) { .kit-layout { grid-template-columns: 1fr; } }
+      .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
+      .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
+      .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
+      .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
+      .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
+      .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
+      .logo-image.cover { object-fit: cover; }
+      .logo-image.contain { object-fit: contain; }
+      .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
+      .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
 
       /* ── Reviews ──────────────────────────────────────────────────── */
       .reviews-section { margin-top: 36px; }
@@ -168,12 +181,20 @@
     <script type="application/ld+json"><%- JSON.stringify(_ldJson, null, 2) %></script>
   </head>
   <body>
-    <header>
-      <div class="logo-title">
+    <% const theme = config.theme || {}; %>
+    <% const brandingMode = theme.brandingMode || 'logo_name'; %>
+    <% const logoBgMode = theme.logoBgMode || 'auto'; %>
+    <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
+    <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
+      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
         <% if (config.logoPath) { %>
-          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+          <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
+          </span>
         <% } %>
-        <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        <div class="store-name-wrap">
+          <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        </div>
       </div>
       <% if (isPreviewMode) { %>
       <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
@@ -258,37 +279,41 @@
           <section class="kit-config">
             <h3 style="margin:0 0 6px;"><%= lang === 'el' ? 'Διαμόρφωσε το Kit σου' : 'Configure your kit' %></h3>
             <p style="margin:0 0 12px;font-size:.84rem;color:#6b7280;"><%= lang === 'el' ? 'Επέλεξε υποχρεωτικά και προαιρετικά μέρη. Η τελική τιμή ενημερώνεται άμεσα.' : 'Choose required and optional parts. Final price updates instantly.' %></p>
-            <% product.kitOptions.forEach(function(group){ %>
-              <div class="kit-group" data-kit-group="<%= group.id %>" data-required="<%= group.required ? '1':'0' %>" data-input-type="<%= group.inputType || 'radio' %>">
-                <h4><%= group.label %> <% if (group.required) { %><span style="color:#dc2626;">*</span><% } %></h4>
-                <div class="kit-choices">
-                  <% (group.choices || []).forEach(function(choice){ %>
-                    <label class="kit-choice">
-                      <input type="<%= group.inputType === 'checkbox' ? 'checkbox':'radio' %>"
-                             name="kit_<%= group.id %>"
-                             value="<%= choice.id %>"
-                             data-group-id="<%= group.id %>"
-                             data-group-label="<%= group.label %>"
-                             data-choice-label="<%= choice.label %>"
-                             data-price-delta="<%= Number(choice.priceDelta) || 0 %>"
-                             data-image="<%= choice.image || '' %>"
-                             data-linked-product-id="<%= choice.linkedProductId || '' %>"
-                             onchange="onKitSelectionChange()" />
-                      <strong><%= choice.label %></strong>
-                      <div style="font-size:.78rem;color:#6b7280;"><%= choice.description || '' %></div>
-                      <div style="font-size:.78rem;color:#111827;font-weight:600;"><%= Number(choice.priceDelta || 0).toFixed(2) %> €</div>
-                    </label>
-                  <% }) %>
-                </div>
+            <div class="kit-layout">
+              <div>
+                <% product.kitOptions.forEach(function(group){ %>
+                  <div class="kit-group" data-kit-group="<%= group.id %>" data-required="<%= group.required ? '1':'0' %>" data-input-type="<%= group.inputType || 'radio' %>">
+                    <h4><%= group.label %> <% if (group.required) { %><span style="color:#dc2626;">*</span><% } %></h4>
+                    <div class="kit-choices">
+                      <% (group.choices || []).forEach(function(choice){ %>
+                        <label class="kit-choice">
+                          <input type="<%= group.inputType === 'checkbox' ? 'checkbox':'radio' %>"
+                                name="kit_<%= group.id %>"
+                                value="<%= choice.id %>"
+                                data-group-id="<%= group.id %>"
+                                data-group-label="<%= group.label %>"
+                                data-choice-label="<%= choice.label %>"
+                                data-price-delta="<%= Number(choice.priceDelta) || 0 %>"
+                                data-image="<%= choice.image || '' %>"
+                                data-linked-product-id="<%= choice.linkedProductId || '' %>"
+                                onchange="onKitSelectionChange()" />
+                          <strong><%= choice.label %></strong>
+                          <div style="font-size:.78rem;color:#6b7280;"><%= choice.description || '' %></div>
+                          <div style="font-size:.78rem;color:#111827;font-weight:600;"><%= Number(choice.priceDelta || 0).toFixed(2) %> €</div>
+                        </label>
+                      <% }) %>
+                    </div>
+                  </div>
+                <% }) %>
               </div>
-            <% }) %>
-            <div>
-              <strong style="font-size:.85rem;">Selected parts preview</strong>
-              <div id="kit-preview" class="kit-preview-grid"></div>
-            </div>
-            <div class="final-price-box">
-              <span>Τελική τιμή kit</span>
-              <strong><span id="kit-final-price"><%= Number(product.price).toFixed(2) %></span> €</strong>
+              <div>
+                <strong style="font-size:.85rem;">Selected parts preview</strong>
+                <div id="kit-preview" class="kit-preview-grid"></div>
+              </div>
+              <div class="final-price-box">
+                <span>Τελική τιμή kit</span>
+                <strong><span id="kit-final-price"><%= Number(product.price).toFixed(2) %></span> €</strong>
+              </div>
             </div>
           </section>
         <% } %>
@@ -521,6 +546,10 @@
 
       function onKitSelectionChange() {
         selectedKitOptions = collectSelectedKitOptions();
+        document.querySelectorAll('.kit-choice').forEach(function(c) { c.classList.remove('active'); });
+        document.querySelectorAll('.kit-choice input:checked').forEach(function(el) {
+          if (el && el.closest('.kit-choice')) el.closest('.kit-choice').classList.add('active');
+        });
         renderKitPreview();
         const btnCart = document.getElementById('btn-add-cart');
         if (btnCart && IS_KIT) btnCart.disabled = kitMissingRequired();

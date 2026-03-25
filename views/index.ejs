@@ -84,15 +84,37 @@
       .hero.strong { background:linear-gradient(130deg,#111827,#1f2937); color:#fff; border-radius:12px; padding:24px; }
       .category-card.only-image div { display:none; }
       body.cursor-tool { cursor: crosshair; }
+      .hero .hero-title { margin: 0 0 8px; font-size: clamp(1.2rem, 2.2vw, 1.9rem); }
+      .hero .hero-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
+      .hero .hero-actions a { text-decoration:none; }
+      .category-card.featured { border-color: var(--accent-color); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
+      .category-card small { display:block; color:#6b7280; margin-top:3px; font-size:.74rem; }
+      .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
+      .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
+      .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
+      .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
+      .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
+      .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
+      .logo-frame img { display:block; max-width: 240px; }
+      .logo-image.cover { object-fit: cover; }
+      .logo-image.contain { object-fit: contain; }
+      .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
+      .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
     </style>
   </head>
   <body>
-    <header>
-      <div class="logo-title <%= config.theme && config.theme.headerLayout === 'centered' ? 'centered' : '' %>">
+    <% const theme = config.theme || {}; %>
+    <% const brandingMode = theme.brandingMode || 'logo_name'; %>
+    <% const logoBgMode = theme.logoBgMode || 'auto'; %>
+    <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
+    <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
+      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
         <% if (config.logoPath) { %>
-          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+          <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
+          </span>
         <% } %>
-        <div>
+        <div class="store-name-wrap">
           <h1><%= config.storeName %></h1>
           <% if (config.web3Domain) { %>
             <p class="subtitle"><%= t('storefront.web3Domain') %>: <%= config.web3Domain %></p>
@@ -143,15 +165,25 @@
     <main>
       <section class="category-cards">
         <% categories.forEach(function(cat) { %>
-          <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+          <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-            <div><%= cat.name %></div>
+            <div><%= cat.name %> <% if (cat.featured) { %>⭐<% } %></div>
+            <% if (cat.shortDescription && config.theme && config.theme.categoryMenuStyle !== 'image') { %><small><%= cat.shortDescription %></small><% } %>
           </a>
         <% }) %>
       </section>
       <% if (!config.theme || config.theme.bannerVisible !== false) { %>
       <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
+        <% if (tenant.id === 'eukolakis') { %>
+          <h2 class="hero-title"><%= lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts' %></h2>
+        <% } %>
         <p><%= config.heroText %></p>
+        <% if (tenant.id === 'eukolakis') { %>
+          <div class="hero-actions">
+            <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
+            <a class="button" style="background:#111827;" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools' %></a>
+          </div>
+        <% } %>
       </section>
       <% } %>
 

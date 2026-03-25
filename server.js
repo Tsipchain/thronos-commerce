@@ -404,7 +404,14 @@ function loadTenantConfig(req) {
       sectionSpacing: 'normal',
       bannerVisible: true,
       previewBadgeStyle: 'soft',
-      cursorEffect: false
+      cursorEffect: false,
+      brandingMode: 'logo_name',
+      logoDisplayMode: 'contain',
+      logoBgMode: 'auto',
+      logoPadding: 6,
+      logoRadius: 10,
+      logoShadow: 'soft',
+      logoMaxHeight: 52
     }
   };
   return loadJson(req.tenantPaths.config, fallback);
@@ -433,6 +440,12 @@ function saveTenantCategories(req, categories) {
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function safeJsonForScript(value) {
+  return JSON.stringify(value)
+    .replace(/<\//g, '<\\/')
+    .replace(/<!--/g, '<\\!--');
 }
 
 function buildTenantLink(req, targetPath, extraQuery = {}) {
@@ -986,6 +999,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 const categoryUpload = multer({
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, /^image\//.test(String(file.mimetype || '')));
+  },
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'categories');
@@ -1154,6 +1171,7 @@ function buildAdminViewModel(req, extra) {
     products: products.map((p) => localizeProductContent(p, contentLang)),
     rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
+    productsJsonScript: safeJsonForScript(products),
     contentLang,
     contentLangs: CONTENT_LANGS,
     stockLog: stockLog.slice(-100).reverse(),
@@ -1800,7 +1818,14 @@ app.post('/admin/settings', async (req, res) => {
     themeSectionSpacing,
     themeBannerVisible,
     themePreviewBadgeStyle,
-    themeCursorEffect
+    themeCursorEffect,
+    themeBrandingMode,
+    themeLogoDisplayMode,
+    themeLogoBgMode,
+    themeLogoPadding,
+    themeLogoRadius,
+    themeLogoShadow,
+    themeLogoMaxHeight
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1850,6 +1875,13 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.bannerVisible = themeBannerVisible === 'on';
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
   config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
+  config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
+  config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
+  config.theme.logoPadding = Math.max(0, Math.min(24, Number(themeLogoPadding) || Number(config.theme.logoPadding) || 6));
+  config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
+  config.theme.logoShadow = themeLogoShadow || config.theme.logoShadow || 'soft';
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
 
   // Notification settings
   config.notificationEmails = (req.body.notificationEmails || '')
@@ -2215,6 +2247,10 @@ app.post(
 );
 
 app.post('/admin/categories/image-upload', categoryUpload.single('image'), async (req, res) => {
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories || !permissions.canUploadMedia) {
+    return res.status(403).json({ ok: false, error: 'Η ενέργεια δεν επιτρέπεται για το πακέτο σας.' });
+  }
   const auth = await verifyAdminAction(req, req.body.password);
   if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
   const categoryId = String(req.body.categoryId || '').trim();
@@ -2223,18 +2259,38 @@ app.post('/admin/categories/image-upload', categoryUpload.single('image'), async
   const categories = loadTenantCategories(req);
   const idx = categories.findIndex((c) => c.id === categoryId);
   if (idx < 0) return res.status(404).json({ ok: false, error: 'Category not found' });
+  const previousImage = typeof categories[idx].image === 'string' ? categories[idx].image : '';
+  const tenantMediaPrefix = `/tenants/${req.tenant.id}/media/categories/`;
+  if (previousImage.startsWith(tenantMediaPrefix)) {
+    const oldFile = path.join(req.tenantPaths.media, 'categories', path.basename(previousImage));
+    if (fs.existsSync(oldFile)) {
+      try { fs.unlinkSync(oldFile); } catch (_) {}
+    }
+  }
   categories[idx].image = `/tenants/${req.tenant.id}/media/categories/${req.file.filename}`;
   saveTenantCategories(req, categories);
   return res.json({ ok: true, image: categories[idx].image });
 });
 
 app.post('/admin/categories/image-remove', async (req, res) => {
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories) {
+    return res.status(403).json({ ok: false, error: 'Η ενέργεια δεν επιτρέπεται για το πακέτο σας.' });
+  }
   const auth = await verifyAdminAction(req, req.body.password);
   if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
   const categoryId = String(req.body.categoryId || '').trim();
   const categories = loadTenantCategories(req);
   const idx = categories.findIndex((c) => c.id === categoryId);
   if (idx < 0) return res.status(404).json({ ok: false, error: 'Category not found' });
+  const existingImage = typeof categories[idx].image === 'string' ? categories[idx].image : '';
+  const tenantMediaPrefix = `/tenants/${req.tenant.id}/media/categories/`;
+  if (existingImage.startsWith(tenantMediaPrefix)) {
+    const oldFile = path.join(req.tenantPaths.media, 'categories', path.basename(existingImage));
+    if (fs.existsSync(oldFile)) {
+      try { fs.unlinkSync(oldFile); } catch (_) {}
+    }
+  }
   delete categories[idx].image;
   saveTenantCategories(req, categories);
   return res.json({ ok: true });

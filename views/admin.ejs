@@ -106,6 +106,11 @@
       .btn-xs { padding: 5px 12px; font-size: 0.8rem; background: #eee;
                 border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; }
       #logo-upload-status { font-size: 0.8rem; color: #555; margin-top: 4px; }
+      .logo-preview-frame { display:inline-flex; align-items:center; justify-content:center; min-width:120px; min-height:60px; margin-top:6px; }
+      .logo-preview-frame.is-dark { background:#111827; }
+      .logo-preview-frame.is-light { background:#f8fafc; border:1px solid #e5e7eb; }
+      .logo-preview-frame.is-auto { background:linear-gradient(135deg,#0f172a,#1f2937); }
+      .logo-preview-frame img { max-width: 220px; object-fit: contain; }
 
       /* ── Notifications section ── */
       .notif-section { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #ddd; }
@@ -121,6 +126,13 @@
       .section-panel.active { display:block; }
       .sidebar-toggle{display:none;margin-bottom:10px;}
       @media (max-width: 900px){ .admin-shell{grid-template-columns:1fr;} .sidebar-toggle{display:inline-block;} .admin-sidebar{display:none;} .admin-shell.show-sidebar .admin-sidebar{display:block;} }
+      .cat-preview { width: 68px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; background: #f8fafc; }
+      .cat-upload-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size:.78rem; cursor:pointer; font-weight:600; }
+      .cat-remove-btn { background:#fff1f2; border-color:#fecdd3; color:#be123c; }
+      .cat-inline-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+      .cat-helper-row { font-size:.76rem; color:#6b7280; margin-top:4px; }
+      .cat-upload-status { font-size:.82rem; margin:10px 0 14px; padding:8px 10px; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; color:#334155; display:none; }
+      .cat-meta { font-size:.76rem; color:#6b7280; margin-top:4px; line-height:1.3; }
     </style>
   </head>
   <body>
@@ -281,8 +293,12 @@
           <small class="helper">Μπορείτε να γράψετε URL ή να κάνετε upload λογότυπου.</small>
         </label>
         <% if (config.logoPath) { %>
+          <% const logoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
+          <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
           <div style="margin:-8px 0 10px;">
-            <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:48px;max-width:180px;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#fff;" />
+            <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
+              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;" />
+            </div>
           </div>
         <% } %>
         <% if (permissions.canUploadMedia) { %>
@@ -356,6 +372,45 @@
             <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default</option>
             <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered logo + τίτλος</option>
           </select>
+        </label>
+        <label><span>Branding mode</span>
+          <select name="themeBrandingMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Name</option>
+            <option value="logo_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'logo_only' ? 'selected' : '' %>>Logo only</option>
+            <option value="name_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'name_only' ? 'selected' : '' %>>Name only</option>
+          </select>
+        </label>
+        <label><span>Logo display mode</span>
+          <select name="themeLogoDisplayMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="contain" <%= ((config.theme && config.theme.logoDisplayMode) || 'contain') === 'contain' ? 'selected' : '' %>>Contain</option>
+            <option value="cover" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'cover' ? 'selected' : '' %>>Cover</option>
+            <option value="clean_badge" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'clean_badge' ? 'selected' : '' %>>Clean badge</option>
+            <option value="transparent_blend" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'transparent_blend' ? 'selected' : '' %>>Transparent blend</option>
+          </select>
+        </label>
+        <label><span>Logo background mode</span>
+          <select name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>None</option>
+            <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Dark badge</option>
+            <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Light badge</option>
+            <option value="auto" <%= ((config.theme && config.theme.logoBgMode) || 'auto') === 'auto' ? 'selected' : '' %>>Auto</option>
+          </select>
+        </label>
+        <label><span>Logo padding (px)</span>
+          <input type="number" min="0" max="24" name="themeLogoPadding" value="<%= Number((config.theme && config.theme.logoPadding) || 6) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Logo radius (px)</span>
+          <input type="number" min="0" max="36" name="themeLogoRadius" value="<%= Number((config.theme && config.theme.logoRadius) || 10) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Logo shadow</span>
+          <select name="themeLogoShadow" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="none" <%= ((config.theme && config.theme.logoShadow) || '') === 'none' ? 'selected' : '' %>>None</option>
+            <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating</option>
+          </select>
+        </label>
+        <label><span>Logo max height (px)</span>
+          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
         <label><span>Hero Style</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -491,6 +546,12 @@
       <section id="tab-categories" class="admin-block section-panel">
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
+        <p class="cat-helper-row">Αντικατάσταση εικόνας: πατήστε «Ανέβασμα/Αλλαγή» και διαλέξτε αρχείο. Δεν χρειάζεται επικόλληση path.</p>
+        <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:10px;">
+          Κωδικός επαναπιστοποίησης (μόνο αν ζητηθεί):
+          <input id="category-reauth-password" type="password" placeholder="προαιρετικό" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;min-width:220px;" />
+        </label>
+        <div id="cat-upload-status" class="cat-upload-status"></div>
 
         <table class="admin-table">
           <thead>
@@ -506,22 +567,30 @@
           <tbody>
             <% categories.forEach(function(cat){ %>
               <tr>
+                <% const rawCat = rawCategories.find(rc=>rc.id===cat.id); %>
                 <td><code><%= cat.id %></code></td>
                 <td>
-                  <% if (rawCategories.find(rc=>rc.id===cat.id)?.image) { %>
-                    <img src="<%= rawCategories.find(rc=>rc.id===cat.id).image %>" alt="<%= cat.name %>" style="width:58px;height:38px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />
+                  <% if (rawCat?.image) { %>
+                    <img src="<%= rawCat.image %>" alt="<%= cat.name %>" class="cat-preview" />
                   <% } else { %><span style="color:#9ca3af;">—</span><% } %>
                 </td>
                 <td>
-                  <div><strong>EL:</strong> <%= resolveField(rawCategories.find(rc=>rc.id===cat.id)?.name, 'el') || cat.name %></div>
-                  <div style="color:#6b7280;"><strong>EN:</strong> <%= resolveField(rawCategories.find(rc=>rc.id===cat.id)?.name, 'en') || '—' %></div>
+                  <div><strong>EL:</strong> <%= resolveField(rawCat?.name, 'el') || cat.name %></div>
+                  <div style="color:#6b7280;"><strong>EN:</strong> <%= resolveField(rawCat?.name, 'en') || '—' %></div>
+                  <div class="cat-meta">
+                    <div><strong>EL desc:</strong> <%= resolveField(rawCat?.shortDescription, 'el') || '—' %></div>
+                    <div><strong>EN desc:</strong> <%= resolveField(rawCat?.shortDescription, 'en') || '—' %></div>
+                  </div>
                 </td>
                 <td><%= cat.slug %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
-                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
-                    <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="max-width:180px;" />
-                    <button type="button" class="btn-sm" onclick="removeCategoryImage('<%= cat.id %>')">Αφαίρεση εικόνας</button>
+                  <div class="cat-inline-actions">
+                    <label class="cat-upload-btn">
+                      <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="display:none;" />
+                      <%= rawCat?.image ? 'Αλλαγή εικόνας' : 'Ανέβασμα εικόνας' %>
+                    </label>
+                    <button type="button" class="cat-upload-btn cat-remove-btn" onclick="removeCategoryImage('<%= cat.id %>')" <%= rawCat?.image ? '' : 'disabled' %>>Αφαίρεση</button>
                   </div>
                   <form method="POST" action="<%= withTenantLink('/admin/categories/delete') %>" class="inline-form">
                     <input type="hidden" name="categoryId" value="<%= cat.id %>" />
@@ -548,7 +617,7 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <input type="text" name="image" placeholder="URL εικόνας κατηγορίας" />
+          <input type="text" name="image" placeholder="URL εικόνας (προαιρετικό, αν δεν κάνετε upload)" />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -571,7 +640,7 @@
           <input type="text" name="name_en" placeholder="New name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <input type="text" name="image" placeholder="URL εικόνας κατηγορίας" />
+          <input type="text" name="image" placeholder="URL εικόνας (προαιρετικό, αν δεν κάνετε upload)" />
           <input type="text" name="slug" placeholder="Νέο slug" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -1165,7 +1234,7 @@
       };
 
       // ── Products data (server-rendered) ────────────────────────
-      let products = <%- productsJson %>;
+      let products = <%- productsJsonScript %>;
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
 
       // ── Render table ────────────────────────────────────────────
@@ -1252,7 +1321,7 @@
         fd.append('manual', file);
         fd.append('password', pw.value || '');
         try {
-          const res = await fetch('/admin/upload-manual', { method: 'POST', body: fd });
+          const res = await fetch('<%= withTenantLink("/admin/upload-manual") %>', { method: 'POST', body: fd });
           const j = await res.json();
           if (j.ok) {
             if (fManualUrl) fManualUrl.value = j.url;
@@ -1487,7 +1556,7 @@
           e.preventDefault();
           uploadResult.textContent = i18nJs.uploading;
           const formData = new FormData(uploadForm);
-          const response = await fetch('/admin/upload-image', { method: 'POST', body: formData });
+          const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: formData });
           const json = await response.json();
           if (json.ok) {
             uploadResult.innerHTML = i18nJs.uploadOk + '<code>' + json.url + '</code>';
@@ -1500,26 +1569,46 @@
       async function uploadCategoryImage(categoryId, input) {
         const file = input.files && input.files[0];
         if (!file) return;
+        const statusEl = document.getElementById('cat-upload-status');
+        const pwEl = document.getElementById('category-reauth-password');
         const fd = new FormData();
         fd.append('categoryId', categoryId);
         fd.append('image', file);
-        const pw = prompt('Αν ζητηθεί επαναπιστοποίηση, γράψτε κωδικό admin (αλλιώς αφήστε κενό):') || '';
-        fd.append('password', pw);
+        fd.append('password', (pwEl && pwEl.value) || '');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.textContent = 'Γίνεται upload εικόνας κατηγορίας...';
+        }
         const r = await fetch('<%= withTenantLink("/admin/categories/image-upload") %>', { method: 'POST', body: fd });
         const j = await r.json();
-        if (!j.ok) { alert(j.error || 'Σφάλμα upload'); return; }
+        if (!j.ok) {
+          if (statusEl) statusEl.textContent = j.error || 'Σφάλμα upload';
+          alert(j.error || 'Σφάλμα upload');
+          return;
+        }
+        if (statusEl) statusEl.textContent = 'Η εικόνα κατηγορίας αποθηκεύτηκε.';
         window.location.reload();
       }
 
       async function removeCategoryImage(categoryId) {
         if (!confirm('Να αφαιρεθεί η εικόνα κατηγορίας;')) return;
-        const pw = prompt('Αν ζητηθεί επαναπιστοποίηση, γράψτε κωδικό admin (αλλιώς αφήστε κενό):') || '';
+        const statusEl = document.getElementById('cat-upload-status');
+        const pwEl = document.getElementById('category-reauth-password');
         const body = new URLSearchParams();
         body.set('categoryId', categoryId);
-        body.set('password', pw);
+        body.set('password', (pwEl && pwEl.value) || '');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.textContent = 'Αφαιρείται η εικόνα κατηγορίας...';
+        }
         const r = await fetch('<%= withTenantLink("/admin/categories/image-remove") %>', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
         const j = await r.json();
-        if (!j.ok) { alert(j.error || 'Σφάλμα διαγραφής'); return; }
+        if (!j.ok) {
+          if (statusEl) statusEl.textContent = j.error || 'Σφάλμα διαγραφής';
+          alert(j.error || 'Σφάλμα διαγραφής');
+          return;
+        }
+        if (statusEl) statusEl.textContent = 'Η εικόνα κατηγορίας αφαιρέθηκε.';
         window.location.reload();
       }
 
@@ -1551,6 +1640,11 @@
       }
       window.addEventListener('hashchange', showSectionFromHash);
       showSectionFromHash();
+      document.querySelectorAll('.admin-sidebar a[href^="#"]').forEach((a) => {
+        a.addEventListener('click', () => {
+          if (window.innerWidth <= 900) document.querySelector('.admin-shell').classList.remove('show-sidebar');
+        });
+      });
 
       // ── Logo upload (fills logoPath-input on success) ─────────────
       const logoUploadBtn    = document.getElementById('logo-upload-btn');
@@ -1565,7 +1659,7 @@
           const fd = new FormData();
           fd.append('image', file);
           fd.append('password', pass);
-          const r = await fetch('/admin/upload-image', { method: 'POST', body: fd });
+          const r = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
           const j = await r.json();
           if (j.ok) {
             document.getElementById('logoPath-input').value = j.url;
