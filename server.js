@@ -905,11 +905,13 @@ app.use((req, res, next) => {
   req.tenant = tenant;
   req.tenantId = tenant.id;
   req.tenantContext = { mode };
+  req.isPlatformRequest = mode === 'demo-fallback' && !req.pathTenantId && !requestedTenant;
   req.tenantPaths = tenantPaths(tenant.id);
   res.locals.user = req.session ? req.session.user : null;
   res.locals.tenantId = tenant.id;
   res.locals.tenantContext = req.tenantContext;
   res.locals.tenantBasePath = req.tenantContext.mode === 'path' ? `/t/${tenant.id}` : '';
+  res.locals.isPreviewMode = req.tenantContext.mode === 'path' || req.tenantContext.mode === 'query';
   res.locals.withTenantLink = (path, extra) => buildTenantLink(req, path, extra);
   next();
 });
@@ -922,6 +924,7 @@ app.use('/root', (req, res, next) => {
 
 // Tenant admin auth guard
 app.use('/admin', (req, res, next) => {
+  if (req.isPlatformRequest) return res.redirect('/');
   if (req.path === '/login' || req.path === '/logout') return next();
   return requireAdmin(req, res, next);
 });
@@ -984,6 +987,13 @@ app.get('/favicon.ico', (req, res) => {
 
 // Storefront home
 app.get('/', (req, res) => {
+  if (req.isPlatformRequest) {
+    return res.render('landing', {
+      packages: getLandingPackages(),
+      message: null,
+      previewTenants: loadTenantsRegistry().map((t) => t.id)
+    });
+  }
   if (req.query.admin === 'true') {
     return res.redirect(buildTenantLink(req, '/admin'));
   }
@@ -2116,7 +2126,7 @@ function getLandingPackages() {
 
 // Thronos Commerce marketing landing
 app.get('/thronos-commerce', (req, res) => {
-  res.render('landing', { packages: getLandingPackages(), message: null });
+  res.render('landing', { packages: getLandingPackages(), message: null, previewTenants: loadTenantsRegistry().map((t) => t.id) });
 });
 
 app.post('/thronos-commerce/offer', (req, res) => {
@@ -2136,7 +2146,8 @@ app.post('/thronos-commerce/offer', (req, res) => {
 
   res.render('landing', {
     packages,
-    message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.'
+    message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.',
+    previewTenants: loadTenantsRegistry().map((t) => t.id)
   });
 });
 
@@ -2158,7 +2169,7 @@ app.post('/thronos-commerce/subscribe', async (req, res) => {
   const stripe = platformStripe();
   if (!stripe) {
     // No platform Stripe configured – fall back to lead-only flow
-    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.', previewTenants: loadTenantsRegistry().map((t) => t.id) });
   }
 
   const pendingId = `psub_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
@@ -2187,7 +2198,7 @@ app.post('/thronos-commerce/subscribe', async (req, res) => {
     return res.redirect(303, session.url);
   } catch (err) {
     console.error('[Platform Stripe] session create failed:', err.message);
-    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.', previewTenants: loadTenantsRegistry().map((t) => t.id) });
   }
 });
 
@@ -2236,7 +2247,8 @@ app.get('/thronos-commerce/stripe-success', async (req, res) => {
 
   res.render('landing', {
     packages: getLandingPackages(),
-    message: `✓ Η πληρωμή ολοκληρώθηκε! Η ομάδα Thronos θα επικοινωνήσει μαζί σας εντός 24 ωρών για την ενεργοποίηση του καταστήματός σας.`
+    message: `✓ Η πληρωμή ολοκληρώθηκε! Η ομάδα Thronos θα επικοινωνήσει μαζί σας εντός 24 ωρών για την ενεργοποίηση του καταστήματός σας.`,
+    previewTenants: loadTenantsRegistry().map((t) => t.id)
   });
 });
 

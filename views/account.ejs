@@ -8,9 +8,11 @@
 </head>
 <body>
   <header><div class="logo-title"><a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a></div></header>
+  <% if (isPreviewMode) { %>
   <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
     <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
   </div>
+  <% } %>
   <main style="max-width:700px;margin:30px auto;padding:0 16px;">
     <h2>My Account</h2>
     <p>Signed in as <strong><%= user.email %></strong>.</p>

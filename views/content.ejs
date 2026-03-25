@@ -111,9 +111,11 @@
         <% } %>
         <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
       </div>
+      <% if (isPreviewMode) { %>
       <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
         <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
       </div>
+      <% } %>
       <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
         <a href="<%= withTenantLink('/account') %>">My Account</a>
         <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>

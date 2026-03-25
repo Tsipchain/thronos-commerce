@@ -126,9 +126,11 @@
       </nav>
     </header>
 
+    <% if (isPreviewMode) { %>
     <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
       <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
     </div>
+    <% } %>
 
     <div class="lang-switcher">
       <span><%= t('storefront.langLabel') %>:</span>
