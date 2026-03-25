@@ -106,6 +106,11 @@
       .btn-xs { padding: 5px 12px; font-size: 0.8rem; background: #eee;
                 border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; }
       #logo-upload-status { font-size: 0.8rem; color: #555; margin-top: 4px; }
+      .logo-preview-frame { display:inline-flex; align-items:center; justify-content:center; min-width:120px; min-height:60px; margin-top:6px; }
+      .logo-preview-frame.is-dark { background:#111827; }
+      .logo-preview-frame.is-light { background:#f8fafc; border:1px solid #e5e7eb; }
+      .logo-preview-frame.is-auto { background:linear-gradient(135deg,#0f172a,#1f2937); }
+      .logo-preview-frame img { max-width: 220px; object-fit: contain; }
 
       /* ── Notifications section ── */
       .notif-section { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #ddd; }
@@ -288,8 +293,12 @@
           <small class="helper">Μπορείτε να γράψετε URL ή να κάνετε upload λογότυπου.</small>
         </label>
         <% if (config.logoPath) { %>
+          <% const logoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
+          <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
           <div style="margin:-8px 0 10px;">
-            <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:48px;max-width:180px;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#fff;" />
+            <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
+              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;" />
+            </div>
           </div>
         <% } %>
         <% if (permissions.canUploadMedia) { %>
@@ -363,6 +372,45 @@
             <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default</option>
             <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered logo + τίτλος</option>
           </select>
+        </label>
+        <label><span>Branding mode</span>
+          <select name="themeBrandingMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Name</option>
+            <option value="logo_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'logo_only' ? 'selected' : '' %>>Logo only</option>
+            <option value="name_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'name_only' ? 'selected' : '' %>>Name only</option>
+          </select>
+        </label>
+        <label><span>Logo display mode</span>
+          <select name="themeLogoDisplayMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="contain" <%= ((config.theme && config.theme.logoDisplayMode) || 'contain') === 'contain' ? 'selected' : '' %>>Contain</option>
+            <option value="cover" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'cover' ? 'selected' : '' %>>Cover</option>
+            <option value="clean_badge" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'clean_badge' ? 'selected' : '' %>>Clean badge</option>
+            <option value="transparent_blend" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'transparent_blend' ? 'selected' : '' %>>Transparent blend</option>
+          </select>
+        </label>
+        <label><span>Logo background mode</span>
+          <select name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>None</option>
+            <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Dark badge</option>
+            <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Light badge</option>
+            <option value="auto" <%= ((config.theme && config.theme.logoBgMode) || 'auto') === 'auto' ? 'selected' : '' %>>Auto</option>
+          </select>
+        </label>
+        <label><span>Logo padding (px)</span>
+          <input type="number" min="0" max="24" name="themeLogoPadding" value="<%= Number((config.theme && config.theme.logoPadding) || 6) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Logo radius (px)</span>
+          <input type="number" min="0" max="36" name="themeLogoRadius" value="<%= Number((config.theme && config.theme.logoRadius) || 10) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span>Logo shadow</span>
+          <select name="themeLogoShadow" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="none" <%= ((config.theme && config.theme.logoShadow) || '') === 'none' ? 'selected' : '' %>>None</option>
+            <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating</option>
+          </select>
+        </label>
+        <label><span>Logo max height (px)</span>
+          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
         <label><span>Hero Style</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -1186,7 +1234,7 @@
       };
 
       // ── Products data (server-rendered) ────────────────────────
-      let products = <%- productsJson %>;
+      let products = <%- productsJsonScript %>;
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
 
       // ── Render table ────────────────────────────────────────────

@@ -404,7 +404,14 @@ function loadTenantConfig(req) {
       sectionSpacing: 'normal',
       bannerVisible: true,
       previewBadgeStyle: 'soft',
-      cursorEffect: false
+      cursorEffect: false,
+      brandingMode: 'logo_name',
+      logoDisplayMode: 'contain',
+      logoBgMode: 'auto',
+      logoPadding: 6,
+      logoRadius: 10,
+      logoShadow: 'soft',
+      logoMaxHeight: 52
     }
   };
   return loadJson(req.tenantPaths.config, fallback);
@@ -433,6 +440,12 @@ function saveTenantCategories(req, categories) {
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function safeJsonForScript(value) {
+  return JSON.stringify(value)
+    .replace(/<\//g, '<\\/')
+    .replace(/<!--/g, '<\\!--');
 }
 
 function buildTenantLink(req, targetPath, extraQuery = {}) {
@@ -1158,6 +1171,7 @@ function buildAdminViewModel(req, extra) {
     products: products.map((p) => localizeProductContent(p, contentLang)),
     rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
+    productsJsonScript: safeJsonForScript(products),
     contentLang,
     contentLangs: CONTENT_LANGS,
     stockLog: stockLog.slice(-100).reverse(),
@@ -1804,7 +1818,14 @@ app.post('/admin/settings', async (req, res) => {
     themeSectionSpacing,
     themeBannerVisible,
     themePreviewBadgeStyle,
-    themeCursorEffect
+    themeCursorEffect,
+    themeBrandingMode,
+    themeLogoDisplayMode,
+    themeLogoBgMode,
+    themeLogoPadding,
+    themeLogoRadius,
+    themeLogoShadow,
+    themeLogoMaxHeight
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1854,6 +1875,13 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.bannerVisible = themeBannerVisible === 'on';
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
   config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
+  config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
+  config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
+  config.theme.logoPadding = Math.max(0, Math.min(24, Number(themeLogoPadding) || Number(config.theme.logoPadding) || 6));
+  config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
+  config.theme.logoShadow = themeLogoShadow || config.theme.logoShadow || 'soft';
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
 
   // Notification settings
   config.notificationEmails = (req.body.notificationEmails || '')

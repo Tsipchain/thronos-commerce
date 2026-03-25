@@ -59,6 +59,13 @@
     "sectionSpacing": "relaxed",
     "bannerVisible": true,
     "previewBadgeStyle": "contrast",
-    "cursorEffect": true
+    "cursorEffect": true,
+    "brandingMode": "logo_name",
+    "logoDisplayMode": "contain",
+    "logoBgMode": "dark_badge",
+    "logoPadding": 8,
+    "logoRadius": 12,
+    "logoShadow": "floating",
+    "logoMaxHeight": 56
   }
 }
