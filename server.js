@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
+const session = require('express-session');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -272,6 +273,7 @@ function tenantPaths(tenantId) {
     config: path.join(base, 'config.json'),
     products: path.join(base, 'products.json'),
     categories: path.join(base, 'categories.json'),
+    users: path.join(base, 'users.json'),
     orders: path.join(base, 'orders.json'),
     reviews: path.join(base, 'reviews.json'),
     stockLog:      path.join(base, 'stock_log.json'),
@@ -350,8 +352,45 @@ function loadTenantCategories(req) {
   return loadJson(req.tenantPaths.categories, []);
 }
 
+function loadTenantUsers(req) {
+  const users = loadJson(req.tenantPaths.users, []);
+  return Array.isArray(users) ? users : [];
+}
+
+function saveTenantUsers(req, users) {
+  saveJson(req.tenantPaths.users, users);
+}
+
 function saveTenantCategories(req, categories) {
   saveJson(req.tenantPaths.categories, categories);
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function requireUser(req, res, next) {
+  if (!req.session.user) {
+    return res.redirect('/login');
+  }
+  next();
+}
+
+function requireTenantAdmin(req, res, next) {
+  if (!req.session.admin) {
+    return res.redirect('/admin/login');
+  }
+  if (!req.tenant || req.session.admin.tenantId !== req.tenant.id) {
+    return res.redirect('/admin/login');
+  }
+  next();
+}
+
+function requireRootAdmin(req, res, next) {
+  if (!req.session.rootAdmin) {
+    return res.redirect('/root/login');
+  }
+  next();
 }
 
 function getSupportPermissions(supportTier) {
@@ -800,6 +839,11 @@ app.use('/tenants', express.static(TENANTS_DIR));
 app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(session({
+  secret: 'thronos-secret',
+  resave: false,
+  saveUninitialized: false
+}));
 
 // i18n middleware – sets req.lang, res.locals.lang, res.locals.t
 app.use((req, res, next) => {
@@ -821,7 +865,20 @@ app.use((req, res, next) => {
   }
   req.tenant = tenant;
   req.tenantPaths = tenantPaths(tenant.id);
+  res.locals.user = req.session ? req.session.user : null;
   next();
+});
+
+// Root admin auth guard
+app.use('/root', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/logout') return next();
+  return requireRootAdmin(req, res, next);
+});
+
+// Tenant admin auth guard
+app.use('/admin', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/logout') return next();
+  return requireTenantAdmin(req, res, next);
 });
 
 function buildAdminViewModel(req, extra) {
@@ -934,7 +991,7 @@ app.get('/product/:id', (req, res) => {
 // Checkout page
 app.get('/checkout', (req, res) => {
   const config = loadTenantConfig(req);
-  res.render('checkout', { config, tenant: req.tenant });
+  res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
 // Checkout submit (multi-item cart)
@@ -945,6 +1002,8 @@ app.post('/checkout', async (req, res) => {
     name, email, wallet, notes, shippingMethodId, paymentMethodId,
     city, phone, address, doorbell, tk, cartJson
   } = req.body;
+  const sessionEmail = req.session.user ? normalizeEmail(req.session.user.email) : '';
+  const checkoutEmail = sessionEmail || normalizeEmail(email);
 
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
@@ -1005,7 +1064,8 @@ app.post('/checkout', async (req, res) => {
     // Multi-item
     items: enrichedItems,
     customerName: name,
-    email,
+    email: checkoutEmail,
+    userEmail: sessionEmail || null,
     phone:    (phone    || '').trim(),
     address:  (address  || '').trim(),
     doorbell: (doorbell || '').trim(),
@@ -1059,7 +1119,7 @@ app.post('/checkout', async (req, res) => {
           payment_method_types: ['card'],
           mode:                 'payment',
           line_items:           lineItems,
-          customer_email:       email,
+          customer_email:       checkoutEmail,
           success_url: `${baseUrl}/checkout/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url:  `${baseUrl}/checkout`
         });
@@ -1188,6 +1248,9 @@ app.get('/checkout/stripe-success', async (req, res) => {
   const { order, enrichedItems } = entry;
   order.paymentStatus   = 'PAID';
   order.stripeSessionId = session_id;
+  if (req.session.user) {
+    order.userEmail = normalizeEmail(req.session.user.email);
+  }
 
   delete pending[pending_id];
   saveJson(req.tenantPaths.pendingOrders, pending);
@@ -1242,6 +1305,103 @@ app.get('/checkout/stripe-success', async (req, res) => {
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect('/checkout'));
+
+app.get('/admin/login', (req, res) => {
+  const config = loadTenantConfig(req);
+  if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect('/admin');
+  res.render('admin-login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/admin/login', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const ok = await verifyAdminPassword(req.tenant, req.body.password);
+  if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
+  req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
+  res.redirect('/admin');
+});
+
+app.get('/admin/logout', (req, res) => {
+  req.session.admin = null;
+  res.redirect('/admin/login');
+});
+
+app.get('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/account');
+  const config = loadTenantConfig(req);
+  res.render('login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/login', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  const users = loadTenantUsers(req);
+  const user = users.find((u) => normalizeEmail(u.email) === email);
+  if (!user) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
+
+  const ok = await bcrypt.compare(password, user.passwordHash || '');
+  if (!ok) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
+
+  req.session.user = {
+    id: user.id,
+    email: user.email
+  };
+  res.redirect('/account');
+});
+
+app.get('/signup', (req, res) => {
+  if (req.session.user) return res.redirect('/account');
+  const config = loadTenantConfig(req);
+  res.render('signup', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/signup', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  const passwordConfirm = String(req.body.passwordConfirm || '');
+  if (!email || !password) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Email and password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password must be at least 6 characters.' });
+  }
+  if (password !== passwordConfirm) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password confirmation does not match.' });
+  }
+
+  const users = loadTenantUsers(req);
+  const exists = users.some((u) => normalizeEmail(u.email) === email);
+  if (exists) {
+    return res.status(409).render('signup', { config, tenant: req.tenant, error: 'This email is already registered.' });
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: `u_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`, email, passwordHash, createdAt: new Date().toISOString() };
+  users.push(user);
+  saveTenantUsers(req, users);
+
+  req.session.user = {
+    id: user.id,
+    email: user.email
+  };
+  res.redirect('/account');
+});
+
+app.get('/account', requireUser, (req, res) => {
+  const config = loadTenantConfig(req);
+  res.render('account', { config, tenant: req.tenant, user: req.session.user });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/'));
+});
+
+app.get('/my-orders', requireUser, (req, res) => {
+  const config = loadTenantConfig(req);
+  const email = normalizeEmail(req.session.user.email);
+  const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
+  res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
+});
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
 
@@ -1794,10 +1954,13 @@ app.post(
 );
 
 // ── Digital content: gated access page ───────────────────────────────────────
-app.get('/content/:orderId', (req, res) => {
+app.get('/content/:orderId', requireUser, (req, res) => {
   const orders = loadTenantOrders(req);
   const order  = orders.find((o) => o.id === req.params.orderId);
   if (!order) return res.status(404).send('Η παραγγελία δεν βρέθηκε.');
+  if (normalizeEmail(order.userEmail) !== normalizeEmail(req.session.user.email)) {
+    return res.status(403).send('Δεν έχετε πρόσβαση σε αυτό το περιεχόμενο.');
+  }
 
   const config   = loadTenantConfig(req);
   const products = loadTenantProducts(req);
@@ -2231,6 +2394,25 @@ function buildRootViewModel(extra) {
 
 app.get('/root/tenants', (req, res) => {
   res.render('root-tenants', buildRootViewModel());
+});
+
+app.get('/root/login', (req, res) => {
+  if (req.session.rootAdmin) return res.redirect('/root/tenants');
+  res.render('root-login', { error: null });
+});
+
+app.post('/root/login', (req, res) => {
+  const { password } = req.body;
+  if (!verifyRootPassword(password)) {
+    return res.status(401).render('root-login', { error: 'Invalid root password.' });
+  }
+  req.session.rootAdmin = { authenticatedAt: new Date().toISOString() };
+  res.redirect('/root/tenants');
+});
+
+app.get('/root/logout', (req, res) => {
+  req.session.rootAdmin = null;
+  res.redirect('/root/login');
 });
 
 app.post('/root/tenants/create', async (req, res) => {
