@@ -459,81 +459,13 @@
           <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
+        <% if (tenant.id === 'eukolakis') { %>
+        <label><span>Cursor image URL (desktop only)</span>
+          <input type="text" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
+        </label>
+        <% } %>
         </details>
-
-        <%# ── Ειδοποιήσεις ── %>
-        <div class="notif-section">
-          <h3><%= t('admin.notifEmail') %></h3>
-          <p class="helper"><%= t('admin.notifEmailHelper') %></p>
-
-          <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
-            <textarea name="notificationEmails" rows="3"
-                      placeholder="owner@myshop.gr&#10;backup@myshop.gr"
-                      <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
-          </label>
-
-          <label class="checkbox-label">
-            <input type="checkbox" name="notificationCcCustomer"
-                   <%= (config.notificationCcCustomer) ? 'checked' : '' %>
-                   <%= permissions.canEditSettings ? '' : 'disabled' %> />
-            <span><%= t('admin.notifCcCustomer') %></span>
-          </label>
-
-          <label><span><%= t('admin.notifFromName') %></span>
-            <input type="text" name="notificationFromName"
-                   value="<%= config.notificationFromName || '' %>"
-                   placeholder="π.χ. FashionMM Store"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-
-          <h3 style="margin-top:18px;"><%= t('admin.notifWebhook') %></h3>
-          <p class="helper"><%= t('admin.notifWebhookHelper') %></p>
-
-          <label><span><%= t('admin.webhookUrl') %></span>
-            <input type="text" name="notificationWebhookUrl"
-                   value="<%= config.notificationWebhookUrl || '' %>"
-                   placeholder="https://myhook.example.com/orders"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-
-          <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
-            <input type="text" name="notificationWebhookSecret"
-                   value="<%= config.notificationWebhookSecret || '' %>"
-                   placeholder="mysecret123"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-        </div>
-
-        <%# ── Stripe Integration ── %>
-        <div style="margin-top:24px;padding:18px 20px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;">
-          <p style="margin:0 0 12px;font-weight:700;font-size:.95rem;color:#5b21b6;">💳 Stripe — Online πληρωμές με κάρτα</p>
-          <p class="helper" style="margin:0 0 14px;color:#6b7280;font-size:.82rem;">
-            Για να ενεργοποιήσετε πληρωμές με κάρτα, εισάγετε τα κλειδιά σας από το
-            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a>.
-            Μετά προσθέστε μέθοδο πληρωμής με <code>type: "stripe"</code> από τον root admin.
-          </p>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
-            <span>Publishable Key <small style="color:#888;">(pk_live_… ή pk_test_…)</small></span>
-            <input type="text" name="stripePublishableKey"
-                   value="<%= config.stripePublishableKey || '' %>"
-                   placeholder="pk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
-            <span>Secret Key <small style="color:#888;">(sk_live_… ή sk_test_…)</small></span>
-            <input type="password" name="stripeSecretKey"
-                   value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>"
-                   placeholder="sk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   autocomplete="new-password"
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-            <small style="color:#888;font-size:.76rem;">Αφήστε κενό αν δεν θέλετε να αλλάξετε το υπάρχον κλειδί.</small>
-          </label>
-          <% if (config.stripeSecretKey) { %>
-            <p style="margin:10px 0 0;font-size:.8rem;color:#059669;">✓ Stripe ενεργοποιημένο</p>
-          <% } %>
-        </div>
 
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
@@ -724,6 +656,41 @@
         <% } else { %>
           <p class="helper"><%= t('admin.catManagedNote') %></p>
         <% } %>
+      </section>
+
+      <section class="admin-block" style="margin-top:16px;">
+        <h3 style="margin-bottom:8px;color:#4c1d95;">Stripe keys</h3>
+        <p class="helper" style="margin:0 0 14px;color:#6b7280;font-size:.82rem;">
+          Για να ενεργοποιήσετε πληρωμές με κάρτα, εισάγετε τα κλειδιά σας από το
+          <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a>.
+        </p>
+        <form method="POST" action="<%= withTenantLink('/admin/payments') %>">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
+            <span>Publishable Key <small style="color:#888;">(pk_live_… ή pk_test_…)</small></span>
+            <input type="text" name="stripePublishableKey"
+                   value="<%= config.stripePublishableKey || '' %>"
+                   placeholder="pk_live_..."
+                   <%= permissions.canEditSettings ? '' : 'readonly' %>
+                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
+            <span>Secret Key <small style="color:#888;">(sk_live_… ή sk_test_…)</small></span>
+            <input type="password" name="stripeSecretKey"
+                   value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>"
+                   placeholder="sk_live_..."
+                   <%= permissions.canEditSettings ? '' : 'readonly' %>
+                   autocomplete="new-password"
+                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
+            <small style="color:#888;font-size:.76rem;">Αφήστε κενό αν δεν θέλετε να αλλάξετε το υπάρχον κλειδί.</small>
+          </label>
+          <% if (permissions.canEditSettings) { %>
+          <div class="save-row" style="margin-top:10px;">
+            <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
+            <button type="submit" class="button">Αποθήκευση Stripe</button>
+          </div>
+          <% } %>
+        </form>
       </section>
 
 
@@ -927,31 +894,46 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 7 – NOTIFICATIONS                                   %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-notifications" class="admin-block section-panel">
+      <form id="tab-notifications" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/notifications') %>">
         <h2><%= t('admin.notificationsTitle') %></h2>
-        <p class="helper"><%= t('admin.notificationsHelper') %></p>
-
-        <div class="notifications-skeleton">
-          <table class="sp-table" style="opacity:.5;">
-            <thead>
-              <tr>
-                <th><%= t('admin.notifColDate') %></th>
-                <th><%= t('admin.notifColSubject') %></th>
-                <th><%= t('admin.notifColRecipients') %></th>
-                <th><%= t('admin.notifColStatus') %></th>
-                <th><%= t('admin.notifColHash') %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="5" style="text-align:center;color:#aaa;font-style:italic;padding:24px 0;">
-                  <%= t('admin.notificationsComingSoon') %>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <p class="helper">Ρύθμιση παραληπτών email και webhook για ειδοποιήσεις παραγγελιών.</p>
+        <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
+          <textarea name="notificationEmails" rows="3"
+                    placeholder="owner@myshop.gr&#10;backup@myshop.gr"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="notificationCcCustomer"
+                 <%= (config.notificationCcCustomer) ? 'checked' : '' %>
+                 <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span><%= t('admin.notifCcCustomer') %></span>
+        </label>
+        <label><span><%= t('admin.notifFromName') %></span>
+          <input type="text" name="notificationFromName"
+                 value="<%= config.notificationFromName || '' %>"
+                 placeholder="π.χ. FashionMM Store"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span><%= t('admin.webhookUrl') %></span>
+          <input type="text" name="notificationWebhookUrl"
+                 value="<%= config.notificationWebhookUrl || '' %>"
+                 placeholder="https://myhook.example.com/orders"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
+          <input type="text" name="notificationWebhookSecret"
+                 value="<%= config.notificationWebhookSecret || '' %>"
+                 placeholder="mysecret123"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <% if (permissions.canEditSettings) { %>
+        <div class="save-row">
+          <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
+          <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
+          <button type="submit" class="button">Αποθήκευση ειδοποιήσεων</button>
         </div>
-      </section>
+        <% } %>
+      </form>
 
 
       <%# ══════════════════════════════════════════════════════════ %>
@@ -1751,15 +1733,3 @@
     </script>
   </body>
 </html>
-      function readLocalizedField(elInput, enInput) {
-        const elVal = (elInput.value || '').trim();
-        const enVal = (enInput.value || '').trim();
-        if (elVal && enVal) return { el: elVal, en: enVal };
-        if (elVal) return elVal;
-        if (enVal) return { en: enVal };
-        return '';
-      }
-      function getLocalizedForEdit(value, langCode) {
-        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
-        return langCode === 'el' ? (value || '') : '';
-      }
