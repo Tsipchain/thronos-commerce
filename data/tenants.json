@@ -14,5 +14,13 @@
     "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
     "createdAt": "2026-02-26T10:00:00Z",
     "active": true
+  },
+  {
+    "id": "eukolakis",
+    "domain": "eukolakis.local",
+    "supportTier": "MANAGEMENT_START",
+    "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
+    "createdAt": "2026-03-25T00:00:00Z",
+    "active": true
   }
 ]
