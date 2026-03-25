@@ -193,6 +193,16 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
       const linkedName = linked ? resolveTranslatable(linked.name, lang) : '';
       const linkedDescription = linked ? resolveTranslatable(linked.description, lang) : '';
       const linkedPrice = linked ? (Number(linked.price) || 0) : 0;
+      const linkedVariants = linked && Array.isArray(linked.variants)
+        ? linked.variants.map((variant) => ({
+          id: variant.id,
+          sku: variant.sku || '',
+          label: resolveTranslatable(variant.label, lang) || variant.id,
+          price: Number(variant.price),
+          stock: variant.stock === undefined ? null : Number(variant.stock),
+          imageUrl: variant.imageUrl || ''
+        }))
+        : [];
       const isSkipChoice = choice.id === 'skip';
       const computedPriceDelta = kitPayMode === 'parts_only'
         ? (isSkipChoice ? 0 : linkedPrice)
@@ -203,7 +213,10 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
         description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
         image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
         priceDelta: computedPriceDelta,
-        linkedPrice
+        linkedPrice,
+        linkedName: linkedName || '',
+        linkedImageUrl: linked && linked.imageUrl ? linked.imageUrl : '',
+        linkedVariants
       };
     });
     if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
@@ -1422,13 +1435,32 @@ app.post('/checkout', async (req, res) => {
         selectedOptions = [];
         found.kitOptions.forEach((group) => {
           (selectedByGroup[group.id] || []).forEach((choice) => {
+            const linkedProduct = choice.linkedProductId
+              ? allProductsCatalog.find((p) => p.id === choice.linkedProductId)
+              : null;
+            const selectedVariantIdRaw = rawOptions.find((opt) => opt.groupId === group.id && opt.choiceId === choice.id)?.selectedVariantId;
+            const selectedVariantId = typeof selectedVariantIdRaw === 'string' ? selectedVariantIdRaw.trim() : '';
+            const linkedVariant = linkedProduct && selectedVariantId && Array.isArray(linkedProduct.variants)
+              ? linkedProduct.variants.find((v) => v.id === selectedVariantId)
+              : null;
+            const variantPrice = linkedVariant && linkedVariant.price !== undefined
+              ? Number(linkedVariant.price) || 0
+              : null;
+            const computedChoicePrice = found.kitPayMode === 'parts_only'
+              ? (variantPrice !== null ? variantPrice : (Number(choice.priceDelta) || 0))
+              : (choice.useLinkedPriceDelta && linkedProduct
+                ? (variantPrice !== null ? variantPrice : (Number(linkedProduct.price) || 0))
+                : (Number(choice.priceDelta) || 0));
             selectedOptions.push({
               groupId: group.id,
               groupLabel: group.label || group.id,
               choiceId: choice.id,
               choiceLabel: choice.label || choice.id,
-              priceDelta: Number(choice.priceDelta) || 0,
-              linkedProductId: choice.linkedProductId || null
+              priceDelta: computedChoicePrice,
+              linkedProductId: choice.linkedProductId || null,
+              selectedVariantId: linkedVariant ? linkedVariant.id : undefined,
+              selectedVariantLabel: linkedVariant ? (resolveTranslatable(linkedVariant.label, req.lang) || linkedVariant.id) : undefined,
+              selectedVariantSku: linkedVariant ? (linkedVariant.sku || undefined) : undefined
             });
           });
         });
@@ -1441,13 +1473,26 @@ app.post('/checkout', async (req, res) => {
               .forEach((o) => {
                 const linked = allProductsCatalog.find((p) => p.id === o.linkedProductId);
                 if (!linked) return;
+                const linkedVariant = o.selectedVariantId && Array.isArray(linked.variants)
+                  ? linked.variants.find((v) => v.id === o.selectedVariantId)
+                  : null;
+                const linkedPrice = linkedVariant && linkedVariant.price !== undefined
+                  ? Number(linkedVariant.price) || 0
+                  : Number(linked.price) || 0;
+                const linkedImage = (linkedVariant && linkedVariant.imageUrl) || linked.imageUrl || '';
+                const linkedName = resolveTranslatable(linked.name, req.lang);
+                const variantLabel = linkedVariant ? (resolveTranslatable(linkedVariant.label, req.lang) || linkedVariant.id) : '';
                 enrichedItems.push({
                   id: linked.id,
-                  name: resolveTranslatable(linked.name, req.lang),
-                  price: Number(linked.price) || 0,
+                  name: variantLabel ? `${linkedName} – ${variantLabel}` : linkedName,
+                  variantId: linkedVariant ? linkedVariant.id : undefined,
+                  variantLabel: variantLabel || undefined,
+                  variantSku: linkedVariant ? (linkedVariant.sku || undefined) : undefined,
+                  imageUrl: linkedImage,
+                  price: linkedPrice,
                   qty: Math.max(1, parseInt(ci.qty, 10) || 1),
                   sourceKitId: found.id,
-                  sourceKitOption: `${o.groupLabel}: ${o.choiceLabel}`
+                  sourceKitOption: `${o.groupLabel}: ${o.choiceLabel}${variantLabel ? ` (${variantLabel})` : ''}`
                 });
               });
           }

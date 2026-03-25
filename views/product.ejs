@@ -424,6 +424,8 @@
       const KIT_OPTIONS = <%- JSON.stringify(Array.isArray(product.kitOptions) ? product.kitOptions : []) %>;
       const KIT_PAY_MODE = <%- JSON.stringify(product.kitPayMode || 'bundle') %>;
       const HAS_DIGITAL = <%= product.hasDigitalContent ? 'true' : 'false' %>;
+      const IS_EUKOLAKIS_CLASSIC = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      const HOME_WIZARD_URL = '<%= withTenantLink('/', Object.assign({ wizard: product.id }, lang !== 'el' ? { lang } : {})) %>';
       const BASE_MANUAL  = '<%= product.manualUrl ? '1' : '' %>';
       const BASE_VIDEO   = '<%- (product.videoUrl || '').replace(/'/g, "\\'") %>';
       const BASE_DESC    = '<%- (product.contentDescription || '').replace(/'/g, "\\'").replace(/\n/g, ' ') %>';
@@ -433,6 +435,10 @@
 
       let selectedVariant = VARIANTS.length ? VARIANTS[0] : null;
       let selectedKitOptions = [];
+
+      if (IS_EUKOLAKIS_CLASSIC && IS_KIT) {
+        window.location.replace(HOME_WIZARD_URL);
+      }
 
       // ── Variant selection ─────────────────────────────────────────
       function selectVariant(btn) {
