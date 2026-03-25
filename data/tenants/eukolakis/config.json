@@ -1,0 +1,64 @@
+{
+  "storeName": {
+    "el": "Eukolakis DIY Store",
+    "en": "Eukolakis DIY Store"
+  },
+  "primaryColor": "#222222",
+  "accentColor": "#00aa88",
+  "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  "heroText": {
+    "el": "DIY kits και ανταλλακτικά για ρολά, συρόμενα και επισκευές — όλα σε ένα μέρος.",
+    "en": "DIY kits and spare parts for shutters, sliding systems and repairs — all in one place."
+  },
+  "web3Domain": "demo.thr",
+  "logoPath": "/logo.svg",
+  "shippingOptions": [
+    {
+      "id": "standard_cod",
+      "label": "Courier με αντικαταβολή",
+      "base": 4,
+      "codFee": 2,
+      "allowedPaymentMethods": [
+        "COD"
+      ]
+    },
+    {
+      "id": "standard_card",
+      "label": "Courier με κάρτα",
+      "base": 3,
+      "codFee": 0,
+      "allowedPaymentMethods": [
+        "CARD"
+      ]
+    }
+  ],
+  "paymentOptions": [
+    {
+      "id": "CARD",
+      "label": "Πληρωμή με κάρτα",
+      "type": "STRIPE",
+      "gatewaySurchargePercent": 0
+    },
+    {
+      "id": "COD",
+      "label": "Αντικαταβολή",
+      "type": "COD",
+      "gatewaySurchargePercent": 0
+    }
+  ],
+  "theme": {
+    "menuBg": "#111111",
+    "menuText": "#ffffff",
+    "menuActiveBg": "#f06292",
+    "menuActiveText": "#ffffff",
+    "buttonRadius": "4px",
+    "headerLayout": "centered",
+    "heroStyle": "strong",
+    "categoryMenuStyle": "image_label",
+    "cardStyle": "bold",
+    "sectionSpacing": "relaxed",
+    "bannerVisible": true,
+    "previewBadgeStyle": "contrast",
+    "cursorEffect": true
+  }
+}

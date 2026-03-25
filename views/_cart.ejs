@@ -53,7 +53,7 @@
   <ul id="cart-items"></ul>
   <p id="cart-empty-msg"><%= t('storefront.cartEmpty') %></p>
   <p id="cart-subtotal" style="display:none;"></p>
-  <a id="cart-checkout-btn" href="/checkout" style="display:none;"><%= t('storefront.cartCheckout') %></a>
+    <a id="cart-checkout-btn" href="<%= withTenantLink('/checkout') %>" style="display:none;"><%= t('storefront.cartCheckout') %></a>
 </div>
 
 <script>
@@ -151,8 +151,9 @@
         itemsEl.innerHTML = cart.map(function(item) {
           const safeId   = String(item.id).replace(/'/g, "\\'");
           const safeName = (item.name || '?').replace(/</g, '&lt;');
+          const optionSummary = item.optionSummary ? '<small style=\"display:block;color:#6b7280;\">' + String(item.optionSummary).replace(/</g,'&lt;') + '</small>' : '';
           return '<li>' +
-            '<span class="ci-name">' + safeName + ' &times;' + (item.qty || 1) + '</span>' +
+            '<span class="ci-name">' + safeName + optionSummary + ' &times;' + (item.qty || 1) + '</span>' +
             '<span class="ci-price">' + ((item.price || 0) * (item.qty || 1)).toFixed(2) + ' &euro;</span>' +
             '<button class="ci-remove" onclick="thrcRemoveFromCart(\'' + safeId + '\')" title="Αφαίρεση">&times;</button>' +
             '</li>';
@@ -168,9 +169,10 @@
     // ── Global API ────────────────────────────────────────────────────
     window.thrcAddToCart = function(product) {
       const cart = loadCart();
-      const idx = cart.findIndex(function(i) { return i.id === product.id; });
+      const key = product.cartKey || product.id;
+      const idx = cart.findIndex(function(i) { return (i.cartKey || i.id) === key; });
       if (idx >= 0) { cart[idx].qty = (cart[idx].qty || 1) + 1; }
-      else { cart.push(Object.assign({ qty: 1 }, product)); }
+      else { cart.push(Object.assign({ qty: 1, cartKey: key }, product)); }
       saveCart(cart);
       renderCart();
       panel.style.display = 'block';
