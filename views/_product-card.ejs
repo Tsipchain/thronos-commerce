@@ -1,4 +1,4 @@
-<article class="product-card">
+<article class="product-card <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %>">
   <% if (product.imageUrl) { %>
     <div class="product-thumb">
       <img src="<%= product.imageUrl %>" alt="<%= product.name %>" loading="lazy" />
@@ -11,6 +11,9 @@
   <% } %>
   <div class="product-card-body">
     <h2><%= product.name %></h2>
+    <% if (product.type === 'KIT') { %>
+      <p style="margin:0 0 8px;font-size:.72rem;font-weight:700;letter-spacing:.04em;color:#0f766e;">DIY KIT CONFIGURATOR</p>
+    <% } %>
     <p><%= product.description %></p>
     <p class="price">
       <%= Number(product.price).toFixed(2) %> €
@@ -25,8 +28,10 @@
       <% } %>
     </p>
     <div class="card-actions">
-      <a class="button" href="/product/<%= product.id %><%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.viewProduct') %></a>
-      <% if (product.stock !== 0) { %>
+      <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+      <% if (product.type === 'KIT') { %>
+        <a class="btn-cart" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;display:inline-block;"><%= lang === 'el' ? 'Διαμόρφωση Kit' : 'Configure Kit' %></a>
+      <% } else if (product.stock !== 0) { %>
         <button class="btn-cart" type="button"
           onclick="window.thrcAddToCart && window.thrcAddToCart({id:'<%= product.id %>',name:'<%= product.name.replace(/'/g,"\\'") %>',price:<%= Number(product.price) || 0 %>,imageUrl:'<%= (product.imageUrl||'').replace(/'/g,"\\'") %>'})">
           <%= t('storefront.addToCart') %>
