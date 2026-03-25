@@ -153,6 +153,9 @@ function isEukolakisClassicPreset(req) {
 }
 
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
+function shouldDefaultPartsOnly(tenant, config) {
+  return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
+}
 
 function localizeConfigContent(config, lang) {
   return {
@@ -180,25 +183,35 @@ function localizeProductContent(product, lang) {
   };
 }
 
-function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG) {
+function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, options = {}) {
   if (!product || product.type !== 'KIT' || !Array.isArray(product.kitOptions)) return product;
+  const kitPayMode = product.kitPayMode || (options.defaultPartsOnly ? 'parts_only' : 'bundle');
   const hydratedOptions = product.kitOptions.map((group) => {
     const choices = Array.isArray(group.choices) ? group.choices : [];
     const hydratedChoices = choices.map((choice) => {
       const linked = choice.linkedProductId ? catalog.find((p) => p.id === choice.linkedProductId) : null;
       const linkedName = linked ? resolveTranslatable(linked.name, lang) : '';
       const linkedDescription = linked ? resolveTranslatable(linked.description, lang) : '';
+      const linkedPrice = linked ? (Number(linked.price) || 0) : 0;
+      const isSkipChoice = choice.id === 'skip';
+      const computedPriceDelta = kitPayMode === 'parts_only'
+        ? (isSkipChoice ? 0 : linkedPrice)
+        : (choice.useLinkedPriceDelta && linked ? linkedPrice : (Number(choice.priceDelta) || 0));
       return {
         ...choice,
         label: (choice.label || '').trim() || linkedName || choice.id,
         description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
         image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
-        priceDelta: choice.useLinkedPriceDelta && linked ? (Number(linked.price) || 0) : (Number(choice.priceDelta) || 0)
+        priceDelta: computedPriceDelta,
+        linkedPrice
       };
     });
+    if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
+      hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
+    }
     return { ...group, choices: hydratedChoices };
   });
-  return { ...product, kitOptions: hydratedOptions };
+  return { ...product, kitPayMode, kitOptions: hydratedOptions };
 }
 
 loadLocales();
@@ -1283,7 +1296,9 @@ app.get('/', (req, res) => {
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
-  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang));
+  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
+    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+  }));
 
   const rawCategory = String(req.query.category || '');
   let catSlug = normalizeSlug(rawCategory);
@@ -1332,7 +1347,9 @@ app.get('/product/:id', (req, res) => {
     saveJson(req.tenantPaths.analytics, analytics);
   } catch (_) { /* non-critical */ }
 
-  const hydratedProduct = hydrateKitProduct(product, products, req.lang);
+  const hydratedProduct = hydrateKitProduct(product, products, req.lang, {
+    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+  });
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
     product: localizeProductContent(hydratedProduct, req.lang),
@@ -1369,7 +1386,9 @@ app.post('/checkout', async (req, res) => {
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
-    const found = hydrateKitProduct(allProductsCatalog.find((p) => p.id === ci.id), allProductsCatalog, req.lang);
+    const found = hydrateKitProduct(allProductsCatalog.find((p) => p.id === ci.id), allProductsCatalog, req.lang, {
+      defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+    });
     if (found) {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
@@ -1414,7 +1433,27 @@ app.post('/checkout', async (req, res) => {
           });
         });
         const delta = selectedOptions.reduce((s, o) => s + (Number(o.priceDelta) || 0), 0);
-        serverPrice += delta;
+        if (found.kitPayMode === 'parts_only') {
+          serverPrice = 0;
+          if (!ci.isKitSummary) {
+            selectedOptions
+              .filter((o) => o.linkedProductId)
+              .forEach((o) => {
+                const linked = allProductsCatalog.find((p) => p.id === o.linkedProductId);
+                if (!linked) return;
+                enrichedItems.push({
+                  id: linked.id,
+                  name: resolveTranslatable(linked.name, req.lang),
+                  price: Number(linked.price) || 0,
+                  qty: Math.max(1, parseInt(ci.qty, 10) || 1),
+                  sourceKitId: found.id,
+                  sourceKitOption: `${o.groupLabel}: ${o.choiceLabel}`
+                });
+              });
+          }
+        } else {
+          serverPrice += delta;
+        }
         optionSummary = selectedOptions.map((o) => `${o.groupLabel}: ${o.choiceLabel}`).join(' | ');
       }
       enrichedItems.push({
@@ -1427,7 +1466,8 @@ app.post('/checkout', async (req, res) => {
         basePrice: Number(found.price) || 0,
         finalUnitPrice: serverPrice,
         price:        serverPrice,
-        qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
+        qty:          Math.max(1, parseInt(ci.qty, 10) || 1),
+        isKitSummary: found.type === 'KIT' && found.kitPayMode === 'parts_only'
       });
     }
   }
@@ -1531,6 +1571,7 @@ app.post('/checkout', async (req, res) => {
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   enrichedItems.forEach((ci) => {
+    if (ci.isKitSummary) return;
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
     if (pIdx < 0) return;
     const prod = allProductsMut[pIdx];

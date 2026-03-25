@@ -442,6 +442,7 @@
         }
         function totalPrice() {
           const delta = selectedEntries().reduce(function(s,o){ return s + (Number(o.priceDelta)||0); }, 0);
+          if (state.product.kitPayMode === 'parts_only') return delta;
           return (Number(state.product.price)||0) + delta;
         }
         function renderPreview(group) {
@@ -469,7 +470,7 @@
           btnNext.textContent = summaryStep ? '<%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart' %>' : '<%= lang === 'el' ? 'Επόμενο' : 'Next' %>';
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
-          addLinkedWrapEl.style.display = summaryStep ? 'inline-flex' : 'none';
+          addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
           if (summaryStep) {
             groupTitleEl.textContent = '<%= lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary' %>';
             groupReqEl.textContent = '';
@@ -548,17 +549,43 @@
           const optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
           const cartKey = state.product.id + '::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
           if (window.thrcAddToCart) {
-            window.thrcAddToCart({
-              id: state.product.id,
-              name: state.product.name,
-              price: finalPrice,
-              imageUrl: state.product.imageUrl || '',
-              selectedOptions: selected,
-              optionSummary: optionSummary || undefined,
-              finalUnitPrice: finalPrice,
-              cartKey: cartKey
-            });
-            if (addLinkedEl && addLinkedEl.checked) {
+            if (state.product.kitPayMode === 'parts_only') {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                const linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  window.thrcAddToCart({
+                    id: linked.id,
+                    name: linked.name,
+                    price: Number(linked.price) || 0,
+                    imageUrl: linked.imageUrl || '',
+                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId
+                  });
+                }
+              });
+              window.thrcAddToCart({
+                id: state.product.id,
+                name: (state.product.name || 'KIT') + ' (summary)',
+                price: 0,
+                imageUrl: state.product.imageUrl || '',
+                selectedOptions: selected,
+                optionSummary: optionSummary || undefined,
+                finalUnitPrice: 0,
+                cartKey: cartKey + '::summary',
+                isKitSummary: true
+              });
+            } else {
+              window.thrcAddToCart({
+                id: state.product.id,
+                name: state.product.name,
+                price: finalPrice,
+                imageUrl: state.product.imageUrl || '',
+                selectedOptions: selected,
+                optionSummary: optionSummary || undefined,
+                finalUnitPrice: finalPrice,
+                cartKey: cartKey
+              });
+            }
+            if (state.product.kitPayMode !== 'parts_only' && addLinkedEl && addLinkedEl.checked) {
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
                 const linked = catalogById[opt.linkedProductId];
                 if (linked) {
