@@ -473,7 +473,7 @@
 
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
-                 <%= permissions.canEditSettings ? 'required' : 'disabled' %> />
+                 <%= permissions.canEditSettings ? '' : 'disabled' %> />
         </label>
 
         <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -496,6 +496,7 @@
           <thead>
             <tr>
               <th><%= t('admin.catColId') %></th>
+              <th>Εικόνα</th>
               <th><%= t('admin.catColName') %></th>
               <th><%= t('admin.catColSlug') %></th>
               <th><%= t('admin.catColParent') %></th>
@@ -506,14 +507,26 @@
             <% categories.forEach(function(cat){ %>
               <tr>
                 <td><code><%= cat.id %></code></td>
-                <td><%= cat.name %></td>
+                <td>
+                  <% if (rawCategories.find(rc=>rc.id===cat.id)?.image) { %>
+                    <img src="<%= rawCategories.find(rc=>rc.id===cat.id).image %>" alt="<%= cat.name %>" style="width:58px;height:38px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />
+                  <% } else { %><span style="color:#9ca3af;">—</span><% } %>
+                </td>
+                <td>
+                  <div><strong>EL:</strong> <%= resolveField(rawCategories.find(rc=>rc.id===cat.id)?.name, 'el') || cat.name %></div>
+                  <div style="color:#6b7280;"><strong>EN:</strong> <%= resolveField(rawCategories.find(rc=>rc.id===cat.id)?.name, 'en') || '—' %></div>
+                </td>
                 <td><%= cat.slug %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+                    <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="max-width:180px;" />
+                    <button type="button" class="btn-sm" onclick="removeCategoryImage('<%= cat.id %>')">Αφαίρεση εικόνας</button>
+                  </div>
                   <form method="POST" action="<%= withTenantLink('/admin/categories/delete') %>" class="inline-form">
                     <input type="hidden" name="categoryId" value="<%= cat.id %>" />
-                    <input type="password" name="password" placeholder="Κωδικός"
-                           <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
+                    <input type="password" name="password" placeholder="Κωδικός (μόνο αν ζητηθεί)"
+                           <%= permissions.canEditCategories ? '' : 'disabled' %> />
                     <button type="submit" class="button danger"
                             <%= permissions.canEditCategories ? '' : 'disabled' %>><%= t('admin.catDelete') %></button>
                   </form>
@@ -521,7 +534,7 @@
               </tr>
             <% }) %>
             <% if (categories.length === 0) { %>
-              <tr><td colspan="4" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
+              <tr><td colspan="6" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
             <% } %>
           </tbody>
         </table>
@@ -543,7 +556,7 @@
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
           <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
 
@@ -566,7 +579,7 @@
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
           <button type="submit" class="button"><%= t('admin.catUpdateBtn') %></button>
         </form>
         <% } else { %>
@@ -615,7 +628,7 @@
             <label style="flex:1 1 auto;font-size:0.86rem;">
               <%= t('admin.savePassLabel') %>
             </label>
-            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" />
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
             <button type="submit" class="button"><%= t('admin.saveAll') %></button>
           </div>
           <% } %>
@@ -632,8 +645,8 @@
         <form id="upload-form" enctype="multipart/form-data">
           <input type="file" name="image" accept="image/*"
                  <%= permissions.canUploadMedia ? '' : 'disabled' %> required />
-          <input type="password" name="password" placeholder="Κωδικός διαχειριστή"
-                 <%= permissions.canUploadMedia ? 'required' : 'disabled' %> />
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)"
+                 <%= permissions.canUploadMedia ? '' : 'disabled' %> />
           <button class="button" type="submit"
                   <%= permissions.canUploadMedia ? '' : 'disabled' %>><%= t('admin.uploadBtn') %></button>
         </form>
@@ -764,7 +777,7 @@
           <% if (permissions.canEditSettings) { %>
           <div class="save-row">
             <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
-            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" />
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
             <button type="submit" class="button"><%= t('admin.shippingSave') %></button>
           </div>
           <% } %>
@@ -914,7 +927,7 @@
           </label>
           <label style="flex:0 0 160px;">
             <%= t('admin.adminPass') %>
-            <input type="password" name="password" required style="margin-top:4px;" />
+            <input type="password" name="password" style="margin-top:4px;" />
           </label>
           <button class="button" type="submit" style="align-self:flex-end;"><%= t('admin.invAdjustBtn') %></button>
         </form>
@@ -1010,7 +1023,7 @@
             <textarea name="message" required rows="5" placeholder="Περιγράψτε αναλυτικά τι χρειάζεστε. Αν έχετε εικόνες, στείλτε τες και στο support@thronoschain.org." style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;resize:vertical;"></textarea>
           </label>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <input type="password" name="password" required placeholder="<%= t('admin.adminPass') %>" style="flex:0 0 180px;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;" />
+            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" style="flex:0 0 180px;padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;" />
             <button type="submit" class="button" style="white-space:nowrap;">📨 <%= t('admin.supportSend') %></button>
           </div>
         </form>
@@ -1215,6 +1228,18 @@
       const fContentDesc   = document.getElementById('f-contentDescription');
       const fManualUrl     = document.getElementById('f-manualUrl');
       const fVideoUrl      = document.getElementById('f-videoUrl');
+      function readLocalizedField(elInput, enInput) {
+        const elVal = (elInput.value || '').trim();
+        const enVal = (enInput.value || '').trim();
+        if (elVal && enVal) return { el: elVal, en: enVal };
+        if (elVal) return elVal;
+        if (enVal) return { en: enVal };
+        return '';
+      }
+      function getLocalizedForEdit(value, langCode) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
+        return langCode === 'el' ? (value || '') : '';
+      }
 
       async function uploadManual(input) {
         const file = input.files[0];
@@ -1470,6 +1495,32 @@
             uploadResult.textContent = json.error || i18nJs.uploadErr;
           }
         });
+      }
+
+      async function uploadCategoryImage(categoryId, input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('categoryId', categoryId);
+        fd.append('image', file);
+        const pw = prompt('Αν ζητηθεί επαναπιστοποίηση, γράψτε κωδικό admin (αλλιώς αφήστε κενό):') || '';
+        fd.append('password', pw);
+        const r = await fetch('<%= withTenantLink("/admin/categories/image-upload") %>', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (!j.ok) { alert(j.error || 'Σφάλμα upload'); return; }
+        window.location.reload();
+      }
+
+      async function removeCategoryImage(categoryId) {
+        if (!confirm('Να αφαιρεθεί η εικόνα κατηγορίας;')) return;
+        const pw = prompt('Αν ζητηθεί επαναπιστοποίηση, γράψτε κωδικό admin (αλλιώς αφήστε κενό):') || '';
+        const body = new URLSearchParams();
+        body.set('categoryId', categoryId);
+        body.set('password', pw);
+        const r = await fetch('<%= withTenantLink("/admin/categories/image-remove") %>', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+        const j = await r.json();
+        if (!j.ok) { alert(j.error || 'Σφάλμα διαγραφής'); return; }
+        window.location.reload();
       }
 
       // ── Color pickers ─────────────────────────────────────────────

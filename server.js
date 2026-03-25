@@ -634,6 +634,23 @@ async function verifyAdminPassword(tenant, plainPassword) {
   return ok;
 }
 
+const ADMIN_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
+async function verifyAdminAction(req, providedPassword) {
+  const now = Date.now();
+  const last = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
+  const isFresh = !!last && (now - last) <= ADMIN_IDLE_TIMEOUT_MS;
+  if (req.session && req.session.admin && req.session.admin.tenantId === req.tenant.id && isFresh) {
+    req.session.adminLastActiveAt = now;
+    return { ok: true };
+  }
+  const ok = await verifyAdminPassword(req.tenant, providedPassword || '');
+  if (ok) {
+    if (req.session) req.session.adminLastActiveAt = now;
+    return { ok: true, reauthenticated: true };
+  }
+  return { ok: false, needsPassword: true };
+}
+
 // Root operator auth
 const ROOT_ADMIN_PASSWORD = process.env.THRONOS_ROOT_ADMIN_PASSWORD || '';
 
@@ -968,6 +985,20 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const categoryUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'categories');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'category', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
 
 // Separate multer for favicon (memory storage, 512 KB limit)
 const favUpload = multer({
@@ -1581,6 +1612,7 @@ app.post('/admin/login', async (req, res) => {
   const ok = await verifyAdminPassword(req.tenant, req.body.password);
   if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
   req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
+  req.session.adminLastActiveAt = Date.now();
   res.redirect(buildTenantLink(req, '/admin'));
 });
 
@@ -1783,8 +1815,8 @@ app.post('/admin/settings', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1856,8 +1888,8 @@ app.post('/admin/shipping-payment', async (req, res) => {
       }));
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
@@ -1903,8 +1935,8 @@ app.post('/admin/categories/add', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1954,8 +1986,8 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -2027,8 +2059,8 @@ app.post('/admin/categories/delete', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -2063,8 +2095,8 @@ app.post('/admin/products', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -2124,8 +2156,8 @@ app.post('/admin/stock/adjust', async (req, res) => {
   if (!permissions.canEditProducts) {
     return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται.' }));
   }
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
   }
   const products = loadTenantProducts(req);
@@ -2168,8 +2200,8 @@ app.post(
     }
 
     const password = req.body.password;
-    const ok = await verifyAdminPassword(req.tenant, password);
-    if (!ok) {
+    const auth = await verifyAdminAction(req, password);
+    if (!auth.ok) {
       return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     }
 
@@ -2182,14 +2214,40 @@ app.post(
   }
 );
 
+app.post('/admin/categories/image-upload', categoryUpload.single('image'), async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+  const categoryId = String(req.body.categoryId || '').trim();
+  if (!categoryId) return res.status(400).json({ ok: false, error: 'categoryId required' });
+  if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded' });
+  const categories = loadTenantCategories(req);
+  const idx = categories.findIndex((c) => c.id === categoryId);
+  if (idx < 0) return res.status(404).json({ ok: false, error: 'Category not found' });
+  categories[idx].image = `/tenants/${req.tenant.id}/media/categories/${req.file.filename}`;
+  saveTenantCategories(req, categories);
+  return res.json({ ok: true, image: categories[idx].image });
+});
+
+app.post('/admin/categories/image-remove', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+  const categoryId = String(req.body.categoryId || '').trim();
+  const categories = loadTenantCategories(req);
+  const idx = categories.findIndex((c) => c.id === categoryId);
+  if (idx < 0) return res.status(404).json({ ok: false, error: 'Category not found' });
+  delete categories[idx].image;
+  saveTenantCategories(req, categories);
+  return res.json({ ok: true });
+});
+
 // Favicon upload
 app.post(
   '/admin/favicon',
   favUpload.single('favicon'),
   async (req, res) => {
     const password = req.body.password;
-    const ok = await verifyAdminPassword(req.tenant, password);
-    if (!ok) {
+    const auth = await verifyAdminAction(req, password);
+    if (!auth.ok) {
       return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Λάθος κωδικός διαχειριστή' })}#tab-upload`);
     }
     if (!req.file) {
@@ -2202,8 +2260,8 @@ app.post(
 
 // Favicon delete
 app.post('/admin/favicon/delete', async (req, res) => {
-  const ok = await verifyAdminPassword(req.tenant, req.body.password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) {
     return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Λάθος κωδικός διαχειριστή' })}#tab-upload`);
   }
   if (fs.existsSync(req.tenantPaths.favicon)) {
@@ -2240,8 +2298,8 @@ app.post(
     if (!permissions.canDigitalContent) {
       return res.status(403).json({ ok: false, error: 'Digital content not available on this plan.' });
     }
-    const ok = await verifyAdminPassword(req.tenant, req.body.password);
-    if (!ok) return res.status(401).json({ ok: false, error: 'Invalid password.' });
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No file.' });
     const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
     res.json({ ok: true, url, filename: req.file.filename });
@@ -2492,8 +2550,8 @@ app.get('/thronos-commerce/stripe-success', async (req, res) => {
 // ── Tenant subscription renewal (from admin dashboard) ────────────────────────
 app.post('/admin/subscribe/renew', async (req, res) => {
   const { password } = req.body;
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
 
   const stripe = platformStripe();
   if (!stripe) return res.render('admin', buildAdminViewModel(req, { error: 'Η πλατφόρμα δεν έχει ρυθμιστεί για online πληρωμές ακόμα. Επικοινωνήστε μαζί μας.' }));
@@ -2566,8 +2624,8 @@ app.get('/admin/subscribe/success', async (req, res) => {
 // ── Ticket system ─────────────────────────────────────────────────────────────
 app.post('/admin/tickets/new', async (req, res) => {
   const { password, subject, message: body, category } = req.body;
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
   if (!subject || !body) return res.render('admin', buildAdminViewModel(req, { error: 'Συμπληρώστε θέμα και μήνυμα.' }));
 
   const ticket = {
