@@ -369,9 +369,26 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function requireLogin(req, res, next) {
+function requireUser(req, res, next) {
   if (!req.session.user) {
     return res.redirect('/login');
+  }
+  next();
+}
+
+function requireTenantAdmin(req, res, next) {
+  if (!req.session.admin) {
+    return res.redirect('/admin/login');
+  }
+  if (!req.tenant || req.session.admin.tenantId !== req.tenant.id) {
+    return res.redirect('/admin/login');
+  }
+  next();
+}
+
+function requireRootAdmin(req, res, next) {
+  if (!req.session.rootAdmin) {
+    return res.redirect('/root/login');
   }
   next();
 }
@@ -852,6 +869,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root admin auth guard
+app.use('/root', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/logout') return next();
+  return requireRootAdmin(req, res, next);
+});
+
+// Tenant admin auth guard
+app.use('/admin', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/logout') return next();
+  return requireTenantAdmin(req, res, next);
+});
+
 function buildAdminViewModel(req, extra) {
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
@@ -1277,6 +1306,25 @@ app.get('/checkout/stripe-success', async (req, res) => {
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect('/checkout'));
 
+app.get('/admin/login', (req, res) => {
+  const config = loadTenantConfig(req);
+  if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect('/admin');
+  res.render('admin-login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/admin/login', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const ok = await verifyAdminPassword(req.tenant, req.body.password);
+  if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
+  req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
+  res.redirect('/admin');
+});
+
+app.get('/admin/logout', (req, res) => {
+  req.session.admin = null;
+  res.redirect('/admin/login');
+});
+
 app.get('/login', (req, res) => {
   if (req.session.user) return res.redirect('/account');
   const config = loadTenantConfig(req);
@@ -1339,7 +1387,7 @@ app.post('/signup', async (req, res) => {
   res.redirect('/account');
 });
 
-app.get('/account', requireLogin, (req, res) => {
+app.get('/account', requireUser, (req, res) => {
   const config = loadTenantConfig(req);
   res.render('account', { config, tenant: req.tenant, user: req.session.user });
 });
@@ -1348,7 +1396,7 @@ app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
-app.get('/my-orders', requireLogin, (req, res) => {
+app.get('/my-orders', requireUser, (req, res) => {
   const config = loadTenantConfig(req);
   const email = normalizeEmail(req.session.user.email);
   const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
@@ -1906,7 +1954,7 @@ app.post(
 );
 
 // ── Digital content: gated access page ───────────────────────────────────────
-app.get('/content/:orderId', requireLogin, (req, res) => {
+app.get('/content/:orderId', requireUser, (req, res) => {
   const orders = loadTenantOrders(req);
   const order  = orders.find((o) => o.id === req.params.orderId);
   if (!order) return res.status(404).send('Η παραγγελία δεν βρέθηκε.');
@@ -2346,6 +2394,25 @@ function buildRootViewModel(extra) {
 
 app.get('/root/tenants', (req, res) => {
   res.render('root-tenants', buildRootViewModel());
+});
+
+app.get('/root/login', (req, res) => {
+  if (req.session.rootAdmin) return res.redirect('/root/tenants');
+  res.render('root-login', { error: null });
+});
+
+app.post('/root/login', (req, res) => {
+  const { password } = req.body;
+  if (!verifyRootPassword(password)) {
+    return res.status(401).render('root-login', { error: 'Invalid root password.' });
+  }
+  req.session.rootAdmin = { authenticatedAt: new Date().toISOString() };
+  res.redirect('/root/tenants');
+});
+
+app.get('/root/logout', (req, res) => {
+  req.session.rootAdmin = null;
+  res.redirect('/root/login');
 });
 
 app.post('/root/tenants/create', async (req, res) => {
