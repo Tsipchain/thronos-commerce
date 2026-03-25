@@ -101,6 +101,9 @@
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
       .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
+      .header-main-row { display:flex; align-items:center; gap:12px; }
+      .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
+      .header-nav-row .main-nav { flex: 1; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
       .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
       .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
@@ -130,11 +133,21 @@
       .kit-wizard-foot { border-top:1px solid #e5e7eb; padding:12px 16px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
       .kit-total { font-weight:800; font-size:1.05rem; color:#0f172a; }
       .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
+      body.eukolakis-classic main { max-width: 1180px; margin: 0 auto; padding: 0 16px 30px; }
+      body.eukolakis-classic .store-header { padding: 14px 16px 10px; }
+      body.eukolakis-classic .logo-title { align-items: center; gap: 16px; }
+      body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
+      body.eukolakis-classic .logo-frame img { max-height: 76px !important; }
+      body.eukolakis-classic .store-name-wrap h1 { font-size: clamp(2rem, 2.8vw, 2.4rem); letter-spacing: .01em; margin: 0; }
+      body.eukolakis-classic .featured-primary-grid { gap: 20px; }
+      body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
+      body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
         .header-auth-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
+        .header-main-row, .header-nav-row { flex-wrap: wrap; }
         .pill-nav { overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
         .pill-nav .pill-item { flex: 0 0 auto; }
         .kit-wizard-backdrop { padding: 0; }
@@ -143,14 +156,18 @@
       }
     </style>
   </head>
-  <body>
+  <body class="<%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
+    <% const homepage = config.homepage || {}; %>
     <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const hideMenuForHeroFocus = isEukolakisClassic && !activeCategory && !!homepage.heroImage; %>
+    <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
-      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
+      <div class="header-main-row">
+      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (config.logoPath && brandingMode !== 'name_only') { %>
           <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
@@ -176,6 +193,9 @@
         <% } %>
       </div>
       <% } %>
+      </div>
+      <% if (!hideMenuForHeroFocus) { %>
+      <div class="header-nav-row">
       <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
       <nav class="main-nav" id="main-nav">
         <ul>
@@ -203,7 +223,7 @@
           <% } %>
         </ul>
       </nav>
-      <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
+      </div>
       <% if (tenant.id === 'eukolakis') { %>
       <div class="pill-nav">
         <% const navHomepage = config.homepage || {}; %>
@@ -220,6 +240,7 @@
           <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
         <% } %>
       </div>
+      <% } %>
       <% } %>
     </header>
 
@@ -240,11 +261,13 @@
     </div>
 
     <main>
-      <% const homepage = config.homepage || {}; %>
       <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
       <% const primaryFeaturedId = hpFeaturedPrimary[0]; %>
       <% const primaryFeaturedProduct = (allProducts || products).find(function(p){ return p.id === primaryFeaturedId; }); %>
-      <% const featuredHomeProducts = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }).slice(0, 2); %>
+      <% const featuredFromIds = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }); %>
+      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT'; }).slice(0, 2); %>
+      <% const featuredHomeProducts = (featuredFromIds.length ? featuredFromIds : fallbackKitProducts).slice(0, 2); %>
+      <% const heroPrimaryProduct = primaryFeaturedProduct || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
@@ -274,7 +297,7 @@
         <% }) %>
       </section>
       <% } %>
-      <% if ((!config.theme || config.theme.bannerVisible !== false) && !(isEukolakisClassic && activeCategory)) { %>
+      <% if (((!config.theme || config.theme.bannerVisible !== false) || (isEukolakisClassic && !activeCategory)) && !(isEukolakisClassic && activeCategory)) { %>
       <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
         <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
           <div style="margin-bottom:14px;"><img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" /></div>
@@ -287,11 +310,11 @@
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
-            <% if (isEukolakisClassic && primaryFeaturedProduct) { %>
+            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
             <a
               class="button"
               href="#"
-              data-kit-launch="<%= primaryFeaturedId %>"
+              data-kit-launch="<%= heroPrimaryProduct.id %>"
             ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
             <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
@@ -332,7 +355,7 @@
       <% } %>
       <% } %>
 
-      <% if (!(tenant.id === 'eukolakis' && !activeCategory)) { %>
+      <% if (!(tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length)) { %>
       <%# ── Featured products ── %>
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
       <% if (featuredProducts.length > 0) { %>
