@@ -109,7 +109,17 @@
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
-        <a href="/" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+      </div>
+      <% if (isPreviewMode) { %>
+      <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+        <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+      </div>
+      <% } %>
+      <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="<%= withTenantLink('/account') %>">My Account</a>
+        <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
+        <a href="<%= withTenantLink('/logout') %>">Logout</a>
       </div>
     </header>
 
@@ -125,7 +135,7 @@
         <div class="content-card no-content">
           <h2><%= t('content.noDigitalContent') %></h2>
           <p><%= t('content.noDigitalContentSub') %></p>
-          <a href="/" class="back-link">← <%= t('checkout.backToStore') %></a>
+          <a href="<%= withTenantLink('/') %>" class="back-link">← <%= t('checkout.backToStore') %></a>
         </div>
 
       <% } else { %>
@@ -216,7 +226,7 @@
           </div>
         <% }) %>
 
-        <a href="/" class="back-link">← <%= t('checkout.backToStore') %></a>
+        <a href="<%= withTenantLink('/') %>" class="back-link">← <%= t('checkout.backToStore') %></a>
 
         <div class="security-note">
           <%= t('content.securityNote') %>
