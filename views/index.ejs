@@ -88,6 +88,10 @@
       .stock-pill.ok  { background: #d1fae5; color: #065f46; }
       .stock-pill.low { background: #fef3c7; color: #92400e; }
       .stock-pill.out { background: #fee2e2; color: #991b1b; }
+      .cat-logo { width:22px;height:22px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px; }
+      .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0 8px; }
+      .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
+      .category-card img { width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px; }
     </style>
   </head>
   <body>
@@ -107,26 +111,52 @@
       <nav class="main-nav" id="main-nav">
         <ul>
           <li class="<%= !activeCategory ? 'active' : '' %>">
-            <a href="/<%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.allProducts') %></a>
+            <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
           <% categories.forEach(function(cat) { %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
-              <a href="/?category=<%= cat.slug %><%= lang !== 'el' ? '&lang=' + lang : '' %>"><%= cat.name %></a>
+              <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+                <% if (tenant.id === 'eukolakis' && cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+              </a>
             </li>
           <% }); %>
+          <% if (!user) { %>
+            <li><a href="<%= withTenantLink('/login') %>">Login</a></li>
+            <li><a href="<%= withTenantLink('/signup') %>">Signup</a></li>
+          <% } else { %>
+            <li><a href="<%= withTenantLink('/account') %>">My Account</a></li>
+            <li><a href="<%= withTenantLink('/my-orders') %>">My Orders</a></li>
+            <li><a href="<%= withTenantLink('/logout') %>">Logout</a></li>
+          <% } %>
         </ul>
       </nav>
     </header>
 
+    <% if (isPreviewMode) { %>
+    <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+      <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+    </div>
+    <% } %>
+
     <div class="lang-switcher">
       <span><%= t('storefront.langLabel') %>:</span>
       <% ['el','en','de','es','ru','ja'].forEach(function(l) { %>
-        <a href="?<%= activeCategory ? 'category=' + activeCategory + '&' : '' %>lang=<%= l %>"
+        <a href="<%= withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, { lang: l })) %>"
            class="<%= lang === l ? 'active' : '' %>"><%= l.toUpperCase() %></a>
       <% }) %>
     </div>
 
     <main>
+      <% if (tenant.id === 'eukolakis') { %>
+      <section class="category-cards">
+        <% categories.forEach(function(cat) { %>
+          <a class="category-card" href="<%= withTenantLink('/', { category: cat.slug }) %>">
+            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <div><%= cat.name %></div>
+          </a>
+        <% }) %>
+      </section>
+      <% } %>
       <section class="hero">
         <p><%= config.heroText %></p>
       </section>

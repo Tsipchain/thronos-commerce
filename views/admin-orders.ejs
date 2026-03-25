@@ -52,11 +52,11 @@
         &nbsp;·&nbsp;
         <%= t('orders.package') %>: <strong><%= tenant.supportTier %></strong>
         &nbsp;·&nbsp;
-        <a href="/admin" style="font-size:0.85rem"><%= t('orders.settingsLink') %></a>
+        <a href="<%= withTenantLink('/admin') %>" style="font-size:0.85rem"><%= t('orders.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/admin/orders" style="font-size:0.85rem"><%= t('orders.ordersLink') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('orders.ordersLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/" style="font-size:0.85rem"><%= t('orders.storefrontLink') %></a>
+        <a href="<%= withTenantLink('/') %>" style="font-size:0.85rem"><%= t('orders.storefrontLink') %></a>
       </p>
     </header>
 
@@ -70,11 +70,11 @@
       <% } %>
 
       <nav class="admin-tabs">
-        <a href="/admin"><%= t('orders.tabTheme') %></a>
-        <a href="/admin#tab-categories"><%= t('admin.tabCategories') %></a>
-        <a href="/admin#tab-products"><%= t('admin.tabProducts') %></a>
-        <a href="/admin#tab-upload"><%= t('admin.tabImages') %></a>
-        <a href="/admin/orders" class="active"><%= t('orders.tabOrders') %></a>
+        <a href="<%= withTenantLink('/admin') %>"><%= t('orders.tabTheme') %></a>
+        <a href="<%= withTenantLink('/admin') %>#tab-categories"><%= t('admin.tabCategories') %></a>
+        <a href="<%= withTenantLink('/admin') %>#tab-products"><%= t('admin.tabProducts') %></a>
+        <a href="<%= withTenantLink('/admin') %>#tab-upload"><%= t('admin.tabImages') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" class="active"><%= t('orders.tabOrders') %></a>
       </nav>
 
       <section class="admin-block">
