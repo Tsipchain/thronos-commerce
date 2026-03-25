@@ -100,6 +100,7 @@
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
       .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
       .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
@@ -133,6 +134,7 @@
       @media (max-width: 640px) {
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
+        .header-auth-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
         .pill-nav { overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
         .pill-nav .pill-item { flex: 0 0 auto; }
         .kit-wizard-backdrop { padding: 0; }
@@ -164,7 +166,7 @@
         <% } %>
       </div>
       <% if (isEukolakisClassic) { %>
-      <div class="header-auth-actions" style="display:flex;gap:8px;align-items:center;">
+      <div class="header-auth-actions">
         <% if (!user) { %>
           <a class="button" style="padding:6px 10px;text-decoration:none;" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a>
           <a class="button" style="padding:6px 10px;text-decoration:none;background:#111827;" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a>
@@ -240,8 +242,9 @@
     <main>
       <% const homepage = config.homepage || {}; %>
       <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+      <% const primaryFeaturedId = hpFeaturedPrimary[0]; %>
+      <% const primaryFeaturedProduct = (allProducts || products).find(function(p){ return p.id === primaryFeaturedId; }); %>
       <% const featuredHomeProducts = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }).slice(0, 2); %>
-      <% const primaryKitProduct = featuredHomeProducts.find(function(p){ return p && p.type === 'KIT'; }); %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
@@ -277,18 +280,18 @@
           <div style="margin-bottom:14px;"><img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" /></div>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
-          <h2 class="hero-title"><%= config.heroTitle || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
-          <p style="margin:0;color:inherit;opacity:.92;"><%= config.heroSubtitle || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
+          <h2 class="hero-title"><%= resolveField(homepage.heroTitle, lang) || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
+          <p style="margin:0;color:inherit;opacity:.92;"><%= resolveField(homepage.heroSubtitle, lang) || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
         <% } else { %>
         <p><%= config.heroText %></p>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
-            <% if (isEukolakisClassic && primaryKitProduct) { %>
+            <% if (isEukolakisClassic && primaryFeaturedProduct) { %>
             <a
               class="button"
-              href="<%= withTenantLink('/product/' + primaryKitProduct.id, lang !== 'el' ? { lang } : {}) %>"
-              data-kit-launch="<%= primaryKitProduct.id %>"
+              href="<%= withTenantLink('/product/' + primaryFeaturedProduct.id, lang !== 'el' ? { lang } : {}) %>"
+              data-kit-launch="<%= primaryFeaturedProduct.id %>"
             ><%= lang === 'el' ? 'Ξεκίνησε τον οδηγό Kit' : 'Start kit wizard' %></a>
             <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
