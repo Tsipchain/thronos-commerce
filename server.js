@@ -1823,6 +1823,8 @@ app.post('/admin/settings', async (req, res) => {
     homepageHeroImage,
     homepageFeaturedIds,
     homepageFeaturedPrimary,
+    homepageFeaturedPrimary1,
+    homepageFeaturedPrimary2,
     homepageFeaturedSecondaryId,
     homepageSecondaryTitle,
     homepageSecondaryText,
@@ -1919,7 +1921,8 @@ app.post('/admin/settings', async (req, res) => {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const featuredPrimary = String(homepageFeaturedPrimary || '')
+  const featuredPrimaryCombined = [homepageFeaturedPrimary1, homepageFeaturedPrimary2].filter(Boolean).join(',') || homepageFeaturedPrimary || '';
+  const featuredPrimary = String(featuredPrimaryCombined || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
@@ -2005,7 +2008,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId, image } = req.body;
+  const { password, id, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -2046,6 +2049,8 @@ app.post('/admin/categories/add', async (req, res) => {
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
   if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
+  newCat.showInMainNav = showInMainNav === 'on';
+  if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
   categories.push(newCat);
   saveTenantCategories(req, categories);
 
@@ -2056,7 +2061,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId, image } = req.body;
+  const { password, categoryId, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -2120,6 +2125,8 @@ app.post('/admin/categories/update', async (req, res) => {
       delete categories[idx].parentId;
     }
   }
+  categories[idx].showInMainNav = showInMainNav === 'on';
+  if (navOrder !== undefined && navOrder !== '') categories[idx].navOrder = Number(navOrder) || 0;
   saveTenantCategories(req, categories);
 
   res.render(
