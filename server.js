@@ -448,6 +448,15 @@ function safeJsonForScript(value) {
     .replace(/<!--/g, '<\\!--');
 }
 
+function safeInlineScriptString(value) {
+  return JSON.stringify(String(value))
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 function buildTenantLink(req, targetPath, extraQuery = {}) {
   const basePath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
   const query = new URLSearchParams();
@@ -1172,6 +1181,7 @@ function buildAdminViewModel(req, extra) {
     rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
     productsJsonScript: safeJsonForScript(products),
+    productsJsonEscaped: safeInlineScriptString(JSON.stringify(products)),
     contentLang,
     contentLangs: CONTENT_LANGS,
     stockLog: stockLog.slice(-100).reverse(),

@@ -295,8 +295,8 @@
 
         <label><span><%= t('admin.logoPath') %></span>
           <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
-                 placeholder="/logo.svg" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Μπορείτε να γράψετε URL ή να κάνετε upload λογότυπου.</small>
+                 placeholder="/logo.svg" readonly />
+          <small class="helper">Το πεδίο ενημερώνεται αυτόματα από το upload λογότυπου.</small>
         </label>
         <% if (config.logoPath) { %>
           <% const logoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
@@ -1247,7 +1247,7 @@
       };
 
       // ── Products data (server-rendered) ────────────────────────
-      let products = <%- productsJsonScript %>;
+      let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
 
       // ── Render table ────────────────────────────────────────────
