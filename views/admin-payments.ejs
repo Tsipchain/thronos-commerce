@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Payments Admin</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body{margin:0;background:#f5f7fb;font-family:system-ui,-apple-system,sans-serif;color:#111827}
+    .wrap{max-width:980px;margin:0 auto;padding:18px 14px 34px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px}
+    .muted{color:#6b7280;font-size:.86rem}
+    label{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:.9rem}
+    input{padding:8px 10px;border:1px solid #d1d5db;border-radius:6px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .button{background:#4338ca;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer}
+    .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .nav a{text-decoration:none;background:#eef2ff;color:#3730a3;padding:6px 10px;border-radius:999px;font-size:.84rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav">
+      <a href="<%= withTenantLink('/admin') %>">← Admin</a>
+      <a href="<%= withTenantLink('/admin/orders') %>">Orders</a>
+      <a href="<%= withTenantLink('/') %>">Preview store</a>
+    </div>
+
+    <% if (error) { %><p style="background:#fee2e2;color:#991b1b;padding:8px 10px;border-radius:8px;"><%= error %></p><% } %>
+    <% if (message) { %><p style="background:#dcfce7;color:#166534;padding:8px 10px;border-radius:8px;"><%= message %></p><% } %>
+
+    <section class="card" style="margin-bottom:12px;">
+      <h2 style="margin-top:0;">Payments</h2>
+      <p class="muted">Stripe configuration and available payment methods for this tenant.</p>
+
+      <form method="POST" action="<%= withTenantLink('/admin/payments') %>">
+        <label>
+          <span>Stripe Publishable Key</span>
+          <input type="text" name="stripePublishableKey" value="<%= config.stripePublishableKey || '' %>" placeholder="pk_live_..." <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label>
+          <span>Stripe Secret Key</span>
+          <input type="password" name="stripeSecretKey" value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>" placeholder="sk_live_..." autocomplete="new-password" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="muted">Leave empty to keep existing secret key.</small>
+        </label>
+        <div class="row">
+          <input type="password" name="password" placeholder="Admin password" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <button class="button" type="submit" <%= permissions.canEditSettings ? '' : 'disabled' %>>Save Stripe keys</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3 style="margin-top:0;">Payment methods info</h3>
+      <% if (!(config.paymentOptions || []).length) { %>
+        <p class="muted">No payment methods configured.</p>
+      <% } else { %>
+        <ul>
+          <% (config.paymentOptions || []).forEach(function(opt){ %>
+            <li><strong><%= opt.id %></strong> — <%= opt.label || '—' %> (<%= opt.type || '—' %>)</li>
+          <% }) %>
+        </ul>
+      <% } %>
+      <p class="muted">Shipping/payment method labels and combinations remain editable in main admin shipping section.</p>
+    </section>
+  </div>
+</body>
+</html>
