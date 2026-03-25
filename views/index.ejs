@@ -17,20 +17,8 @@
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
       }
-      .lang-switcher {
-        display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-        padding: 6px 16px; background: rgba(0,0,0,.06); font-size: 0.78rem;
-      }
-      .lang-switcher span { color: #888; margin-right: 4px; }
-      .lang-switcher a {
-        padding: 2px 7px; border-radius: 4px; text-decoration: none;
-        color: inherit; border: 1px solid #ccc; transition: background .15s;
-      }
-      .lang-switcher a:hover { background: rgba(0,0,0,.08); }
-      .lang-switcher a.active {
-        background: var(--menu-active-bg); color: var(--menu-active-text);
-        border-color: transparent; font-weight: 700;
-      }
+      .lang-switcher { padding: 8px 16px; background: rgba(0,0,0,.06); font-size: 0.8rem; display:flex; align-items:center; gap:8px; }
+      .lang-switcher select { padding: 4px 8px; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
 
       /* ── Product grid ── */
       .product-list {
@@ -88,11 +76,24 @@
       .stock-pill.ok  { background: #d1fae5; color: #065f46; }
       .stock-pill.low { background: #fef3c7; color: #92400e; }
       .stock-pill.out { background: #fee2e2; color: #991b1b; }
+      .cat-logo { width:22px;height:22px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px; }
+      .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0 8px; }
+      .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
+      .category-card img { width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px; }
+      .logo-title.centered { width:100%; justify-content:center; text-align:center; }
+      .hero.strong { background:linear-gradient(130deg,#111827,#1f2937); color:#fff; border-radius:12px; padding:24px; }
+      .category-card.only-image div { display:none; }
+      body.cursor-tool { cursor: crosshair; }
+      .hero .hero-title { margin: 0 0 8px; font-size: clamp(1.2rem, 2.2vw, 1.9rem); }
+      .hero .hero-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
+      .hero .hero-actions a { text-decoration:none; }
+      .category-card.featured { border-color: var(--accent-color); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
+      .category-card small { display:block; color:#6b7280; margin-top:3px; font-size:.74rem; }
     </style>
   </head>
   <body>
     <header>
-      <div class="logo-title">
+      <div class="logo-title <%= config.theme && config.theme.headerLayout === 'centered' ? 'centered' : '' %>">
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
@@ -107,29 +108,67 @@
       <nav class="main-nav" id="main-nav">
         <ul>
           <li class="<%= !activeCategory ? 'active' : '' %>">
-            <a href="/<%= lang !== 'el' ? '?lang=' + lang : '' %>"><%= t('storefront.allProducts') %></a>
+            <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
           <% categories.forEach(function(cat) { %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
-              <a href="/?category=<%= cat.slug %><%= lang !== 'el' ? '&lang=' + lang : '' %>"><%= cat.name %></a>
+              <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+                <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+              </a>
             </li>
           <% }); %>
+          <% if (!user) { %>
+            <li><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
+            <li><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
+          <% } else { %>
+            <li><a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a></li>
+            <li><a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>">My Orders</a></li>
+            <li><a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a></li>
+          <% } %>
         </ul>
       </nav>
     </header>
 
+    <% if (isPreviewMode) { %>
+    <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+      <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+    </div>
+    <% } %>
+
     <div class="lang-switcher">
-      <span><%= t('storefront.langLabel') %>:</span>
-      <% ['el','en','de','es','ru','ja'].forEach(function(l) { %>
-        <a href="?<%= activeCategory ? 'category=' + activeCategory + '&' : '' %>lang=<%= l %>"
-           class="<%= lang === l ? 'active' : '' %>"><%= l.toUpperCase() %></a>
-      <% }) %>
+      <label for="lang-switch"><%= t('storefront.langLabel') %>:</label>
+      <select id="lang-switch" onchange="window.location.href=this.value">
+        <% (contentLangs || ['el','en']).forEach(function(l) { %>
+          <% const optionUrl = withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, { lang: l })); %>
+          <option value="<%= optionUrl %>" <%= lang === l ? 'selected' : '' %>><%= l === 'el' ? 'Ελληνικά' : 'English' %></option>
+        <% }) %>
+      </select>
     </div>
 
     <main>
-      <section class="hero">
-        <p><%= config.heroText %></p>
+      <section class="category-cards">
+        <% categories.forEach(function(cat) { %>
+          <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <div><%= cat.name %> <% if (cat.featured) { %>⭐<% } %></div>
+            <% if (cat.shortDescription && config.theme && config.theme.categoryMenuStyle !== 'image') { %><small><%= cat.shortDescription %></small><% } %>
+          </a>
+        <% }) %>
       </section>
+      <% if (!config.theme || config.theme.bannerVisible !== false) { %>
+      <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
+        <% if (tenant.id === 'eukolakis') { %>
+          <h2 class="hero-title"><%= lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts' %></h2>
+        <% } %>
+        <p><%= config.heroText %></p>
+        <% if (tenant.id === 'eukolakis') { %>
+          <div class="hero-actions">
+            <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
+            <a class="button" style="background:#111827;" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools' %></a>
+          </div>
+        <% } %>
+      </section>
+      <% } %>
 
       <%# ── Featured products ── %>
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
@@ -138,7 +177,7 @@
         <h2>⭐ <%= t('storefront.featuredTitle') %></h2>
         <div class="product-list">
           <% featuredProducts.forEach(function (product) { %>
-            <%- include('_product-card', { product, lang, t }) %>
+            <%- include('_product-card', { product, lang, t, config }) %>
           <% }); %>
         </div>
       </section>
@@ -150,7 +189,7 @@
         <% } %>
 
         <% products.forEach(function (product) { %>
-          <%- include('_product-card', { product, lang, t }) %>
+          <%- include('_product-card', { product, lang, t, config }) %>
         <% }); %>
       </section>
     </main>
@@ -166,6 +205,9 @@
         menuToggle.addEventListener("click", () => {
           mainNav.classList.toggle("open");
         });
+      }
+      if (<%= tenant.id === 'eukolakis' && config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
+        document.body.classList.add('cursor-tool');
       }
     </script>
   </body>

@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
+const session = require('express-session');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -48,7 +49,9 @@ function getSubscriptionInfo(tenant) {
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
 const LOCALES_DIR = path.join(__dirname, 'locales');
-const SUPPORTED_LANGS = ['el', 'en', 'de', 'es', 'ru', 'ja'];
+const SUPPORTED_LANGS = ['el', 'en'];
+const CONTENT_LANGS = ['el', 'en'];
+const DEFAULT_CONTENT_LANG = 'el';
 let LOCALES = {};
 
 function loadLocales() {
@@ -68,6 +71,8 @@ function loadLocales() {
 function getLangFromRequest(req) {
   const qLang = (req.query.lang || '').toLowerCase();
   if (SUPPORTED_LANGS.includes(qLang)) return qLang;
+  const sLang = (req.session && req.session.lang ? String(req.session.lang) : '').toLowerCase();
+  if (SUPPORTED_LANGS.includes(sLang)) return sLang;
   const acceptLang = (req.headers['accept-language'] || '').toLowerCase();
   for (const lang of SUPPORTED_LANGS) {
     if (
@@ -91,6 +96,63 @@ function translate(lang, key) {
   if (val !== undefined && val !== null) return String(val);
   if (lang !== 'el') return translate('el', key);
   return key;
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isTranslatableObject(value) {
+  if (!isPlainObject(value)) return false;
+  return CONTENT_LANGS.some((l) => typeof value[l] === 'string');
+}
+
+function resolveTranslatable(value, lang = DEFAULT_CONTENT_LANG, fallbackLang = DEFAULT_CONTENT_LANG) {
+  if (typeof value === 'string') return value;
+  if (!isTranslatableObject(value)) return value;
+  const primary = typeof value[lang] === 'string' ? value[lang].trim() : '';
+  if (primary) return primary;
+  const fallback = typeof value[fallbackLang] === 'string' ? value[fallbackLang].trim() : '';
+  if (fallback) return fallback;
+  for (const l of CONTENT_LANGS) {
+    if (typeof value[l] === 'string' && value[l].trim()) return value[l].trim();
+  }
+  return '';
+}
+
+function buildTranslatableFromBody(body, baseName, fallbackValue) {
+  const result = {};
+  for (const lang of CONTENT_LANGS) {
+    const v = body[`${baseName}_${lang}`];
+    if (typeof v === 'string' && v.trim()) result[lang] = v.trim();
+  }
+  if (Object.keys(result).length) return result;
+  if (typeof body[baseName] === 'string' && body[baseName].trim()) return body[baseName].trim();
+  return fallbackValue;
+}
+
+function localizeConfigContent(config, lang) {
+  return {
+    ...config,
+    storeName: resolveTranslatable(config.storeName, lang),
+    heroText: resolveTranslatable(config.heroText, lang)
+  };
+}
+
+function localizeCategoryContent(cat, lang) {
+  return {
+    ...cat,
+    name: resolveTranslatable(cat.name, lang),
+    shortDescription: resolveTranslatable(cat.shortDescription, lang)
+  };
+}
+
+function localizeProductContent(product, lang) {
+  return {
+    ...product,
+    name: resolveTranslatable(product.name, lang),
+    description: resolveTranslatable(product.description, lang)
+  };
 }
 
 loadLocales();
@@ -168,6 +230,8 @@ ensureDir(DATA_ROOT);
 
 const TENANTS_DIR = path.join(DATA_ROOT, 'tenants');
 ensureDir(TENANTS_DIR);
+const TEMPLATES_DIR = path.join(DATA_ROOT, 'templates');
+ensureDir(TEMPLATES_DIR);
 
 const TENANTS_REGISTRY       = path.join(DATA_ROOT, 'tenants.json');
 const REFERRAL_ACCOUNTS_FILE = path.join(DATA_ROOT, 'referral_accounts.json');
@@ -272,6 +336,7 @@ function tenantPaths(tenantId) {
     config: path.join(base, 'config.json'),
     products: path.join(base, 'products.json'),
     categories: path.join(base, 'categories.json'),
+    users: path.join(base, 'users.json'),
     orders: path.join(base, 'orders.json'),
     reviews: path.join(base, 'reviews.json'),
     stockLog:      path.join(base, 'stock_log.json'),
@@ -307,16 +372,11 @@ function appendTenantOrder(req, order) {
 function getTenantByHost(hostname) {
   const tenants = loadTenantsRegistry();
   const host = (hostname || '').toLowerCase();
-  let tenant = tenants.find(
+  return tenants.find(
     (t) =>
       t.domain &&
       t.domain.toLowerCase() === host
   );
-  if (!tenant && tenants.length > 0) {
-    // dev fallback to demo or first active tenant
-    tenant = tenants.find((t) => t.id === 'demo') || tenants.find((t) => t.active) || tenants[0];
-  }
-  return tenant;
 }
 
 // Tenant-scoped loaders
@@ -336,7 +396,15 @@ function loadTenantConfig(req) {
       menuText: '#ffffff',
       menuActiveBg: '#f06292',
       menuActiveText: '#ffffff',
-      buttonRadius: '4px'
+      buttonRadius: '4px',
+      headerLayout: 'default',
+      heroStyle: 'soft',
+      categoryMenuStyle: 'image_label',
+      cardStyle: 'soft',
+      sectionSpacing: 'normal',
+      bannerVisible: true,
+      previewBadgeStyle: 'soft',
+      cursorEffect: false
     }
   };
   return loadJson(req.tenantPaths.config, fallback);
@@ -350,8 +418,74 @@ function loadTenantCategories(req) {
   return loadJson(req.tenantPaths.categories, []);
 }
 
+function loadTenantUsers(req) {
+  const users = loadJson(req.tenantPaths.users, []);
+  return Array.isArray(users) ? users : [];
+}
+
+function saveTenantUsers(req, users) {
+  saveJson(req.tenantPaths.users, users);
+}
+
 function saveTenantCategories(req, categories) {
   saveJson(req.tenantPaths.categories, categories);
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function buildTenantLink(req, targetPath, extraQuery = {}) {
+  const basePath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+  const query = new URLSearchParams();
+  if (req.tenantContext && req.tenantContext.mode === 'query' && req.tenantId) {
+    query.set('tenant', req.tenantId);
+  }
+  const carryLang = (req.lang || '').toLowerCase();
+  if (SUPPORTED_LANGS.includes(carryLang) && !Object.prototype.hasOwnProperty.call(extraQuery || {}, 'lang')) {
+    query.set('lang', carryLang);
+  }
+  if (
+    basePath.startsWith('/admin') &&
+    req.session &&
+    req.session.contentLang &&
+    CONTENT_LANGS.includes(String(req.session.contentLang).toLowerCase()) &&
+    !Object.prototype.hasOwnProperty.call(extraQuery || {}, 'contentLang')
+  ) {
+    query.set('contentLang', String(req.session.contentLang).toLowerCase());
+  }
+  Object.entries(extraQuery || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') query.set(k, String(v));
+  });
+  const qs = query.toString();
+  if (req.tenantContext && req.tenantContext.mode === 'path' && req.tenantId) {
+    return `/t/${req.tenantId}${basePath}${qs ? `?${qs}` : ''}`;
+  }
+  return `${basePath}${qs ? `?${qs}` : ''}`;
+}
+
+function requireUser(req, res, next) {
+  if (!req.session.user) {
+    return res.redirect(buildTenantLink(req, '/login'));
+  }
+  next();
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.session.admin) {
+    return res.redirect(buildTenantLink(req, '/admin/login'));
+  }
+  if (!req.tenant || req.session.admin.tenantId !== req.tenant.id) {
+    return res.redirect(buildTenantLink(req, '/admin/login'));
+  }
+  next();
+}
+
+function requireRootAdmin(req, res, next) {
+  if (!req.session.rootAdmin) {
+    return res.redirect('/root/login');
+  }
+  next();
 }
 
 function getSupportPermissions(supportTier) {
@@ -500,6 +634,23 @@ async function verifyAdminPassword(tenant, plainPassword) {
   return ok;
 }
 
+const ADMIN_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
+async function verifyAdminAction(req, providedPassword) {
+  const now = Date.now();
+  const last = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
+  const isFresh = !!last && (now - last) <= ADMIN_IDLE_TIMEOUT_MS;
+  if (req.session && req.session.admin && req.session.admin.tenantId === req.tenant.id && isFresh) {
+    req.session.adminLastActiveAt = now;
+    return { ok: true };
+  }
+  const ok = await verifyAdminPassword(req.tenant, providedPassword || '');
+  if (ok) {
+    if (req.session) req.session.adminLastActiveAt = now;
+    return { ok: true, reauthenticated: true };
+  }
+  return { ok: false, needsPassword: true };
+}
+
 // Root operator auth
 const ROOT_ADMIN_PASSWORD = process.env.THRONOS_ROOT_ADMIN_PASSWORD || '';
 
@@ -511,35 +662,101 @@ function verifyRootPassword(plain) {
   return crypto.timingSafeEqual(a, b);
 }
 
+function sanitizeTemplateId(raw) {
+  return (raw || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+}
+
+function listThemeTemplates() {
+  const out = [];
+  try {
+    const entries = fs.readdirSync(TEMPLATES_DIR, { withFileTypes: true });
+    entries.filter((e) => e.isDirectory()).forEach((entry) => {
+      const metaFile = path.join(TEMPLATES_DIR, entry.name, 'template.json');
+      if (fs.existsSync(metaFile)) {
+        const meta = loadJson(metaFile, null);
+        if (meta && meta.id) out.push(meta);
+      }
+    });
+  } catch (_) {}
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function extractThemeSkeletonConfig(config) {
+  return {
+    primaryColor: config.primaryColor || '#222222',
+    accentColor: config.accentColor || '#00ff88',
+    fontFamily: config.fontFamily || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    theme: config.theme || {
+      menuBg: '#111111',
+      menuText: '#ffffff',
+      menuActiveBg: '#f06292',
+      menuActiveText: '#ffffff',
+      buttonRadius: '4px'
+    }
+  };
+}
+
+function saveTemplateFromTenant(templateId, tenantId, displayName) {
+  const clean = sanitizeTemplateId(templateId);
+  if (!clean) throw new Error('invalid template id');
+  const srcPaths = tenantPaths(tenantId);
+  const srcCfg = loadJson(srcPaths.config, {});
+  const dir = path.join(TEMPLATES_DIR, clean);
+  ensureDir(dir);
+  const tpl = {
+    id: clean,
+    name: (displayName || clean).trim(),
+    sourceTenantId: tenantId,
+    createdAt: new Date().toISOString(),
+    themeConfig: extractThemeSkeletonConfig(srcCfg)
+  };
+  saveJson(path.join(dir, 'template.json'), tpl);
+  return tpl;
+}
+
 // Seed a new tenant's files from a template tenant (default: 'demo')
 function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
   const newPaths = tenantPaths(tenantId);
+  const templateMeta = loadJson(path.join(TEMPLATES_DIR, sanitizeTemplateId(templateId), 'template.json'), null);
   const tplPaths = tenantPaths(templateId);
 
+  const baseConfig = {
+    storeName: tenantId,
+    primaryColor: '#222222',
+    accentColor: '#00ff88',
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    heroText: 'Καλωσήρθατε στο κατάστημά μας!',
+    web3Domain: '',
+    logoPath: '/logo.svg',
+    shippingOptions: [],
+    paymentOptions: [],
+    theme: { menuBg: '#111111', menuText: '#ffffff', menuActiveBg: '#f06292', menuActiveText: '#ffffff', buttonRadius: '4px' }
+  };
+
   if (!fs.existsSync(newPaths.config)) {
-    const tplConfig = loadJson(tplPaths.config, {
-      storeName: tenantId,
-      primaryColor: '#222222',
-      accentColor: '#00ff88',
-      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      heroText: 'Καλωσήρθατε στο κατάστημά μας!',
-      web3Domain: '',
-      logoPath: '/logo.svg',
-      shippingOptions: [],
-      paymentOptions: [],
-      theme: { menuBg: '#111111', menuText: '#ffffff', menuActiveBg: '#f06292', menuActiveText: '#ffffff', buttonRadius: '4px' }
-    });
-    tplConfig.storeName = tenantId;
-    saveJson(newPaths.config, tplConfig);
+    let nextConfig = Object.assign({}, baseConfig);
+    if (templateMeta && templateMeta.themeConfig) {
+      nextConfig = Object.assign(nextConfig, templateMeta.themeConfig);
+    } else {
+      const tplConfig = loadJson(tplPaths.config, baseConfig);
+      nextConfig = Object.assign({}, nextConfig, extractThemeSkeletonConfig(tplConfig));
+      nextConfig.shippingOptions = tplConfig.shippingOptions || [];
+      nextConfig.paymentOptions = tplConfig.paymentOptions || [];
+    }
+    nextConfig.storeName = tenantId;
+    saveJson(newPaths.config, nextConfig);
   }
 
   if (!fs.existsSync(newPaths.products)) {
-    saveJson(newPaths.products, loadJson(tplPaths.products, []));
+    saveJson(newPaths.products, []);
   }
 
   if (!fs.existsSync(newPaths.categories)) {
-    saveJson(newPaths.categories, loadJson(tplPaths.categories, []));
+    saveJson(newPaths.categories, []);
   }
+  if (!fs.existsSync(newPaths.orders)) saveJson(newPaths.orders, []);
+  if (!fs.existsSync(newPaths.users)) saveJson(newPaths.users, []);
+  if (!fs.existsSync(newPaths.tickets)) saveJson(newPaths.tickets, []);
 }
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
@@ -572,12 +789,13 @@ async function sendOrderEmail({ tenant, config, order }) {
     return;
   }
 
-  const fromName = config.notificationFromName || config.storeName || 'Thronos Commerce Store';
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
+  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
   const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
   const subject = `[${tenant.id}] Νέα παραγγελία #${order.id} – ${order.productName}`;
 
   const lines = [
-    `Κατάστημα: ${config.storeName} (${tenant.domain || tenant.id})`,
+    `Κατάστημα: ${storeName} (${tenant.domain || tenant.id})`,
     `Κωδικός παραγγελίας: ${order.id}`,
     `Προϊόν: ${order.productName}`,
     `Σύνολο: ${Number(order.total).toFixed(2)} €`,
@@ -659,7 +877,8 @@ async function sendOrderEmails(order, config) {
   }
 
   const fromAddress = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
-  const fromName = config.storeName || 'Thronos Commerce';
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
+  const fromName = storeName || 'Thronos Commerce';
   const from = `"${fromName}" <${fromAddress}>`;
 
   const bodyLines = [
@@ -683,7 +902,7 @@ async function sendOrderEmails(order, config) {
         from,
         to: notificationEmail,
         subject: `[${order.tenantId}] Νέα παραγγελία #${order.id} – ${order.productName}`,
-        text: `Νέα παραγγελία στο κατάστημα ${config.storeName}!\n\n${bodyLines}`
+        text: `Νέα παραγγελία στο κατάστημα ${storeName}!\n\n${bodyLines}`
       })
     );
   }
@@ -693,8 +912,8 @@ async function sendOrderEmails(order, config) {
       transport.sendMail({
         from,
         to: order.email,
-        subject: `Επιβεβαίωση παραγγελίας #${order.id} – ${config.storeName}`,
-        text: `Γεια σας ${order.customerName},\n\nΛάβαμε την παραγγελία σας!\n\n${bodyLines}\n\nΕυχαριστούμε!\n${config.storeName}`
+        subject: `Επιβεβαίωση παραγγελίας #${order.id} – ${storeName}`,
+        text: `Γεια σας ${order.customerName},\n\nΛάβαμε την παραγγελία σας!\n\n${bodyLines}\n\nΕυχαριστούμε!\n${storeName}`
       })
     );
   }
@@ -766,6 +985,24 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const categoryUpload = multer({
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, /^image\//.test(String(file.mimetype || '')));
+  },
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'categories');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'category', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
 
 // Separate multer for favicon (memory storage, 512 KB limit)
 const favUpload = multer({
@@ -800,12 +1037,30 @@ app.use('/tenants', express.static(TENANTS_DIR));
 app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(session({
+  secret: 'thronos-secret',
+  resave: false,
+  saveUninitialized: false
+}));
 
 // i18n middleware – sets req.lang, res.locals.lang, res.locals.t
 app.use((req, res, next) => {
+  const match = req.url.match(/^\/t\/([a-zA-Z0-9_-]+)(\/.*|$)/);
+  req.pathTenantId = match ? match[1] : null;
+  if (match) {
+    const rest = match[2] || '';
+    req.url = (rest || '/') + req.url.slice(match[0].length);
+  }
+  next();
+});
+
+app.use((req, res, next) => {
   req.lang = getLangFromRequest(req);
+  if (req.session) req.session.lang = req.lang;
   res.locals.lang = req.lang;
   res.locals.t = (key) => translate(req.lang, key);
+  res.locals.contentLangs = CONTENT_LANGS;
+  res.locals.resolveField = (value, lang = req.lang) => resolveTranslatable(value, lang);
   next();
 });
 
@@ -813,21 +1068,67 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   if (req.path.startsWith('/root')) return next();
   const hostHeader = (req.headers.host || '').split(':')[0];
-  const tenant = getTenantByHost(hostHeader);
+  const requestedTenant = (req.query.tenant || '').trim();
+  let tenant = null;
+  let mode = 'host';
+  if (req.pathTenantId) {
+    tenant = findTenantById(req.pathTenantId);
+    mode = 'path';
+  } else if (requestedTenant) {
+    tenant = findTenantById(requestedTenant);
+    mode = 'query';
+  } else if (req.path.startsWith('/admin') && req.session.admin && req.session.admin.tenantId) {
+    tenant = findTenantById(req.session.admin.tenantId);
+    mode = 'admin-session';
+  } else {
+    tenant = getTenantByHost(hostHeader);
+  }
+  if (!tenant) {
+    tenant = findTenantById('demo');
+    mode = mode === 'host' ? 'demo-fallback' : mode;
+  }
   if (!tenant) {
     return res
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
   }
   req.tenant = tenant;
+  req.tenantId = tenant.id;
+  req.tenantContext = { mode };
+  req.isPlatformRequest = mode === 'demo-fallback' && !req.pathTenantId && !requestedTenant;
   req.tenantPaths = tenantPaths(tenant.id);
+  res.locals.user = req.session ? req.session.user : null;
+  res.locals.tenantId = tenant.id;
+  res.locals.tenantContext = req.tenantContext;
+  res.locals.tenantBasePath = req.tenantContext.mode === 'path' ? `/t/${tenant.id}` : '';
+  res.locals.isPreviewMode = req.tenantContext.mode === 'path' || req.tenantContext.mode === 'query';
+  res.locals.withTenantLink = (path, extra) => buildTenantLink(req, path, extra);
   next();
+});
+
+// Root admin auth guard
+app.use('/root', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/logout') return next();
+  return requireRootAdmin(req, res, next);
+});
+
+// Tenant admin auth guard
+app.use('/admin', (req, res, next) => {
+  if (req.isPlatformRequest) return res.redirect('/');
+  if (req.path === '/login' || req.path === '/logout') return next();
+  return requireAdmin(req, res, next);
 });
 
 function buildAdminViewModel(req, extra) {
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
   const categories = loadTenantCategories(req);
+  const qContentLang = (req.query.contentLang || '').toLowerCase();
+  const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
+  const contentLang = CONTENT_LANGS.includes(qContentLang)
+    ? qContentLang
+    : (CONTENT_LANGS.includes(sContentLang) ? sContentLang : DEFAULT_CONTENT_LANG);
+  if (req.session) req.session.contentLang = contentLang;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   const orders = loadTenantOrders(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
@@ -850,10 +1151,15 @@ function buildAdminViewModel(req, extra) {
   return {
     tenant: req.tenant,
     permissions,
-    config,
-    categories,
-    products,
+    config: localizeConfigContent(config, contentLang),
+    rawConfig: config,
+    categories: categories.map((c) => localizeCategoryContent(c, contentLang)),
+    rawCategories: categories,
+    products: products.map((p) => localizeProductContent(p, contentLang)),
+    rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
+    contentLang,
+    contentLangs: CONTENT_LANGS,
     stockLog: stockLog.slice(-100).reverse(),
     analytics,
     orderCounts,
@@ -882,6 +1188,16 @@ app.get('/favicon.ico', (req, res) => {
 
 // Storefront home
 app.get('/', (req, res) => {
+  if (req.isPlatformRequest) {
+    return res.render('landing', {
+      packages: getLandingPackages(),
+      message: null,
+      previewTenants: loadTenantsRegistry().map((t) => t.id)
+    });
+  }
+  if (req.query.admin === 'true') {
+    return res.redirect(buildTenantLink(req, '/admin'));
+  }
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
@@ -898,10 +1214,11 @@ app.get('/', (req, res) => {
     }
   }
 
+  const viewLang = req.lang;
   res.render('index', {
-    config,
-    categories,
-    products,
+    config: localizeConfigContent(config, viewLang),
+    categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
+    products: products.map((p) => localizeProductContent(p, viewLang)),
     activeCategory: catSlug || null,
     tenant: req.tenant
   });
@@ -925,16 +1242,16 @@ app.get('/product/:id', (req, res) => {
   } catch (_) { /* non-critical */ }
 
   res.render('product', {
-    config,
-    product,
+    config: localizeConfigContent(config, req.lang),
+    product: localizeProductContent(product, req.lang),
     tenant: req.tenant
   });
 });
 
 // Checkout page
 app.get('/checkout', (req, res) => {
-  const config = loadTenantConfig(req);
-  res.render('checkout', { config, tenant: req.tenant });
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
 // Checkout submit (multi-item cart)
@@ -945,6 +1262,8 @@ app.post('/checkout', async (req, res) => {
     name, email, wallet, notes, shippingMethodId, paymentMethodId,
     city, phone, address, doorbell, tk, cartJson
   } = req.body;
+  const sessionEmail = req.session.user ? normalizeEmail(req.session.user.email) : '';
+  const checkoutEmail = sessionEmail || normalizeEmail(email);
 
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
@@ -963,6 +1282,8 @@ app.post('/checkout', async (req, res) => {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
       let variantId = (ci.variantId || '').trim();
+      let selectedOptions = [];
+      let optionSummary = '';
       // Resolve variant price
       if (variantId && Array.isArray(found.variants)) {
         const variant = found.variants.find((v) => v.id === variantId);
@@ -973,11 +1294,46 @@ app.post('/checkout', async (req, res) => {
           variantId = ''; // invalid variant → clear
         }
       }
+      if (found.type === 'KIT' && Array.isArray(found.kitOptions)) {
+        const rawOptions = Array.isArray(ci.selectedOptions) ? ci.selectedOptions : [];
+        const selectedByGroup = {};
+        rawOptions.forEach((opt) => {
+          const group = found.kitOptions.find((g) => g.id === opt.groupId);
+          if (!group) return;
+          const choice = (group.choices || []).find((c) => c.id === opt.choiceId);
+          if (!choice) return;
+          if (!selectedByGroup[group.id]) selectedByGroup[group.id] = [];
+          if (group.inputType === 'checkbox') selectedByGroup[group.id].push(choice);
+          else selectedByGroup[group.id] = [choice];
+        });
+        const missingRequired = found.kitOptions.some((g) => g.required && (!selectedByGroup[g.id] || !selectedByGroup[g.id].length));
+        if (missingRequired) continue;
+        selectedOptions = [];
+        found.kitOptions.forEach((group) => {
+          (selectedByGroup[group.id] || []).forEach((choice) => {
+            selectedOptions.push({
+              groupId: group.id,
+              groupLabel: group.label || group.id,
+              choiceId: choice.id,
+              choiceLabel: choice.label || choice.id,
+              priceDelta: Number(choice.priceDelta) || 0,
+              linkedProductId: choice.linkedProductId || null
+            });
+          });
+        });
+        const delta = selectedOptions.reduce((s, o) => s + (Number(o.priceDelta) || 0), 0);
+        serverPrice += delta;
+        optionSummary = selectedOptions.map((o) => `${o.groupLabel}: ${o.choiceLabel}`).join(' | ');
+      }
       enrichedItems.push({
         id:           found.id,
         name:         found.name,
         variantId:    variantId || undefined,
         variantLabel: variantLabel || undefined,
+        selectedOptions: selectedOptions.length ? selectedOptions : undefined,
+        optionSummary: optionSummary || undefined,
+        basePrice: Number(found.price) || 0,
+        finalUnitPrice: serverPrice,
         price:        serverPrice,
         qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
       });
@@ -999,13 +1355,16 @@ app.post('/checkout', async (req, res) => {
     // Keep single-product fields for backward compat (first item)
     productId:   enrichedItems[0].id,
     productName: enrichedItems.map((i) =>
-      i.variantLabel ? `${i.name} – ${i.variantLabel} ×${i.qty}` : `${i.name} ×${i.qty}`
+      i.variantLabel
+        ? `${i.name} – ${i.variantLabel}${i.optionSummary ? ` (${i.optionSummary})` : ''} ×${i.qty}`
+        : `${i.name}${i.optionSummary ? ` (${i.optionSummary})` : ''} ×${i.qty}`
     ).join(', '),
     price:       enrichedItems[0].price,
     // Multi-item
     items: enrichedItems,
     customerName: name,
-    email,
+    email: checkoutEmail,
+    userEmail: sessionEmail || null,
     phone:    (phone    || '').trim(),
     address:  (address  || '').trim(),
     doorbell: (doorbell || '').trim(),
@@ -1059,7 +1418,7 @@ app.post('/checkout', async (req, res) => {
           payment_method_types: ['card'],
           mode:                 'payment',
           line_items:           lineItems,
-          customer_email:       email,
+          customer_email:       checkoutEmail,
           success_url: `${baseUrl}/checkout/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url:  `${baseUrl}/checkout`
         });
@@ -1137,7 +1496,7 @@ app.post('/checkout', async (req, res) => {
   }
 
   const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
-  const mailSubject = `Νέα παραγγελία #${order.id} – ${config.storeName}`;
+  const mailSubject = `Νέα παραγγελία #${order.id} – ${resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG)}`;
   sendOrderEmails(order, config).catch((err) =>
     console.error('[Thronos Commerce] sendOrderEmails failed:', err.message)
   );
@@ -1153,7 +1512,7 @@ app.post('/checkout', async (req, res) => {
   });
 
   res.render('thanks', {
-    config,
+    config: localizeConfigContent(config, req.lang),
     order,
     proofHash,
     tenant: req.tenant,
@@ -1168,26 +1527,29 @@ app.get('/checkout/stripe-success', async (req, res) => {
   const config = loadTenantConfig(req);
   const stripe = stripeForTenant(config);
 
-  if (!stripe || !pending_id || !session_id) return res.redirect('/checkout');
+  if (!stripe || !pending_id || !session_id) return res.redirect(buildTenantLink(req, '/checkout'));
 
   const pending = loadJson(req.tenantPaths.pendingOrders, {});
   const entry   = pending[pending_id];
   if (!entry) {
-    return res.redirect('/checkout?error=order_not_found');
+    return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
 
   // Verify payment
   try {
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    if (session.payment_status !== 'paid') return res.redirect('/checkout?error=payment_failed');
+    if (session.payment_status !== 'paid') return res.redirect(buildTenantLink(req, '/checkout', { error: 'payment_failed' }));
   } catch (err) {
     console.error('[Stripe] retrieve session failed:', err.message);
-    return res.redirect('/checkout?error=payment_error');
+    return res.redirect(buildTenantLink(req, '/checkout', { error: 'payment_error' }));
   }
 
   const { order, enrichedItems } = entry;
   order.paymentStatus   = 'PAID';
   order.stripeSessionId = session_id;
+  if (req.session.user) {
+    order.userEmail = normalizeEmail(req.session.user.email);
+  }
 
   delete pending[pending_id];
   saveJson(req.tenantPaths.pendingOrders, pending);
@@ -1236,12 +1598,110 @@ app.get('/checkout/stripe-success', async (req, res) => {
   });
 
   res.render('thanks', {
-    config, order, proofHash, tenant: req.tenant,
+    config: localizeConfigContent(config, req.lang), order, proofHash, tenant: req.tenant,
     clearCart: true, contentUrl: hasDigital ? `/content/${order.id}` : null
   });
 });
 
-app.get('/checkout/stripe-cancel', (req, res) => res.redirect('/checkout'));
+app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
+app.get('/admin/login', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect(buildTenantLink(req, '/admin'));
+  res.render('admin-login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/admin/login', async (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const ok = await verifyAdminPassword(req.tenant, req.body.password);
+  if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
+  req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
+  req.session.adminLastActiveAt = Date.now();
+  res.redirect(buildTenantLink(req, '/admin'));
+});
+
+app.get('/admin/logout', (req, res) => {
+  req.session.admin = null;
+  res.redirect(buildTenantLink(req, '/admin/login'));
+});
+
+app.get('/login', (req, res) => {
+  if (req.session.user) return res.redirect(buildTenantLink(req, '/account'));
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/login', async (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  const users = loadTenantUsers(req);
+  const user = users.find((u) => normalizeEmail(u.email) === email);
+  if (!user) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
+
+  const ok = await bcrypt.compare(password, user.passwordHash || '');
+  if (!ok) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
+
+  req.session.user = {
+    id: user.id,
+    email: user.email
+  };
+  res.redirect(buildTenantLink(req, '/account'));
+});
+
+app.get('/signup', (req, res) => {
+  if (req.session.user) return res.redirect(buildTenantLink(req, '/account'));
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('signup', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/signup', async (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  const passwordConfirm = String(req.body.passwordConfirm || '');
+  if (!email || !password) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Email and password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password must be at least 6 characters.' });
+  }
+  if (password !== passwordConfirm) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password confirmation does not match.' });
+  }
+
+  const users = loadTenantUsers(req);
+  const exists = users.some((u) => normalizeEmail(u.email) === email);
+  if (exists) {
+    return res.status(409).render('signup', { config, tenant: req.tenant, error: 'This email is already registered.' });
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: `u_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`, email, passwordHash, createdAt: new Date().toISOString() };
+  users.push(user);
+  saveTenantUsers(req, users);
+
+  req.session.user = {
+    id: user.id,
+    email: user.email
+  };
+  res.redirect(buildTenantLink(req, '/account'));
+});
+
+app.get('/account', requireUser, (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('account', { config, tenant: req.tenant, user: req.session.user });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect(buildTenantLink(req, '/')));
+});
+
+app.get('/my-orders', requireUser, (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const email = normalizeEmail(req.session.user.email);
+  const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
+  res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
+});
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
 
@@ -1336,6 +1796,15 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuActiveBg,
     themeMenuActiveText,
     themeButtonRadius
+    ,
+    themeHeaderLayout,
+    themeHeroStyle,
+    themeCategoryMenuStyle,
+    themeCardStyle,
+    themeSectionSpacing,
+    themeBannerVisible,
+    themePreviewBadgeStyle,
+    themeCursorEffect
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1350,8 +1819,8 @@ app.post('/admin/settings', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1361,11 +1830,11 @@ app.post('/admin/settings', async (req, res) => {
   }
 
   const config = loadTenantConfig(req);
-  config.storeName = storeName || config.storeName;
+  config.storeName = buildTranslatableFromBody(req.body, 'storeName', storeName || config.storeName);
   config.primaryColor = primaryColor || config.primaryColor;
   config.accentColor = accentColor || config.accentColor;
   config.fontFamily = fontFamily || config.fontFamily;
-  config.heroText = heroText || config.heroText;
+  config.heroText = buildTranslatableFromBody(req.body, 'heroText', heroText || config.heroText);
   config.web3Domain = web3Domain || config.web3Domain;
   config.logoPath = logoPath || config.logoPath;
   config.theme = config.theme || {};
@@ -1377,6 +1846,14 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuActiveText || config.theme.menuActiveText || '#ffffff';
   config.theme.buttonRadius =
     themeButtonRadius || config.theme.buttonRadius || '4px';
+  config.theme.headerLayout = themeHeaderLayout || config.theme.headerLayout || 'default';
+  config.theme.heroStyle = themeHeroStyle || config.theme.heroStyle || 'soft';
+  config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
+  config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
+  config.theme.sectionSpacing = themeSectionSpacing || config.theme.sectionSpacing || 'normal';
+  config.theme.bannerVisible = themeBannerVisible === 'on';
+  config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
+  config.theme.cursorEffect = themeCursorEffect === 'on';
 
   // Notification settings
   config.notificationEmails = (req.body.notificationEmails || '')
@@ -1415,8 +1892,8 @@ app.post('/admin/shipping-payment', async (req, res) => {
       }));
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
@@ -1449,7 +1926,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId } = req.body;
+  const { password, id, name, slug, parentId, image } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -1462,8 +1939,8 @@ app.post('/admin/categories/add', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1484,7 +1961,11 @@ app.post('/admin/categories/add', async (req, res) => {
       );
   }
 
-  const newCat = { id, name, slug };
+  const translatedName = buildTranslatableFromBody(req.body, 'name', name || '');
+  const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
+  const newCat = { id, name: translatedName, slug };
+  if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
+  if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   categories.push(newCat);
   saveTenantCategories(req, categories);
@@ -1496,7 +1977,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId } = req.body;
+  const { password, categoryId, name, slug, parentId, image } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -1509,8 +1990,8 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1544,8 +2025,15 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  categories[idx].name = name || categories[idx].name;
+  categories[idx].name = buildTranslatableFromBody(req.body, 'name', name || categories[idx].name);
+  const shortDescription = buildTranslatableFromBody(req.body, 'shortDescription', categories[idx].shortDescription);
+  if (shortDescription) categories[idx].shortDescription = shortDescription;
+  else delete categories[idx].shortDescription;
   categories[idx].slug = slug || categories[idx].slug;
+  if (image !== undefined) {
+    if (image && image.trim()) categories[idx].image = image.trim();
+    else delete categories[idx].image;
+  }
   if (parentId !== undefined) {
     if (parentId && parentId.trim() && parentId.trim() !== categoryId) {
       categories[idx].parentId = parentId.trim();
@@ -1575,8 +2063,8 @@ app.post('/admin/categories/delete', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1611,8 +2099,8 @@ app.post('/admin/products', async (req, res) => {
       );
   }
 
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res
       .status(401)
       .render(
@@ -1631,15 +2119,17 @@ app.post('/admin/products', async (req, res) => {
     }
     const categories = loadTenantCategories(req);
     const config = loadTenantConfig(req);
-    const storeName = (config.storeName || '').trim();
+    const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG) || '';
     parsed.forEach((p) => {
+      const localizedName = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG);
+      const localizedDescription = resolveTranslatable(p.description, DEFAULT_CONTENT_LANG);
       if (!p.seoTitle) {
         const catObj = categories.find((c) => c.id === p.categoryId);
-        const catName = catObj ? catObj.name : '';
-        p.seoTitle = [p.name, catName, storeName].filter(Boolean).join(' | ');
+        const catName = catObj ? resolveTranslatable(catObj.name, DEFAULT_CONTENT_LANG) : '';
+        p.seoTitle = [localizedName, catName, storeName].filter(Boolean).join(' | ');
       }
       if (!p.seoDescription) {
-        const desc = (p.description || '').trim();
+        const desc = (localizedDescription || '').trim();
         p.seoDescription = desc.length > 160 ? desc.slice(0, 157) + '…' : desc || p.seoTitle;
       }
       if (!Array.isArray(p.gallery)) p.gallery = [];
@@ -1670,8 +2160,8 @@ app.post('/admin/stock/adjust', async (req, res) => {
   if (!permissions.canEditProducts) {
     return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται.' }));
   }
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) {
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
     return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
   }
   const products = loadTenantProducts(req);
@@ -1689,7 +2179,7 @@ app.post('/admin/stock/adjust', async (req, res) => {
   stockLog.push({
     id:          Date.now().toString(36),
     productId,
-    productName: products[pIdx].name,
+    productName: resolveTranslatable(products[pIdx].name, DEFAULT_CONTENT_LANG),
     delta,
     reason:      reason || 'manual',
     orderId:     null,
@@ -1697,7 +2187,8 @@ app.post('/admin/stock/adjust', async (req, res) => {
   });
   saveJson(req.tenantPaths.stockLog, stockLog);
 
-  res.render('admin', buildAdminViewModel(req, { message: `Απόθεμα "${products[pIdx].name}" ενημερώθηκε σε ${qty}.` }));
+  const pName = resolveTranslatable(products[pIdx].name, DEFAULT_CONTENT_LANG);
+  res.render('admin', buildAdminViewModel(req, { message: `Απόθεμα "${pName}" ενημερώθηκε σε ${qty}.` }));
 });
 
 // Image upload
@@ -1713,8 +2204,8 @@ app.post(
     }
 
     const password = req.body.password;
-    const ok = await verifyAdminPassword(req.tenant, password);
-    if (!ok) {
+    const auth = await verifyAdminAction(req, password);
+    if (!auth.ok) {
       return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     }
 
@@ -1727,34 +2218,84 @@ app.post(
   }
 );
 
+app.post('/admin/categories/image-upload', categoryUpload.single('image'), async (req, res) => {
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories || !permissions.canUploadMedia) {
+    return res.status(403).json({ ok: false, error: 'Η ενέργεια δεν επιτρέπεται για το πακέτο σας.' });
+  }
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+  const categoryId = String(req.body.categoryId || '').trim();
+  if (!categoryId) return res.status(400).json({ ok: false, error: 'categoryId required' });
+  if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded' });
+  const categories = loadTenantCategories(req);
+  const idx = categories.findIndex((c) => c.id === categoryId);
+  if (idx < 0) return res.status(404).json({ ok: false, error: 'Category not found' });
+  const previousImage = typeof categories[idx].image === 'string' ? categories[idx].image : '';
+  const tenantMediaPrefix = `/tenants/${req.tenant.id}/media/categories/`;
+  if (previousImage.startsWith(tenantMediaPrefix)) {
+    const oldFile = path.join(req.tenantPaths.media, 'categories', path.basename(previousImage));
+    if (fs.existsSync(oldFile)) {
+      try { fs.unlinkSync(oldFile); } catch (_) {}
+    }
+  }
+  categories[idx].image = `/tenants/${req.tenant.id}/media/categories/${req.file.filename}`;
+  saveTenantCategories(req, categories);
+  return res.json({ ok: true, image: categories[idx].image });
+});
+
+app.post('/admin/categories/image-remove', async (req, res) => {
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditCategories) {
+    return res.status(403).json({ ok: false, error: 'Η ενέργεια δεν επιτρέπεται για το πακέτο σας.' });
+  }
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+  const categoryId = String(req.body.categoryId || '').trim();
+  const categories = loadTenantCategories(req);
+  const idx = categories.findIndex((c) => c.id === categoryId);
+  if (idx < 0) return res.status(404).json({ ok: false, error: 'Category not found' });
+  const existingImage = typeof categories[idx].image === 'string' ? categories[idx].image : '';
+  const tenantMediaPrefix = `/tenants/${req.tenant.id}/media/categories/`;
+  if (existingImage.startsWith(tenantMediaPrefix)) {
+    const oldFile = path.join(req.tenantPaths.media, 'categories', path.basename(existingImage));
+    if (fs.existsSync(oldFile)) {
+      try { fs.unlinkSync(oldFile); } catch (_) {}
+    }
+  }
+  delete categories[idx].image;
+  saveTenantCategories(req, categories);
+  return res.json({ ok: true });
+});
+
 // Favicon upload
 app.post(
   '/admin/favicon',
   favUpload.single('favicon'),
   async (req, res) => {
     const password = req.body.password;
-    const ok = await verifyAdminPassword(req.tenant, password);
-    if (!ok) {
-      return res.redirect('/admin?error=Λάθος+κωδικός+διαχειριστή#tab-upload');
+    const auth = await verifyAdminAction(req, password);
+    if (!auth.ok) {
+      return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Λάθος κωδικός διαχειριστή' })}#tab-upload`);
     }
     if (!req.file) {
-      return res.redirect('/admin?error=Δεν+επιλέχθηκε+αρχείο#tab-upload');
+      return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Δεν επιλέχθηκε αρχείο' })}#tab-upload`);
     }
     fs.writeFileSync(req.tenantPaths.favicon, req.file.buffer);
-    return res.redirect('/admin?message=Favicon+αποθηκεύτηκε#tab-upload');
+    return res.redirect(`${buildTenantLink(req, '/admin', { message: 'Favicon αποθηκεύτηκε' })}#tab-upload`);
   }
 );
 
 // Favicon delete
 app.post('/admin/favicon/delete', async (req, res) => {
-  const ok = await verifyAdminPassword(req.tenant, req.body.password);
-  if (!ok) {
-    return res.redirect('/admin?error=Λάθος+κωδικός+διαχειριστή#tab-upload');
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) {
+    return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Λάθος κωδικός διαχειριστή' })}#tab-upload`);
   }
   if (fs.existsSync(req.tenantPaths.favicon)) {
     fs.unlinkSync(req.tenantPaths.favicon);
   }
-  return res.redirect('/admin?message=Favicon+διαγράφηκε#tab-upload');
+  return res.redirect(`${buildTenantLink(req, '/admin', { message: 'Favicon διαγράφηκε' })}#tab-upload`);
 });
 
 // ── Digital content: manual upload ───────────────────────────────────────────
@@ -1785,8 +2326,8 @@ app.post(
     if (!permissions.canDigitalContent) {
       return res.status(403).json({ ok: false, error: 'Digital content not available on this plan.' });
     }
-    const ok = await verifyAdminPassword(req.tenant, req.body.password);
-    if (!ok) return res.status(401).json({ ok: false, error: 'Invalid password.' });
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No file.' });
     const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
     res.json({ ok: true, url, filename: req.file.filename });
@@ -1794,10 +2335,13 @@ app.post(
 );
 
 // ── Digital content: gated access page ───────────────────────────────────────
-app.get('/content/:orderId', (req, res) => {
+app.get('/content/:orderId', requireUser, (req, res) => {
   const orders = loadTenantOrders(req);
   const order  = orders.find((o) => o.id === req.params.orderId);
   if (!order) return res.status(404).send('Η παραγγελία δεν βρέθηκε.');
+  if (normalizeEmail(order.userEmail) !== normalizeEmail(req.session.user.email)) {
+    return res.status(403).send('Δεν έχετε πρόσβαση σε αυτό το περιεχόμενο.');
+  }
 
   const config   = loadTenantConfig(req);
   const products = loadTenantProducts(req);
@@ -1905,7 +2449,7 @@ function getLandingPackages() {
 
 // Thronos Commerce marketing landing
 app.get('/thronos-commerce', (req, res) => {
-  res.render('landing', { packages: getLandingPackages(), message: null });
+  res.render('landing', { packages: getLandingPackages(), message: null, previewTenants: loadTenantsRegistry().map((t) => t.id) });
 });
 
 app.post('/thronos-commerce/offer', (req, res) => {
@@ -1925,7 +2469,8 @@ app.post('/thronos-commerce/offer', (req, res) => {
 
   res.render('landing', {
     packages,
-    message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.'
+    message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.',
+    previewTenants: loadTenantsRegistry().map((t) => t.id)
   });
 });
 
@@ -1947,7 +2492,7 @@ app.post('/thronos-commerce/subscribe', async (req, res) => {
   const stripe = platformStripe();
   if (!stripe) {
     // No platform Stripe configured – fall back to lead-only flow
-    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.', previewTenants: loadTenantsRegistry().map((t) => t.id) });
   }
 
   const pendingId = `psub_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
@@ -1976,7 +2521,7 @@ app.post('/thronos-commerce/subscribe', async (req, res) => {
     return res.redirect(303, session.url);
   } catch (err) {
     console.error('[Platform Stripe] session create failed:', err.message);
-    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.' });
+    return res.render('landing', { packages: getLandingPackages(), message: 'Ευχαριστούμε! Θα επικοινωνήσουμε μαζί σας σύντομα.', previewTenants: loadTenantsRegistry().map((t) => t.id) });
   }
 });
 
@@ -2025,15 +2570,16 @@ app.get('/thronos-commerce/stripe-success', async (req, res) => {
 
   res.render('landing', {
     packages: getLandingPackages(),
-    message: `✓ Η πληρωμή ολοκληρώθηκε! Η ομάδα Thronos θα επικοινωνήσει μαζί σας εντός 24 ωρών για την ενεργοποίηση του καταστήματός σας.`
+    message: `✓ Η πληρωμή ολοκληρώθηκε! Η ομάδα Thronos θα επικοινωνήσει μαζί σας εντός 24 ωρών για την ενεργοποίηση του καταστήματός σας.`,
+    previewTenants: loadTenantsRegistry().map((t) => t.id)
   });
 });
 
 // ── Tenant subscription renewal (from admin dashboard) ────────────────────────
 app.post('/admin/subscribe/renew', async (req, res) => {
   const { password } = req.body;
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
 
   const stripe = platformStripe();
   if (!stripe) return res.render('admin', buildAdminViewModel(req, { error: 'Η πλατφόρμα δεν έχει ρυθμιστεί για online πληρωμές ακόμα. Επικοινωνήστε μαζί μας.' }));
@@ -2106,8 +2652,8 @@ app.get('/admin/subscribe/success', async (req, res) => {
 // ── Ticket system ─────────────────────────────────────────────────────────────
 app.post('/admin/tickets/new', async (req, res) => {
   const { password, subject, message: body, category } = req.body;
-  const ok = await verifyAdminPassword(req.tenant, password);
-  if (!ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) return res.render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός.' }));
   if (!subject || !body) return res.render('admin', buildAdminViewModel(req, { error: 'Συμπληρώστε θέμα και μήνυμα.' }));
 
   const ticket = {
@@ -2137,7 +2683,7 @@ app.post('/admin/tickets/new', async (req, res) => {
           from:    smtpUser,
           to:      'support@thronoschain.org',
           subject: `[Ticket #${ticket.id}] [${req.tenant.id}] ${ticket.subject}`,
-          text:    `Tenant: ${req.tenant.id} (${config.storeName || ''})\nΚατηγορία: ${ticket.category}\n\n${ticket.body}\n\n---\nΑπαντήστε σε αυτό το email για να απαντήσετε στον tenant.`
+          text:    `Tenant: ${req.tenant.id} (${resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG) || ''})\nΚατηγορία: ${ticket.category}\n\n${ticket.body}\n\n---\nΑπαντήστε σε αυτό το email για να απαντήσετε στον tenant.`
         });
       }
     } catch (_) {}
@@ -2216,6 +2762,7 @@ function buildRootViewModel(extra) {
 
   return {
     tenants,
+    themeTemplates: listThemeTemplates(),
     tenantPaymentConfigs,
     refAccounts,
     refEarnings: refEarnings.slice(-200).reverse(),
@@ -2231,6 +2778,25 @@ function buildRootViewModel(extra) {
 
 app.get('/root/tenants', (req, res) => {
   res.render('root-tenants', buildRootViewModel());
+});
+
+app.get('/root/login', (req, res) => {
+  if (req.session.rootAdmin) return res.redirect('/root/tenants');
+  res.render('root-login', { error: null });
+});
+
+app.post('/root/login', (req, res) => {
+  const { password } = req.body;
+  if (!verifyRootPassword(password)) {
+    return res.status(401).render('root-login', { error: 'Invalid root password.' });
+  }
+  req.session.rootAdmin = { authenticatedAt: new Date().toISOString() };
+  res.redirect('/root/tenants');
+});
+
+app.get('/root/logout', (req, res) => {
+  req.session.rootAdmin = null;
+  res.redirect('/root/login');
 });
 
 app.post('/root/tenants/create', async (req, res) => {
@@ -2291,6 +2857,23 @@ app.post('/root/tenants/create', async (req, res) => {
 
   res.render('root-tenants',
     buildRootViewModel({ message: `Ο tenant "${cleanId}" δημιουργήθηκε επιτυχώς.` }));
+});
+
+app.post('/root/templates/create', (req, res) => {
+  const { rootPassword, tenantId, templateId, templateName } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+  const tenant = findTenantById((tenantId || '').trim());
+  if (!tenant) {
+    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+  }
+  const cleanTemplateId = sanitizeTemplateId(templateId);
+  if (!cleanTemplateId) {
+    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Δώστε έγκυρο template id (a-z, 0-9, -, _).' }));
+  }
+  const tpl = saveTemplateFromTenant(cleanTemplateId, tenant.id, templateName);
+  return res.render('root-tenants', buildRootViewModel({ message: `Template "${tpl.id}" αποθηκεύτηκε.` }));
 });
 
 app.post('/root/tenants/update', (req, res) => {
