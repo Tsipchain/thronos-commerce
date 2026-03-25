@@ -166,17 +166,22 @@
           <% } %>
         </ul>
       </nav>
+      <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
       <% if (tenant.id === 'eukolakis') { %>
       <div class="pill-nav">
-        <% const defaultLabelMap = { 'diy-rolla': 'DIY Kits', 'spare-parts': 'Ανταλλακτικά', 'diy-sliding': 'Εργαλεία' }; %>
-        <% const navCategories = categories.filter(c => c.showInMainNav !== false).sort((a,b)=> (Number(a.navOrder)||999) - (Number(b.navOrder)||999)); %>
+        <% const navHomepage = config.homepage || {}; %>
         <% navCategories.forEach(function(cat){ %>
           <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-            <span>Eukolaki <%= defaultLabelMap[cat.slug] || cat.name %></span>
+            <span><%= cat.name %></span>
           </a>
         <% }) %>
-        <a href="#" onclick="return false;"><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></a>
+        <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
+        <% if (subscriptionCategory) { %>
+          <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
+        <% } else if (navHomepage.showSubscriptionsCard) { %>
+          <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+        <% } %>
       </div>
       <% } %>
     </header>
@@ -205,15 +210,15 @@
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% if (tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
-        <% const topMenuCats = categories.filter(function(c){ return ['diy-rolla','spare-parts','diy-sliding','subscriptions'].includes(c.slug); }); %>
-        <% topMenuCats.forEach(function(cat) { %>
+        <% navCategories.forEach(function(cat) { %>
           <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
           </a>
         <% }) %>
-        <% if ((homepage.showSubscriptionsCard || false) && !topMenuCats.some(function(c){ return c.slug === 'subscriptions'; })) { %>
-          <a class="category-card" href="#" onclick="return false;">
+        <% const hasSubscriptionsCategory = navCategories.some(function(c){ return c.slug === 'subscriptions'; }); %>
+        <% if ((homepage.showSubscriptionsCard || false) && !hasSubscriptionsCategory) { %>
+          <a class="category-card" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>">
             <div style="height:60px;display:flex;align-items:center;justify-content:center;background:#111827;color:#fff;border-radius:8px;">▶</div>
             <div><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></div>
           </a>
