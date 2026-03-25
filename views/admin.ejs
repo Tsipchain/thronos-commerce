@@ -214,7 +214,7 @@
         <a href="#tab-products">📦 Products</a>
         <a href="#tab-upload">🖼️ Media</a>
         <a href="<%= withTenantLink('/admin/orders') %>">🧾 Orders</a>
-        <a href="#tab-shipping">💳 Payments</a>
+        <a href="<%= withTenantLink('/admin/payments') %>">💳 Payments</a>
         <a href="#tab-notifications">🔔 Notifications</a>
         <a href="#tab-support">⚙️ Advanced</a>
         <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
@@ -223,6 +223,11 @@
       <section id="tab-dashboard" class="admin-block section-panel">
         <h2>Dashboard</h2>
         <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Payments status</strong>
+          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong></p>
+          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments</a>
+        </div>
       </section>
       <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
         <label style="font-size:.84rem;display:flex;align-items:center;gap:8px;">
@@ -657,42 +662,6 @@
           <p class="helper"><%= t('admin.catManagedNote') %></p>
         <% } %>
       </section>
-
-      <section class="admin-block" style="margin-top:16px;">
-        <h3 style="margin-bottom:8px;color:#4c1d95;">Stripe keys</h3>
-        <p class="helper" style="margin:0 0 14px;color:#6b7280;font-size:.82rem;">
-          Για να ενεργοποιήσετε πληρωμές με κάρτα, εισάγετε τα κλειδιά σας από το
-          <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a>.
-        </p>
-        <form method="POST" action="<%= withTenantLink('/admin/payments') %>">
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
-            <span>Publishable Key <small style="color:#888;">(pk_live_… ή pk_test_…)</small></span>
-            <input type="text" name="stripePublishableKey"
-                   value="<%= config.stripePublishableKey || '' %>"
-                   placeholder="pk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
-            <span>Secret Key <small style="color:#888;">(sk_live_… ή sk_test_…)</small></span>
-            <input type="password" name="stripeSecretKey"
-                   value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>"
-                   placeholder="sk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   autocomplete="new-password"
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-            <small style="color:#888;font-size:.76rem;">Αφήστε κενό αν δεν θέλετε να αλλάξετε το υπάρχον κλειδί.</small>
-          </label>
-          <% if (permissions.canEditSettings) { %>
-          <div class="save-row" style="margin-top:10px;">
-            <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
-            <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
-            <button type="submit" class="button">Αποθήκευση Stripe</button>
-          </div>
-          <% } %>
-        </form>
-      </section>
-
 
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
