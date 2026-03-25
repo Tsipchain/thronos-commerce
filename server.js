@@ -180,6 +180,27 @@ function localizeProductContent(product, lang) {
   };
 }
 
+function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG) {
+  if (!product || product.type !== 'KIT' || !Array.isArray(product.kitOptions)) return product;
+  const hydratedOptions = product.kitOptions.map((group) => {
+    const choices = Array.isArray(group.choices) ? group.choices : [];
+    const hydratedChoices = choices.map((choice) => {
+      const linked = choice.linkedProductId ? catalog.find((p) => p.id === choice.linkedProductId) : null;
+      const linkedName = linked ? resolveTranslatable(linked.name, lang) : '';
+      const linkedDescription = linked ? resolveTranslatable(linked.description, lang) : '';
+      return {
+        ...choice,
+        label: (choice.label || '').trim() || linkedName || choice.id,
+        description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
+        image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
+        priceDelta: choice.useLinkedPriceDelta && linked ? (Number(linked.price) || 0) : (Number(choice.priceDelta) || 0)
+      };
+    });
+    return { ...group, choices: hydratedChoices };
+  });
+  return { ...product, kitOptions: hydratedOptions };
+}
+
 loadLocales();
 
 const app = express();
@@ -1251,14 +1272,15 @@ app.get('/', (req, res) => {
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
+  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang));
 
   const catSlug = req.query.category;
-  let products = allProducts;
+  let products = hydratedAllProducts;
 
   if (catSlug) {
     const cat = categories.find((c) => c.slug === catSlug);
     if (cat) {
-      products = allProducts.filter((p) => p.categoryId === cat.id);
+      products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
     } else {
       products = [];
     }
@@ -1266,7 +1288,7 @@ app.get('/', (req, res) => {
 
   const viewLang = req.lang;
   const localizedConfig = localizeConfigContent(config, viewLang);
-  const localizedAllProducts = allProducts.map((p) => localizeProductContent(p, viewLang));
+  const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
   res.render('index', {
     config: localizedConfig,
     categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -1294,9 +1316,10 @@ app.get('/product/:id', (req, res) => {
     saveJson(req.tenantPaths.analytics, analytics);
   } catch (_) { /* non-critical */ }
 
+  const hydratedProduct = hydrateKitProduct(product, products, req.lang);
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
-    product: localizeProductContent(product, req.lang),
+    product: localizeProductContent(hydratedProduct, req.lang),
     tenant: req.tenant
   });
 });
@@ -1330,7 +1353,7 @@ app.post('/checkout', async (req, res) => {
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
-    const found = allProductsCatalog.find((p) => p.id === ci.id);
+    const found = hydrateKitProduct(allProductsCatalog.find((p) => p.id === ci.id), allProductsCatalog, req.lang);
     if (found) {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
@@ -2262,6 +2285,27 @@ app.post('/admin/categories/delete', async (req, res) => {
 });
 
 // Product JSON editor
+app.get('/admin/products/search', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const products = loadTenantProducts(req);
+  const out = products
+    .filter((p) => {
+      if (!q) return true;
+      const pName = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG).toLowerCase();
+      return p.id.toLowerCase().includes(q) || pName.includes(q) || String(p.categoryId || '').toLowerCase().includes(q);
+    })
+    .slice(0, 30)
+    .map((p) => ({
+      id: p.id,
+      name: resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
+      imageUrl: p.imageUrl || '',
+      price: Number(p.price) || 0,
+      stock: Number(p.stock) || 0,
+      categoryId: p.categoryId || ''
+    }));
+  res.json(out);
+});
+
 app.post('/admin/products', async (req, res) => {
   const { password, productsJson } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
