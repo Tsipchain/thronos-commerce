@@ -131,6 +131,29 @@ function buildTranslatableFromBody(body, baseName, fallbackValue) {
   return fallbackValue;
 }
 
+function normalizeSlug(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function isUrlSafeSlug(value) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value || ''));
+}
+
+function isEukolakisClassicPreset(req) {
+  if (!req || !req.tenant || req.tenant.id !== 'eukolakis') return false;
+  const config = loadTenantConfig(req);
+  const presetId = config && config.theme && config.theme.presetId;
+  return presetId === 'eukolakis_classic_diy';
+}
+
+const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
+
 function localizeConfigContent(config, lang) {
   return {
     ...config,
@@ -155,6 +178,27 @@ function localizeProductContent(product, lang) {
     name: resolveTranslatable(product.name, lang),
     description: resolveTranslatable(product.description, lang)
   };
+}
+
+function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG) {
+  if (!product || product.type !== 'KIT' || !Array.isArray(product.kitOptions)) return product;
+  const hydratedOptions = product.kitOptions.map((group) => {
+    const choices = Array.isArray(group.choices) ? group.choices : [];
+    const hydratedChoices = choices.map((choice) => {
+      const linked = choice.linkedProductId ? catalog.find((p) => p.id === choice.linkedProductId) : null;
+      const linkedName = linked ? resolveTranslatable(linked.name, lang) : '';
+      const linkedDescription = linked ? resolveTranslatable(linked.description, lang) : '';
+      return {
+        ...choice,
+        label: (choice.label || '').trim() || linkedName || choice.id,
+        description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
+        image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
+        priceDelta: choice.useLinkedPriceDelta && linked ? (Number(linked.price) || 0) : (Number(choice.priceDelta) || 0)
+      };
+    });
+    return { ...group, choices: hydratedChoices };
+  });
+  return { ...product, kitOptions: hydratedOptions };
 }
 
 loadLocales();
@@ -407,6 +451,7 @@ function loadTenantConfig(req) {
       bannerVisible: true,
       previewBadgeStyle: 'soft',
       cursorEffect: false,
+      cursorImage: '',
       brandingMode: 'logo_name',
       logoDisplayMode: 'contain',
       logoBgMode: 'auto',
@@ -1227,14 +1272,15 @@ app.get('/', (req, res) => {
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
+  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang));
 
   const catSlug = req.query.category;
-  let products = allProducts;
+  let products = hydratedAllProducts;
 
   if (catSlug) {
     const cat = categories.find((c) => c.slug === catSlug);
     if (cat) {
-      products = allProducts.filter((p) => p.categoryId === cat.id);
+      products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
     } else {
       products = [];
     }
@@ -1242,7 +1288,7 @@ app.get('/', (req, res) => {
 
   const viewLang = req.lang;
   const localizedConfig = localizeConfigContent(config, viewLang);
-  const localizedAllProducts = allProducts.map((p) => localizeProductContent(p, viewLang));
+  const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
   res.render('index', {
     config: localizedConfig,
     categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -1270,9 +1316,10 @@ app.get('/product/:id', (req, res) => {
     saveJson(req.tenantPaths.analytics, analytics);
   } catch (_) { /* non-critical */ }
 
+  const hydratedProduct = hydrateKitProduct(product, products, req.lang);
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
-    product: localizeProductContent(product, req.lang),
+    product: localizeProductContent(hydratedProduct, req.lang),
     tenant: req.tenant
   });
 });
@@ -1306,7 +1353,7 @@ app.post('/checkout', async (req, res) => {
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
-    const found = allProductsCatalog.find((p) => p.id === ci.id);
+    const found = hydrateKitProduct(allProductsCatalog.find((p) => p.id === ci.id), allProductsCatalog, req.lang);
     if (found) {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
@@ -1853,7 +1900,8 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoPadding,
     themeLogoRadius,
     themeLogoShadow,
-    themeLogoMaxHeight
+    themeLogoMaxHeight,
+    themeCursorImage
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1905,6 +1953,7 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.bannerVisible = themeBannerVisible === 'on';
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
   config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.cursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
   config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
@@ -1937,28 +1986,69 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
   config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
 
-  // Notification settings
-  config.notificationEmails = (req.body.notificationEmails || '')
-    .split('\n').map((e) => e.trim()).filter((e) => e.length > 0);
-  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
-  config.notificationFromName   = (req.body.notificationFromName   || '').trim();
-  config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
-  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
-
-  // Stripe keys
-  if (req.body.stripePublishableKey !== undefined)
-    config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
-  if (req.body.stripeSecretKey !== undefined) {
-    const sk = (req.body.stripeSecretKey || '').trim();
-    if (sk) config.stripeSecretKey = sk; // only overwrite if non-empty
-  }
-
   saveJson(req.tenantPaths.config, config);
 
   res.render(
     'admin',
     buildAdminViewModel(req, { message: 'Οι ρυθμίσεις αποθηκεύτηκαν.' })
   );
+});
+
+app.post('/admin/notifications', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res
+      .status(403)
+      .render('admin', buildAdminViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή ειδοποιήσεων.' }));
+  }
+
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res
+      .status(401)
+      .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+  config.notificationEmails = (req.body.notificationEmails || '')
+    .split('\n')
+    .map((e) => e.trim())
+    .filter((e) => e.length > 0);
+  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
+  config.notificationFromName = (req.body.notificationFromName || '').trim();
+  config.notificationWebhookUrl = (req.body.notificationWebhookUrl || '').trim();
+  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
+  saveJson(req.tenantPaths.config, config);
+
+  return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις ειδοποιήσεων αποθηκεύτηκαν.' }));
+});
+
+app.post('/admin/payments', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res
+      .status(403)
+      .render('admin', buildAdminViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή πληρωμών.' }));
+  }
+
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res
+      .status(401)
+      .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+  config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
+  if (req.body.stripeSecretKey !== undefined) {
+    const sk = (req.body.stripeSecretKey || '').trim();
+    if (sk) config.stripeSecretKey = sk;
+  }
+  saveJson(req.tenantPaths.config, config);
+
+  return res.render('admin', buildAdminViewModel(req, { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
 });
 
 // Shipping & Payment options editor
@@ -2032,7 +2122,15 @@ app.post('/admin/categories/add', async (req, res) => {
   }
 
   const categories = loadTenantCategories(req);
-  if (categories.some((c) => c.id === id || c.slug === slug)) {
+  const normalizedId = normalizeSlug(id);
+  const normalizedSlug = normalizeSlug(slug || id);
+  if (!normalizedId || !normalizedSlug || !isUrlSafeSlug(normalizedSlug)) {
+    return res
+      .status(400)
+      .render('admin', buildAdminViewModel(req, { error: 'Το id/slug πρέπει να είναι URL-safe (πεζά, αριθμοί και παύλες).' }));
+  }
+
+  if (categories.some((c) => c.id === normalizedId || c.slug === normalizedSlug)) {
     return res
       .status(400)
       .render(
@@ -2045,7 +2143,7 @@ app.post('/admin/categories/add', async (req, res) => {
 
   const translatedName = buildTranslatableFromBody(req.body, 'name', name || '');
   const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
-  const newCat = { id, name: translatedName, slug };
+  const newCat = { id: normalizedId, name: translatedName, slug: normalizedSlug };
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
   if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
@@ -2095,10 +2193,14 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  if (
-    slug &&
-    categories.some((c) => c.id !== categoryId && c.slug === slug)
-  ) {
+  const normalizedSlug = normalizeSlug(slug || categories[idx].slug);
+  if (!normalizedSlug || !isUrlSafeSlug(normalizedSlug)) {
+    return res
+      .status(400)
+      .render('admin', buildAdminViewModel(req, { error: 'Το slug πρέπει να είναι URL-safe (πεζά, αριθμοί και παύλες).' }));
+  }
+
+  if (categories.some((c) => c.id !== categoryId && c.slug === normalizedSlug)) {
     return res
       .status(400)
       .render(
@@ -2109,11 +2211,24 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
+  if (isEukolakisClassicPreset(req) && EUKOLAKIS_CORE_CATEGORY_IDS.has(categoryId)) {
+    if (normalizedSlug !== categories[idx].slug) {
+      return res
+        .status(400)
+        .render(
+          'admin',
+          buildAdminViewModel(req, {
+            error: 'Στο preset eukolakis_classic_diy δεν επιτρέπεται αλλαγή slug για τις βασικές κατηγορίες diy-rolla, diy-sliding, spare-parts.'
+          })
+        );
+    }
+  }
+
   categories[idx].name = buildTranslatableFromBody(req.body, 'name', name || categories[idx].name);
   const shortDescription = buildTranslatableFromBody(req.body, 'shortDescription', categories[idx].shortDescription);
   if (shortDescription) categories[idx].shortDescription = shortDescription;
   else delete categories[idx].shortDescription;
-  categories[idx].slug = slug || categories[idx].slug;
+  categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
     if (image && image.trim()) categories[idx].image = image.trim();
     else delete categories[idx].image;
@@ -2170,6 +2285,27 @@ app.post('/admin/categories/delete', async (req, res) => {
 });
 
 // Product JSON editor
+app.get('/admin/products/search', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const products = loadTenantProducts(req);
+  const out = products
+    .filter((p) => {
+      if (!q) return true;
+      const pName = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG).toLowerCase();
+      return p.id.toLowerCase().includes(q) || pName.includes(q) || String(p.categoryId || '').toLowerCase().includes(q);
+    })
+    .slice(0, 30)
+    .map((p) => ({
+      id: p.id,
+      name: resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
+      imageUrl: p.imageUrl || '',
+      price: Number(p.price) || 0,
+      stock: Number(p.stock) || 0,
+      categoryId: p.categoryId || ''
+    }));
+  res.json(out);
+});
+
 app.post('/admin/products', async (req, res) => {
   const { password, productsJson } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
