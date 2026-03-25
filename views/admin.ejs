@@ -225,7 +225,7 @@
         <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
         <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
           <strong>Payments status</strong>
-          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripeSecretKey ? 'yes' : 'no' %></strong></p>
+          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong></p>
           <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments</a>
         </div>
       </section>

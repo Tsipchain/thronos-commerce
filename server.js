@@ -1285,11 +1285,16 @@ app.get('/', (req, res) => {
   const allProducts = loadTenantProducts(req);
   const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang));
 
-  const catSlug = req.query.category;
+  const rawCategory = String(req.query.category || '');
+  let catSlug = normalizeSlug(rawCategory);
+  if (req.tenant.id === 'eukolakis') {
+    const aliasMap = { spare: 'spare-parts' };
+    catSlug = aliasMap[catSlug] || catSlug;
+  }
   let products = hydratedAllProducts;
 
   if (catSlug) {
-    const cat = categories.find((c) => c.slug === catSlug);
+    const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
     if (cat) {
       products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
     } else {
@@ -1856,7 +1861,10 @@ app.get('/admin', (req, res) => {
 });
 
 app.get('/admin/payments', (req, res) => {
-  res.render('admin-payments', buildAdminPaymentsViewModel(req));
+  const extra = {};
+  if (req.query.message) extra.message = String(req.query.message);
+  if (req.query.error) extra.error = String(req.query.error);
+  res.render('admin-payments', buildAdminPaymentsViewModel(req, extra));
 });
 
 // Admin orders view
@@ -2043,16 +2051,12 @@ app.post('/admin/payments', async (req, res) => {
   const { password } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditSettings) {
-    return res
-      .status(403)
-      .render('admin-payments', buildAdminPaymentsViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή πληρωμών.' }));
+    return res.redirect(buildTenantLink(req, '/admin/payments', { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή πληρωμών.' }));
   }
 
   const auth = await verifyAdminAction(req, password);
   if (!auth.ok) {
-    return res
-      .status(401)
-      .render('admin-payments', buildAdminPaymentsViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+    return res.redirect(buildTenantLink(req, '/admin/payments', { error: 'Λάθος κωδικός διαχειριστή.' }));
   }
 
   const config = loadTenantConfig(req);
@@ -2063,7 +2067,7 @@ app.post('/admin/payments', async (req, res) => {
   }
   saveJson(req.tenantPaths.config, config);
 
-  return res.render('admin-payments', buildAdminPaymentsViewModel(req, { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
+  return res.redirect(buildTenantLink(req, '/admin/payments', { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
 });
 
 // Shipping & Payment options editor
