@@ -459,6 +459,12 @@
           <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
+        <% if (tenant.id === 'eukolakis') { %>
+        <label><span>Cursor image URL (desktop only)</span>
+          <input type="text" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
+        </label>
+        <% } %>
         </details>
 
         <label><span><%= t('admin.adminPass') %></span>

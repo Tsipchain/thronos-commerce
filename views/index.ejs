@@ -113,10 +113,29 @@
       .featured-kit-card img { width:100%; height:220px; object-fit:cover; display:block; }
       .featured-kit-card .body { padding:12px 14px; }
       .kit-badge { display:inline-block; font-size:.72rem; font-weight:700; background:#0f766e; color:#fff; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
+      .kit-clickable { cursor: pointer; }
+      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.58); z-index: 1200; display: none; padding: 24px; }
+      .kit-wizard-backdrop.open { display: block; }
+      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: #fff; border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
+      .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+      .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
+      .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
+      .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
+      .kit-choice img { width:56px; height:56px; object-fit:cover; border-radius:8px; }
+      .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
+      .kit-preview img { width:100%; max-height:220px; object-fit:contain; border-radius:8px; background:#fff; }
+      .kit-summary-line { font-size:.84rem; color:#334155; margin:4px 0; }
+      .kit-wizard-foot { border-top:1px solid #e5e7eb; padding:12px 16px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+      .kit-total { font-weight:800; font-size:1.05rem; color:#0f172a; }
+      .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
+        .kit-wizard-backdrop { padding: 0; }
+        .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
+        .kit-wizard-body { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -265,7 +284,7 @@
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <h3 style="margin:0 0 8px;"><%= product.name %></h3>
                 <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
-                <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
+                <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>" <%= tenant.id === 'eukolakis' && product.type === 'KIT' ? ('data-kit-launch="' + product.id + '"') : '' %>><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
               </div>
             </article>
           <% }) %>
@@ -288,7 +307,7 @@
         <h2>⭐ <%= t('storefront.featuredTitle') %></h2>
         <div class="product-list">
           <% featuredProducts.forEach(function (product) { %>
-            <%- include('_product-card', { product, lang, t, config }) %>
+            <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
           <% }); %>
         </div>
       </section>
@@ -300,7 +319,7 @@
         <% } %>
 
         <% products.forEach(function (product) { %>
-          <%- include('_product-card', { product, lang, t, config }) %>
+          <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
         <% }); %>
       </section>
       <% } %>
@@ -313,6 +332,39 @@
       </section>
       <% } %>
     </main>
+    <% if (tenant.id === 'eukolakis') { %>
+    <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" aria-hidden="true">
+      <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Οδηγός kit' : 'Kit wizard' %>">
+        <div class="kit-wizard-head">
+          <div>
+            <strong id="kit-wizard-title"></strong>
+            <div id="kit-wizard-progress" class="kit-progress"></div>
+          </div>
+          <button type="button" id="kit-wizard-close" class="btn-cart" style="background:#1f2937;">✕</button>
+        </div>
+        <div class="kit-wizard-body">
+          <div>
+            <h3 id="kit-group-title" style="margin:0 0 8px;"></h3>
+            <p id="kit-group-required" class="helper" style="margin:0 0 8px;"></p>
+            <div id="kit-choice-grid" class="kit-choice-grid"></div>
+            <div id="kit-summary" style="display:none;"></div>
+          </div>
+          <div>
+            <div class="kit-preview" id="kit-preview"></div>
+            <p style="margin:10px 0 0;font-size:.84rem;"><a id="kit-full-link" href="#"><%= lang === 'el' ? 'View full page' : 'View full page' %></a></p>
+          </div>
+        </div>
+        <div class="kit-wizard-foot">
+          <div class="kit-total" id="kit-total"></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" id="kit-back" class="btn-cart" style="background:#334155;"><%= lang === 'el' ? 'Πίσω' : 'Back' %></button>
+            <button type="button" id="kit-next" class="btn-cart"><%= lang === 'el' ? 'Επόμενο' : 'Next' %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script id="kit-products-json" type="application/json"><%- JSON.stringify((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })).replace(/</g, '\\u003c') %></script>
+    <% } %>
     <footer class="store-footer">
       <strong><%= config.storeName %></strong> · DIY Kits · Spare Parts · Tools
     </footer>
@@ -329,8 +381,176 @@
           mainNav.classList.toggle("open");
         });
       }
-      if (<%= tenant.id === 'eukolakis' && config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
-        document.body.classList.add('cursor-tool');
+      const isEukolakis = <%= tenant.id === 'eukolakis' ? 'true' : 'false' %>;
+      if (isEukolakis && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
+        const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
+        if (cursorImage) {
+          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 8 8, crosshair';
+        } else {
+          document.body.classList.add('cursor-tool');
+        }
+      }
+
+      if (isEukolakis) {
+        const kitDataEl = document.getElementById('kit-products-json');
+        const wizard = document.getElementById('kit-wizard-backdrop');
+        if (!kitDataEl || !wizard) {
+          // no-op
+        } else {
+        const kitProducts = JSON.parse(kitDataEl.textContent || '[]');
+        const kitById = Object.fromEntries(kitProducts.map(function(p){ return [p.id, p]; }));
+        const state = { product: null, step: 0, selections: {} };
+        const titleEl = document.getElementById('kit-wizard-title');
+        const progressEl = document.getElementById('kit-wizard-progress');
+        const groupTitleEl = document.getElementById('kit-group-title');
+        const groupReqEl = document.getElementById('kit-group-required');
+        const choiceGrid = document.getElementById('kit-choice-grid');
+        const previewEl = document.getElementById('kit-preview');
+        const totalEl = document.getElementById('kit-total');
+        const summaryEl = document.getElementById('kit-summary');
+        const fullLinkEl = document.getElementById('kit-full-link');
+        const btnBack = document.getElementById('kit-back');
+        const btnNext = document.getElementById('kit-next');
+        function esc(v) {
+          return String(v || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        function selectedEntries() {
+          const out = [];
+          (state.product.kitOptions || []).forEach(function(g){
+            const sel = state.selections[g.id] || [];
+            sel.forEach(function(cid){
+              const c = (g.choices || []).find(function(ch){ return ch.id === cid; });
+              if (c) out.push({ groupId: g.id, groupLabel: g.label, choiceId: c.id, choiceLabel: c.label, priceDelta: Number(c.priceDelta)||0 });
+            });
+          });
+          return out;
+        }
+        function totalPrice() {
+          const delta = selectedEntries().reduce(function(s,o){ return s + (Number(o.priceDelta)||0); }, 0);
+          return (Number(state.product.price)||0) + delta;
+        }
+        function renderPreview(group) {
+          const sel = state.selections[group.id] || [];
+          const imgs = sel.map(function(cid){ return (group.choices||[]).find(function(c){ return c.id === cid; }); }).filter(Boolean).filter(function(c){ return c.image; });
+          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;"><%= lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.' %></p>'; return; }
+          previewEl.innerHTML = imgs.map(function(c){ return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\">' + esc(c.label) + '</p></div>'; }).join('');
+        }
+        function renderSummary() {
+          const entries = selectedEntries();
+          summaryEl.innerHTML = entries.length ? entries.map(function(e){ return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong> (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>'; }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
+        }
+        function groupDone(group) {
+          const sel = state.selections[group.id] || [];
+          return !group.required || sel.length > 0;
+        }
+        function renderStep() {
+          const groups = state.product.kitOptions || [];
+          const summaryStep = state.step >= groups.length;
+          titleEl.textContent = state.product.name || 'KIT';
+          progressEl.textContent = summaryStep ? ('<%= lang === 'el' ? 'Σύνοψη' : 'Summary' %>') : ((state.step + 1) + '/' + groups.length);
+          totalEl.textContent = '<%= lang === 'el' ? 'Σύνολο' : 'Total' %>: ' + totalPrice().toFixed(2) + '€';
+          fullLinkEl.href = '<%= withTenantLink('/product/', lang !== 'el' ? { lang } : {}) %>' + state.product.id;
+          btnBack.disabled = state.step === 0;
+          btnNext.textContent = summaryStep ? '<%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart' %>' : '<%= lang === 'el' ? 'Επόμενο' : 'Next' %>';
+          choiceGrid.innerHTML = '';
+          summaryEl.style.display = summaryStep ? 'block' : 'none';
+          if (summaryStep) {
+            groupTitleEl.textContent = '<%= lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary' %>';
+            groupReqEl.textContent = '';
+            previewEl.innerHTML = '';
+            renderSummary();
+            return;
+          }
+          const group = groups[state.step];
+          groupTitleEl.textContent = group.label || group.id;
+          groupReqEl.textContent = group.required ? '<%= lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection' %>' : '<%= lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection' %>';
+          (group.choices || []).forEach(function(choice){
+            const sel = state.selections[group.id] || [];
+            const checked = sel.includes(choice.id);
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'kit-choice' + (checked ? ' selected' : '');
+            card.innerHTML = (choice.image ? ('<img src="' + esc(choice.image) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
+              '<div style="text-align:left;"><strong>' + esc(choice.label || choice.id) + '</strong><div style="font-size:.82rem;color:#0f766e;">' + ((Number(choice.priceDelta)||0)>=0?'+':'') + (Number(choice.priceDelta)||0).toFixed(2) + '€</div>' +
+              (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') + '</div>';
+            card.addEventListener('click', function(){
+              state.selections[group.id] = state.selections[group.id] || [];
+              if (group.inputType === 'checkbox') {
+                if (state.selections[group.id].includes(choice.id)) state.selections[group.id] = state.selections[group.id].filter(function(v){ return v !== choice.id; });
+                else state.selections[group.id].push(choice.id);
+              } else {
+                state.selections[group.id] = [choice.id];
+              }
+              renderStep();
+            });
+            choiceGrid.appendChild(card);
+          });
+          renderPreview(group);
+        }
+        function openWizard(productId) {
+          const p = kitById[productId];
+          if (!p || p.type !== 'KIT') return;
+          state.product = p;
+          state.step = 0;
+          state.selections = {};
+          wizard.classList.add('open');
+          wizard.setAttribute('aria-hidden', 'false');
+          renderStep();
+        }
+        function closeWizard() {
+          wizard.classList.remove('open');
+          wizard.setAttribute('aria-hidden', 'true');
+        }
+        document.querySelectorAll('[data-kit-launch]').forEach(function(el){
+          el.addEventListener('click', function(e){
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWizard(el.getAttribute('data-kit-launch'));
+          });
+        });
+        document.querySelectorAll('.kit-clickable').forEach(function(card){
+          card.addEventListener('click', function(e){
+            if (e.target.closest('a,button,input,textarea,select,label')) return;
+            openWizard(card.getAttribute('data-kit-product-id'));
+          });
+        });
+        document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
+        wizard.addEventListener('click', function(e){ if (e.target === wizard) closeWizard(); });
+        document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wizard.classList.contains('open')) closeWizard(); });
+        btnBack.addEventListener('click', function(){ if (state.step > 0) { state.step -= 1; renderStep(); } });
+        btnNext.addEventListener('click', function(){
+          const groups = state.product.kitOptions || [];
+          if (state.step < groups.length) {
+            const g = groups[state.step];
+            if (!groupDone(g)) { alert('<%= lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.' %>'); return; }
+            state.step += 1;
+            renderStep();
+            return;
+          }
+          const selected = selectedEntries();
+          const finalPrice = totalPrice();
+          const optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
+          const cartKey = state.product.id + '::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
+          if (window.thrcAddToCart) {
+            window.thrcAddToCart({
+              id: state.product.id,
+              name: state.product.name,
+              price: finalPrice,
+              imageUrl: state.product.imageUrl || '',
+              selectedOptions: selected,
+              optionSummary: optionSummary || undefined,
+              finalUnitPrice: finalPrice,
+              cartKey: cartKey
+            });
+          }
+          closeWizard();
+        });
+        }
       }
     </script>
   </body>

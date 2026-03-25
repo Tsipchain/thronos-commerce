@@ -430,6 +430,7 @@ function loadTenantConfig(req) {
       bannerVisible: true,
       previewBadgeStyle: 'soft',
       cursorEffect: false,
+      cursorImage: '',
       brandingMode: 'logo_name',
       logoDisplayMode: 'contain',
       logoBgMode: 'auto',
@@ -1876,7 +1877,8 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoPadding,
     themeLogoRadius,
     themeLogoShadow,
-    themeLogoMaxHeight
+    themeLogoMaxHeight,
+    themeCursorImage
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1928,6 +1930,7 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.bannerVisible = themeBannerVisible === 'on';
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
   config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.cursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
   config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
