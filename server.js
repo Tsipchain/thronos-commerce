@@ -1461,6 +1461,103 @@ app.get('/my-orders', requireUser, (req, res) => {
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
 });
 
+app.get('/admin/login', (req, res) => {
+  const config = loadTenantConfig(req);
+  if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect('/admin');
+  res.render('admin-login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/admin/login', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const ok = await verifyAdminPassword(req.tenant, req.body.password);
+  if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
+  req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
+  res.redirect('/admin');
+});
+
+app.get('/admin/logout', (req, res) => {
+  req.session.admin = null;
+  res.redirect('/admin/login');
+});
+
+app.get('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/account');
+  const config = loadTenantConfig(req);
+  res.render('login', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/login', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  const users = loadTenantUsers(req);
+  const user = users.find((u) => normalizeEmail(u.email) === email);
+  if (!user) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
+
+  const ok = await bcrypt.compare(password, user.passwordHash || '');
+  if (!ok) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
+
+  req.session.user = {
+    id: user.id,
+    email: user.email
+  };
+  res.redirect('/account');
+});
+
+app.get('/signup', (req, res) => {
+  if (req.session.user) return res.redirect('/account');
+  const config = loadTenantConfig(req);
+  res.render('signup', { config, tenant: req.tenant, error: null });
+});
+
+app.post('/signup', async (req, res) => {
+  const config = loadTenantConfig(req);
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  const passwordConfirm = String(req.body.passwordConfirm || '');
+  if (!email || !password) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Email and password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password must be at least 6 characters.' });
+  }
+  if (password !== passwordConfirm) {
+    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password confirmation does not match.' });
+  }
+
+  const users = loadTenantUsers(req);
+  const exists = users.some((u) => normalizeEmail(u.email) === email);
+  if (exists) {
+    return res.status(409).render('signup', { config, tenant: req.tenant, error: 'This email is already registered.' });
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: `u_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`, email, passwordHash, createdAt: new Date().toISOString() };
+  users.push(user);
+  saveTenantUsers(req, users);
+
+  req.session.user = {
+    id: user.id,
+    email: user.email
+  };
+  res.redirect('/account');
+});
+
+app.get('/account', requireUser, (req, res) => {
+  const config = loadTenantConfig(req);
+  res.render('account', { config, tenant: req.tenant, user: req.session.user });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/'));
+});
+
+app.get('/my-orders', requireUser, (req, res) => {
+  const config = loadTenantConfig(req);
+  const email = normalizeEmail(req.session.user.email);
+  const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
+  res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
+});
+
 // ── Reviews API ──────────────────────────────────────────────────────────────
 
 app.get('/api/products/:productId/reviews', (req, res) => {
