@@ -26,6 +26,16 @@
         <% } %>
         <h1><%= config.storeName %></h1>
       </div>
+      <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
+        <% if (!user) { %>
+          <a href="<%= withTenantLink('/login') %>">Login</a>
+          <a href="<%= withTenantLink('/signup') %>">Signup</a>
+        <% } else { %>
+          <a href="<%= withTenantLink('/account') %>">My Account</a>
+          <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
+          <a href="<%= withTenantLink('/logout') %>">Logout</a>
+        <% } %>
+      </div>
     </header>
 
     <main>
