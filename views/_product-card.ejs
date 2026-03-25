@@ -11,6 +11,9 @@
   <% } %>
   <div class="product-card-body">
     <h2><%= product.name %></h2>
+    <% if (product.type === 'KIT') { %>
+      <p style="margin:0 0 8px;font-size:.72rem;font-weight:700;letter-spacing:.04em;color:#0f766e;">DIY KIT CONFIGURATOR</p>
+    <% } %>
     <p><%= product.description %></p>
     <p class="price">
       <%= Number(product.price).toFixed(2) %> €

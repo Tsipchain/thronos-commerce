@@ -77,7 +77,7 @@
       .stock-pill.low { background: #fef3c7; color: #92400e; }
       .stock-pill.out { background: #fee2e2; color: #991b1b; }
       .cat-logo { width:22px;height:22px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px; }
-      .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0 8px; }
+      .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0 8px; }
       .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
       .category-card img { width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px; }
       .logo-title.centered { width:100%; justify-content:center; text-align:center; }
@@ -100,6 +100,10 @@
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      @media (max-width: 640px) {
+        .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
+        .category-card { min-width: 150px; }
+      }
     </style>
   </head>
   <body>
@@ -109,17 +113,19 @@
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
-        <% if (config.logoPath) { %>
+        <% if (config.logoPath && brandingMode !== 'name_only') { %>
           <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
           </span>
         <% } %>
+        <% if (brandingMode !== 'logo_only') { %>
         <div class="store-name-wrap">
           <h1><%= config.storeName %></h1>
           <% if (config.web3Domain) { %>
             <p class="subtitle"><%= t('storefront.web3Domain') %>: <%= config.web3Domain %></p>
           <% } %>
         </div>
+        <% } %>
       </div>
       <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
       <nav class="main-nav" id="main-nav">
@@ -127,13 +133,15 @@
           <li class="<%= !activeCategory ? 'active' : '' %>">
             <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
-          <% categories.forEach(function(cat) { %>
-            <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
-              <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-                <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
-              </a>
-            </li>
-          <% }); %>
+          <% if (!theme.categoryMenuStyle || theme.categoryMenuStyle === 'text') { %>
+            <% categories.forEach(function(cat) { %>
+              <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
+                <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+                  <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+                </a>
+              </li>
+            <% }); %>
+          <% } %>
           <% if (!user) { %>
             <li><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
             <li><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
@@ -176,6 +184,7 @@
       <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
         <% if (tenant.id === 'eukolakis') { %>
           <h2 class="hero-title"><%= lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts' %></h2>
+          <p style="margin:0;color:inherit;opacity:.92;"><%= lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.' %></p>
         <% } %>
         <p><%= config.heroText %></p>
         <% if (tenant.id === 'eukolakis') { %>

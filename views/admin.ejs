@@ -126,10 +126,16 @@
       .section-panel.active { display:block; }
       .sidebar-toggle{display:none;margin-bottom:10px;}
       @media (max-width: 900px){ .admin-shell{grid-template-columns:1fr;} .sidebar-toggle{display:inline-block;} .admin-sidebar{display:none;} .admin-shell.show-sidebar .admin-sidebar{display:block;} }
-      .cat-preview { width: 68px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; background: #f8fafc; }
+      .cat-preview { width: 120px; height: 74px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; background: #f8fafc; }
       .cat-upload-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size:.78rem; cursor:pointer; font-weight:600; }
       .cat-remove-btn { background:#fff1f2; border-color:#fecdd3; color:#be123c; }
       .cat-inline-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+      .cat-image-wrap { position: relative; display: inline-block; }
+      .cat-hover-actions {
+        position:absolute; inset:auto 6px 6px 6px; display:flex; gap:6px; opacity:0;
+        transition:opacity .15s ease-in-out;
+      }
+      .cat-image-wrap:hover .cat-hover-actions { opacity:1; }
       .cat-helper-row { font-size:.76rem; color:#6b7280; margin-top:4px; }
       .cat-upload-status { font-size:.82rem; margin:10px 0 14px; padding:8px 10px; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; color:#334155; display:none; }
       .cat-meta { font-size:.76rem; color:#6b7280; margin-top:4px; line-height:1.3; }
@@ -201,16 +207,16 @@
       <button class="button sidebar-toggle" type="button" onclick="document.querySelector('.admin-shell').classList.toggle('show-sidebar')">☰ Μενού</button>
       <div class="admin-shell">
       <aside class="admin-sidebar">
-        <a href="#tab-dashboard">Dashboard</a>
-        <a href="#tab-theme">Store Identity & Theme</a>
-        <a href="#tab-categories">Categories</a>
-        <a href="#tab-products">Products</a>
-        <a href="#tab-upload">Media / Images</a>
-        <a href="<%= withTenantLink('/admin/orders') %>">Orders</a>
-        <a href="#tab-shipping">Shipping & Payment</a>
-        <a href="#tab-notifications">Notifications</a>
-        <a href="#tab-support">Support</a>
-        <a href="<%= withTenantLink('/') %>">Preview Store</a>
+        <a href="#tab-dashboard">📊 Dashboard</a>
+        <a href="#tab-theme">🎨 Theme & Identity</a>
+        <a href="#tab-categories">🗂️ Categories</a>
+        <a href="#tab-products">📦 Products</a>
+        <a href="#tab-upload">🖼️ Media</a>
+        <a href="<%= withTenantLink('/admin/orders') %>">🧾 Orders</a>
+        <a href="#tab-shipping">🚚 Shipping & Payment</a>
+        <a href="#tab-notifications">🔔 Notifications</a>
+        <a href="#tab-support">🛟 Support</a>
+        <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
       </aside>
       <div class="admin-main">
       <section id="tab-dashboard" class="admin-block section-panel">
@@ -571,7 +577,16 @@
                 <td><code><%= cat.id %></code></td>
                 <td>
                   <% if (rawCat?.image) { %>
-                    <img src="<%= rawCat.image %>" alt="<%= cat.name %>" class="cat-preview" />
+                    <div class="cat-image-wrap">
+                      <img src="<%= rawCat.image %>" alt="<%= cat.name %>" class="cat-preview" />
+                      <div class="cat-hover-actions">
+                        <label class="cat-upload-btn" style="padding:4px 8px;font-size:.72rem;">
+                          <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="display:none;" />
+                          Αλλαγή
+                        </label>
+                        <button type="button" class="cat-upload-btn cat-remove-btn" style="padding:4px 8px;font-size:.72rem;" onclick="removeCategoryImage('<%= cat.id %>')">Αφαίρεση</button>
+                      </div>
+                    </div>
                   <% } else { %><span style="color:#9ca3af;">—</span><% } %>
                 </td>
                 <td>
@@ -617,7 +632,6 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <input type="text" name="image" placeholder="URL εικόνας (προαιρετικό, αν δεν κάνετε upload)" />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -640,7 +654,6 @@
           <input type="text" name="name_en" placeholder="New name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <input type="text" name="image" placeholder="URL εικόνας (προαιρετικό, αν δεν κάνετε upload)" />
           <input type="text" name="slug" placeholder="Νέο slug" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>

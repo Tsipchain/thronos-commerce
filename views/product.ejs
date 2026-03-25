@@ -187,14 +187,16 @@
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
-        <% if (config.logoPath) { %>
+        <% if (config.logoPath && brandingMode !== 'name_only') { %>
           <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
           </span>
         <% } %>
+        <% if (brandingMode !== 'logo_only') { %>
         <div class="store-name-wrap">
           <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
         </div>
+        <% } %>
       </div>
       <% if (isPreviewMode) { %>
       <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
