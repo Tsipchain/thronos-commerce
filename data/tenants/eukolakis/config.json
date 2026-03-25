@@ -10,6 +10,14 @@
     "el": "DIY kits και ανταλλακτικά για ρολά, συρόμενα και επισκευές — όλα σε ένα μέρος.",
     "en": "DIY kits and spare parts for shutters, sliding systems and repairs — all in one place."
   },
+  "heroTitle": {
+    "el": "Eukolaki DIY Kits για κάθε επισκευή",
+    "en": "Eukolaki DIY Kits for every repair"
+  },
+  "heroSubtitle": {
+    "el": "Κορυφαία kits, ανταλλακτικά και εργαλεία με καθοδήγηση βήμα-βήμα.",
+    "en": "Top kits, spare parts and tools with step-by-step guidance."
+  },
   "web3Domain": "demo.thr",
   "logoPath": "/logo.svg",
   "shippingOptions": [
@@ -66,6 +74,28 @@
     "logoPadding": 8,
     "logoRadius": 12,
     "logoShadow": "floating",
-    "logoMaxHeight": 56
+    "logoMaxHeight": 56,
+    "presetId": "eukolakis_classic_diy"
+  },
+  "homepage": {
+    "presetId": "eukolakis_classic_diy",
+    "heroImage": "/tenants/eukolakis/media/categories/diy-rolla.png",
+    "featuredIds": [
+      "eukolaki-diy-roll-kit",
+      "eukolaki-diy-slide-door-kit"
+    ],
+    "secondaryCard": {
+      "title": {
+        "el": "DIY υποστήριξη & ανταλλακτικά",
+        "en": "DIY support & spare parts"
+      },
+      "text": {
+        "el": "Βρείτε γρήγορα ανταλλακτικά και εργαλεία για επαγγελματικό αποτέλεσμα.",
+        "en": "Find spare parts and tools quickly for professional results."
+      },
+      "link": "/?category=spare-parts",
+      "image": ""
+    },
+    "showSubscriptionsCard": true
   }
 }

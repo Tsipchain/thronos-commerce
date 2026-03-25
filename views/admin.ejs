@@ -208,14 +208,15 @@
       <div class="admin-shell">
       <aside class="admin-sidebar">
         <a href="#tab-dashboard">📊 Dashboard</a>
-        <a href="#tab-theme">🎨 Theme & Identity</a>
+        <a href="#tab-theme">🎨 Branding</a>
+        <a href="#tab-homepage">🏠 Homepage</a>
         <a href="#tab-categories">🗂️ Categories</a>
         <a href="#tab-products">📦 Products</a>
         <a href="#tab-upload">🖼️ Media</a>
         <a href="<%= withTenantLink('/admin/orders') %>">🧾 Orders</a>
-        <a href="#tab-shipping">🚚 Shipping & Payment</a>
+        <a href="#tab-shipping">💳 Payments</a>
         <a href="#tab-notifications">🔔 Notifications</a>
-        <a href="#tab-support">🛟 Support</a>
+        <a href="#tab-support">⚙️ Advanced</a>
         <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
       </aside>
       <div class="admin-main">
@@ -371,8 +372,9 @@
                  value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
                  placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
         </label>
-        <h3>Προχωρημένες επιλογές εμφάνισης</h3>
-        <p class="helper">Επιλέξτε στυλ που ταιριάζει στο brand σας χωρίς κώδικα.</p>
+        <details style="margin:10px 0 14px;">
+          <summary style="cursor:pointer;font-weight:700;">Advanced theme settings</summary>
+          <p class="helper">Εσωτερικές ρυθμίσεις εμφάνισης. Συνήθως δεν χρειάζονται συχνές αλλαγές.</p>
         <label><span>Διάταξη Header</span>
           <select name="themeHeaderLayout" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default</option>
@@ -457,6 +459,7 @@
           <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
+        </details>
 
         <%# ── Ειδοποιήσεις ── %>
         <div class="notif-section">
@@ -543,6 +546,42 @@
         <% if (!permissions.canEditSettings) { %>
           <p class="helper" style="margin-top:8px;"><%= t('admin.fullOpsManagedNote') %></p>
         <% } %>
+      </form>
+
+      <form id="tab-homepage" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+        <h2>Homepage</h2>
+        <p class="helper">Ρυθμίστε την αρχική σελίδα σαν branded landing-store για kits, ανταλλακτικά και εργαλεία.</p>
+        <label><span>Hero title (EL/EN)</span>
+          <input type="text" name="heroTitle_el" value="<%= resolveField(rawConfig.heroTitle, 'el') %>" placeholder="Ελληνικά" />
+          <input type="text" name="heroTitle_en" value="<%= resolveField(rawConfig.heroTitle, 'en') %>" placeholder="English" />
+        </label>
+        <label><span>Hero subtitle (EL/EN)</span>
+          <textarea name="heroSubtitle_el" rows="2" placeholder="Ελληνικά"><%= resolveField(rawConfig.heroSubtitle, 'el') %></textarea>
+          <textarea name="heroSubtitle_en" rows="2" placeholder="English"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
+        </label>
+        <label><span>Hero image / banner URL</span>
+          <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+        </label>
+        <label><span>Primary featured products (ids, comma separated)</span>
+          <input type="text" name="homepageFeaturedIds" value="<%= ((rawConfig.homepage && rawConfig.homepage.featuredIds) || []).join(', ') %>" placeholder="eukolaki-diy-roll-kit, eukolaki-diy-slide-door-kit" />
+        </label>
+        <label><span>Secondary block title (EL/EN)</span>
+          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="Ελληνικά" />
+          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="English" />
+        </label>
+        <label><span>Secondary block text (EL/EN)</span>
+          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="Ελληνικά" />
+          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="English" />
+        </label>
+        <label><span>Secondary block link</span>
+          <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="homepageShowSubscriptionsCard" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
+          <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
+        </label>
+        <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
+        <button type="submit" class="button">Αποθήκευση homepage</button>
       </form>
 
 

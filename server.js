@@ -135,7 +135,9 @@ function localizeConfigContent(config, lang) {
   return {
     ...config,
     storeName: resolveTranslatable(config.storeName, lang),
-    heroText: resolveTranslatable(config.heroText, lang)
+    heroText: resolveTranslatable(config.heroText, lang),
+    heroTitle: resolveTranslatable(config.heroTitle, lang),
+    heroSubtitle: resolveTranslatable(config.heroSubtitle, lang)
   };
 }
 
@@ -1239,10 +1241,13 @@ app.get('/', (req, res) => {
   }
 
   const viewLang = req.lang;
+  const localizedConfig = localizeConfigContent(config, viewLang);
+  const localizedAllProducts = allProducts.map((p) => localizeProductContent(p, viewLang));
   res.render('index', {
-    config: localizeConfigContent(config, viewLang),
+    config: localizedConfig,
     categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
     products: products.map((p) => localizeProductContent(p, viewLang)),
+    allProducts: localizedAllProducts,
     activeCategory: catSlug || null,
     tenant: req.tenant
   });
@@ -1813,6 +1818,15 @@ app.post('/admin/settings', async (req, res) => {
     accentColor,
     fontFamily,
     heroText,
+    heroTitle,
+    heroSubtitle,
+    homepageHeroImage,
+    homepageFeaturedIds,
+    homepageSecondaryTitle,
+    homepageSecondaryText,
+    homepageSecondaryLink,
+    homepageSecondaryImage,
+    homepageShowSubscriptionsCard,
     web3Domain,
     logoPath,
     themeMenuBg,
@@ -1866,6 +1880,8 @@ app.post('/admin/settings', async (req, res) => {
   config.accentColor = accentColor || config.accentColor;
   config.fontFamily = fontFamily || config.fontFamily;
   config.heroText = buildTranslatableFromBody(req.body, 'heroText', heroText || config.heroText);
+  config.heroTitle = buildTranslatableFromBody(req.body, 'heroTitle', heroTitle || config.heroTitle || config.storeName);
+  config.heroSubtitle = buildTranslatableFromBody(req.body, 'heroSubtitle', heroSubtitle || config.heroSubtitle || config.heroText);
   config.web3Domain = web3Domain || config.web3Domain;
   config.logoPath = logoPath || config.logoPath;
   config.theme = config.theme || {};
@@ -1892,6 +1908,21 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
   config.theme.logoShadow = themeLogoShadow || config.theme.logoShadow || 'soft';
   config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
+  config.theme.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.theme.presetId || 'default');
+
+  config.homepage = config.homepage || {};
+  config.homepage.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.homepage.presetId || 'default');
+  config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
+  config.homepage.featuredIds = String(homepageFeaturedIds || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  config.homepage.secondaryCard = config.homepage.secondaryCard || {};
+  config.homepage.secondaryCard.title = buildTranslatableFromBody(req.body, 'homepageSecondaryTitle', homepageSecondaryTitle || config.homepage.secondaryCard.title || '');
+  config.homepage.secondaryCard.text = buildTranslatableFromBody(req.body, 'homepageSecondaryText', homepageSecondaryText || config.homepage.secondaryCard.text || '');
+  config.homepage.secondaryCard.link = (homepageSecondaryLink || config.homepage.secondaryCard.link || '').trim();
+  config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
+  config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
 
   // Notification settings
   config.notificationEmails = (req.body.notificationEmails || '')

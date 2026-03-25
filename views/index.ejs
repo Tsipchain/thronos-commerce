@@ -171,6 +171,27 @@
     </div>
 
     <main>
+      <% const homepage = config.homepage || {}; %>
+      <% const hpFeaturedIds = Array.isArray(homepage.featuredIds) ? homepage.featuredIds : []; %>
+      <% const featuredHomeProducts = (allProducts || products).filter(function(p){ return hpFeaturedIds.includes(p.id); }).slice(0, 2); %>
+      <% const secondaryCard = homepage.secondaryCard || {}; %>
+      <% if (tenant.id === 'eukolakis' && !activeCategory) { %>
+      <section class="category-cards">
+        <% const topMenuCats = categories.filter(function(c){ return ['diy-rolla','spare-parts','diy-sliding','subscriptions'].includes(c.slug); }); %>
+        <% topMenuCats.forEach(function(cat) { %>
+          <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <div><%= cat.name %></div>
+          </a>
+        <% }) %>
+        <% if ((homepage.showSubscriptionsCard || false) && !topMenuCats.some(function(c){ return c.slug === 'subscriptions'; })) { %>
+          <a class="category-card" href="#" onclick="return false;">
+            <div style="height:60px;display:flex;align-items:center;justify-content:center;background:#111827;color:#fff;border-radius:8px;">▶</div>
+            <div><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></div>
+          </a>
+        <% } %>
+      </section>
+      <% } else { %>
       <section class="category-cards">
         <% categories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
@@ -180,11 +201,15 @@
           </a>
         <% }) %>
       </section>
+      <% } %>
       <% if (!config.theme || config.theme.bannerVisible !== false) { %>
       <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
+        <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
+          <div style="margin-bottom:14px;"><img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" /></div>
+        <% } %>
         <% if (tenant.id === 'eukolakis') { %>
-          <h2 class="hero-title"><%= lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts' %></h2>
-          <p style="margin:0;color:inherit;opacity:.92;"><%= lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.' %></p>
+          <h2 class="hero-title"><%= config.heroTitle || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
+          <p style="margin:0;color:inherit;opacity:.92;"><%= config.heroSubtitle || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
         <% } %>
         <p><%= config.heroText %></p>
         <% if (tenant.id === 'eukolakis') { %>
@@ -194,6 +219,24 @@
           </div>
         <% } %>
       </section>
+      <% } %>
+
+      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length) { %>
+      <section class="featured-section">
+        <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
+        <div class="product-list">
+          <% featuredHomeProducts.forEach(function (product) { %>
+            <%- include('_product-card', { product, lang, t, config }) %>
+          <% }) %>
+        </div>
+      </section>
+      <% if (secondaryCard.title || secondaryCard.text) { %>
+      <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
+        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title %></h3>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text %></p>
+        <% if (secondaryCard.link) { %><a class="button" href="<%= secondaryCard.link %>"><%= lang === 'el' ? 'Δείτε περισσότερα' : 'Learn more' %></a><% } %>
+      </section>
+      <% } %>
       <% } %>
 
       <%# ── Featured products ── %>
