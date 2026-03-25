@@ -49,7 +49,9 @@ function getSubscriptionInfo(tenant) {
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
 const LOCALES_DIR = path.join(__dirname, 'locales');
-const SUPPORTED_LANGS = ['el', 'en', 'de', 'es', 'ru', 'ja'];
+const SUPPORTED_LANGS = ['el', 'en'];
+const CONTENT_LANGS = ['el', 'en'];
+const DEFAULT_CONTENT_LANG = 'el';
 let LOCALES = {};
 
 function loadLocales() {
@@ -69,6 +71,8 @@ function loadLocales() {
 function getLangFromRequest(req) {
   const qLang = (req.query.lang || '').toLowerCase();
   if (SUPPORTED_LANGS.includes(qLang)) return qLang;
+  const sLang = (req.session && req.session.lang ? String(req.session.lang) : '').toLowerCase();
+  if (SUPPORTED_LANGS.includes(sLang)) return sLang;
   const acceptLang = (req.headers['accept-language'] || '').toLowerCase();
   for (const lang of SUPPORTED_LANGS) {
     if (
@@ -92,6 +96,63 @@ function translate(lang, key) {
   if (val !== undefined && val !== null) return String(val);
   if (lang !== 'el') return translate('el', key);
   return key;
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isTranslatableObject(value) {
+  if (!isPlainObject(value)) return false;
+  return CONTENT_LANGS.some((l) => typeof value[l] === 'string');
+}
+
+function resolveTranslatable(value, lang = DEFAULT_CONTENT_LANG, fallbackLang = DEFAULT_CONTENT_LANG) {
+  if (typeof value === 'string') return value;
+  if (!isTranslatableObject(value)) return value;
+  const primary = typeof value[lang] === 'string' ? value[lang].trim() : '';
+  if (primary) return primary;
+  const fallback = typeof value[fallbackLang] === 'string' ? value[fallbackLang].trim() : '';
+  if (fallback) return fallback;
+  for (const l of CONTENT_LANGS) {
+    if (typeof value[l] === 'string' && value[l].trim()) return value[l].trim();
+  }
+  return '';
+}
+
+function buildTranslatableFromBody(body, baseName, fallbackValue) {
+  const result = {};
+  for (const lang of CONTENT_LANGS) {
+    const v = body[`${baseName}_${lang}`];
+    if (typeof v === 'string' && v.trim()) result[lang] = v.trim();
+  }
+  if (Object.keys(result).length) return result;
+  if (typeof body[baseName] === 'string' && body[baseName].trim()) return body[baseName].trim();
+  return fallbackValue;
+}
+
+function localizeConfigContent(config, lang) {
+  return {
+    ...config,
+    storeName: resolveTranslatable(config.storeName, lang),
+    heroText: resolveTranslatable(config.heroText, lang)
+  };
+}
+
+function localizeCategoryContent(cat, lang) {
+  return {
+    ...cat,
+    name: resolveTranslatable(cat.name, lang),
+    shortDescription: resolveTranslatable(cat.shortDescription, lang)
+  };
+}
+
+function localizeProductContent(product, lang) {
+  return {
+    ...product,
+    name: resolveTranslatable(product.name, lang),
+    description: resolveTranslatable(product.description, lang)
+  };
 }
 
 loadLocales();
@@ -335,7 +396,15 @@ function loadTenantConfig(req) {
       menuText: '#ffffff',
       menuActiveBg: '#f06292',
       menuActiveText: '#ffffff',
-      buttonRadius: '4px'
+      buttonRadius: '4px',
+      headerLayout: 'default',
+      heroStyle: 'soft',
+      categoryMenuStyle: 'image_label',
+      cardStyle: 'soft',
+      sectionSpacing: 'normal',
+      bannerVisible: true,
+      previewBadgeStyle: 'soft',
+      cursorEffect: false
     }
   };
   return loadJson(req.tenantPaths.config, fallback);
@@ -371,6 +440,19 @@ function buildTenantLink(req, targetPath, extraQuery = {}) {
   const query = new URLSearchParams();
   if (req.tenantContext && req.tenantContext.mode === 'query' && req.tenantId) {
     query.set('tenant', req.tenantId);
+  }
+  const carryLang = (req.lang || '').toLowerCase();
+  if (SUPPORTED_LANGS.includes(carryLang) && !Object.prototype.hasOwnProperty.call(extraQuery || {}, 'lang')) {
+    query.set('lang', carryLang);
+  }
+  if (
+    basePath.startsWith('/admin') &&
+    req.session &&
+    req.session.contentLang &&
+    CONTENT_LANGS.includes(String(req.session.contentLang).toLowerCase()) &&
+    !Object.prototype.hasOwnProperty.call(extraQuery || {}, 'contentLang')
+  ) {
+    query.set('contentLang', String(req.session.contentLang).toLowerCase());
   }
   Object.entries(extraQuery || {}).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') query.set(k, String(v));
@@ -690,12 +772,13 @@ async function sendOrderEmail({ tenant, config, order }) {
     return;
   }
 
-  const fromName = config.notificationFromName || config.storeName || 'Thronos Commerce Store';
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
+  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
   const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
   const subject = `[${tenant.id}] Νέα παραγγελία #${order.id} – ${order.productName}`;
 
   const lines = [
-    `Κατάστημα: ${config.storeName} (${tenant.domain || tenant.id})`,
+    `Κατάστημα: ${storeName} (${tenant.domain || tenant.id})`,
     `Κωδικός παραγγελίας: ${order.id}`,
     `Προϊόν: ${order.productName}`,
     `Σύνολο: ${Number(order.total).toFixed(2)} €`,
@@ -777,7 +860,8 @@ async function sendOrderEmails(order, config) {
   }
 
   const fromAddress = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
-  const fromName = config.storeName || 'Thronos Commerce';
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
+  const fromName = storeName || 'Thronos Commerce';
   const from = `"${fromName}" <${fromAddress}>`;
 
   const bodyLines = [
@@ -801,7 +885,7 @@ async function sendOrderEmails(order, config) {
         from,
         to: notificationEmail,
         subject: `[${order.tenantId}] Νέα παραγγελία #${order.id} – ${order.productName}`,
-        text: `Νέα παραγγελία στο κατάστημα ${config.storeName}!\n\n${bodyLines}`
+        text: `Νέα παραγγελία στο κατάστημα ${storeName}!\n\n${bodyLines}`
       })
     );
   }
@@ -811,8 +895,8 @@ async function sendOrderEmails(order, config) {
       transport.sendMail({
         from,
         to: order.email,
-        subject: `Επιβεβαίωση παραγγελίας #${order.id} – ${config.storeName}`,
-        text: `Γεια σας ${order.customerName},\n\nΛάβαμε την παραγγελία σας!\n\n${bodyLines}\n\nΕυχαριστούμε!\n${config.storeName}`
+        subject: `Επιβεβαίωση παραγγελίας #${order.id} – ${storeName}`,
+        text: `Γεια σας ${order.customerName},\n\nΛάβαμε την παραγγελία σας!\n\n${bodyLines}\n\nΕυχαριστούμε!\n${storeName}`
       })
     );
   }
@@ -937,8 +1021,11 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   req.lang = getLangFromRequest(req);
+  if (req.session) req.session.lang = req.lang;
   res.locals.lang = req.lang;
   res.locals.t = (key) => translate(req.lang, key);
+  res.locals.contentLangs = CONTENT_LANGS;
+  res.locals.resolveField = (value, lang = req.lang) => resolveTranslatable(value, lang);
   next();
 });
 
@@ -1001,6 +1088,12 @@ function buildAdminViewModel(req, extra) {
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
   const categories = loadTenantCategories(req);
+  const qContentLang = (req.query.contentLang || '').toLowerCase();
+  const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
+  const contentLang = CONTENT_LANGS.includes(qContentLang)
+    ? qContentLang
+    : (CONTENT_LANGS.includes(sContentLang) ? sContentLang : DEFAULT_CONTENT_LANG);
+  if (req.session) req.session.contentLang = contentLang;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   const orders = loadTenantOrders(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
@@ -1023,10 +1116,15 @@ function buildAdminViewModel(req, extra) {
   return {
     tenant: req.tenant,
     permissions,
-    config,
-    categories,
-    products,
+    config: localizeConfigContent(config, contentLang),
+    rawConfig: config,
+    categories: categories.map((c) => localizeCategoryContent(c, contentLang)),
+    rawCategories: categories,
+    products: products.map((p) => localizeProductContent(p, contentLang)),
+    rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
+    contentLang,
+    contentLangs: CONTENT_LANGS,
     stockLog: stockLog.slice(-100).reverse(),
     analytics,
     orderCounts,
@@ -1081,10 +1179,11 @@ app.get('/', (req, res) => {
     }
   }
 
+  const viewLang = req.lang;
   res.render('index', {
-    config,
-    categories,
-    products,
+    config: localizeConfigContent(config, viewLang),
+    categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
+    products: products.map((p) => localizeProductContent(p, viewLang)),
     activeCategory: catSlug || null,
     tenant: req.tenant
   });
@@ -1108,15 +1207,15 @@ app.get('/product/:id', (req, res) => {
   } catch (_) { /* non-critical */ }
 
   res.render('product', {
-    config,
-    product,
+    config: localizeConfigContent(config, req.lang),
+    product: localizeProductContent(product, req.lang),
     tenant: req.tenant
   });
 });
 
 // Checkout page
 app.get('/checkout', (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
@@ -1362,7 +1461,7 @@ app.post('/checkout', async (req, res) => {
   }
 
   const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
-  const mailSubject = `Νέα παραγγελία #${order.id} – ${config.storeName}`;
+  const mailSubject = `Νέα παραγγελία #${order.id} – ${resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG)}`;
   sendOrderEmails(order, config).catch((err) =>
     console.error('[Thronos Commerce] sendOrderEmails failed:', err.message)
   );
@@ -1378,7 +1477,7 @@ app.post('/checkout', async (req, res) => {
   });
 
   res.render('thanks', {
-    config,
+    config: localizeConfigContent(config, req.lang),
     order,
     proofHash,
     tenant: req.tenant,
@@ -1464,7 +1563,7 @@ app.get('/checkout/stripe-success', async (req, res) => {
   });
 
   res.render('thanks', {
-    config, order, proofHash, tenant: req.tenant,
+    config: localizeConfigContent(config, req.lang), order, proofHash, tenant: req.tenant,
     clearCart: true, contentUrl: hasDigital ? `/content/${order.id}` : null
   });
 });
@@ -1472,13 +1571,13 @@ app.get('/checkout/stripe-success', async (req, res) => {
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
 
 app.get('/admin/login', (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect(buildTenantLink(req, '/admin'));
   res.render('admin-login', { config, tenant: req.tenant, error: null });
 });
 
 app.post('/admin/login', async (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const ok = await verifyAdminPassword(req.tenant, req.body.password);
   if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
   req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
@@ -1492,12 +1591,12 @@ app.get('/admin/logout', (req, res) => {
 
 app.get('/login', (req, res) => {
   if (req.session.user) return res.redirect(buildTenantLink(req, '/account'));
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   res.render('login', { config, tenant: req.tenant, error: null });
 });
 
 app.post('/login', async (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const email = normalizeEmail(req.body.email);
   const password = String(req.body.password || '');
   const users = loadTenantUsers(req);
@@ -1516,12 +1615,12 @@ app.post('/login', async (req, res) => {
 
 app.get('/signup', (req, res) => {
   if (req.session.user) return res.redirect(buildTenantLink(req, '/account'));
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   res.render('signup', { config, tenant: req.tenant, error: null });
 });
 
 app.post('/signup', async (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const email = normalizeEmail(req.body.email);
   const password = String(req.body.password || '');
   const passwordConfirm = String(req.body.passwordConfirm || '');
@@ -1553,7 +1652,7 @@ app.post('/signup', async (req, res) => {
 });
 
 app.get('/account', requireUser, (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   res.render('account', { config, tenant: req.tenant, user: req.session.user });
 });
 
@@ -1562,7 +1661,7 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/my-orders', requireUser, (req, res) => {
-  const config = loadTenantConfig(req);
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const email = normalizeEmail(req.session.user.email);
   const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
@@ -1661,6 +1760,15 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuActiveBg,
     themeMenuActiveText,
     themeButtonRadius
+    ,
+    themeHeaderLayout,
+    themeHeroStyle,
+    themeCategoryMenuStyle,
+    themeCardStyle,
+    themeSectionSpacing,
+    themeBannerVisible,
+    themePreviewBadgeStyle,
+    themeCursorEffect
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1686,11 +1794,11 @@ app.post('/admin/settings', async (req, res) => {
   }
 
   const config = loadTenantConfig(req);
-  config.storeName = storeName || config.storeName;
+  config.storeName = buildTranslatableFromBody(req.body, 'storeName', storeName || config.storeName);
   config.primaryColor = primaryColor || config.primaryColor;
   config.accentColor = accentColor || config.accentColor;
   config.fontFamily = fontFamily || config.fontFamily;
-  config.heroText = heroText || config.heroText;
+  config.heroText = buildTranslatableFromBody(req.body, 'heroText', heroText || config.heroText);
   config.web3Domain = web3Domain || config.web3Domain;
   config.logoPath = logoPath || config.logoPath;
   config.theme = config.theme || {};
@@ -1702,6 +1810,14 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuActiveText || config.theme.menuActiveText || '#ffffff';
   config.theme.buttonRadius =
     themeButtonRadius || config.theme.buttonRadius || '4px';
+  config.theme.headerLayout = themeHeaderLayout || config.theme.headerLayout || 'default';
+  config.theme.heroStyle = themeHeroStyle || config.theme.heroStyle || 'soft';
+  config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
+  config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
+  config.theme.sectionSpacing = themeSectionSpacing || config.theme.sectionSpacing || 'normal';
+  config.theme.bannerVisible = themeBannerVisible === 'on';
+  config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
+  config.theme.cursorEffect = themeCursorEffect === 'on';
 
   // Notification settings
   config.notificationEmails = (req.body.notificationEmails || '')
@@ -1774,7 +1890,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId } = req.body;
+  const { password, id, name, slug, parentId, image } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -1809,7 +1925,11 @@ app.post('/admin/categories/add', async (req, res) => {
       );
   }
 
-  const newCat = { id, name, slug };
+  const translatedName = buildTranslatableFromBody(req.body, 'name', name || '');
+  const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
+  const newCat = { id, name: translatedName, slug };
+  if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
+  if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   categories.push(newCat);
   saveTenantCategories(req, categories);
@@ -1821,7 +1941,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId } = req.body;
+  const { password, categoryId, name, slug, parentId, image } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -1869,8 +1989,15 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  categories[idx].name = name || categories[idx].name;
+  categories[idx].name = buildTranslatableFromBody(req.body, 'name', name || categories[idx].name);
+  const shortDescription = buildTranslatableFromBody(req.body, 'shortDescription', categories[idx].shortDescription);
+  if (shortDescription) categories[idx].shortDescription = shortDescription;
+  else delete categories[idx].shortDescription;
   categories[idx].slug = slug || categories[idx].slug;
+  if (image !== undefined) {
+    if (image && image.trim()) categories[idx].image = image.trim();
+    else delete categories[idx].image;
+  }
   if (parentId !== undefined) {
     if (parentId && parentId.trim() && parentId.trim() !== categoryId) {
       categories[idx].parentId = parentId.trim();
@@ -1956,15 +2083,17 @@ app.post('/admin/products', async (req, res) => {
     }
     const categories = loadTenantCategories(req);
     const config = loadTenantConfig(req);
-    const storeName = (config.storeName || '').trim();
+    const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG) || '';
     parsed.forEach((p) => {
+      const localizedName = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG);
+      const localizedDescription = resolveTranslatable(p.description, DEFAULT_CONTENT_LANG);
       if (!p.seoTitle) {
         const catObj = categories.find((c) => c.id === p.categoryId);
-        const catName = catObj ? catObj.name : '';
-        p.seoTitle = [p.name, catName, storeName].filter(Boolean).join(' | ');
+        const catName = catObj ? resolveTranslatable(catObj.name, DEFAULT_CONTENT_LANG) : '';
+        p.seoTitle = [localizedName, catName, storeName].filter(Boolean).join(' | ');
       }
       if (!p.seoDescription) {
-        const desc = (p.description || '').trim();
+        const desc = (localizedDescription || '').trim();
         p.seoDescription = desc.length > 160 ? desc.slice(0, 157) + '…' : desc || p.seoTitle;
       }
       if (!Array.isArray(p.gallery)) p.gallery = [];
@@ -2014,7 +2143,7 @@ app.post('/admin/stock/adjust', async (req, res) => {
   stockLog.push({
     id:          Date.now().toString(36),
     productId,
-    productName: products[pIdx].name,
+    productName: resolveTranslatable(products[pIdx].name, DEFAULT_CONTENT_LANG),
     delta,
     reason:      reason || 'manual',
     orderId:     null,
@@ -2022,7 +2151,8 @@ app.post('/admin/stock/adjust', async (req, res) => {
   });
   saveJson(req.tenantPaths.stockLog, stockLog);
 
-  res.render('admin', buildAdminViewModel(req, { message: `Απόθεμα "${products[pIdx].name}" ενημερώθηκε σε ${qty}.` }));
+  const pName = resolveTranslatable(products[pIdx].name, DEFAULT_CONTENT_LANG);
+  res.render('admin', buildAdminViewModel(req, { message: `Απόθεμα "${pName}" ενημερώθηκε σε ${qty}.` }));
 });
 
 // Image upload
@@ -2467,7 +2597,7 @@ app.post('/admin/tickets/new', async (req, res) => {
           from:    smtpUser,
           to:      'support@thronoschain.org',
           subject: `[Ticket #${ticket.id}] [${req.tenant.id}] ${ticket.subject}`,
-          text:    `Tenant: ${req.tenant.id} (${config.storeName || ''})\nΚατηγορία: ${ticket.category}\n\n${ticket.body}\n\n---\nΑπαντήστε σε αυτό το email για να απαντήσετε στον tenant.`
+          text:    `Tenant: ${req.tenant.id} (${resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG) || ''})\nΚατηγορία: ${ticket.category}\n\n${ticket.body}\n\n---\nΑπαντήστε σε αυτό το email για να απαντήσετε στον tenant.`
         });
       }
     } catch (_) {}

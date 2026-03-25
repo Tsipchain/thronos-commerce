@@ -113,6 +113,14 @@
       .checkbox-label { display: flex !important; flex-direction: row !important;
                         align-items: center; gap: 8px; cursor: pointer; }
       .checkbox-label input[type=checkbox] { width: auto; margin: 0; }
+      .admin-shell { display:grid; grid-template-columns: 250px 1fr; gap:16px; }
+      .admin-sidebar { border:1px solid #e5e7eb; border-radius:10px; padding:10px; background:#fff; position:sticky; top:10px; height:fit-content; }
+      .admin-sidebar a { display:block; padding:8px 10px; border-radius:8px; text-decoration:none; color:#111827; font-size:.86rem; }
+      .admin-sidebar a.active { background:#eef2ff; color:#3730a3; font-weight:700; }
+      .section-panel { display:none; }
+      .section-panel.active { display:block; }
+      .sidebar-toggle{display:none;margin-bottom:10px;}
+      @media (max-width: 900px){ .admin-shell{grid-template-columns:1fr;} .sidebar-toggle{display:inline-block;} .admin-sidebar{display:none;} .admin-shell.show-sidebar .admin-sidebar{display:block;} }
     </style>
   </head>
   <body>
@@ -178,28 +186,48 @@
       </div>
       <% } %>
 
-      <nav class="admin-tabs">
-        <a href="#tab-theme"><%= t('admin.tabTheme') %></a>
-        <a href="#tab-categories"><%= t('admin.tabCategories') %></a>
-        <a href="#tab-products"><%= t('admin.tabProducts') %></a>
-        <a href="#tab-upload"><%= t('admin.tabImages') %></a>
-        <a href="#tab-shipping"><%= t('admin.tabShipping') %></a>
-        <a href="#tab-notifications"><%= t('admin.tabNotifications') %></a>
-        <a href="#tab-inventory"><%= t('admin.tabInventory') %></a>
-        <a href="#tab-support">💬 <%= t('admin.tabSupport') %></a>
-        <a href="<%= withTenantLink('/admin/orders') %>"><%= t('admin.tabOrders') %></a>
-      </nav>
+      <button class="button sidebar-toggle" type="button" onclick="document.querySelector('.admin-shell').classList.toggle('show-sidebar')">☰ Μενού</button>
+      <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a href="#tab-dashboard">Dashboard</a>
+        <a href="#tab-theme">Store Identity & Theme</a>
+        <a href="#tab-categories">Categories</a>
+        <a href="#tab-products">Products</a>
+        <a href="#tab-upload">Media / Images</a>
+        <a href="<%= withTenantLink('/admin/orders') %>">Orders</a>
+        <a href="#tab-shipping">Shipping & Payment</a>
+        <a href="#tab-notifications">Notifications</a>
+        <a href="#tab-support">Support</a>
+        <a href="<%= withTenantLink('/') %>">Preview Store</a>
+      </aside>
+      <div class="admin-main">
+      <section id="tab-dashboard" class="admin-block section-panel">
+        <h2>Dashboard</h2>
+        <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
+      </section>
+      <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
+        <label style="font-size:.84rem;display:flex;align-items:center;gap:8px;">
+          <strong><%= lang === 'el' ? 'Γλώσσα περιεχομένου' : 'Content language' %>:</strong>
+          <select onchange="window.location.href=this.value" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;">
+            <% (contentLangs || ['el','en']).forEach(function(cl) { %>
+              <option value="<%= withTenantLink('/admin', { contentLang: cl, lang }) %>" <%= contentLang === cl ? 'selected' : '' %>><%= cl === 'el' ? 'Ελληνικά' : 'English' %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
 
 
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <form id="tab-theme" class="admin-block" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+      <form id="tab-theme" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Store identity & εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
 
         <label><span><%= t('admin.storeName') %></span>
-          <input type="text" name="storeName" value="<%= config.storeName %>"
+          <input type="text" name="storeName_el" value="<%= resolveField(rawConfig.storeName, 'el') %>" placeholder="Ελληνικά"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="text" name="storeName_en" value="<%= resolveField(rawConfig.storeName, 'en') %>" placeholder="English"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <small class="helper">Το όνομα που βλέπει ο πελάτης στο storefront.</small>
         </label>
@@ -236,8 +264,10 @@
         </label>
 
         <label><span><%= t('admin.heroTextLabel') %></span>
-          <textarea name="heroText" rows="3"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= config.heroText %></textarea>
+          <textarea name="heroText_el" rows="2" placeholder="Ελληνικά"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'el') %></textarea>
+          <textarea name="heroText_en" rows="2" placeholder="English"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'en') %></textarea>
         </label>
 
         <label><span><%= t('admin.web3DomainLabel') %></span>
@@ -318,6 +348,53 @@
           <input type="text" name="themeButtonRadius"
                  value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
                  placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <h3>Προχωρημένες επιλογές εμφάνισης</h3>
+        <p class="helper">Επιλέξτε στυλ που ταιριάζει στο brand σας χωρίς κώδικα.</p>
+        <label><span>Διάταξη Header</span>
+          <select name="themeHeaderLayout" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default</option>
+            <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered logo + τίτλος</option>
+          </select>
+        </label>
+        <label><span>Hero Style</span>
+          <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="strong" <%= ((config.theme && config.theme.heroStyle) || '') === 'strong' ? 'selected' : '' %>>Strong / Branded</option>
+          </select>
+        </label>
+        <label><span>Category Menu Style</span>
+          <select name="themeCategoryMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="text" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'text' ? 'selected' : '' %>>Text only</option>
+            <option value="image" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'image' ? 'selected' : '' %>>Image only</option>
+            <option value="image_label" <%= ((config.theme && config.theme.categoryMenuStyle) || 'image_label') === 'image_label' ? 'selected' : '' %>>Image + Label</option>
+          </select>
+        </label>
+        <label><span>Card Style</span>
+          <select name="themeCardStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="soft" <%= ((config.theme && config.theme.cardStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="bold" <%= ((config.theme && config.theme.cardStyle) || '') === 'bold' ? 'selected' : '' %>>Bold</option>
+          </select>
+        </label>
+        <label><span>Section Spacing</span>
+          <select name="themeSectionSpacing" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="normal" <%= ((config.theme && config.theme.sectionSpacing) || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
+            <option value="relaxed" <%= ((config.theme && config.theme.sectionSpacing) || '') === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="themeBannerVisible" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span>Εμφάνιση banner/hero</span>
+        </label>
+        <label><span>Preview Badge Style</span>
+          <select name="themePreviewBadgeStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="soft" <%= ((config.theme && config.theme.previewBadgeStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
+            <option value="contrast" <%= ((config.theme && config.theme.previewBadgeStyle) || '') === 'contrast' ? 'selected' : '' %>>High contrast</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span>DIY cursor effect (μόνο desktop)</span>
         </label>
 
         <%# ── Ειδοποιήσεις ── %>
@@ -411,7 +488,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 2 – CATEGORIES                                      %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-categories" class="admin-block">
+      <section id="tab-categories" class="admin-block section-panel">
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
 
@@ -454,7 +531,11 @@
           <h3><%= t('admin.catAddTitle') %></h3>
           <p class="helper"><%= t('admin.catAddHelper') %></p>
           <input type="text" name="id" placeholder="Κωδικός (π.χ. bags)" required />
-          <input type="text" name="name" placeholder="Όνομα (π.χ. Τσάντες)" required />
+          <input type="text" name="name_el" placeholder="Όνομα (Ελληνικά)" required />
+          <input type="text" name="name_en" placeholder="Name (English)" />
+          <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
+          <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <input type="text" name="image" placeholder="URL εικόνας κατηγορίας" />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -473,7 +554,11 @@
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="text" name="name" placeholder="Νέο όνομα" required />
+          <input type="text" name="name_el" placeholder="Νέο όνομα (Ελληνικά)" required />
+          <input type="text" name="name_en" placeholder="New name (English)" />
+          <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
+          <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <input type="text" name="image" placeholder="URL εικόνας κατηγορίας" />
           <input type="text" name="slug" placeholder="Νέο slug" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -493,7 +578,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-products" class="admin-block">
+      <section id="tab-products" class="admin-block section-panel">
         <h2><%= t('admin.productsTitle') %></h2>
         <p class="helper">
           <%= t('admin.productsHelper') %>
@@ -541,7 +626,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 4 – IMAGE UPLOAD                                    %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-upload" class="admin-block">
+      <section id="tab-upload" class="admin-block section-panel">
         <h2><%= t('admin.imagesTitle') %></h2>
         <p class="helper"><%= t('admin.imagesHelper') %></p>
         <form id="upload-form" enctype="multipart/form-data">
@@ -590,7 +675,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 5 – SHIPPING & PAYMENT                              %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-shipping" class="admin-block">
+      <section id="tab-shipping" class="admin-block section-panel">
         <h2><%= t('admin.shippingTitle') %></h2>
         <p class="helper"><%= t('admin.shippingHelper') %></p>
 
@@ -690,7 +775,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 7 – NOTIFICATIONS                                   %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-notifications" class="admin-block">
+      <section id="tab-notifications" class="admin-block section-panel">
         <h2><%= t('admin.notificationsTitle') %></h2>
         <p class="helper"><%= t('admin.notificationsHelper') %></p>
 
@@ -720,7 +805,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 8 – INVENTORY                                       %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-inventory" class="admin-block">
+      <section id="tab-inventory" class="admin-block section-panel">
         <h2><%= t('admin.inventoryTitle') %></h2>
         <p class="helper"><%= t('admin.inventoryHelper') %></p>
 
@@ -871,7 +956,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 9 – SUPPORT / TICKETS                               %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-support" class="admin-block">
+      <section id="tab-support" class="admin-block section-panel">
         <h2>💬 <%= t('admin.supportTitle') %></h2>
         <p class="helper"><%= t('admin.supportHelper') %></p>
 
@@ -933,7 +1018,8 @@
           Μπορείτε επίσης να επικοινωνήσετε απευθείας: <a href="mailto:support@thronoschain.org" style="color:#4338ca;">support@thronoschain.org</a>
         </p>
       </section>
-
+      </div>
+      </div>
     </main>
 
 
@@ -945,7 +1031,8 @@
         <h3 id="modal-title"><%= t('admin.modalNewProduct') %></h3>
         <div class="modal-grid">
           <label class="full"><span><%= t('admin.modalProductName') %></span>
-            <input type="text" id="f-name" placeholder="π.χ. Δερμάτινη τσάντα" />
+            <input type="text" id="f-name-el" placeholder="Όνομα (Ελληνικά)" />
+            <input type="text" id="f-name-en" placeholder="Name (English)" />
           </label>
           <label><span><%= t('admin.modalProductId') %></span>
             <input type="text" id="f-id" placeholder="π.χ. bag-001" />
@@ -975,7 +1062,8 @@
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
           </label>
           <label class="full"><span><%= t('admin.modalDescription') %></span>
-            <textarea id="f-description" rows="3" placeholder="Σύντομη περιγραφή προϊόντος..."></textarea>
+            <textarea id="f-description-el" rows="2" placeholder="Περιγραφή (Ελληνικά)"></textarea>
+            <textarea id="f-description-en" rows="2" placeholder="Description (English)"></textarea>
           </label>
           <label class="full"><span><%= t('admin.modalSeoTitle') %></span>
             <input type="text" id="f-seoTitle" placeholder="<%= t('admin.modalSeoTitlePlaceholder') %>" />
@@ -1075,6 +1163,7 @@
           return;
         }
         tbody.innerHTML = products.map((p, i) => {
+          const pName = (p.name && typeof p.name === 'object') ? (p.name.el || p.name.en || '') : (p.name || '');
           const img = p.imageUrl
             ? '<img class="thumb" src="' + escHtml(p.imageUrl) + '" alt="" loading="lazy">'
             : '<span class="no-img"></span>';
@@ -1084,7 +1173,7 @@
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
-            '<td>' + escHtml(p.name || '') + '</td>' +
+            '<td>' + escHtml(pName) + '</td>' +
             '<td>' + (p.price !== undefined ? Number(p.price).toFixed(2) : '–') + '</td>' +
             '<td>' + escHtml(p.sku || '') + '</td>' +
             '<td>' + escHtml(p.categoryId || '') + '</td>' +
@@ -1105,7 +1194,8 @@
       let editingIdx = -1; // -1 = new product
 
       const modal       = document.getElementById('product-modal');
-      const fName       = document.getElementById('f-name');
+      const fNameEl     = document.getElementById('f-name-el');
+      const fNameEn     = document.getElementById('f-name-en');
       const fId         = document.getElementById('f-id');
       const fSku        = document.getElementById('f-sku');
       const fPrice      = document.getElementById('f-price');
@@ -1113,7 +1203,8 @@
       const fFeatured   = document.getElementById('f-featured');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
-      const fDesc       = document.getElementById('f-description');
+      const fDescEl     = document.getElementById('f-description-el');
+      const fDescEn     = document.getElementById('f-description-en');
       const fSeoTitle   = document.getElementById('f-seoTitle');
       const fSeoDesc    = document.getElementById('f-seoDescription');
       const fGallery    = document.getElementById('f-gallery');
@@ -1256,22 +1347,23 @@
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
-        fName.value = ''; fId.value = ''; fSku.value = '';
+        fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
-        fCat.value = ''; fImg.value = ''; fDesc.value = '';
+        fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         renderSpecRows([]);
         renderVariantRows([]);
         clearDigitalFields();
         modal.classList.add('open');
-        fName.focus();
+        fNameEl.focus();
       }
 
       function openEdit(i) {
         editingIdx = i;
         const p = products[i];
-        mTitle.textContent = i18nJs.editPrefix + (p.name || '');
-        fName.value       = p.name || '';
+        mTitle.textContent = i18nJs.editPrefix + (typeof p.name === 'string' ? p.name : (p.name && (p.name.el || p.name.en)) || '');
+        fNameEl.value     = getLocalizedForEdit(p.name, 'el');
+        fNameEn.value     = getLocalizedForEdit(p.name, 'en');
         fId.value         = p.id || '';
         fSku.value        = p.sku || '';
         fPrice.value      = p.price !== undefined ? p.price : '';
@@ -1279,7 +1371,8 @@
         fFeatured.checked = !!p.featured;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
-        fDesc.value       = p.description || '';
+        fDescEl.value     = getLocalizedForEdit(p.description, 'el');
+        fDescEn.value     = getLocalizedForEdit(p.description, 'en');
         fSeoTitle.value   = p.seoTitle || '';
         fSeoDesc.value    = p.seoDescription || '';
         fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
@@ -1287,7 +1380,7 @@
         renderVariantRows(Array.isArray(p.variants) ? p.variants : []);
         fillDigitalFields(p);
         modal.classList.add('open');
-        fName.focus();
+        fNameEl.focus();
       }
 
       function closeModal() { modal.classList.remove('open'); }
@@ -1296,7 +1389,8 @@
       modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
 
       document.getElementById('modal-save').addEventListener('click', function() {
-        const name = fName.value.trim();
+        const nameObj = readLocalizedField(fNameEl, fNameEn);
+        const name = typeof nameObj === 'string' ? nameObj.trim() : (nameObj.el || nameObj.en || '').trim();
         const id   = fId.value.trim();
         if (!name || !id) {
           alert(i18nJs.nameRequired);
@@ -1308,14 +1402,14 @@
         const digitalFields = readDigitalFields();
         const product = {
           id,
-          name,
+          name:           nameObj,
           sku:            fSku.value.trim() || undefined,
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,
-          description:    fDesc.value.trim() || undefined,
+          description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
           gallery:        galleryRaw.length  ? galleryRaw  : undefined,
@@ -1336,7 +1430,9 @@
       });
 
       function deleteProduct(i) {
-        if (!confirm(i18nJs.editPrefix.replace(': ','') + ' "' + (products[i].name || i) + '" ;')) return;
+        const p = products[i] || {};
+        const pName = (p.name && typeof p.name === 'object') ? (p.name.el || p.name.en || i) : (p.name || i);
+        if (!confirm(i18nJs.editPrefix.replace(': ','') + ' "' + pName + '" ;')) return;
         products.splice(i, 1);
         renderTable();
       }
@@ -1392,6 +1488,18 @@
       bindColorPair('txt-themeMenuText',      'cp-themeMenuText');
       bindColorPair('txt-themeMenuActiveBg',  'cp-themeMenuActiveBg');
       bindColorPair('txt-themeMenuActiveText','cp-themeMenuActiveText');
+      function showSectionFromHash() {
+        const hash = window.location.hash || '#tab-dashboard';
+        document.querySelectorAll('.section-panel').forEach((el) => el.classList.remove('active'));
+        const activePanel = document.querySelector(hash);
+        if (activePanel) activePanel.classList.add('active');
+        document.querySelectorAll('.admin-sidebar a').forEach((a) => {
+          const href = a.getAttribute('href') || '';
+          a.classList.toggle('active', href === hash);
+        });
+      }
+      window.addEventListener('hashchange', showSectionFromHash);
+      showSectionFromHash();
 
       // ── Logo upload (fills logoPath-input on success) ─────────────
       const logoUploadBtn    = document.getElementById('logo-upload-btn');
@@ -1428,3 +1536,15 @@
     </script>
   </body>
 </html>
+      function readLocalizedField(elInput, enInput) {
+        const elVal = (elInput.value || '').trim();
+        const enVal = (enInput.value || '').trim();
+        if (elVal && enVal) return { el: elVal, en: enVal };
+        if (elVal) return elVal;
+        if (enVal) return { en: enVal };
+        return '';
+      }
+      function getLocalizedForEdit(value, langCode) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
+        return langCode === 'el' ? (value || '') : '';
+      }

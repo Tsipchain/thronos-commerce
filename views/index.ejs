@@ -17,20 +17,8 @@
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
       }
-      .lang-switcher {
-        display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-        padding: 6px 16px; background: rgba(0,0,0,.06); font-size: 0.78rem;
-      }
-      .lang-switcher span { color: #888; margin-right: 4px; }
-      .lang-switcher a {
-        padding: 2px 7px; border-radius: 4px; text-decoration: none;
-        color: inherit; border: 1px solid #ccc; transition: background .15s;
-      }
-      .lang-switcher a:hover { background: rgba(0,0,0,.08); }
-      .lang-switcher a.active {
-        background: var(--menu-active-bg); color: var(--menu-active-text);
-        border-color: transparent; font-weight: 700;
-      }
+      .lang-switcher { padding: 8px 16px; background: rgba(0,0,0,.06); font-size: 0.8rem; display:flex; align-items:center; gap:8px; }
+      .lang-switcher select { padding: 4px 8px; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
 
       /* ── Product grid ── */
       .product-list {
@@ -92,11 +80,15 @@
       .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0 8px; }
       .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
       .category-card img { width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px; }
+      .logo-title.centered { width:100%; justify-content:center; text-align:center; }
+      .hero.strong { background:linear-gradient(130deg,#111827,#1f2937); color:#fff; border-radius:12px; padding:24px; }
+      .category-card.only-image div { display:none; }
+      body.cursor-tool { cursor: crosshair; }
     </style>
   </head>
   <body>
     <header>
-      <div class="logo-title">
+      <div class="logo-title <%= config.theme && config.theme.headerLayout === 'centered' ? 'centered' : '' %>">
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
@@ -116,17 +108,17 @@
           <% categories.forEach(function(cat) { %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-                <% if (tenant.id === 'eukolakis' && cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+                <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
               </a>
             </li>
           <% }); %>
           <% if (!user) { %>
-            <li><a href="<%= withTenantLink('/login') %>">Login</a></li>
-            <li><a href="<%= withTenantLink('/signup') %>">Signup</a></li>
+            <li><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
+            <li><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
           <% } else { %>
-            <li><a href="<%= withTenantLink('/account') %>">My Account</a></li>
-            <li><a href="<%= withTenantLink('/my-orders') %>">My Orders</a></li>
-            <li><a href="<%= withTenantLink('/logout') %>">Logout</a></li>
+            <li><a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a></li>
+            <li><a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>">My Orders</a></li>
+            <li><a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a></li>
           <% } %>
         </ul>
       </nav>
@@ -139,27 +131,29 @@
     <% } %>
 
     <div class="lang-switcher">
-      <span><%= t('storefront.langLabel') %>:</span>
-      <% ['el','en','de','es','ru','ja'].forEach(function(l) { %>
-        <a href="<%= withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, { lang: l })) %>"
-           class="<%= lang === l ? 'active' : '' %>"><%= l.toUpperCase() %></a>
-      <% }) %>
+      <label for="lang-switch"><%= t('storefront.langLabel') %>:</label>
+      <select id="lang-switch" onchange="window.location.href=this.value">
+        <% (contentLangs || ['el','en']).forEach(function(l) { %>
+          <% const optionUrl = withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, { lang: l })); %>
+          <option value="<%= optionUrl %>" <%= lang === l ? 'selected' : '' %>><%= l === 'el' ? 'Ελληνικά' : 'English' %></option>
+        <% }) %>
+      </select>
     </div>
 
     <main>
-      <% if (tenant.id === 'eukolakis') { %>
       <section class="category-cards">
         <% categories.forEach(function(cat) { %>
-          <a class="category-card" href="<%= withTenantLink('/', { category: cat.slug }) %>">
-            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+          <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
           </a>
         <% }) %>
       </section>
-      <% } %>
-      <section class="hero">
+      <% if (!config.theme || config.theme.bannerVisible !== false) { %>
+      <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
         <p><%= config.heroText %></p>
       </section>
+      <% } %>
 
       <%# ── Featured products ── %>
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
@@ -168,7 +162,7 @@
         <h2>⭐ <%= t('storefront.featuredTitle') %></h2>
         <div class="product-list">
           <% featuredProducts.forEach(function (product) { %>
-            <%- include('_product-card', { product, lang, t }) %>
+            <%- include('_product-card', { product, lang, t, config }) %>
           <% }); %>
         </div>
       </section>
@@ -180,7 +174,7 @@
         <% } %>
 
         <% products.forEach(function (product) { %>
-          <%- include('_product-card', { product, lang, t }) %>
+          <%- include('_product-card', { product, lang, t, config }) %>
         <% }); %>
       </section>
     </main>
@@ -196,6 +190,9 @@
         menuToggle.addEventListener("click", () => {
           mainNav.classList.toggle("open");
         });
+      }
+      if (<%= tenant.id === 'eukolakis' && config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
+        document.body.classList.add('cursor-tool');
       }
     </script>
   </body>

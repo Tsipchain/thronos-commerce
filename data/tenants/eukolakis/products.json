@@ -2,8 +2,14 @@
   {
     "id": "eukolaki-diy-roll-kit",
     "type": "KIT",
-    "name": "Eukolaki DIY Roll Kit",
-    "description": "Kit για κατασκευή ρολού με επιλογές χρώματος, οδηγού και κουτιού.",
+    "name": {
+      "el": "Eukolaki DIY Roll Kit",
+      "en": "Eukolaki DIY Roll Kit"
+    },
+    "description": {
+      "el": "Kit για κατασκευή ρολού με επιλογές χρώματος, οδηγού και κουτιού.",
+      "en": "Roller shutter DIY kit with customizable color, guide and box options."
+    },
     "price": 12,
     "imageUrl": "/tenants/eukolakis/media/kits/roll-main.jpg",
     "gallery": [
@@ -86,8 +92,14 @@
   {
     "id": "eukolaki-diy-slide-door-kit",
     "type": "KIT",
-    "name": "Eukolaki DIY Slide Door Kit",
-    "description": "Kit συρόμενης πόρτας με οδηγούς, χρώμα και προαιρετικά αξεσουάρ.",
+    "name": {
+      "el": "Eukolaki DIY Slide Door Kit",
+      "en": "Eukolaki DIY Slide Door Kit"
+    },
+    "description": {
+      "el": "Kit συρόμενης πόρτας με οδηγούς, χρώμα και προαιρετικά αξεσουάρ.",
+      "en": "Sliding door DIY kit with guides, finish options and optional accessories."
+    },
     "price": 18,
     "imageUrl": "/tenants/eukolakis/media/kits/slide-main.jpg",
     "gallery": [
@@ -122,8 +134,14 @@
   },
   {
     "id": "part-guide-basic",
-    "name": "Guide Basic 40mm",
-    "description": "Ανταλλακτικός οδηγός",
+    "name": {
+      "el": "Guide Basic 40mm",
+      "en": "Guide Basic 40mm"
+    },
+    "description": {
+      "el": "Ανταλλακτικός οδηγός",
+      "en": "Spare guide rail"
+    },
     "price": 2,
     "imageUrl": "/tenants/eukolakis/media/parts/guide-basic.jpg",
     "categoryId": "spare-parts",

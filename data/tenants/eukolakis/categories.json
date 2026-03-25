@@ -1,5 +1,42 @@
 [
-  {"id":"diy-rolla","name":"DIY Ρολά","slug":"diy-rolla","image":"/tenants/eukolakis/media/categories/diy-rolla.png","featured":true},
-  {"id":"diy-sliding","name":"DIY Συρόμενα","slug":"diy-sliding","image":"/tenants/eukolakis/media/categories/diy-sliding.png"},
-  {"id":"spare-parts","name":"Ανταλλακτικά","slug":"spare-parts","image":"/tenants/eukolakis/media/categories/spare-parts.png"}
+  {
+    "id": "diy-rolla",
+    "name": {
+      "el": "DIY Kit Ρολών",
+      "en": "DIY Roller Kits"
+    },
+    "shortDescription": {
+      "el": "DIY kit και ανταλλακτικά για ρολά",
+      "en": "DIY kits and spare parts for roller shutters"
+    },
+    "slug": "diy-rolla",
+    "image": "/tenants/eukolakis/media/categories/diy-rolla.png",
+    "featured": true
+  },
+  {
+    "id": "diy-sliding",
+    "name": {
+      "el": "DIY Συρόμενα",
+      "en": "DIY Sliding Systems"
+    },
+    "shortDescription": {
+      "el": "Kit και λύσεις για συρόμενα",
+      "en": "Kits and parts for sliding systems"
+    },
+    "slug": "diy-sliding",
+    "image": "/tenants/eukolakis/media/categories/diy-sliding.png"
+  },
+  {
+    "id": "spare-parts",
+    "name": {
+      "el": "Ανταλλακτικά / Εργαλεία",
+      "en": "Spare Parts / Tools"
+    },
+    "shortDescription": {
+      "el": "Ανταλλακτικά και εξαρτήματα",
+      "en": "Spare components and accessories"
+    },
+    "slug": "spare-parts",
+    "image": "/tenants/eukolakis/media/categories/spare-parts.png"
+  }
 ]

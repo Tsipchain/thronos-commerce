@@ -173,7 +173,7 @@
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
-        <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
       </div>
       <% if (isPreviewMode) { %>
       <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
@@ -182,18 +182,18 @@
       <% } %>
       <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
         <% if (!user) { %>
-          <a href="<%= withTenantLink('/login') %>">Login</a>
-          <a href="<%= withTenantLink('/signup') %>">Signup</a>
+          <a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a>
+          <a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a>
         <% } else { %>
-          <a href="<%= withTenantLink('/account') %>">My Account</a>
-          <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
-          <a href="<%= withTenantLink('/logout') %>">Logout</a>
+          <a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a>
+          <a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>">My Orders</a>
+          <a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a>
         <% } %>
       </div>
     </header>
 
     <main>
-      <a href="<%= withTenantLink('/') %>" style="display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--primary-color,#4f46e5);text-decoration:none;margin-bottom:14px;opacity:.85;">
+      <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--primary-color,#4f46e5);text-decoration:none;margin-bottom:14px;opacity:.85;">
         <%= t('checkout.backToStore') %>
       </a>
       <article class="product-detail">
@@ -256,8 +256,8 @@
 
         <% if (product.type === 'KIT' && Array.isArray(product.kitOptions) && product.kitOptions.length) { %>
           <section class="kit-config">
-            <h3 style="margin:0 0 6px;">Διαμόρφωσε το Kit σου</h3>
-            <p style="margin:0 0 12px;font-size:.84rem;color:#6b7280;">Επέλεξε υποχρεωτικά και προαιρετικά μέρη. Η τελική τιμή ενημερώνεται άμεσα.</p>
+            <h3 style="margin:0 0 6px;"><%= lang === 'el' ? 'Διαμόρφωσε το Kit σου' : 'Configure your kit' %></h3>
+            <p style="margin:0 0 12px;font-size:.84rem;color:#6b7280;"><%= lang === 'el' ? 'Επέλεξε υποχρεωτικά και προαιρετικά μέρη. Η τελική τιμή ενημερώνεται άμεσα.' : 'Choose required and optional parts. Final price updates instantly.' %></p>
             <% product.kitOptions.forEach(function(group){ %>
               <div class="kit-group" data-kit-group="<%= group.id %>" data-required="<%= group.required ? '1':'0' %>" data-input-type="<%= group.inputType || 'radio' %>">
                 <h4><%= group.label %> <% if (group.required) { %><span style="color:#dc2626;">*</span><% } %></h4>
