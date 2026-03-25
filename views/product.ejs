@@ -106,6 +106,15 @@
         background: var(--primary-color, #4f46e5); color: #fff;
       }
       .variant-pill:disabled { opacity: .4; cursor: not-allowed; }
+      .kit-config { margin-top: 22px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa; }
+      .kit-group { margin-bottom: 16px; }
+      .kit-group h4 { margin: 0 0 8px; font-size: .95rem; }
+      .kit-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+      .kit-choice { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; background: #fff; }
+      .kit-preview-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap: 8px; margin-top: 12px; }
+      .kit-preview-item { background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;font-size:.78rem; }
+      .kit-preview-item img { width:100%;height:80px;object-fit:cover;border-radius:6px; }
+      .final-price-box { position: sticky; bottom: 10px; background:#111827;color:#fff;padding:12px;border-radius:10px;margin-top:12px;display:flex;justify-content:space-between;align-items:center; }
 
       /* ── Reviews ──────────────────────────────────────────────────── */
       .reviews-section { margin-top: 36px; }
@@ -181,16 +190,6 @@
           <a href="<%= withTenantLink('/logout') %>">Logout</a>
         <% } %>
       </div>
-      <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
-        <% if (!user) { %>
-          <a href="/login">Login</a>
-          <a href="/signup">Signup</a>
-        <% } else { %>
-          <a href="/account">My Account</a>
-          <a href="/my-orders">My Orders</a>
-          <a href="/logout">Logout</a>
-        <% } %>
-      </div>
     </header>
 
     <main>
@@ -253,6 +252,45 @@
 
         <% if (product.description) { %>
           <p class="product-description"><%= product.description %></p>
+        <% } %>
+
+        <% if (product.type === 'KIT' && Array.isArray(product.kitOptions) && product.kitOptions.length) { %>
+          <section class="kit-config">
+            <h3 style="margin:0 0 6px;">Διαμόρφωσε το Kit σου</h3>
+            <p style="margin:0 0 12px;font-size:.84rem;color:#6b7280;">Επέλεξε υποχρεωτικά και προαιρετικά μέρη. Η τελική τιμή ενημερώνεται άμεσα.</p>
+            <% product.kitOptions.forEach(function(group){ %>
+              <div class="kit-group" data-kit-group="<%= group.id %>" data-required="<%= group.required ? '1':'0' %>" data-input-type="<%= group.inputType || 'radio' %>">
+                <h4><%= group.label %> <% if (group.required) { %><span style="color:#dc2626;">*</span><% } %></h4>
+                <div class="kit-choices">
+                  <% (group.choices || []).forEach(function(choice){ %>
+                    <label class="kit-choice">
+                      <input type="<%= group.inputType === 'checkbox' ? 'checkbox':'radio' %>"
+                             name="kit_<%= group.id %>"
+                             value="<%= choice.id %>"
+                             data-group-id="<%= group.id %>"
+                             data-group-label="<%= group.label %>"
+                             data-choice-label="<%= choice.label %>"
+                             data-price-delta="<%= Number(choice.priceDelta) || 0 %>"
+                             data-image="<%= choice.image || '' %>"
+                             data-linked-product-id="<%= choice.linkedProductId || '' %>"
+                             onchange="onKitSelectionChange()" />
+                      <strong><%= choice.label %></strong>
+                      <div style="font-size:.78rem;color:#6b7280;"><%= choice.description || '' %></div>
+                      <div style="font-size:.78rem;color:#111827;font-weight:600;"><%= Number(choice.priceDelta || 0).toFixed(2) %> €</div>
+                    </label>
+                  <% }) %>
+                </div>
+              </div>
+            <% }) %>
+            <div>
+              <strong style="font-size:.85rem;">Selected parts preview</strong>
+              <div id="kit-preview" class="kit-preview-grid"></div>
+            </div>
+            <div class="final-price-box">
+              <span>Τελική τιμή kit</span>
+              <strong><span id="kit-final-price"><%= Number(product.price).toFixed(2) %></span> €</strong>
+            </div>
+          </section>
         <% } %>
 
         <%# ── Technical specs ── %>
@@ -355,6 +393,8 @@
         imageUrl: '<%- (product.imageUrl || '').replace(/'/g, "\\'") %>'
       };
       const VARIANTS = <%- JSON.stringify(Array.isArray(product.variants) ? product.variants : []) %>;
+      const IS_KIT = <%= product.type === 'KIT' ? 'true' : 'false' %>;
+      const KIT_OPTIONS = <%- JSON.stringify(Array.isArray(product.kitOptions) ? product.kitOptions : []) %>;
       const HAS_DIGITAL = <%= product.hasDigitalContent ? 'true' : 'false' %>;
       const BASE_MANUAL  = '<%= product.manualUrl ? '1' : '' %>';
       const BASE_VIDEO   = '<%- (product.videoUrl || '').replace(/'/g, "\\'") %>';
@@ -364,6 +404,7 @@
       const IN_STOCK     = '<%= t("checkout.inStock") %>';
 
       let selectedVariant = VARIANTS.length ? VARIANTS[0] : null;
+      let selectedKitOptions = [];
 
       // ── Variant selection ─────────────────────────────────────────
       function selectVariant(btn) {
@@ -434,17 +475,85 @@
       }
 
       // ── Add to Cart ───────────────────────────────────────────────
+      function collectSelectedKitOptions() {
+        const selected = [];
+        document.querySelectorAll('[data-group-id]').forEach(function(el) {
+          if (el.checked) {
+            selected.push({
+              groupId: el.dataset.groupId,
+              groupLabel: el.dataset.groupLabel,
+              choiceId: el.value,
+              choiceLabel: el.dataset.choiceLabel,
+              priceDelta: Number(el.dataset.priceDelta || 0),
+              image: el.dataset.image || '',
+              linkedProductId: el.dataset.linkedProductId || ''
+            });
+          }
+        });
+        return selected;
+      }
+
+      function kitMissingRequired() {
+        if (!IS_KIT) return false;
+        return KIT_OPTIONS.some(function(group) {
+          if (!group.required) return false;
+          return !selectedKitOptions.some(function(sel) { return sel.groupId === group.id; });
+        });
+      }
+
+      function computeFinalPrice() {
+        const base = selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price;
+        const delta = selectedKitOptions.reduce(function(s, o) { return s + (Number(o.priceDelta) || 0); }, 0);
+        return base + delta;
+      }
+
+      function renderKitPreview() {
+        if (!IS_KIT) return;
+        const wrap = document.getElementById('kit-preview');
+        if (!wrap) return;
+        wrap.innerHTML = selectedKitOptions.map(function(opt) {
+          const img = opt.image ? '<img src=\"' + opt.image + '\" alt=\"' + opt.choiceLabel.replace(/</g,'&lt;') + '\" />' : '';
+          return '<div class=\"kit-preview-item\">' + img + '<div><strong>' + opt.choiceLabel.replace(/</g,'&lt;') + '</strong></div><div>' + opt.groupLabel.replace(/</g,'&lt;') + '</div></div>';
+        }).join('') || '<div style=\"font-size:.8rem;color:#6b7280;\">Δεν έχουν επιλεγεί μέρη ακόμα.</div>';
+        const fp = document.getElementById('kit-final-price');
+        if (fp) fp.textContent = computeFinalPrice().toFixed(2);
+      }
+
+      function onKitSelectionChange() {
+        selectedKitOptions = collectSelectedKitOptions();
+        renderKitPreview();
+        const btnCart = document.getElementById('btn-add-cart');
+        if (btnCart && IS_KIT) btnCart.disabled = kitMissingRequired();
+        if (IS_KIT) {
+          const priceEl = document.getElementById('product-price');
+          if (priceEl) priceEl.textContent = computeFinalPrice().toFixed(2);
+        }
+      }
+
       function addThisToCart() {
         if (typeof window.thrcAddToCart !== 'function') return;
+        selectedKitOptions = collectSelectedKitOptions();
+        if (kitMissingRequired()) {
+          alert('Παρακαλώ συμπλήρωσε όλα τα υποχρεωτικά πεδία kit.');
+          return;
+        }
+        const finalPrice = computeFinalPrice();
         const p = {
           id:       PRODUCT.id,
           name:     PRODUCT.name,
-          price:    selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price,
+          price:    finalPrice,
+          basePrice: selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price,
           imageUrl: PRODUCT.imageUrl
         };
         if (selectedVariant) {
           p.variantId    = selectedVariant.id;
           p.variantLabel = selectedVariant.label;
+        }
+        if (IS_KIT) {
+          p.selectedOptions = selectedKitOptions;
+          p.optionSummary = selectedKitOptions.map(function(opt) { return opt.groupLabel + ': ' + opt.choiceLabel; }).join(' | ');
+          p.finalUnitPrice = finalPrice;
+          p.cartKey = PRODUCT.id + '::' + selectedKitOptions.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
         }
         window.thrcAddToCart(p);
       }
@@ -473,6 +582,11 @@
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeLightbox();
       });
+      if (IS_KIT) {
+        selectedKitOptions = collectSelectedKitOptions();
+        renderKitPreview();
+        onKitSelectionChange();
+      }
 
       // ── Reviews ───────────────────────────────────────────────────
       const PRODUCT_ID = '<%= product.id %>';

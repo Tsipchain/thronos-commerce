@@ -1,12 +1,132 @@
 [
   {
-    "id": "demo-bag-01",
-    "name": "Demo Everyday Bag",
-    "description": "Minimal design για καθημερινή χρήση.",
-    "price": 48,
-    "imageUrl": "",
-    "categoryId": "bags",
-    "stock": 8,
-    "sku": "DEMO-BAG-001"
+    "id": "eukolaki-diy-roll-kit",
+    "type": "KIT",
+    "name": "Eukolaki DIY Roll Kit",
+    "description": "Kit για κατασκευή ρολού με επιλογές χρώματος, οδηγού και κουτιού.",
+    "price": 12,
+    "imageUrl": "/tenants/eukolakis/media/kits/roll-main.jpg",
+    "gallery": [
+      "/tenants/eukolakis/media/kits/roll-main.jpg",
+      "/tenants/eukolakis/media/kits/roll-detail.jpg"
+    ],
+    "categoryId": "diy-rolla",
+    "stock": 49,
+    "kitOptions": [
+      {
+        "id": "color",
+        "label": "Χρώμα Kit",
+        "required": true,
+        "inputType": "radio",
+        "choices": [
+          {
+            "id": "white",
+            "label": "Λευκό",
+            "description": "Κλασική λευκή απόχρωση.",
+            "priceDelta": 0,
+            "image": "/tenants/eukolakis/media/options/white.png",
+            "linkedProductId": "part-color-white"
+          },
+          {
+            "id": "brown",
+            "label": "Καφέ",
+            "description": "Καφέ απόχρωση ξύλου.",
+            "priceDelta": 1.5,
+            "image": "/tenants/eukolakis/media/options/brown.png",
+            "linkedProductId": "part-color-brown"
+          }
+        ]
+      },
+      {
+        "id": "guide",
+        "label": "Οδηγός Ρολού",
+        "required": true,
+        "inputType": "radio",
+        "choices": [
+          {
+            "id": "guide-basic",
+            "label": "Basic 40mm",
+            "priceDelta": 2,
+            "image": "/tenants/eukolakis/media/options/guide-basic.png",
+            "linkedProductId": "part-guide-basic"
+          },
+          {
+            "id": "guide-pro",
+            "label": "Pro 55mm",
+            "priceDelta": 4.5,
+            "image": "/tenants/eukolakis/media/options/guide-pro.png",
+            "linkedProductId": "part-guide-pro"
+          }
+        ]
+      },
+      {
+        "id": "extras",
+        "label": "Προαιρετικά extras",
+        "required": false,
+        "inputType": "checkbox",
+        "choices": [
+          {
+            "id": "motor-ready",
+            "label": "Motor-ready βάση",
+            "priceDelta": 3,
+            "image": "/tenants/eukolakis/media/options/motor-ready.png",
+            "linkedProductId": "part-motor-ready"
+          },
+          {
+            "id": "silent-kit",
+            "label": "Silent kit",
+            "priceDelta": 2.2,
+            "image": "/tenants/eukolakis/media/options/silent-kit.png",
+            "linkedProductId": "part-silent"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "eukolaki-diy-slide-door-kit",
+    "type": "KIT",
+    "name": "Eukolaki DIY Slide Door Kit",
+    "description": "Kit συρόμενης πόρτας με οδηγούς, χρώμα και προαιρετικά αξεσουάρ.",
+    "price": 18,
+    "imageUrl": "/tenants/eukolakis/media/kits/slide-main.jpg",
+    "gallery": [
+      "/tenants/eukolakis/media/kits/slide-main.jpg"
+    ],
+    "categoryId": "diy-sliding",
+    "stock": 30,
+    "kitOptions": [
+      {
+        "id": "finish",
+        "label": "Φινίρισμα",
+        "required": true,
+        "inputType": "radio",
+        "choices": [
+          {
+            "id": "inox",
+            "label": "Inox",
+            "priceDelta": 0,
+            "image": "/tenants/eukolakis/media/options/inox.png",
+            "linkedProductId": "part-finish-inox"
+          },
+          {
+            "id": "matte-black",
+            "label": "Μαύρο ματ",
+            "priceDelta": 2.5,
+            "image": "/tenants/eukolakis/media/options/matte-black.png",
+            "linkedProductId": "part-finish-black"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "part-guide-basic",
+    "name": "Guide Basic 40mm",
+    "description": "Ανταλλακτικός οδηγός",
+    "price": 2,
+    "imageUrl": "/tenants/eukolakis/media/parts/guide-basic.jpg",
+    "categoryId": "spare-parts",
+    "stock": 100
   }
 ]

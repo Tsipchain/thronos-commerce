@@ -1,4 +1,5 @@
 [
-  { "id": "bags", "name": "Τσάντες", "slug": "bags" },
-  { "id": "accessories", "name": "Αξεσουάρ", "slug": "accessories" }
+  {"id":"diy-rolla","name":"DIY Ρολά","slug":"diy-rolla","image":"/tenants/eukolakis/media/categories/diy-rolla.png","featured":true},
+  {"id":"diy-sliding","name":"DIY Συρόμενα","slug":"diy-sliding","image":"/tenants/eukolakis/media/categories/diy-sliding.png"},
+  {"id":"spare-parts","name":"Ανταλλακτικά","slug":"spare-parts","image":"/tenants/eukolakis/media/categories/spare-parts.png"}
 ]

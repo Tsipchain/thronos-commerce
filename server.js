@@ -169,6 +169,8 @@ ensureDir(DATA_ROOT);
 
 const TENANTS_DIR = path.join(DATA_ROOT, 'tenants');
 ensureDir(TENANTS_DIR);
+const TEMPLATES_DIR = path.join(DATA_ROOT, 'templates');
+ensureDir(TEMPLATES_DIR);
 
 const TENANTS_REGISTRY       = path.join(DATA_ROOT, 'tenants.json');
 const REFERRAL_ACCOUNTS_FILE = path.join(DATA_ROOT, 'referral_accounts.json');
@@ -561,35 +563,101 @@ function verifyRootPassword(plain) {
   return crypto.timingSafeEqual(a, b);
 }
 
+function sanitizeTemplateId(raw) {
+  return (raw || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+}
+
+function listThemeTemplates() {
+  const out = [];
+  try {
+    const entries = fs.readdirSync(TEMPLATES_DIR, { withFileTypes: true });
+    entries.filter((e) => e.isDirectory()).forEach((entry) => {
+      const metaFile = path.join(TEMPLATES_DIR, entry.name, 'template.json');
+      if (fs.existsSync(metaFile)) {
+        const meta = loadJson(metaFile, null);
+        if (meta && meta.id) out.push(meta);
+      }
+    });
+  } catch (_) {}
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function extractThemeSkeletonConfig(config) {
+  return {
+    primaryColor: config.primaryColor || '#222222',
+    accentColor: config.accentColor || '#00ff88',
+    fontFamily: config.fontFamily || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    theme: config.theme || {
+      menuBg: '#111111',
+      menuText: '#ffffff',
+      menuActiveBg: '#f06292',
+      menuActiveText: '#ffffff',
+      buttonRadius: '4px'
+    }
+  };
+}
+
+function saveTemplateFromTenant(templateId, tenantId, displayName) {
+  const clean = sanitizeTemplateId(templateId);
+  if (!clean) throw new Error('invalid template id');
+  const srcPaths = tenantPaths(tenantId);
+  const srcCfg = loadJson(srcPaths.config, {});
+  const dir = path.join(TEMPLATES_DIR, clean);
+  ensureDir(dir);
+  const tpl = {
+    id: clean,
+    name: (displayName || clean).trim(),
+    sourceTenantId: tenantId,
+    createdAt: new Date().toISOString(),
+    themeConfig: extractThemeSkeletonConfig(srcCfg)
+  };
+  saveJson(path.join(dir, 'template.json'), tpl);
+  return tpl;
+}
+
 // Seed a new tenant's files from a template tenant (default: 'demo')
 function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
   const newPaths = tenantPaths(tenantId);
+  const templateMeta = loadJson(path.join(TEMPLATES_DIR, sanitizeTemplateId(templateId), 'template.json'), null);
   const tplPaths = tenantPaths(templateId);
 
+  const baseConfig = {
+    storeName: tenantId,
+    primaryColor: '#222222',
+    accentColor: '#00ff88',
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    heroText: 'Καλωσήρθατε στο κατάστημά μας!',
+    web3Domain: '',
+    logoPath: '/logo.svg',
+    shippingOptions: [],
+    paymentOptions: [],
+    theme: { menuBg: '#111111', menuText: '#ffffff', menuActiveBg: '#f06292', menuActiveText: '#ffffff', buttonRadius: '4px' }
+  };
+
   if (!fs.existsSync(newPaths.config)) {
-    const tplConfig = loadJson(tplPaths.config, {
-      storeName: tenantId,
-      primaryColor: '#222222',
-      accentColor: '#00ff88',
-      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      heroText: 'Καλωσήρθατε στο κατάστημά μας!',
-      web3Domain: '',
-      logoPath: '/logo.svg',
-      shippingOptions: [],
-      paymentOptions: [],
-      theme: { menuBg: '#111111', menuText: '#ffffff', menuActiveBg: '#f06292', menuActiveText: '#ffffff', buttonRadius: '4px' }
-    });
-    tplConfig.storeName = tenantId;
-    saveJson(newPaths.config, tplConfig);
+    let nextConfig = Object.assign({}, baseConfig);
+    if (templateMeta && templateMeta.themeConfig) {
+      nextConfig = Object.assign(nextConfig, templateMeta.themeConfig);
+    } else {
+      const tplConfig = loadJson(tplPaths.config, baseConfig);
+      nextConfig = Object.assign({}, nextConfig, extractThemeSkeletonConfig(tplConfig));
+      nextConfig.shippingOptions = tplConfig.shippingOptions || [];
+      nextConfig.paymentOptions = tplConfig.paymentOptions || [];
+    }
+    nextConfig.storeName = tenantId;
+    saveJson(newPaths.config, nextConfig);
   }
 
   if (!fs.existsSync(newPaths.products)) {
-    saveJson(newPaths.products, loadJson(tplPaths.products, []));
+    saveJson(newPaths.products, []);
   }
 
   if (!fs.existsSync(newPaths.categories)) {
-    saveJson(newPaths.categories, loadJson(tplPaths.categories, []));
+    saveJson(newPaths.categories, []);
   }
+  if (!fs.existsSync(newPaths.orders)) saveJson(newPaths.orders, []);
+  if (!fs.existsSync(newPaths.users)) saveJson(newPaths.users, []);
+  if (!fs.existsSync(newPaths.tickets)) saveJson(newPaths.tickets, []);
 }
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
@@ -1080,6 +1148,8 @@ app.post('/checkout', async (req, res) => {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
       let variantId = (ci.variantId || '').trim();
+      let selectedOptions = [];
+      let optionSummary = '';
       // Resolve variant price
       if (variantId && Array.isArray(found.variants)) {
         const variant = found.variants.find((v) => v.id === variantId);
@@ -1090,11 +1160,46 @@ app.post('/checkout', async (req, res) => {
           variantId = ''; // invalid variant → clear
         }
       }
+      if (found.type === 'KIT' && Array.isArray(found.kitOptions)) {
+        const rawOptions = Array.isArray(ci.selectedOptions) ? ci.selectedOptions : [];
+        const selectedByGroup = {};
+        rawOptions.forEach((opt) => {
+          const group = found.kitOptions.find((g) => g.id === opt.groupId);
+          if (!group) return;
+          const choice = (group.choices || []).find((c) => c.id === opt.choiceId);
+          if (!choice) return;
+          if (!selectedByGroup[group.id]) selectedByGroup[group.id] = [];
+          if (group.inputType === 'checkbox') selectedByGroup[group.id].push(choice);
+          else selectedByGroup[group.id] = [choice];
+        });
+        const missingRequired = found.kitOptions.some((g) => g.required && (!selectedByGroup[g.id] || !selectedByGroup[g.id].length));
+        if (missingRequired) continue;
+        selectedOptions = [];
+        found.kitOptions.forEach((group) => {
+          (selectedByGroup[group.id] || []).forEach((choice) => {
+            selectedOptions.push({
+              groupId: group.id,
+              groupLabel: group.label || group.id,
+              choiceId: choice.id,
+              choiceLabel: choice.label || choice.id,
+              priceDelta: Number(choice.priceDelta) || 0,
+              linkedProductId: choice.linkedProductId || null
+            });
+          });
+        });
+        const delta = selectedOptions.reduce((s, o) => s + (Number(o.priceDelta) || 0), 0);
+        serverPrice += delta;
+        optionSummary = selectedOptions.map((o) => `${o.groupLabel}: ${o.choiceLabel}`).join(' | ');
+      }
       enrichedItems.push({
         id:           found.id,
         name:         found.name,
         variantId:    variantId || undefined,
         variantLabel: variantLabel || undefined,
+        selectedOptions: selectedOptions.length ? selectedOptions : undefined,
+        optionSummary: optionSummary || undefined,
+        basePrice: Number(found.price) || 0,
+        finalUnitPrice: serverPrice,
         price:        serverPrice,
         qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
       });
@@ -1116,7 +1221,9 @@ app.post('/checkout', async (req, res) => {
     // Keep single-product fields for backward compat (first item)
     productId:   enrichedItems[0].id,
     productName: enrichedItems.map((i) =>
-      i.variantLabel ? `${i.name} – ${i.variantLabel} ×${i.qty}` : `${i.name} ×${i.qty}`
+      i.variantLabel
+        ? `${i.name} – ${i.variantLabel}${i.optionSummary ? ` (${i.optionSummary})` : ''} ×${i.qty}`
+        : `${i.name}${i.optionSummary ? ` (${i.optionSummary})` : ''} ×${i.qty}`
     ).join(', '),
     price:       enrichedItems[0].price,
     // Multi-item
@@ -1452,103 +1559,6 @@ app.get('/account', requireUser, (req, res) => {
 
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect(buildTenantLink(req, '/')));
-});
-
-app.get('/my-orders', requireUser, (req, res) => {
-  const config = loadTenantConfig(req);
-  const email = normalizeEmail(req.session.user.email);
-  const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
-  res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
-});
-
-app.get('/admin/login', (req, res) => {
-  const config = loadTenantConfig(req);
-  if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect('/admin');
-  res.render('admin-login', { config, tenant: req.tenant, error: null });
-});
-
-app.post('/admin/login', async (req, res) => {
-  const config = loadTenantConfig(req);
-  const ok = await verifyAdminPassword(req.tenant, req.body.password);
-  if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
-  req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
-  res.redirect('/admin');
-});
-
-app.get('/admin/logout', (req, res) => {
-  req.session.admin = null;
-  res.redirect('/admin/login');
-});
-
-app.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/account');
-  const config = loadTenantConfig(req);
-  res.render('login', { config, tenant: req.tenant, error: null });
-});
-
-app.post('/login', async (req, res) => {
-  const config = loadTenantConfig(req);
-  const email = normalizeEmail(req.body.email);
-  const password = String(req.body.password || '');
-  const users = loadTenantUsers(req);
-  const user = users.find((u) => normalizeEmail(u.email) === email);
-  if (!user) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
-
-  const ok = await bcrypt.compare(password, user.passwordHash || '');
-  if (!ok) return res.status(401).render('login', { config, tenant: req.tenant, error: 'Invalid email or password.' });
-
-  req.session.user = {
-    id: user.id,
-    email: user.email
-  };
-  res.redirect('/account');
-});
-
-app.get('/signup', (req, res) => {
-  if (req.session.user) return res.redirect('/account');
-  const config = loadTenantConfig(req);
-  res.render('signup', { config, tenant: req.tenant, error: null });
-});
-
-app.post('/signup', async (req, res) => {
-  const config = loadTenantConfig(req);
-  const email = normalizeEmail(req.body.email);
-  const password = String(req.body.password || '');
-  const passwordConfirm = String(req.body.passwordConfirm || '');
-  if (!email || !password) {
-    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Email and password are required.' });
-  }
-  if (password.length < 6) {
-    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password must be at least 6 characters.' });
-  }
-  if (password !== passwordConfirm) {
-    return res.status(400).render('signup', { config, tenant: req.tenant, error: 'Password confirmation does not match.' });
-  }
-
-  const users = loadTenantUsers(req);
-  const exists = users.some((u) => normalizeEmail(u.email) === email);
-  if (exists) {
-    return res.status(409).render('signup', { config, tenant: req.tenant, error: 'This email is already registered.' });
-  }
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = { id: `u_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`, email, passwordHash, createdAt: new Date().toISOString() };
-  users.push(user);
-  saveTenantUsers(req, users);
-
-  req.session.user = {
-    id: user.id,
-    email: user.email
-  };
-  res.redirect('/account');
-});
-
-app.get('/account', requireUser, (req, res) => {
-  const config = loadTenantConfig(req);
-  res.render('account', { config, tenant: req.tenant, user: req.session.user });
-});
-
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
 });
 
 app.get('/my-orders', requireUser, (req, res) => {
@@ -2536,6 +2546,7 @@ function buildRootViewModel(extra) {
 
   return {
     tenants,
+    themeTemplates: listThemeTemplates(),
     tenantPaymentConfigs,
     refAccounts,
     refEarnings: refEarnings.slice(-200).reverse(),
@@ -2630,6 +2641,23 @@ app.post('/root/tenants/create', async (req, res) => {
 
   res.render('root-tenants',
     buildRootViewModel({ message: `Ο tenant "${cleanId}" δημιουργήθηκε επιτυχώς.` }));
+});
+
+app.post('/root/templates/create', (req, res) => {
+  const { rootPassword, tenantId, templateId, templateName } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+  const tenant = findTenantById((tenantId || '').trim());
+  if (!tenant) {
+    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+  }
+  const cleanTemplateId = sanitizeTemplateId(templateId);
+  if (!cleanTemplateId) {
+    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Δώστε έγκυρο template id (a-z, 0-9, -, _).' }));
+  }
+  const tpl = saveTemplateFromTenant(cleanTemplateId, tenant.id, templateName);
+  return res.render('root-tenants', buildRootViewModel({ message: `Template "${tpl.id}" αποθηκεύτηκε.` }));
 });
 
 app.post('/root/tenants/update', (req, res) => {

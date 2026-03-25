@@ -280,7 +280,8 @@
         const el = document.getElementById('summary-items');
         el.innerHTML = cart.map(function(item) {
           const safeName = (item.name || '?').replace(/</g,'&lt;');
-          return '<li><span>' + safeName + ' &times;' + (item.qty || 1) + '</span>' +
+          const opts = item.optionSummary ? '<br><small style=\"color:#6b7280;\">' + String(item.optionSummary).replace(/</g,'&lt;') + '</small>' : '';
+          return '<li><span>' + safeName + opts + ' &times;' + (item.qty || 1) + '</span>' +
             '<span>' + ((item.price || 0) * (item.qty || 1)).toFixed(2) + ' &euro;</span></li>';
         }).join('');
       }

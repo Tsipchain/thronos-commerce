@@ -123,12 +123,19 @@
         &nbsp;·&nbsp;
         <%= t('admin.package') %>: <strong><%= tenant.supportTier %></strong>
         &nbsp;·&nbsp;
-        <a href="/admin" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
+        <a href="<%= withTenantLink('/admin') %>" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/admin/orders" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
         &nbsp;|&nbsp;
-        <a href="/" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
+        <a href="<%= withTenantLink('/') %>" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
       </p>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="<%= withTenantLink('/admin') %>" class="button" style="font-size:.82rem;">💾 Αποθήκευση αλλαγών</a>
+        <a href="<%= withTenantLink('/') %>" class="button" style="font-size:.82rem;background:#111827;">👁️ Προβολή καταστήματος</a>
+        <% if (isPreviewMode) { %>
+          <span style="font-size:.8rem;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:6px 10px;border-radius:6px;">Preview tenant: <strong><%= tenant.id %></strong></span>
+        <% } %>
+      </div>
     </header>
 
     <main class="admin-layout">
@@ -162,7 +169,7 @@
         </div>
         <% if (subscription.isExpired || subscription.isExpiringSoon) { %>
         <div>
-          <form method="POST" action="/admin/subscribe/renew" style="display:inline-flex;gap:8px;align-items:center;">
+          <form method="POST" action="<%= withTenantLink('/admin/subscribe/renew') %>" style="display:inline-flex;gap:8px;align-items:center;">
             <input type="password" name="password" placeholder="Κωδικός admin" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.82rem;" required />
             <button type="submit" style="padding:7px 16px;background:#4338ca;color:#fff;border:none;border-radius:5px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">💳 Ανανέωση</button>
           </form>
@@ -180,20 +187,21 @@
         <a href="#tab-notifications"><%= t('admin.tabNotifications') %></a>
         <a href="#tab-inventory"><%= t('admin.tabInventory') %></a>
         <a href="#tab-support">💬 <%= t('admin.tabSupport') %></a>
-        <a href="/admin/orders"><%= t('admin.tabOrders') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>"><%= t('admin.tabOrders') %></a>
       </nav>
 
 
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <form id="tab-theme" class="admin-block" method="POST" action="/admin/settings">
-        <h2><%= t('admin.themeTitle') %></h2>
+      <form id="tab-theme" class="admin-block" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+        <h2>Store identity & εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
 
         <label><span><%= t('admin.storeName') %></span>
           <input type="text" name="storeName" value="<%= config.storeName %>"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Το όνομα που βλέπει ο πελάτης στο storefront.</small>
         </label>
 
         <label><span><%= t('admin.primaryColor') %></span>
@@ -240,7 +248,13 @@
         <label><span><%= t('admin.logoPath') %></span>
           <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
                  placeholder="/logo.svg" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Μπορείτε να γράψετε URL ή να κάνετε upload λογότυπου.</small>
         </label>
+        <% if (config.logoPath) { %>
+          <div style="margin:-8px 0 10px;">
+            <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:48px;max-width:180px;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#fff;" />
+          </div>
+        <% } %>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
           <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
@@ -419,7 +433,7 @@
                 <td><%= cat.slug %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
-                  <form method="POST" action="/admin/categories/delete" class="inline-form">
+                  <form method="POST" action="<%= withTenantLink('/admin/categories/delete') %>" class="inline-form">
                     <input type="hidden" name="categoryId" value="<%= cat.id %>" />
                     <input type="password" name="password" placeholder="Κωδικός"
                            <%= permissions.canEditCategories ? 'required' : 'disabled' %> />
@@ -436,7 +450,7 @@
         </table>
 
         <% if (permissions.canEditCategories) { %>
-        <form method="POST" action="/admin/categories/add" class="admin-subform">
+        <form method="POST" action="<%= withTenantLink('/admin/categories/add') %>" class="admin-subform">
           <h3><%= t('admin.catAddTitle') %></h3>
           <p class="helper"><%= t('admin.catAddHelper') %></p>
           <input type="text" name="id" placeholder="Κωδικός (π.χ. bags)" required />
@@ -452,7 +466,7 @@
           <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
 
-        <form method="POST" action="/admin/categories/update" class="admin-subform">
+        <form method="POST" action="<%= withTenantLink('/admin/categories/update') %>" class="admin-subform">
           <h3><%= t('admin.catUpdateTitle') %></h3>
           <select name="categoryId">
             <% categories.forEach(function(cat){ %>
@@ -509,7 +523,7 @@
         </table>
 
         <%# Hidden form that submits the serialized JSON array to the backend %>
-        <form id="products-save-form" method="POST" action="/admin/products">
+        <form id="products-save-form" method="POST" action="<%= withTenantLink('/admin/products') %>">
           <input type="hidden" name="productsJson" id="products-json-input" />
           <% if (permissions.canEditProducts) { %>
           <div class="save-row">
@@ -554,7 +568,7 @@
                  style="width:48px;height:48px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#f9fafb;" />
             <div>
               <p style="margin:0 0 6px;font-size:0.85rem;color:#374151;font-weight:500;">Τρέχον favicon</p>
-              <form method="POST" action="/admin/favicon/delete" style="display:inline;">
+              <form method="POST" action="<%= withTenantLink('/admin/favicon/delete') %>" style="display:inline;">
                 <input type="hidden" name="password" id="fav-del-pw" value="" />
                 <button class="button" type="button" style="font-size:0.8rem;padding:4px 10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;"
                         onclick="deleteFavicon(this)"><%= t('admin.faviconDelete') %></button>
@@ -565,7 +579,7 @@
           <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:14px;"><%= t('admin.faviconNone') %></p>
         <% } %>
 
-        <form method="POST" action="/admin/favicon" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <form method="POST" action="<%= withTenantLink('/admin/favicon') %>" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           <input type="file" name="favicon" accept="image/png,image/jpeg,image/x-icon,image/svg+xml" required />
           <input type="password" name="password" placeholder="<%= t('admin.passwordPlaceholder') %>" required style="width:180px;" />
           <button class="button" type="submit"><%= t('admin.faviconUploadBtn') %></button>
@@ -584,7 +598,7 @@
           <p class="helper"><%= t('admin.shippingManagedNote') %></p>
         <% } %>
 
-        <form method="POST" action="/admin/shipping-payment">
+        <form method="POST" action="<%= withTenantLink('/admin/shipping-payment') %>">
 
           <%# ── Shipping options ── %>
           <h3><%= t('admin.shippingOptionsTitle') %></h3>
@@ -796,7 +810,7 @@
         <%# ── Manual stock adjustment ── %>
         <% if (permissions.canEditProducts) { %>
         <h3 style="margin-top:24px;"><%= t('admin.invAdjustTitle') %></h3>
-        <form method="POST" action="/admin/stock/adjust" class="admin-subform" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <form method="POST" action="<%= withTenantLink('/admin/stock/adjust') %>" class="admin-subform" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
           <label style="flex:1;min-width:140px;">
             <%= t('admin.invAdjustProduct') %>
             <select name="productId" style="margin-top:4px;">
@@ -891,7 +905,7 @@
 
         <%# ── New ticket form ── %>
         <h3 style="font-size:.9rem;margin-bottom:10px;"><%= t('admin.supportNewTicket') %></h3>
-        <form method="POST" action="/admin/tickets/new" style="display:flex;flex-direction:column;gap:12px;max-width:600px;">
+        <form method="POST" action="<%= withTenantLink('/admin/tickets/new') %>" style="display:flex;flex-direction:column;gap:12px;max-width:600px;">
           <label style="font-size:.86rem;display:flex;flex-direction:column;gap:4px;">
             <%= t('admin.supportCategory') %>
             <select name="category" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.86rem;">
