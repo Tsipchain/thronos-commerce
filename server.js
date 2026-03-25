@@ -848,9 +848,6 @@ app.use((req, res, next) => {
   }
   req.tenant = tenant;
   req.tenantPaths = tenantPaths(tenant.id);
-  if (req.session && req.session.user && req.session.user.tenantId && req.session.user.tenantId !== tenant.id) {
-    req.session.user = null;
-  }
   res.locals.user = req.session ? req.session.user : null;
   next();
 });
@@ -1299,8 +1296,7 @@ app.post('/login', async (req, res) => {
 
   req.session.user = {
     id: user.id,
-    email: user.email,
-    tenantId: req.tenant.id
+    email: user.email
   };
   res.redirect('/account');
 });
@@ -1338,8 +1334,7 @@ app.post('/signup', async (req, res) => {
 
   req.session.user = {
     id: user.id,
-    email: user.email,
-    tenantId: req.tenant.id
+    email: user.email
   };
   res.redirect('/account');
 });
