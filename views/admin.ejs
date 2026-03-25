@@ -1733,3 +1733,15 @@
     </script>
   </body>
 </html>
+      function readLocalizedField(elInput, enInput) {
+        const elVal = (elInput.value || '').trim();
+        const enVal = (enInput.value || '').trim();
+        if (elVal && enVal) return { el: elVal, en: enVal };
+        if (elVal) return elVal;
+        if (enVal) return { en: enVal };
+        return '';
+      }
+      function getLocalizedForEdit(value, langCode) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
+        return langCode === 'el' ? (value || '') : '';
+      }
