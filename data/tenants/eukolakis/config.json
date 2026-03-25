@@ -80,6 +80,11 @@
   "homepage": {
     "presetId": "eukolakis_classic_diy",
     "heroImage": "/tenants/eukolakis/media/categories/diy-rolla.png",
+    "featuredPrimary": [
+      "eukolaki-diy-roll-kit",
+      "eukolaki-diy-slide-door-kit"
+    ],
+    "featuredSecondaryId": "",
     "featuredIds": [
       "eukolaki-diy-roll-kit",
       "eukolaki-diy-slide-door-kit"

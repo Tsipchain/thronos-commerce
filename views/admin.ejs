@@ -562,8 +562,18 @@
         <label><span>Hero image / banner URL</span>
           <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
         </label>
-        <label><span>Primary featured products (ids, comma separated)</span>
-          <input type="text" name="homepageFeaturedIds" value="<%= ((rawConfig.homepage && rawConfig.homepage.featuredIds) || []).join(', ') %>" placeholder="eukolaki-diy-roll-kit, eukolaki-diy-slide-door-kit" />
+        <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
+        <label><span>Primary Product #1</span>
+          <input type="text" name="homepageFeaturedPrimary1" value="<%= hpPrimary[0] || '' %>" placeholder="eukolaki-diy-roll-kit" />
+          <small class="helper">Εμφανίζεται στο πρώτο μεγάλο card της homepage.</small>
+        </label>
+        <label><span>Primary Product #2</span>
+          <input type="text" name="homepageFeaturedPrimary2" value="<%= hpPrimary[1] || '' %>" placeholder="eukolaki-diy-slide-door-kit" />
+          <small class="helper">Εμφανίζεται στο δεύτερο μεγάλο card της homepage.</small>
+        </label>
+        <label><span>Secondary Feature Block</span>
+          <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="eukolaki-spare-pack" />
+          <small class="helper">Μικρότερο block εξερεύνησης κάτω από τα κύρια kits.</small>
         </label>
         <label><span>Secondary block title (EL/EN)</span>
           <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="Ελληνικά" />
@@ -605,6 +615,8 @@
               <th>Εικόνα</th>
               <th><%= t('admin.catColName') %></th>
               <th><%= t('admin.catColSlug') %></th>
+              <th>Main Nav</th>
+              <th>Order</th>
               <th><%= t('admin.catColParent') %></th>
               <th><%= t('admin.catColAction') %></th>
             </tr>
@@ -637,6 +649,8 @@
                   </div>
                 </td>
                 <td><%= cat.slug %></td>
+                <td><%= rawCat && rawCat.showInMainNav === false ? 'No' : 'Yes' %></td>
+                <td><%= (rawCat && rawCat.navOrder !== undefined) ? rawCat.navOrder : '—' %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
                   <div class="cat-inline-actions">
@@ -657,7 +671,7 @@
               </tr>
             <% }) %>
             <% if (categories.length === 0) { %>
-              <tr><td colspan="6" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
+              <tr><td colspan="8" style="color:#888;font-style:italic;"><%= t('admin.catNone') %></td></tr>
             <% } %>
           </tbody>
         </table>
@@ -671,6 +685,8 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο main navigation strip</span></label>
+          <input type="number" name="navOrder" placeholder="Σειρά στο main nav (π.χ. 1,2,3)" />
           <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
@@ -693,6 +709,8 @@
           <input type="text" name="name_en" placeholder="New name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο main navigation strip</span></label>
+          <input type="number" name="navOrder" placeholder="Σειρά στο main nav (π.χ. 1,2,3)" />
           <input type="text" name="slug" placeholder="Νέο slug" required />
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>

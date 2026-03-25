@@ -100,6 +100,20 @@
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+      .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
+      .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
+      .pill-nav .pill-item { display:inline-flex; align-items:center; gap:6px; }
+      .pill-nav .pill-item img { width:20px; height:20px; border-radius:999px; object-fit:cover; }
+      .home-secondary { border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff; }
+      .store-footer { margin-top:26px; padding:18px 0; color:#6b7280; font-size:.85rem; border-top:1px solid #e5e7eb; }
+      .featured-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+      .featured-kit-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
+      .featured-kit-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,.12); }
+      .featured-kit-card img { width:100%; height:220px; object-fit:cover; display:block; }
+      .featured-kit-card .body { padding:12px 14px; }
+      .kit-badge { display:inline-block; font-size:.72rem; font-weight:700; background:#0f766e; color:#fff; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
+      @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
@@ -152,6 +166,19 @@
           <% } %>
         </ul>
       </nav>
+      <% if (tenant.id === 'eukolakis') { %>
+      <div class="pill-nav">
+        <% const defaultLabelMap = { 'diy-rolla': 'DIY Kits', 'spare-parts': 'Ανταλλακτικά', 'diy-sliding': 'Εργαλεία' }; %>
+        <% const navCategories = categories.filter(c => c.showInMainNav !== false).sort((a,b)=> (Number(a.navOrder)||999) - (Number(b.navOrder)||999)); %>
+        <% navCategories.forEach(function(cat){ %>
+          <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <span>Eukolaki <%= defaultLabelMap[cat.slug] || cat.name %></span>
+          </a>
+        <% }) %>
+        <a href="#" onclick="return false;"><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></a>
+      </div>
+      <% } %>
     </header>
 
     <% if (isPreviewMode) { %>
@@ -172,8 +199,9 @@
 
     <main>
       <% const homepage = config.homepage || {}; %>
-      <% const hpFeaturedIds = Array.isArray(homepage.featuredIds) ? homepage.featuredIds : []; %>
-      <% const featuredHomeProducts = (allProducts || products).filter(function(p){ return hpFeaturedIds.includes(p.id); }).slice(0, 2); %>
+      <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+      <% const featuredHomeProducts = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }).slice(0, 2); %>
+      <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% if (tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
@@ -224,9 +252,17 @@
       <% if (tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length) { %>
       <section class="featured-section">
         <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
-        <div class="product-list">
+        <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
-            <%- include('_product-card', { product, lang, t, config }) %>
+            <article class="featured-kit-card">
+              <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
+              <div class="body">
+                <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
+                <h3 style="margin:0 0 8px;"><%= product.name %></h3>
+                <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
+                <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
+              </div>
+            </article>
           <% }) %>
         </div>
       </section>
@@ -239,6 +275,7 @@
       <% } %>
       <% } %>
 
+      <% if (!(tenant.id === 'eukolakis' && !activeCategory)) { %>
       <%# ── Featured products ── %>
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
       <% if (featuredProducts.length > 0) { %>
@@ -261,7 +298,19 @@
           <%- include('_product-card', { product, lang, t, config }) %>
         <% }); %>
       </section>
+      <% } %>
+
+      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary) { %>
+      <section class="home-secondary">
+        <h3 style="margin-top:0;"><%= featuredSecondary.name %></h3>
+        <p><%= featuredSecondary.description || '' %></p>
+        <a class="button" href="<%= withTenantLink('/product/' + featuredSecondary.id, lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δείτε προϊόν' : 'View product' %></a>
+      </section>
+      <% } %>
     </main>
+    <footer class="store-footer">
+      <strong><%= config.storeName %></strong> · DIY Kits · Spare Parts · Tools
+    </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
     <%- include('_cart') %>

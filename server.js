@@ -1822,6 +1822,10 @@ app.post('/admin/settings', async (req, res) => {
     heroSubtitle,
     homepageHeroImage,
     homepageFeaturedIds,
+    homepageFeaturedPrimary,
+    homepageFeaturedPrimary1,
+    homepageFeaturedPrimary2,
+    homepageFeaturedSecondaryId,
     homepageSecondaryTitle,
     homepageSecondaryText,
     homepageSecondaryLink,
@@ -1913,10 +1917,19 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage = config.homepage || {};
   config.homepage.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.homepage.presetId || 'default');
   config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
-  config.homepage.featuredIds = String(homepageFeaturedIds || '')
+  const legacyFeaturedIds = String(homepageFeaturedIds || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+  const featuredPrimaryCombined = [homepageFeaturedPrimary1, homepageFeaturedPrimary2].filter(Boolean).join(',') || homepageFeaturedPrimary || '';
+  const featuredPrimary = String(featuredPrimaryCombined || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  config.homepage.featuredPrimary = featuredPrimary.length ? featuredPrimary : legacyFeaturedIds.slice(0, 2);
+  config.homepage.featuredSecondaryId = (homepageFeaturedSecondaryId || config.homepage.featuredSecondaryId || '').trim();
+  config.homepage.featuredIds = legacyFeaturedIds;
   config.homepage.secondaryCard = config.homepage.secondaryCard || {};
   config.homepage.secondaryCard.title = buildTranslatableFromBody(req.body, 'homepageSecondaryTitle', homepageSecondaryTitle || config.homepage.secondaryCard.title || '');
   config.homepage.secondaryCard.text = buildTranslatableFromBody(req.body, 'homepageSecondaryText', homepageSecondaryText || config.homepage.secondaryCard.text || '');
@@ -1995,7 +2008,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId, image } = req.body;
+  const { password, id, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -2036,6 +2049,8 @@ app.post('/admin/categories/add', async (req, res) => {
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
   if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
+  newCat.showInMainNav = showInMainNav === 'on';
+  if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
   categories.push(newCat);
   saveTenantCategories(req, categories);
 
@@ -2046,7 +2061,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId, image } = req.body;
+  const { password, categoryId, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -2110,6 +2125,8 @@ app.post('/admin/categories/update', async (req, res) => {
       delete categories[idx].parentId;
     }
   }
+  categories[idx].showInMainNav = showInMainNav === 'on';
+  if (navOrder !== undefined && navOrder !== '') categories[idx].navOrder = Number(navOrder) || 0;
   saveTenantCategories(req, categories);
 
   res.render(
