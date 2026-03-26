@@ -1080,6 +1080,40 @@
         <h2>💬 <%= t('admin.supportTitle') %></h2>
         <p class="helper"><%= t('admin.supportHelper') %></p>
 
+        <div style="margin:0 0 20px;padding:14px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;">
+          <h3 style="margin:0 0 8px;">Backups & Export</h3>
+          <% if (exportAccess) { %>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <a class="button" href="<%= withTenantLink('/admin/export/products.json') %>">Export products.json</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/products.csv') %>" style="background:#1f2937;">Export products.csv</a>
+            </div>
+          <% } else { %>
+            <p style="margin:0 0 10px;color:#92400e;">Export available on paid plans. Contact support / upgrade.</p>
+          <% } %>
+          <div style="max-height:210px;overflow:auto;border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px;">
+            <% if (backups && backups.length) { %>
+              <% backups.forEach(function(b) { %>
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                  <div style="font-size:.82rem;">
+                    <strong><%= b.filename %></strong><br />
+                    <span style="color:#64748b;"><%= b.type %> · <%= Math.max(1, Math.round(Number(b.size || 0) / 1024)) %>KB · <%= new Date(b.modifiedAt).toLocaleString('el-GR') %></span>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <a class="button" style="padding:4px 10px;font-size:.75rem;" href="<%= withTenantLink('/admin/backups/' + b.filename) %>">Download</a>
+                    <form method="POST" action="<%= withTenantLink('/admin/backups/restore') %>" onsubmit="return confirm('Restore backup <%= b.filename %>;')" style="display:flex;gap:6px;align-items:center;">
+                      <input type="hidden" name="filename" value="<%= b.filename %>" />
+                      <input type="password" name="password" placeholder="password" style="padding:4px 6px;font-size:.74rem;width:110px;" />
+                      <button class="button" type="submit" style="padding:4px 8px;font-size:.75rem;background:#0f766e;">Restore</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p style="margin:0;font-size:.82rem;color:#64748b;">No backups yet. Save products/categories/settings to generate backups.</p>
+            <% } %>
+          </div>
+        </div>
+
         <%# ── Ticket list ── %>
         <% if (tickets && tickets.length) { %>
           <h3 style="font-size:.9rem;margin-bottom:10px;"><%= t('admin.supportHistory') %></h3>

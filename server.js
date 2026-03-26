@@ -403,6 +403,8 @@ function tenantPaths(tenantId) {
   ensureDir(base);
   const media = path.join(base, 'media');
   ensureDir(media);
+  const backups = path.join(base, 'backups');
+  ensureDir(backups);
   return {
     base,
     config: path.join(base, 'config.json'),
@@ -416,8 +418,61 @@ function tenantPaths(tenantId) {
     favicon:       path.join(base, 'favicon.png'),
     pendingOrders: path.join(base, 'pending_orders.json'),
     tickets:       path.join(base, 'tickets.json'),
-    media
+    media,
+    backups
   };
+}
+
+function backupJsonWithRotation(req, type, data, keep = 20) {
+  const safeType = String(type || '').replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'data';
+  const now = new Date();
+  const ts = [
+    now.getUTCFullYear(),
+    String(now.getUTCMonth() + 1).padStart(2, '0'),
+    String(now.getUTCDate()).padStart(2, '0')
+  ].join('') + '-' + [
+    String(now.getUTCHours()).padStart(2, '0'),
+    String(now.getUTCMinutes()).padStart(2, '0'),
+    String(now.getUTCSeconds()).padStart(2, '0')
+  ].join('');
+  const filename = `${safeType}-${ts}.json`;
+  const target = path.join(req.tenantPaths.backups, filename);
+  fs.writeFileSync(target, JSON.stringify(data, null, 2), 'utf8');
+  const files = fs.readdirSync(req.tenantPaths.backups)
+    .filter((f) => f.startsWith(`${safeType}-`) && f.endsWith('.json'))
+    .sort()
+    .reverse();
+  files.slice(keep).forEach((f) => {
+    try { fs.unlinkSync(path.join(req.tenantPaths.backups, f)); } catch (_) {}
+  });
+}
+
+function listRecentBackups(req, limit = 40) {
+  const files = fs.readdirSync(req.tenantPaths.backups)
+    .filter((f) => /^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(f))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map((filename) => {
+      const full = path.join(req.tenantPaths.backups, filename);
+      const stat = fs.statSync(full);
+      return {
+        filename,
+        size: stat.size,
+        modifiedAt: stat.mtime.toISOString(),
+        type: filename.split('-')[0]
+      };
+    });
+  return files;
+}
+
+function hasExportAccess(req) {
+  if (req.session && req.session.rootAdmin) return true;
+  const tier = req.tenant && req.tenant.supportTier;
+  if (tier && tier !== 'SELF_SERVICE') return true;
+  const sub = getSubscriptionInfo(req.tenant || {});
+  const status = String((req.tenant && req.tenant.subscriptionStatus) || '').toLowerCase();
+  return status === 'active' || (!!req.tenant.subscriptionExpiry && !sub.isExpired);
 }
 
 function loadTenantOrders(req) {
@@ -507,8 +562,19 @@ function saveTenantUsers(req, users) {
   saveJson(req.tenantPaths.users, users);
 }
 
+function saveTenantProducts(req, products) {
+  saveJson(req.tenantPaths.products, products);
+  backupJsonWithRotation(req, 'products', products);
+}
+
 function saveTenantCategories(req, categories) {
   saveJson(req.tenantPaths.categories, categories);
+  backupJsonWithRotation(req, 'categories', categories);
+}
+
+function saveTenantConfig(req, config) {
+  saveJson(req.tenantPaths.config, config);
+  backupJsonWithRotation(req, 'config', config);
 }
 
 function normalizeEmail(email) {
@@ -1263,6 +1329,8 @@ function buildAdminViewModel(req, extra) {
     cityCounts,
     hasFavicon: fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
+    exportAccess: hasExportAccess(req),
+    backups: listRecentBackups(req, 30),
     tickets: tickets.slice().reverse(),
     message: null,
     error: null,
@@ -1279,6 +1347,16 @@ function buildAdminPaymentsViewModel(req, extra) {
     permissions,
     ...(extra || {})
   };
+}
+
+function renderExportBlockedPage(req, res) {
+  const supportEmail = process.env.SUPPORT_EMAIL || 'support@thronoschain.org';
+  res.status(403).send(`<!doctype html><html><head><meta charset="utf-8"><title>Export locked</title></head><body style="font-family:Arial,sans-serif;padding:24px;">
+    <h2>Export available on paid plans</h2>
+    <p>Contact support / upgrade to unlock exports for this tenant.</p>
+    <p><a href="mailto:${supportEmail}">${supportEmail}</a></p>
+    <p><a href="${buildTenantLink(req, '/admin')}">← Back to admin</a></p>
+  </body></html>`);
 }
 
 // Routes
@@ -1953,6 +2031,72 @@ app.get('/admin/payments', (req, res) => {
   res.render('admin-payments', buildAdminPaymentsViewModel(req, extra));
 });
 
+app.get('/admin/export/products.json', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  const products = loadTenantProducts(req);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-products.json\"`);
+  res.send(JSON.stringify(products, null, 2));
+});
+
+app.get('/admin/export/products.csv', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  const products = loadTenantProducts(req);
+  const esc = (v) => `"${String(v === undefined ? '' : v).replace(/"/g, '""')}"`;
+  const rows = [
+    ['id', 'name', 'type', 'categoryId', 'sku', 'price', 'stock', 'featured', 'imageUrl'],
+    ...products.map((p) => ([
+      p.id || '',
+      resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
+      p.type || 'NORMAL',
+      p.categoryId || '',
+      p.sku || '',
+      Number(p.price) || 0,
+      p.stock === undefined ? '' : Number(p.stock),
+      p.featured ? '1' : '0',
+      p.imageUrl || ''
+    ]))
+  ];
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-products.csv\"`);
+  res.send(csv);
+});
+
+app.get('/admin/backups/:filename', (req, res) => {
+  const filename = String(req.params.filename || '');
+  if (!/^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(filename)) return res.status(400).send('Invalid filename');
+  const full = path.join(req.tenantPaths.backups, filename);
+  if (!fs.existsSync(full)) return res.status(404).send('Backup not found');
+  res.download(full, filename);
+});
+
+app.post('/admin/backups/restore', async (req, res) => {
+  const { filename, password } = req.body;
+  if (!filename || !/^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(filename)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Μη έγκυρο backup αρχείο.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  const full = path.join(req.tenantPaths.backups, filename);
+  if (!fs.existsSync(full)) return res.status(404).render('admin', buildAdminViewModel(req, { error: 'Το backup δεν βρέθηκε.' }));
+  try {
+    const parsed = JSON.parse(fs.readFileSync(full, 'utf8'));
+    if (filename.startsWith('products-')) {
+      saveTenantProducts(req, Array.isArray(parsed) ? parsed : []);
+    } else if (filename.startsWith('categories-')) {
+      saveTenantCategories(req, Array.isArray(parsed) ? parsed : []);
+    } else if (filename.startsWith('config-')) {
+      saveTenantConfig(req, parsed && typeof parsed === 'object' ? parsed : {});
+    } else {
+      return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Μη υποστηριζόμενο backup type.' }));
+    }
+    return res.render('admin', buildAdminViewModel(req, { message: `Επαναφέρθηκε το backup ${filename}.` }));
+  } catch (err) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Αποτυχία restore: ' + err.message }));
+  }
+});
+
 // Admin orders view
 app.get('/admin/orders', (req, res) => {
   const config = loadTenantConfig(req);
@@ -2095,7 +2239,7 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
   config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
 
-  saveJson(req.tenantPaths.config, config);
+  saveTenantConfig(req, config);
 
   res.render(
     'admin',
@@ -2128,7 +2272,7 @@ app.post('/admin/notifications', async (req, res) => {
   config.notificationFromName = (req.body.notificationFromName || '').trim();
   config.notificationWebhookUrl = (req.body.notificationWebhookUrl || '').trim();
   config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
-  saveJson(req.tenantPaths.config, config);
+  saveTenantConfig(req, config);
 
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις ειδοποιήσεων αποθηκεύτηκαν.' }));
 });
@@ -2151,7 +2295,7 @@ app.post('/admin/payments', async (req, res) => {
     const sk = (req.body.stripeSecretKey || '').trim();
     if (sk) config.stripeSecretKey = sk;
   }
-  saveJson(req.tenantPaths.config, config);
+  saveTenantConfig(req, config);
 
   return res.redirect(buildTenantLink(req, '/admin/payments', { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
 });
@@ -2194,7 +2338,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
     if (label !== undefined) opt.label = label;
   });
 
-  saveJson(req.tenantPaths.config, config);
+  saveTenantConfig(req, config);
 
   res.render('admin', buildAdminViewModel(req, {
     message: 'Τα μεταφορικά και οι τρόποι πληρωμής αποθηκεύτηκαν.'
@@ -2461,7 +2605,7 @@ app.post('/admin/products', async (req, res) => {
       }
       if (!Array.isArray(p.gallery)) p.gallery = [];
     });
-    saveJson(req.tenantPaths.products, parsed);
+    saveTenantProducts(req, parsed);
     res.render(
       'admin',
       buildAdminViewModel(req, {
@@ -2500,7 +2644,7 @@ app.post('/admin/stock/adjust', async (req, res) => {
   const qty = Math.max(0, parseInt(newStock, 10) || 0);
   const delta = qty - oldStock;
   products[pIdx].stock = qty;
-  saveJson(req.tenantPaths.products, products);
+  saveTenantProducts(req, products);
 
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   stockLog.push({
