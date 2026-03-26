@@ -1407,6 +1407,13 @@ app.use((req, res, next) => {
     mode = mode === 'host' ? 'demo-fallback' : mode;
   }
   if (!tenant) {
+    const allTenants = loadTenantsRegistry();
+    if (Array.isArray(allTenants) && allTenants.length) {
+      tenant = allTenants[0];
+      mode = mode === 'host' ? 'registry-fallback' : mode;
+    }
+  }
+  if (!tenant) {
     return res
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
