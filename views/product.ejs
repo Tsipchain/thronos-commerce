@@ -422,7 +422,10 @@
       const VARIANTS = <%- JSON.stringify(Array.isArray(product.variants) ? product.variants : []) %>;
       const IS_KIT = <%= product.type === 'KIT' ? 'true' : 'false' %>;
       const KIT_OPTIONS = <%- JSON.stringify(Array.isArray(product.kitOptions) ? product.kitOptions : []) %>;
+      const KIT_PAY_MODE = <%- JSON.stringify(product.kitPayMode || 'bundle') %>;
       const HAS_DIGITAL = <%= product.hasDigitalContent ? 'true' : 'false' %>;
+      const IS_EUKOLAKIS_CLASSIC = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      const HOME_WIZARD_URL = '<%= withTenantLink('/', Object.assign({ wizard: product.id }, lang !== 'el' ? { lang } : {})) %>';
       const BASE_MANUAL  = '<%= product.manualUrl ? '1' : '' %>';
       const BASE_VIDEO   = '<%- (product.videoUrl || '').replace(/'/g, "\\'") %>';
       const BASE_DESC    = '<%- (product.contentDescription || '').replace(/'/g, "\\'").replace(/\n/g, ' ') %>';
@@ -432,6 +435,10 @@
 
       let selectedVariant = VARIANTS.length ? VARIANTS[0] : null;
       let selectedKitOptions = [];
+
+      if (IS_EUKOLAKIS_CLASSIC && IS_KIT) {
+        window.location.replace(HOME_WIZARD_URL);
+      }
 
       // ── Variant selection ─────────────────────────────────────────
       function selectVariant(btn) {
@@ -529,7 +536,7 @@
       }
 
       function computeFinalPrice() {
-        const base = selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price;
+        const base = KIT_PAY_MODE === 'parts_only' ? 0 : (selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price);
         const delta = selectedKitOptions.reduce(function(s, o) { return s + (Number(o.priceDelta) || 0); }, 0);
         return base + delta;
       }
@@ -569,6 +576,7 @@
           return;
         }
         const finalPrice = computeFinalPrice();
+        const optionSummary = selectedKitOptions.map(function(opt) { return opt.groupLabel + ': ' + opt.choiceLabel; }).join(' | ');
         const p = {
           id:       PRODUCT.id,
           name:     PRODUCT.name,
@@ -581,8 +589,31 @@
           p.variantLabel = selectedVariant.label;
         }
         if (IS_KIT) {
+          if (KIT_PAY_MODE === 'parts_only') {
+            selectedKitOptions.filter(function(opt){ return !!opt.linkedProductId; }).forEach(function(opt){
+              window.thrcAddToCart({
+                id: opt.linkedProductId,
+                name: opt.choiceLabel,
+                price: Number(opt.priceDelta || 0),
+                imageUrl: opt.image || '',
+                cartKey: opt.linkedProductId + '::from-kit:' + PRODUCT.id + ':' + opt.groupId
+              });
+            });
+            window.thrcAddToCart({
+              id: PRODUCT.id,
+              name: PRODUCT.name + ' (summary)',
+              price: 0,
+              imageUrl: PRODUCT.imageUrl,
+              selectedOptions: selectedKitOptions,
+              optionSummary: optionSummary || undefined,
+              finalUnitPrice: 0,
+              cartKey: PRODUCT.id + '::' + selectedKitOptions.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&') + '::summary',
+              isKitSummary: true
+            });
+            return;
+          }
           p.selectedOptions = selectedKitOptions;
-          p.optionSummary = selectedKitOptions.map(function(opt) { return opt.groupLabel + ': ' + opt.choiceLabel; }).join(' | ');
+          p.optionSummary = optionSummary;
           p.finalUnitPrice = finalPrice;
           p.cartKey = PRODUCT.id + '::' + selectedKitOptions.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
         }

@@ -100,7 +100,12 @@
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
+      .header-main-row { display:flex; align-items:center; gap:12px; }
+      .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
+      .header-nav-row .main-nav { flex: 1; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+      .pill-nav.compact a { padding:4px 10px; font-size:.8rem; opacity:.95; }
       .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
       .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
       .pill-nav .pill-item { display:inline-flex; align-items:center; gap:6px; }
@@ -113,20 +118,60 @@
       .featured-kit-card img { width:100%; height:220px; object-fit:cover; display:block; }
       .featured-kit-card .body { padding:12px 14px; }
       .kit-badge { display:inline-block; font-size:.72rem; font-weight:700; background:#0f766e; color:#fff; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
+      .kit-clickable { cursor: pointer; }
+      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.58); z-index: 1200; display: none; padding: 24px; }
+      .kit-wizard-backdrop.open { display: block; }
+      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: #fff; border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
+      .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+      .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
+      .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
+      .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
+      .kit-choice img { width:56px; height:56px; object-fit:cover; border-radius:8px; }
+      .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
+      .kit-preview img { width:100%; max-height:220px; object-fit:contain; border-radius:8px; background:#fff; }
+      .kit-summary-line { font-size:.84rem; color:#334155; margin:4px 0; }
+      .kit-wizard-foot { border-top:1px solid #e5e7eb; padding:12px 16px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+      .kit-total { font-weight:800; font-size:1.05rem; color:#0f172a; }
+      .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
+      body.eukolakis-classic main { max-width: 1180px; margin: 0 auto; padding: 0 16px 30px; }
+      body.eukolakis-classic .store-header { padding: 14px 16px 10px; }
+      body.eukolakis-classic .logo-title { align-items: center; gap: 16px; }
+      body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
+      body.eukolakis-classic .logo-frame img { max-height: 76px !important; }
+      body.eukolakis-classic .store-name-wrap h1 { font-size: clamp(2rem, 2.8vw, 2.4rem); letter-spacing: .01em; margin: 0; }
+      body.eukolakis-classic .featured-primary-grid { gap: 20px; }
+      body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
+      body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
+        .header-auth-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
+        .header-main-row, .header-nav-row { flex-wrap: wrap; }
+        .pill-nav { overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+        .pill-nav .pill-item { flex: 0 0 auto; }
+        .kit-wizard-backdrop { padding: 0; }
+        .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
+        .kit-wizard-body { grid-template-columns: 1fr; }
       }
     </style>
   </head>
-  <body>
+  <body class="<%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
+    <% const homepage = config.homepage || {}; %>
+    <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+    <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
+    <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
+    <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const hideMenuForHeroFocus = isEukolakisClassic && !activeCategory; %>
+    <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
-      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
+      <div class="header-main-row">
+      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (config.logoPath && brandingMode !== 'name_only') { %>
           <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
@@ -141,13 +186,29 @@
         </div>
         <% } %>
       </div>
+      <% if (isEukolakisClassic) { %>
+      <div class="header-auth-actions">
+        <% if (!user) { %>
+          <a class="button" style="padding:6px 10px;text-decoration:none;" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a>
+          <a class="button" style="padding:6px 10px;text-decoration:none;background:#111827;" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a>
+        <% } else { %>
+          <a class="button" style="padding:6px 10px;text-decoration:none;" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a>
+          <a class="button" style="padding:6px 10px;text-decoration:none;background:#111827;" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a>
+        <% } %>
+      </div>
+      <% } %>
+      </div>
+      <% if (!hideMenuForHeroFocus) { %>
+      <div class="header-nav-row">
       <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
       <nav class="main-nav" id="main-nav">
         <ul>
+          <% if (!isEukolakisClassic) { %>
           <li class="<%= !activeCategory ? 'active' : '' %>">
             <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
-          <% if (!theme.categoryMenuStyle || theme.categoryMenuStyle === 'text') { %>
+          <% } %>
+          <% if (!isEukolakisClassic && (!theme.categoryMenuStyle || theme.categoryMenuStyle === 'text')) { %>
             <% categories.forEach(function(cat) { %>
               <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
                 <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
@@ -156,27 +217,40 @@
               </li>
             <% }); %>
           <% } %>
-          <% if (!user) { %>
+          <% if (!isEukolakisClassic && !user) { %>
             <li><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
             <li><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
-          <% } else { %>
+          <% } else if (!isEukolakisClassic) { %>
             <li><a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a></li>
             <li><a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>">My Orders</a></li>
             <li><a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a></li>
           <% } %>
         </ul>
       </nav>
+      </div>
+      <% } %>
       <% if (tenant.id === 'eukolakis') { %>
-      <div class="pill-nav">
-        <% const defaultLabelMap = { 'diy-rolla': 'DIY Kits', 'spare-parts': 'Ανταλλακτικά', 'diy-sliding': 'Εργαλεία' }; %>
-        <% const navCategories = categories.filter(c => c.showInMainNav !== false).sort((a,b)=> (Number(a.navOrder)||999) - (Number(b.navOrder)||999)); %>
-        <% navCategories.forEach(function(cat){ %>
-          <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-            <span>Eukolaki <%= defaultLabelMap[cat.slug] || cat.name %></span>
-          </a>
-        <% }) %>
-        <a href="#" onclick="return false;"><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></a>
+      <div class="pill-nav <%= isEukolakisClassic && activeCategory ? 'compact' : '' %>">
+        <% if (isEukolakisClassic) { %>
+          <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
+          <% if (topPrimaryKit2) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit2.id %>"><span>Slide Door Kit</span></a><% } %>
+          <a class="pill-item <%= activeCategory === 'spare-parts' ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
+          <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+        <% } else { %>
+          <% const navHomepage = config.homepage || {}; %>
+          <% navCategories.forEach(function(cat){ %>
+            <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+              <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+              <span><%= cat.name %></span>
+            </a>
+          <% }) %>
+          <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
+          <% if (subscriptionCategory) { %>
+            <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
+          <% } else if (navHomepage.showSubscriptionsCard) { %>
+            <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+          <% } %>
+        <% } %>
       </div>
       <% } %>
     </header>
@@ -198,28 +272,34 @@
     </div>
 
     <main>
-      <% const homepage = config.homepage || {}; %>
       <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
-      <% const featuredHomeProducts = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }).slice(0, 2); %>
+      <% const primaryFeaturedId = hpFeaturedPrimary[0]; %>
+      <% const primaryFeaturedProduct = (allProducts || products).find(function(p){ return p.id === primaryFeaturedId; }); %>
+      <% const featuredFromIds = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }); %>
+      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT'; }).slice(0, 2); %>
+      <% const featuredHomeProducts = (featuredFromIds.length >= 2 ? featuredFromIds : fallbackKitProducts).slice(0, 2); %>
+      <% const heroPrimaryProduct = primaryFeaturedProduct || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
-      <% if (tenant.id === 'eukolakis' && !activeCategory) { %>
+      <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
+      <% const activeCategoryObj = categories.find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+      <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
-        <% const topMenuCats = categories.filter(function(c){ return ['diy-rolla','spare-parts','diy-sliding','subscriptions'].includes(c.slug); }); %>
-        <% topMenuCats.forEach(function(cat) { %>
+        <% navCategories.forEach(function(cat) { %>
           <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
           </a>
         <% }) %>
-        <% if ((homepage.showSubscriptionsCard || false) && !topMenuCats.some(function(c){ return c.slug === 'subscriptions'; })) { %>
-          <a class="category-card" href="#" onclick="return false;">
+        <% const hasSubscriptionsCategory = navCategories.some(function(c){ return c.slug === 'subscriptions'; }); %>
+        <% if ((homepage.showSubscriptionsCard || false) && !hasSubscriptionsCategory) { %>
+          <a class="category-card" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>">
             <div style="height:60px;display:flex;align-items:center;justify-content:center;background:#111827;color:#fff;border-radius:8px;">▶</div>
             <div><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></div>
           </a>
         <% } %>
       </section>
-      <% } else { %>
+      <% } else if (!isEukolakisClassic) { %>
       <section class="category-cards">
         <% categories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
@@ -230,28 +310,47 @@
         <% }) %>
       </section>
       <% } %>
-      <% if (!config.theme || config.theme.bannerVisible !== false) { %>
+      <% if (((!config.theme || config.theme.bannerVisible !== false) || (isEukolakisClassic && !activeCategory)) && !(isEukolakisClassic && activeCategory)) { %>
       <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
         <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
           <div style="margin-bottom:14px;"><img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" /></div>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
-          <h2 class="hero-title"><%= config.heroTitle || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
-          <p style="margin:0;color:inherit;opacity:.92;"><%= config.heroSubtitle || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
-        <% } %>
+          <h2 class="hero-title"><%= resolveField(homepage.heroTitle, lang) || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
+          <p style="margin:0;color:inherit;opacity:.92;"><%= resolveField(homepage.heroSubtitle, lang) || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
+        <% } else { %>
         <p><%= config.heroText %></p>
+        <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
+            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
+            <a
+              class="button"
+              href="#"
+              data-kit-launch="<%= heroPrimaryProduct.id %>"
+            ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
+            <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
+            <% } %>
             <a class="button" style="background:#111827;" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools' %></a>
           </div>
         <% } %>
       </section>
       <% } %>
 
-      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length) { %>
+      <% if (activeCategory && activeCategoryObj) { %>
+      <section class="home-secondary" style="margin-top:10px;display:flex;align-items:center;gap:12px;">
+        <% if (activeCategoryObj.image) { %><img src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" style="width:58px;height:58px;object-fit:cover;border-radius:10px;" /><% } %>
+        <div>
+          <h2 style="margin:0 0 4px;"><%= activeCategoryObj.name %></h2>
+        </div>
+      </section>
+      <% } %>
+
+      <% if (isEukolakisLanding) { %>
       <section class="featured-section">
         <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
+        <% if (featuredHomeProducts.length >= 2) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
             <article class="featured-kit-card">
@@ -260,17 +359,34 @@
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <h3 style="margin:0 0 8px;"><%= product.name %></h3>
                 <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
-                <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
+                <a
+                  class="button"
+                  href="<%= tenant.id === 'eukolakis' && product.type === 'KIT' ? '#' : withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"
+                  <%= tenant.id === 'eukolakis' && product.type === 'KIT' ? ('data-kit-launch="' + product.id + '"') : '' %>
+                ><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
               </div>
             </article>
           <% }) %>
         </div>
+        <% } else { %>
+        <div class="home-secondary" style="background:#fff7ed;border-color:#fed7aa;">
+          <h3 style="margin-top:0;"><%= lang === 'el' ? 'Δεν υπάρχουν ακόμη 2 KIT για τη landing σελίδα' : 'No 2 KIT products configured yet for the landing page' %></h3>
+          <p style="margin-bottom:0;"><%= lang === 'el' ? 'Πήγαινε Admin → Products → Make this a KIT / Edit KIT wizard.' : 'Go to Admin → Products → Make this a KIT / Edit KIT wizard.' %></p>
+        </div>
+        <% } %>
       </section>
-      <% if (secondaryCard.title || secondaryCard.text) { %>
+      <% if (secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
-        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title %></h3>
-        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text %></p>
-        <% if (secondaryCard.link) { %><a class="button" href="<%= secondaryCard.link %>"><%= lang === 'el' ? 'Δείτε περισσότερα' : 'Learn more' %></a><% } %>
+        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools') %></h3>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες ανταλλακτικά και εργαλεία ανά κατηγορία.' : 'Browse spare parts and tools by category.')) %></p>
+        <a class="button" href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></a>
+      </section>
+      <% } %>
+      <% if ((homepage.showSubscriptionsCard || false)) { %>
+      <section class="home-secondary" style="margin-top:10px;">
+        <h3 style="margin-top:0;"><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></h3>
+        <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
+        <a class="button" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες συνδρομές' : 'View subscriptions' %></a>
       </section>
       <% } %>
       <% } %>
@@ -283,7 +399,7 @@
         <h2>⭐ <%= t('storefront.featuredTitle') %></h2>
         <div class="product-list">
           <% featuredProducts.forEach(function (product) { %>
-            <%- include('_product-card', { product, lang, t, config }) %>
+            <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
           <% }); %>
         </div>
       </section>
@@ -295,12 +411,12 @@
         <% } %>
 
         <% products.forEach(function (product) { %>
-          <%- include('_product-card', { product, lang, t, config }) %>
+          <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
         <% }); %>
       </section>
       <% } %>
 
-      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary) { %>
+      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
       <section class="home-secondary">
         <h3 style="margin-top:0;"><%= featuredSecondary.name %></h3>
         <p><%= featuredSecondary.description || '' %></p>
@@ -308,8 +424,61 @@
       </section>
       <% } %>
     </main>
+    <% if (tenant.id === 'eukolakis') { %>
+    <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" aria-hidden="true">
+      <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Οδηγός kit' : 'Kit wizard' %>">
+        <div class="kit-wizard-head">
+          <div>
+            <strong id="kit-wizard-title"></strong>
+            <div id="kit-wizard-progress" class="kit-progress"></div>
+          </div>
+          <button type="button" id="kit-wizard-close" class="btn-cart" style="background:#1f2937;">✕</button>
+        </div>
+        <div class="kit-wizard-body">
+          <div>
+            <h3 id="kit-group-title" style="margin:0 0 8px;"></h3>
+            <p id="kit-group-required" class="helper" style="margin:0 0 8px;"></p>
+            <div id="kit-choice-grid" class="kit-choice-grid"></div>
+            <div id="kit-summary" style="display:none;"></div>
+            <label id="kit-add-linked-wrap" class="checkbox-label" style="display:none;margin-top:8px;">
+              <input type="checkbox" id="kit-add-linked-parts" />
+              <span><%= lang === 'el' ? 'Προσθήκη επιλεγμένων parts και ως ξεχωριστά είδη' : 'Add selected parts as separate items too' %></span>
+            </label>
+          </div>
+          <div>
+            <div class="kit-preview" id="kit-preview"></div>
+            <p style="margin:10px 0 0;font-size:.84rem;"><a id="kit-full-link" href="#"><%= lang === 'el' ? 'View full page' : 'View full page' %></a></p>
+          </div>
+        </div>
+        <div class="kit-wizard-foot">
+          <div class="kit-total" id="kit-total"></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" id="kit-back" class="btn-cart" style="background:#334155;"><%= lang === 'el' ? 'Πίσω' : 'Back' %></button>
+            <button type="button" id="kit-next" class="btn-cart"><%= lang === 'el' ? 'Επόμενο' : 'Next' %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script id="kit-products-json" type="application/json"><%- JSON.stringify((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })).replace(/</g, '\\u003c') %></script>
+    <script id="catalog-products-json" type="application/json"><%- JSON.stringify((allProducts || products).map(function(p){
+      return {
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        variants: Array.isArray(p.variants) ? p.variants.map(function(v){
+          const variantLabel = (v.label && typeof v.label === 'object') ? (v.label[lang] || v.label.el || v.label.en || v.id) : (v.label || v.id);
+          return { id: v.id, label: variantLabel, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock };
+        }) : []
+      };
+    })).replace(/</g, '\\u003c') %></script>
+    <% } %>
     <footer class="store-footer">
+      <% if (isEukolakisClassic) { %>
+      <strong><%= config.storeName %></strong>
+      <% } else { %>
       <strong><%= config.storeName %></strong> · DIY Kits · Spare Parts · Tools
+      <% } %>
     </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
@@ -324,8 +493,307 @@
           mainNav.classList.toggle("open");
         });
       }
-      if (<%= tenant.id === 'eukolakis' && config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
-        document.body.classList.add('cursor-tool');
+      const isEukolakis = <%= tenant.id === 'eukolakis' ? 'true' : 'false' %>;
+      if (isEukolakis && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
+        const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
+        if (cursorImage && (/^(\/|https?:\/\/)/i).test(cursorImage)) {
+          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 16 16, auto';
+        } else {
+          document.body.classList.add('cursor-tool');
+        }
+      }
+
+      if (isEukolakis) {
+        const kitDataEl = document.getElementById('kit-products-json');
+        const catalogDataEl = document.getElementById('catalog-products-json');
+        const wizard = document.getElementById('kit-wizard-backdrop');
+        if (!kitDataEl || !catalogDataEl || !wizard) {
+          // no-op
+        } else {
+        const kitProducts = JSON.parse(kitDataEl.textContent || '[]');
+        const catalogProducts = JSON.parse(catalogDataEl.textContent || '[]');
+        const catalogById = Object.fromEntries(catalogProducts.map(function(p){ return [p.id, p]; }));
+        const kitById = Object.fromEntries(kitProducts.map(function(p){ return [p.id, p]; }));
+        const state = { product: null, step: 0, selections: {}, selectedVariants: {} };
+        const titleEl = document.getElementById('kit-wizard-title');
+        const progressEl = document.getElementById('kit-wizard-progress');
+        const groupTitleEl = document.getElementById('kit-group-title');
+        const groupReqEl = document.getElementById('kit-group-required');
+        const choiceGrid = document.getElementById('kit-choice-grid');
+        const previewEl = document.getElementById('kit-preview');
+        const totalEl = document.getElementById('kit-total');
+        const summaryEl = document.getElementById('kit-summary');
+        const addLinkedWrapEl = document.getElementById('kit-add-linked-wrap');
+        const addLinkedEl = document.getElementById('kit-add-linked-parts');
+        const fullLinkEl = document.getElementById('kit-full-link');
+        const btnBack = document.getElementById('kit-back');
+        const btnNext = document.getElementById('kit-next');
+        function esc(v) {
+          return String(v || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        function selectedEntries() {
+          const out = [];
+          (state.product.kitOptions || []).forEach(function(g){
+            const sel = state.selections[g.id] || [];
+            sel.forEach(function(cid){
+              const c = (g.choices || []).find(function(ch){ return ch.id === cid; });
+              if (!c) return;
+              const variantKey = g.id + '::' + c.id;
+              const variantId = (c.linkedVariantId || state.selectedVariants[variantKey] || '');
+              const variants = Array.isArray(c.linkedVariants) ? c.linkedVariants : [];
+              const variant = variants.find(function(v){ return v.id === variantId; });
+              const priceDelta = variant && variant.price !== undefined && !Number.isNaN(Number(variant.price))
+                ? Number(variant.price)
+                : (Number(c.priceDelta) || 0);
+              out.push({
+                groupId: g.id,
+                groupLabel: g.label,
+                choiceId: c.id,
+                choiceLabel: c.label,
+                priceDelta: priceDelta,
+                linkedProductId: c.linkedProductId || '',
+                selectedVariantId: variant ? variant.id : '',
+                selectedVariantLabel: variant ? variant.label : ''
+              });
+            });
+          });
+          return out;
+        }
+        function totalPrice() {
+          const delta = selectedEntries().reduce(function(s,o){ return s + (Number(o.priceDelta)||0); }, 0);
+          if (state.product.kitPayMode === 'parts_only') return delta;
+          return (Number(state.product.price)||0) + delta;
+        }
+        function renderPreview(group) {
+          const sel = state.selections[group.id] || [];
+          const imgs = sel.map(function(cid){
+            const c = (group.choices||[]).find(function(choice){ return choice.id === cid; });
+            if (!c) return null;
+            const variantKey = group.id + '::' + c.id;
+            const variantId = (c.linkedVariantId || state.selectedVariants[variantKey] || '');
+            const variant = (Array.isArray(c.linkedVariants) ? c.linkedVariants : []).find(function(v){ return v.id === variantId; });
+            return {
+              label: c.label,
+              image: (variant && variant.imageUrl) || c.image || c.linkedImageUrl || '',
+              price: variant && variant.price !== undefined && !Number.isNaN(Number(variant.price)) ? Number(variant.price) : (Number(c.priceDelta) || 0),
+              variantLabel: variant ? variant.label : ''
+            };
+          }).filter(Boolean).filter(function(c){ return c.image; });
+          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;"><%= lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.' %></p>'; return; }
+          previewEl.innerHTML = imgs.map(function(c){
+            return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\"><strong>' + esc(c.label) + '</strong>' +
+              (c.variantLabel ? (' · ' + esc(c.variantLabel)) : '') + ' — ' + c.price.toFixed(2) + '€</p></div>';
+          }).join('');
+        }
+        function renderSummary() {
+          const entries = selectedEntries();
+          summaryEl.innerHTML = entries.length ? entries.map(function(e){
+            return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong>' +
+              (e.selectedVariantLabel ? (' · ' + esc(e.selectedVariantLabel)) : '') +
+              ' (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>';
+          }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
+        }
+        function groupDone(group) {
+          const sel = state.selections[group.id] || [];
+          return !group.required || sel.length > 0;
+        }
+        function renderStep() {
+          const groups = state.product.kitOptions || [];
+          const summaryStep = state.step >= groups.length;
+          titleEl.textContent = state.product.name || 'KIT';
+          progressEl.textContent = summaryStep ? ('<%= lang === 'el' ? 'Σύνοψη' : 'Summary' %>') : ((state.step + 1) + '/' + groups.length);
+          totalEl.textContent = '<%= lang === 'el' ? 'Σύνολο' : 'Total' %>: ' + totalPrice().toFixed(2) + '€';
+          fullLinkEl.href = '<%= withTenantLink('/product/', lang !== 'el' ? { lang } : {}) %>' + state.product.id;
+          btnBack.disabled = state.step === 0;
+          btnNext.textContent = summaryStep ? '<%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart' %>' : '<%= lang === 'el' ? 'Επόμενο' : 'Next' %>';
+          choiceGrid.innerHTML = '';
+          summaryEl.style.display = summaryStep ? 'block' : 'none';
+          addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
+          if (summaryStep) {
+            groupTitleEl.textContent = '<%= lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary' %>';
+            groupReqEl.textContent = '';
+            previewEl.innerHTML = '';
+            renderSummary();
+            return;
+          }
+          const group = groups[state.step];
+          groupTitleEl.textContent = group.label || group.id;
+          groupReqEl.textContent = group.required ? '<%= lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection' %>' : '<%= lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection' %>';
+          (group.choices || []).forEach(function(choice){
+            const sel = state.selections[group.id] || [];
+            const checked = sel.includes(choice.id);
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'kit-choice' + (checked ? ' selected' : '');
+            const variantKey = group.id + '::' + choice.id;
+            const fixedVariantId = choice.linkedVariantId || '';
+            const variantId = fixedVariantId || state.selectedVariants[variantKey] || '';
+            const choiceVariants = Array.isArray(choice.linkedVariants) ? choice.linkedVariants : [];
+            const selectedVariant = choiceVariants.find(function(v){ return v.id === variantId; });
+            const choiceImage = (selectedVariant && selectedVariant.imageUrl) || choice.image || choice.linkedImageUrl || '';
+            const choicePrice = selectedVariant && selectedVariant.price !== undefined && !Number.isNaN(Number(selectedVariant.price))
+              ? Number(selectedVariant.price)
+              : (Number(choice.priceDelta)||0);
+            const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
+              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;"><%= lang === 'el' ? 'Παραλλαγή' : 'Variant' %></label>' +
+                  '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
+                  choiceVariants.map(function(v){
+                    const vPrice = !Number.isNaN(Number(v.price)) ? Number(v.price).toFixed(2) : (Number(choice.priceDelta)||0).toFixed(2);
+                    return '<option value="' + esc(v.id) + '"' + (v.id === variantId ? ' selected' : '') + '>' + esc(v.label || v.id) + ' (' + vPrice + '€)</option>';
+                  }).join('') +
+                  '</select></div>')
+              : '';
+            card.innerHTML = (choiceImage ? ('<img src="' + esc(choiceImage) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
+              '<div style="text-align:left;"><strong>' + esc(choice.label || choice.id) + '</strong>' +
+              '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
+              (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
+              variantSelectHtml + '</div>';
+            card.addEventListener('click', function(){
+              state.selections[group.id] = state.selections[group.id] || [];
+              if (group.inputType === 'checkbox') {
+                if (state.selections[group.id].includes(choice.id)) state.selections[group.id] = state.selections[group.id].filter(function(v){ return v !== choice.id; });
+                else state.selections[group.id].push(choice.id);
+              } else {
+                state.selections[group.id] = [choice.id];
+              }
+              if (!state.selections[group.id].includes(choice.id)) {
+                delete state.selectedVariants[variantKey];
+              } else if (fixedVariantId) {
+                state.selectedVariants[variantKey] = fixedVariantId;
+              } else if (choiceVariants.length && !state.selectedVariants[variantKey]) {
+                state.selectedVariants[variantKey] = choiceVariants[0].id;
+              }
+              renderStep();
+            });
+            choiceGrid.appendChild(card);
+          });
+          choiceGrid.querySelectorAll('.kit-variant-select').forEach(function(selectEl){
+            selectEl.addEventListener('change', function(e){
+              const key = (e.target.getAttribute('data-group-id') || '') + '::' + (e.target.getAttribute('data-choice-id') || '');
+              state.selectedVariants[key] = e.target.value || '';
+              renderStep();
+            });
+          });
+          renderPreview(group);
+        }
+        function openWizard(productId) {
+          const p = kitById[productId];
+          if (!p || p.type !== 'KIT') return;
+          state.product = p;
+          state.step = 0;
+          state.selections = {};
+          state.selectedVariants = {};
+          wizard.classList.add('open');
+          wizard.setAttribute('aria-hidden', 'false');
+          renderStep();
+        }
+        function closeWizard() {
+          wizard.classList.remove('open');
+          wizard.setAttribute('aria-hidden', 'true');
+        }
+        document.querySelectorAll('[data-kit-launch]').forEach(function(el){
+          el.addEventListener('click', function(e){
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWizard(el.getAttribute('data-kit-launch'));
+          });
+        });
+        document.querySelectorAll('.kit-clickable').forEach(function(card){
+          card.addEventListener('click', function(e){
+            if (e.target.closest('a,button,input,textarea,select,label')) return;
+            openWizard(card.getAttribute('data-kit-product-id'));
+          });
+        });
+        document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
+        wizard.addEventListener('click', function(e){ if (e.target === wizard) closeWizard(); });
+        document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wizard.classList.contains('open')) closeWizard(); });
+        window.openKitWizard = openWizard;
+        btnBack.addEventListener('click', function(){ if (state.step > 0) { state.step -= 1; renderStep(); } });
+        btnNext.addEventListener('click', function(){
+          const groups = state.product.kitOptions || [];
+          if (state.step < groups.length) {
+            const g = groups[state.step];
+            if (!groupDone(g)) { alert('<%= lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.' %>'); return; }
+            state.step += 1;
+            renderStep();
+            return;
+          }
+          const selected = selectedEntries();
+          const finalPrice = totalPrice();
+          const optionSummary = selected.map(function(o){
+            return o.groupLabel + ': ' + o.choiceLabel + (o.selectedVariantLabel ? (' [' + o.selectedVariantLabel + ']') : '');
+          }).join(' | ');
+          const cartKey = state.product.id + '::' + selected.map(function(o){
+            return o.groupId + '=' + o.choiceId + (o.selectedVariantId ? (':' + o.selectedVariantId) : '');
+          }).sort().join('&');
+          if (window.thrcAddToCart) {
+            if (state.product.kitPayMode === 'parts_only') {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                const linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  const variant = opt.selectedVariantId && Array.isArray(linked.variants)
+                    ? linked.variants.find(function(v){ return v.id === opt.selectedVariantId; })
+                    : null;
+                  window.thrcAddToCart({
+                    id: linked.id,
+                    name: variant ? (linked.name + ' - ' + (variant.label || variant.id)) : linked.name,
+                    price: variant && variant.price !== undefined && !Number.isNaN(Number(variant.price)) ? Number(variant.price) : (Number(linked.price) || 0),
+                    imageUrl: (variant && variant.imageUrl) || linked.imageUrl || '',
+                    variantId: variant ? variant.id : undefined,
+                    variantLabel: variant ? (variant.label || variant.id) : undefined,
+                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId + (opt.selectedVariantId ? (':' + opt.selectedVariantId) : '')
+                  });
+                }
+              });
+              window.thrcAddToCart({
+                id: state.product.id,
+                name: (state.product.name || 'KIT') + ' (summary)',
+                price: 0,
+                imageUrl: state.product.imageUrl || '',
+                selectedOptions: selected,
+                optionSummary: optionSummary || undefined,
+                finalUnitPrice: 0,
+                cartKey: cartKey + '::summary',
+                isKitSummary: true
+              });
+            } else {
+              window.thrcAddToCart({
+                id: state.product.id,
+                name: state.product.name,
+                price: finalPrice,
+                imageUrl: state.product.imageUrl || '',
+                selectedOptions: selected,
+                optionSummary: optionSummary || undefined,
+                finalUnitPrice: finalPrice,
+                cartKey: cartKey
+              });
+            }
+            if (state.product.kitPayMode !== 'parts_only' && addLinkedEl && addLinkedEl.checked) {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                const linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  window.thrcAddToCart({
+                    id: linked.id,
+                    name: linked.name,
+                    price: Number(linked.price) || 0,
+                    imageUrl: linked.imageUrl || ''
+                  });
+                }
+              });
+            }
+          }
+          closeWizard();
+        });
+        const wizardParam = new URLSearchParams(window.location.search).get('wizard');
+        if (wizardParam && kitById[wizardParam]) {
+          openWizard(wizardParam);
+        }
+        }
       }
     </script>
   </body>
