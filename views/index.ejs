@@ -477,7 +477,7 @@
       if (isEukolakis && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
         if (cursorImage) {
-          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 8 8, crosshair';
+          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 16 16, auto';
         } else {
           document.body.classList.add('cursor-tool');
         }

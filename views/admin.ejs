@@ -466,7 +466,15 @@
         </label>
         <% if (tenant.id === 'eukolakis') { %>
         <label><span>Cursor image URL (desktop only)</span>
-          <input type="text" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="text" id="themeCursorImage-input" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+            <input type="file" id="cursor-file" accept="image/png,image/webp,image/jpeg" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+            <button type="button" class="btn-xs" id="cursor-upload-btn" <%= permissions.canEditSettings ? '' : 'disabled' %>>Upload cursor</button>
+          </div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+            <img id="cursor-preview" src="<%= (config.theme && config.theme.cursorImage) || '' %>" alt="" style="width:34px;height:34px;object-fit:contain;border:1px solid #d1d5db;border-radius:6px;<%= (config.theme && config.theme.cursorImage) ? '' : 'display:none;' %>" />
+            <span id="cursor-upload-status" style="font-size:.78rem;color:#475569;"></span>
+          </div>
           <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
         </label>
         <% } %>
@@ -2018,6 +2026,32 @@
           } else {
             logoUploadStatus.textContent = j.error || i18nJs.uploadErr;
           }
+        });
+      }
+
+      const cursorUploadBtn = document.getElementById('cursor-upload-btn');
+      if (cursorUploadBtn) {
+        cursorUploadBtn.addEventListener('click', async () => {
+          const fileEl = document.getElementById('cursor-file');
+          const file = fileEl && fileEl.files && fileEl.files[0];
+          const statusEl = document.getElementById('cursor-upload-status');
+          const urlInput = document.getElementById('themeCursorImage-input');
+          const previewEl = document.getElementById('cursor-preview');
+          const passEl = document.querySelector('#tab-theme input[name="password"]');
+          if (!file) { if (statusEl) statusEl.textContent = 'Επίλεξε αρχείο εικόνας.'; return; }
+          if (statusEl) statusEl.textContent = 'Ανέβασμα cursor...';
+          const fd = new FormData();
+          fd.append('cursorFile', file);
+          fd.append('password', (passEl && passEl.value) || '');
+          const r = await fetch('<%= withTenantLink("/admin/theme/cursor-upload") %>', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (!j.ok) {
+            if (statusEl) statusEl.textContent = j.error || 'Upload error';
+            return;
+          }
+          if (urlInput) urlInput.value = j.url;
+          if (previewEl) { previewEl.src = j.url; previewEl.style.display = 'inline-block'; }
+          if (statusEl) statusEl.textContent = '✓ Ανέβηκε: ' + j.url;
         });
       }
 
