@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const ejs = require('ejs');
 const crypto = require('crypto');
 const axios = require('axios');
 const multer = require('multer');
@@ -1218,6 +1219,42 @@ const importUpload = multer({
 // View engine & middleware
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+function collectEjsTemplates(dir) {
+  const templates = [];
+  if (!fs.existsSync(dir)) return templates;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      templates.push(...collectEjsTemplates(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.ejs')) {
+      templates.push(fullPath);
+    }
+  }
+  return templates;
+}
+
+function preflightCompileTemplates() {
+  const viewsDir = app.get('views');
+  const templates = collectEjsTemplates(viewsDir);
+  const failures = [];
+  for (const templatePath of templates) {
+    try {
+      const source = fs.readFileSync(templatePath, 'utf8');
+      ejs.compile(source, { filename: templatePath });
+    } catch (e) {
+      failures.push({ templatePath, message: e.message });
+    }
+  }
+  if (failures.length) {
+    console.error('[boot] EJS preflight failed:');
+    failures.forEach((failure) => {
+      console.error(`- ${path.relative(__dirname, failure.templatePath)}: ${failure.message}`);
+    });
+    throw new Error(`EJS preflight failed for ${failures.length} template(s).`);
+  }
+}
 
 // Security headers
 app.use((req, res, next) => {
@@ -3791,6 +3828,7 @@ app.post('/root/referral/mark-paid', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
+preflightCompileTemplates();
 app.listen(PORT, () => {
   console.log(`Thronos Commerce running on port ${PORT}`);
 });

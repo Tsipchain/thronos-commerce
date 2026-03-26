@@ -1258,6 +1258,13 @@
           </label>
           <label class="full"><span><%= t('admin.modalImageUrl') %></span>
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+              <label class="cat-upload-btn" style="cursor:pointer;">
+                <input type="file" id="f-image-file" accept="image/*" style="display:none;" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
+                Upload image
+              </label>
+              <small id="f-image-upload-status" style="font-size:.78rem;color:#64748b;"></small>
+            </div>
           </label>
           <label class="full"><span><%= t('admin.modalDescription') %></span>
             <textarea id="f-description-el" rows="2" placeholder="Περιγραφή (Ελληνικά)"></textarea>
@@ -1463,6 +1470,8 @@
       const fFeatured   = document.getElementById('f-featured');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
+      const fImgFile    = document.getElementById('f-image-file');
+      const fImgStatus  = document.getElementById('f-image-upload-status');
       const fDescEl     = document.getElementById('f-description-el');
       const fDescEn     = document.getElementById('f-description-en');
       const fSeoTitle   = document.getElementById('f-seoTitle');
@@ -1616,6 +1625,51 @@
         };
       }
 
+      async function uploadProductImage(file, password) {
+        const fd = new FormData();
+        fd.append('image', file);
+        fd.append('password', password || '');
+        const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
+        const json = await response.json();
+        return { status: response.status, body: json };
+      }
+
+      async function handleModalImageUpload() {
+        const file = fImgFile && fImgFile.files && fImgFile.files[0];
+        if (!file) return;
+        if (fImgStatus) {
+          fImgStatus.style.color = '#475569';
+          fImgStatus.textContent = 'Uploading...';
+        }
+        let result = await uploadProductImage(file, '');
+        if (result.status === 401) {
+          const password = prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!password) {
+            if (fImgStatus) {
+              fImgStatus.style.color = '#dc2626';
+              fImgStatus.textContent = 'Απαιτείται κωδικός.';
+            }
+            fImgFile.value = '';
+            return;
+          }
+          result = await uploadProductImage(file, password);
+        }
+        if (!result.body || !result.body.ok) {
+          if (fImgStatus) {
+            fImgStatus.style.color = '#dc2626';
+            fImgStatus.textContent = (result.body && result.body.error) || 'Upload failed.';
+          }
+          fImgFile.value = '';
+          return;
+        }
+        fImg.value = result.body.url || '';
+        if (fImgStatus) {
+          fImgStatus.style.color = '#059669';
+          fImgStatus.textContent = '✓ Uploaded';
+        }
+        fImgFile.value = '';
+      }
+
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
@@ -1623,6 +1677,7 @@
         if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
+        if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         renderSpecRows([]);
         renderVariantRows([]);
@@ -1645,6 +1700,7 @@
         fFeatured.checked = !!p.featured;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
+        if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fDescEl.value     = getLocalizedForEdit(p.description, 'el');
         fDescEn.value     = getLocalizedForEdit(p.description, 'en');
         fSeoTitle.value   = p.seoTitle || '';
@@ -1722,6 +1778,7 @@
       const btnViewParts = document.getElementById('btn-view-parts-products');
       if (btnViewAll) btnViewAll.addEventListener('click', function() { productFilter = 'all'; renderTable(); });
       if (btnViewParts) btnViewParts.addEventListener('click', function() { productFilter = 'parts'; renderTable(); });
+      if (fImgFile) fImgFile.addEventListener('change', handleModalImageUpload);
 
       async function uploadQuickPartImage(file, password) {
         const fd = new FormData();
