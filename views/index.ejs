@@ -505,6 +505,20 @@
       }
 
       if (isEukolakis) {
+        const KIT_T = <%- JSON.stringify({
+          previewPrompt: (lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.'),
+          noSelections: (lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.'),
+          summary: (lang === 'el' ? 'Σύνοψη' : 'Summary'),
+          total: (lang === 'el' ? 'Σύνολο' : 'Total'),
+          addToCart: (lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart'),
+          next: (lang === 'el' ? 'Επόμενο' : 'Next'),
+          optionSummary: (lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary'),
+          required: (lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection'),
+          optional: (lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection'),
+          variant: (lang === 'el' ? 'Παραλλαγή' : 'Variant'),
+          requiredAlert: (lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.')
+        }).replace(/</g, '\u003c') %>;
+        const KIT_PRODUCT_BASE_URL = <%- JSON.stringify(withTenantLink('/product/', lang !== 'el' ? { lang } : {})).replace(/</g, '\u003c') %>;
         const kitDataEl = document.getElementById('kit-products-json');
         const catalogDataEl = document.getElementById('catalog-products-json');
         const wizard = document.getElementById('kit-wizard-backdrop');
@@ -585,7 +599,7 @@
               variantLabel: variant ? variant.label : ''
             };
           }).filter(Boolean).filter(function(c){ return c.image; });
-          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;"><%= lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.' %></p>'; return; }
+          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;">' + esc(KIT_T.previewPrompt) + '</p>'; return; }
           previewEl.innerHTML = imgs.map(function(c){
             return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\"><strong>' + esc(c.label) + '</strong>' +
               (c.variantLabel ? (' · ' + esc(c.variantLabel)) : '') + ' — ' + c.price.toFixed(2) + '€</p></div>';
@@ -597,7 +611,7 @@
             return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong>' +
               (e.selectedVariantLabel ? (' · ' + esc(e.selectedVariantLabel)) : '') +
               ' (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>';
-          }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
+          }).join('') : '<p class="kit-summary-line">' + esc(KIT_T.noSelections) + '</p>';
         }
         function groupDone(group) {
           const sel = state.selections[group.id] || [];
@@ -607,16 +621,16 @@
           const groups = state.product.kitOptions || [];
           const summaryStep = state.step >= groups.length;
           titleEl.textContent = state.product.name || 'KIT';
-          progressEl.textContent = summaryStep ? ('<%= lang === 'el' ? 'Σύνοψη' : 'Summary' %>') : ((state.step + 1) + '/' + groups.length);
-          totalEl.textContent = '<%= lang === 'el' ? 'Σύνολο' : 'Total' %>: ' + totalPrice().toFixed(2) + '€';
-          fullLinkEl.href = '<%= withTenantLink('/product/', lang !== 'el' ? { lang } : {}) %>' + state.product.id;
+          progressEl.textContent = summaryStep ? KIT_T.summary : ((state.step + 1) + '/' + groups.length);
+          totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
+          fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
           btnBack.disabled = state.step === 0;
-          btnNext.textContent = summaryStep ? '<%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart' %>' : '<%= lang === 'el' ? 'Επόμενο' : 'Next' %>';
+          btnNext.textContent = summaryStep ? KIT_T.addToCart : KIT_T.next;
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
           addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
           if (summaryStep) {
-            groupTitleEl.textContent = '<%= lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary' %>';
+            groupTitleEl.textContent = KIT_T.optionSummary;
             groupReqEl.textContent = '';
             previewEl.innerHTML = '';
             renderSummary();
@@ -624,7 +638,7 @@
           }
           const group = groups[state.step];
           groupTitleEl.textContent = group.label || group.id;
-          groupReqEl.textContent = group.required ? '<%= lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection' %>' : '<%= lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection' %>';
+          groupReqEl.textContent = group.required ? KIT_T.required : KIT_T.optional;
           (group.choices || []).forEach(function(choice){
             const sel = state.selections[group.id] || [];
             const checked = sel.includes(choice.id);
@@ -641,7 +655,7 @@
               ? Number(selectedVariant.price)
               : (Number(choice.priceDelta)||0);
             const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
-              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;"><%= lang === 'el' ? 'Παραλλαγή' : 'Variant' %></label>' +
+              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;">' + esc(KIT_T.variant) + '</label>' +
                   '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
                   choiceVariants.map(function(v){
                     const vPrice = !Number.isNaN(Number(v.price)) ? Number(v.price).toFixed(2) : (Number(choice.priceDelta)||0).toFixed(2);
@@ -719,7 +733,7 @@
           const groups = state.product.kitOptions || [];
           if (state.step < groups.length) {
             const g = groups[state.step];
-            if (!groupDone(g)) { alert('<%= lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.' %>'); return; }
+            if (!groupDone(g)) { alert(KIT_T.requiredAlert); return; }
             state.step += 1;
             renderStep();
             return;
