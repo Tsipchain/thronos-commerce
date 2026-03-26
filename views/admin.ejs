@@ -505,7 +505,14 @@
           <textarea name="heroSubtitle_en" rows="2" placeholder="English"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
         </label>
         <label><span>Hero image / banner URL</span>
-          <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <input type="text" id="homepageHeroImage" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <img id="homepage-hero-preview" src="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" alt="" style="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) ? '' : 'display:none;' %>margin-top:6px;width:180px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+            <input type="file" id="homepage-banner-file" accept="image/*" />
+            <button type="button" class="btn-xs" id="homepage-banner-upload-btn">Upload banner</button>
+            <small id="homepage-banner-status" style="font-size:.78rem;color:#64748b;"></small>
+          </div>
+          <small class="helper">Recommended: 1600x600 (desktop). Keep important content in the center (safe crop area).</small>
         </label>
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
         <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
@@ -1154,6 +1161,12 @@
             <button class="button" type="submit" style="background:#0f766e;">Import products from Excel/CSV</button>
           </form>
           <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Variant columns: variantId, variantLabel_el, variantLabel_en, variantSku, variantPrice, variantStock, variantImageUrl.</p>
+          <form method="POST" action="<%= withTenantLink('/admin/import/variants') %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv" required />
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit" style="background:#0f766e;">Import variants CSV</button>
+          </form>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Columns: productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription.</p>
         </div>
 
         <%# ── Ticket list ── %>
@@ -1269,6 +1282,7 @@
                 <input type="file" id="f-image-file" accept="image/*" style="display:none;" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
                 Upload image
               </label>
+              <button type="button" class="btn-xs" id="f-image-upload-btn">Upload</button>
               <small id="f-image-upload-status" style="font-size:.78rem;color:#64748b;"></small>
             </div>
           </label>
@@ -1478,6 +1492,7 @@
       const fImg        = document.getElementById('f-imageUrl');
       const fImgPreview = document.getElementById('f-image-preview');
       const fImgFile    = document.getElementById('f-image-file');
+      const fImgUploadBtn = document.getElementById('f-image-upload-btn');
       const fImgStatus  = document.getElementById('f-image-upload-status');
       const fDescEl     = document.getElementById('f-description-el');
       const fDescEn     = document.getElementById('f-description-en');
@@ -1801,7 +1816,7 @@
       const btnViewParts = document.getElementById('btn-view-parts-products');
       if (btnViewAll) btnViewAll.addEventListener('click', function() { productFilter = 'all'; renderTable(); });
       if (btnViewParts) btnViewParts.addEventListener('click', function() { productFilter = 'parts'; renderTable(); });
-      if (fImgFile) fImgFile.addEventListener('change', handleModalImageUpload);
+      if (fImgUploadBtn) fImgUploadBtn.addEventListener('click', handleModalImageUpload);
       if (fImg) fImg.addEventListener('input', function() {
         if (!fImgPreview) return;
         if (fImg.value.trim()) { fImgPreview.src = fImg.value.trim(); fImgPreview.style.display = 'block'; }
@@ -2074,6 +2089,37 @@
           } else {
             uploadResult.textContent = json.error || i18nJs.uploadErr;
           }
+        });
+      }
+
+      const homepageBannerFile = document.getElementById('homepage-banner-file');
+      const homepageBannerBtn = document.getElementById('homepage-banner-upload-btn');
+      const homepageBannerStatus = document.getElementById('homepage-banner-status');
+      const homepageHeroInput = document.getElementById('homepageHeroImage');
+      const homepageHeroPreview = document.getElementById('homepage-hero-preview');
+      if (homepageBannerBtn) {
+        homepageBannerBtn.addEventListener('click', async function() {
+          const file = homepageBannerFile && homepageBannerFile.files && homepageBannerFile.files[0];
+          if (!file) return alert('Select a banner image first.');
+          if (homepageBannerStatus) homepageBannerStatus.textContent = 'Uploading...';
+          const fd = new FormData();
+          fd.append('bannerFile', file);
+          const inlinePw = (document.querySelector('#tab-homepage input[name=\"password\"]') || { value: '' }).value || '';
+          const pw = inlinePw || prompt('Admin password for banner upload:') || '';
+          fd.append('password', pw);
+          const r = await fetch('<%= withTenantLink("/admin/homepage/banner-upload") %>', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (!j.ok) {
+            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || 'Upload failed.';
+            alert(j.error || 'Upload failed');
+            return;
+          }
+          if (homepageHeroInput) homepageHeroInput.value = j.url || '';
+          if (homepageHeroPreview && j.url) {
+            homepageHeroPreview.src = j.url;
+            homepageHeroPreview.style.display = 'block';
+          }
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '✓ Uploaded';
         });
       }
 
