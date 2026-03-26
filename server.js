@@ -153,6 +153,15 @@ function isEukolakisClassicPreset(req) {
   return presetId === 'eukolakis_classic_diy';
 }
 
+function detectDeviceInfo(req) {
+  const ua = String((req && req.headers && req.headers['user-agent']) || '').toLowerCase();
+  const os = /iphone|ipad|ipod/.test(ua) ? 'ios' : (/android/.test(ua) ? 'android' : 'other');
+  let device = 'desktop';
+  if (/ipad|tablet/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua))) device = 'tablet';
+  else if (/mobile|iphone|ipod/.test(ua) || (/android/.test(ua) && /mobile/.test(ua))) device = 'mobile';
+  return { device, os };
+}
+
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
   return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
@@ -1206,20 +1215,41 @@ const bannerUpload = multer({
     }
   })
 });
+function sanitizeMediaSegment(value, fallback) {
+  const clean = String(value || '')
+    .trim()
+    .replace(/[^a-z0-9_-]/gi, '-')
+    .toLowerCase()
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return clean || fallback;
+}
+
+function getVariantMediaMeta(req) {
+  const productId = sanitizeMediaSegment(
+    (req && req.query && req.query.productId) || (req && req.body && req.body.productId),
+    'unknown-product'
+  );
+  const variantSku = sanitizeMediaSegment(
+    (req && req.query && req.query.variantSku) || (req && req.body && req.body.variantSku),
+    'unknown-variant'
+  );
+  return { productId, variantSku };
+}
+
 const variantImageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
+      const { productId, variantSku } = getVariantMediaMeta(req);
+      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
+      const safeExt = '.jpg';
       const base = path.basename(file.originalname || 'variant-image', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
@@ -1230,15 +1260,14 @@ const variantVideoUpload = multer({
   fileFilter: (_req, file, cb) => cb(null, /^video\/(mp4|webm)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
+      const { productId, variantSku } = getVariantMediaMeta(req);
+      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const safeExt = ['.mp4', '.webm'].includes(ext) ? ext : '.mp4';
+      const safeExt = '.mp4';
       const base = path.basename(file.originalname || 'variant-video', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
@@ -1381,6 +1410,14 @@ app.use((req, res, next) => {
   res.locals.t = (key) => translate(req.lang, key);
   res.locals.contentLangs = CONTENT_LANGS;
   res.locals.resolveField = (value, lang = req.lang) => resolveTranslatable(value, lang);
+  next();
+});
+
+app.use((req, res, next) => {
+  const info = detectDeviceInfo(req);
+  req.deviceInfo = info;
+  res.locals.device = info.device;
+  res.locals.os = info.os;
   next();
 });
 
@@ -3152,10 +3189,9 @@ app.post(
     const auth = await verifyAdminAction(req, req.body.password);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No image uploaded.' });
-    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
+    const { productId, variantSku } = getVariantMediaMeta(req);
+    const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
+    return res.json({ ok: true, url });
   }
 );
 
@@ -3170,10 +3206,9 @@ app.post(
     const auth = await verifyAdminAction(req, req.body.password);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No video uploaded.' });
-    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
+    const { productId, variantSku } = getVariantMediaMeta(req);
+    const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
+    return res.json({ ok: true, url });
   }
 );
 
