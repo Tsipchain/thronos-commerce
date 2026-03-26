@@ -1588,7 +1588,7 @@
         const container = document.getElementById('variants-rows');
         const row = document.createElement('div');
         row.className = 'variant-row';
-        row.dataset.vid = v.id || '';
+        row.dataset.vid = v.id || ('v-' + Date.now().toString(36));
         row.style.cssText = 'background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 120px 90px 80px;gap:6px;';
         row.innerHTML =
           '<input class="v-label" type="text" placeholder="<%= t("admin.variantLabel") %>" value="' + escHtml(v.label || '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
@@ -1596,8 +1596,22 @@
           '<input class="v-price" type="number" step="0.01" min="0" placeholder="<%= t("admin.variantPrice") %>" value="' + (v.price !== undefined ? v.price : '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
           '<input class="v-stock" type="number" min="0" placeholder="<%= t("admin.variantStock") %>" value="' + (v.stock !== undefined ? v.stock : '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
           '<button type="button" onclick="this.closest(\'.variant-row\').remove()" style="grid-column:4;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:4px 6px;cursor:pointer;font-size:.9rem;">×</button>' +
-          '<input class="v-image" type="text" placeholder="Variant image URL" value="' + escHtml(v.imageUrl || '') + '" style="grid-column:1/3;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
-          '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="grid-column:3/5;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
+          '<div style="grid-column:1/5;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;">' +
+            '<img class="v-image-preview" src="' + escHtml(v.imageUrl || '') + '" alt="" style="' + (v.imageUrl ? '' : 'display:none;') + 'width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid #d1d5db;" />' +
+            '<div style="flex:1;min-width:240px;">' +
+              '<input class="v-image" type="text" placeholder="Variant image URL" value="' + escHtml(v.imageUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-bottom:6px;" />' +
+              '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
+                '<input class="v-image-file" type="file" accept="image/png,image/webp,image/jpeg" />' +
+                '<button type="button" class="btn-xs" onclick="uploadVariantImage(this)">Upload image</button>' +
+              '</div>' +
+              '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-top:6px;" />' +
+              '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">' +
+                '<input class="v-video-file" type="file" accept="video/mp4,video/webm" />' +
+                '<button type="button" class="btn-xs" onclick="uploadVariantVideo(this)">Upload video</button>' +
+              '</div>' +
+              '<small class="v-upload-status" style="display:block;margin-top:5px;font-size:.76rem;color:#64748b;"></small>' +
+            '</div>' +
+          '</div>' +
           '<textarea class="v-desc" rows="2" placeholder="<%= t("admin.variantDesc") %>" style="grid-column:1/5;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;resize:vertical;">' + escHtml(v.contentDescription || '') + '</textarea>';
         container.appendChild(row);
       }
@@ -1624,6 +1638,7 @@
             stock:  isNaN(stock) ? 0 : stock,
             imageUrl,
             videoUrl,
+            videoDescription: contentDescription,
             contentDescription
           });
         });
@@ -1702,6 +1717,60 @@
         }
         fImgFile.value = '';
       }
+
+      function ensureVariantRowId(row) {
+        if (!row) return '';
+        let id = (row.dataset.vid || '').trim();
+        if (!id) {
+          const label = (row.querySelector('.v-label') && row.querySelector('.v-label').value || '').trim();
+          id = (label || ('v-' + Date.now())).toLowerCase().replace(/[^a-z0-9\u0370-\u03ff_-]+/g, '-').replace(/^-+|-+$/g, '') || ('v-' + Date.now().toString(36));
+          row.dataset.vid = id;
+        }
+        return id;
+      }
+
+      async function uploadVariantAsset(buttonEl, type) {
+        const row = buttonEl && buttonEl.closest('.variant-row');
+        if (!row) return;
+        const variantId = ensureVariantRowId(row);
+        const productId = (fId && fId.value || '').trim();
+        if (!productId) return alert('Συμπλήρωσε πρώτα Product ID.');
+        const fileInput = row.querySelector(type === 'image' ? '.v-image-file' : '.v-video-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        if (!file) return alert(type === 'image' ? 'Select variant image first.' : 'Select variant video first.');
+        const status = row.querySelector('.v-upload-status');
+        if (status) status.textContent = 'Uploading...';
+        const fd = new FormData();
+        fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
+        fd.append('productId', productId);
+        fd.append('variantId', variantId);
+        fd.append('password', '');
+        let r = await fetch('<%= withTenantLink("/admin/variants") %>/' + (type === 'image' ? 'image-upload' : 'video-upload'), { method: 'POST', body: fd });
+        let j = await r.json();
+        if (r.status === 401) {
+          const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!pw) return;
+          fd.set('password', pw);
+          r = await fetch('<%= withTenantLink("/admin/variants") %>/' + (type === 'image' ? 'image-upload' : 'video-upload'), { method: 'POST', body: fd });
+          j = await r.json();
+        }
+        if (!j.ok) {
+          if (status) status.textContent = j.error || 'Upload failed.';
+          return alert(j.error || 'Upload failed.');
+        }
+        if (type === 'image') {
+          const urlEl = row.querySelector('.v-image');
+          const previewEl = row.querySelector('.v-image-preview');
+          if (urlEl) urlEl.value = j.url || '';
+          if (previewEl && j.url) { previewEl.src = j.url; previewEl.style.display = 'block'; }
+        } else {
+          const urlEl = row.querySelector('.v-video');
+          if (urlEl) urlEl.value = j.url || '';
+        }
+        if (status) status.textContent = '✓ Uploaded';
+      }
+      window.uploadVariantImage = function(buttonEl) { uploadVariantAsset(buttonEl, 'image'); };
+      window.uploadVariantVideo = function(buttonEl) { uploadVariantAsset(buttonEl, 'video'); };
 
       function openAdd() {
         editingIdx = -1;
@@ -2015,10 +2084,18 @@
         const items = await r.json();
         const box = document.getElementById('kit-choice-search-results');
         box.innerHTML = items.map(function(item, idx) {
+          const variantRows = Array.isArray(item.variants) && item.variants.length
+            ? ('<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #cbd5e1;">' + item.variants.map(function(v, vIdx){
+                return '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
+                  (v.imageUrl ? '<img src="' + escHtml(v.imageUrl) + '" style="width:28px;height:28px;object-fit:cover;border-radius:6px;" />' : '<span style="display:inline-flex;width:28px;height:28px;background:#e2e8f0;border-radius:6px;"></span>') +
+                  '<small style="flex:1;">' + escHtml(v.label || v.id) + ' · ' + (Number(v.price) || 0).toFixed(2) + '€</small>' +
+                  '<button type="button" onclick="addLinkedVariantChoice(' + idx + ',' + vIdx + ')">Use variant</button></div>';
+              }).join('') + '</div>')
+            : '';
           return '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid #e5e7eb;">' +
             (item.imageUrl ? '<img src="' + escHtml(item.imageUrl) + '" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />' : '') +
-            '<div style="flex:1;"><strong>' + escHtml(item.name) + '</strong><br><small>' + escHtml(item.id) + ' · ' + item.price.toFixed(2) + '€ · stock ' + item.stock + '</small></div>' +
-            '<button type="button" onclick="addLinkedChoice(' + idx + ')">Use</button></div>';
+            '<div style="flex:1;"><strong>' + escHtml(item.name) + '</strong><br><small>' + escHtml(item.id) + ' · ' + item.price.toFixed(2) + '€ · stock ' + item.stock + '</small>' + variantRows + '</div>' +
+            '<button type="button" onclick="addLinkedChoice(' + idx + ')">Use base</button></div>';
         }).join('');
         window.__kitSearchItems = items;
       });
@@ -2057,6 +2134,27 @@
           image: item.imageUrl || '',
           useLinkedPriceDelta,
           priceDelta: customDelta === '' ? (useLinkedPriceDelta ? item.price : 0) : (parseFloat(customDelta) || 0)
+        });
+        renderKitBuilder();
+      };
+      window.addLinkedVariantChoice = function(idx, variantIdx) {
+        const item = (window.__kitSearchItems || [])[idx];
+        const variant = item && Array.isArray(item.variants) ? item.variants[variantIdx] : null;
+        if (!item || !variant) return;
+        const product = products[kitBuilderIdx];
+        const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
+        if (!group) return;
+        group.choices = Array.isArray(group.choices) ? group.choices : [];
+        const cId = (item.id + '-' + variant.id + '-' + Date.now()).toLowerCase();
+        group.choices.push({
+          id: cId,
+          linkedProductId: item.id,
+          linkedVariantId: variant.id,
+          label: (item.name || item.id) + ' - ' + (variant.label || variant.id),
+          description: '',
+          image: variant.imageUrl || item.imageUrl || '',
+          useLinkedPriceDelta: true,
+          priceDelta: Number(variant.price) || 0
         });
         renderKitBuilder();
       };

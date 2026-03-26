@@ -1205,6 +1205,44 @@ const bannerUpload = multer({
     }
   })
 });
+const variantImageUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
+      const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantId);
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase();
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
+      const base = path.basename(file.originalname || 'variant-image', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${safeExt}`);
+    }
+  })
+});
+const variantVideoUpload = multer({
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^video\/(mp4|webm)$/.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
+      const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantId);
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase();
+      const safeExt = ['.mp4', '.webm'].includes(ext) ? ext : '.mp4';
+      const base = path.basename(file.originalname || 'variant-video', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${safeExt}`);
+    }
+  })
+});
 const cursorUpload = multer({
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -2901,7 +2939,8 @@ app.get('/admin/products/search', (req, res) => {
         label: resolveTranslatable(v.label, DEFAULT_CONTENT_LANG) || v.id,
         price: Number(v.price) || 0,
         stock: v.stock === undefined ? 0 : Number(v.stock),
-        imageUrl: v.imageUrl || ''
+        imageUrl: v.imageUrl || '',
+        videoUrl: v.videoUrl || ''
       })) : []
     }));
   res.json(out);
@@ -3054,6 +3093,42 @@ app.post(
     if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
     const url = `/tenants/${req.tenant.id}/media/products/${req.file.filename}`;
     return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/variants/image-upload',
+  variantImageUpload.single('variantImage'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No image uploaded.' });
+    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    if (!productId || !variantId) return res.status(400).json({ ok: false, error: 'productId and variantId are required.' });
+    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantId}/${req.file.filename}` });
+  }
+);
+
+app.post(
+  '/admin/variants/video-upload',
+  variantVideoUpload.single('variantVideo'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No video uploaded.' });
+    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    if (!productId || !variantId) return res.status(400).json({ ok: false, error: 'productId and variantId are required.' });
+    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantId}/${req.file.filename}` });
   }
 );
 
