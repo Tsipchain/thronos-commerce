@@ -253,6 +253,7 @@
         <% } %>
       </div>
       <% } %>
+      <% } %>
     </header>
 
     <% if (isPreviewMode) { %>
@@ -391,7 +392,7 @@
       <% } %>
       <% } %>
 
-      <% if (!(tenant.id === 'eukolakis' && !activeCategory)) { %>
+      <% if (!(tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length)) { %>
       <%# ── Featured products ── %>
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
       <% if (featuredProducts.length > 0) { %>
