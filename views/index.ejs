@@ -105,6 +105,7 @@
       .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
       .header-nav-row .main-nav { flex: 1; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+      .pill-nav.compact a { padding:4px 10px; font-size:.8rem; opacity:.95; }
       .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
       .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
       .pill-nav .pill-item { display:inline-flex; align-items:center; gap:6px; }
@@ -229,11 +230,11 @@
       </div>
       <% } %>
       <% if (tenant.id === 'eukolakis') { %>
-      <div class="pill-nav">
-        <% if (isEukolakisClassic && !activeCategory) { %>
+      <div class="pill-nav <%= isEukolakisClassic && activeCategory ? 'compact' : '' %>">
+        <% if (isEukolakisClassic) { %>
           <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
           <% if (topPrimaryKit2) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit2.id %>"><span>Slide Door Kit</span></a><% } %>
-          <a class="pill-item" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
+          <a class="pill-item <%= activeCategory === 'spare-parts' ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
           <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
         <% } else { %>
           <% const navHomepage = config.homepage || {}; %>

@@ -1147,8 +1147,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 const partsUpload = multer({
-  limits: { fileSize: 3 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, /^image\//.test(String(file.mimetype || ''))),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'parts');
@@ -2811,7 +2811,7 @@ app.post(
 
 app.post(
   '/admin/parts/image-upload',
-  partsUpload.single('image'),
+  partsUpload.single('partFile'),
   async (req, res) => {
     const permissions = getSupportPermissions(req.tenant.supportTier);
     if (!permissions.canUploadMedia || !permissions.canEditProducts) {
