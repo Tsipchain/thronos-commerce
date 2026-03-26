@@ -1146,6 +1146,42 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const partsUpload = multer({
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\//.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'parts');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'part', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
+const cursorUpload = multer({
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''));
+    cb(null, ok);
+  },
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'cursors');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
+      const base = path.basename(file.originalname || 'cursor', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${safeExt}`);
+    }
+  })
+});
 const categoryUpload = multer({
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -1173,6 +1209,10 @@ const favUpload = multer({
     const ok = /^image\/(png|jpeg|x-icon|vnd\.microsoft\.icon|svg\+xml)$/.test(file.mimetype);
     cb(null, ok);
   }
+});
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }
 });
 
 // View engine & middleware
@@ -2685,6 +2725,38 @@ app.post(
     }
 
     const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/parts/image-upload',
+  partsUpload.single('image'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/parts/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/theme/cursor-upload',
+  cursorUpload.single('cursorFile'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditSettings) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No cursor file uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/cursors/${req.file.filename}`;
     return res.json({ ok: true, url });
   }
 );

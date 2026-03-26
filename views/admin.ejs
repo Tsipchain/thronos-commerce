@@ -500,13 +500,30 @@
           <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
         </label>
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
+        <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
+        <% const hpKitIds = hpKitProducts.map(function(p){ return p.id; }); %>
+        <% const hpP1Missing = hpPrimary[0] && !hpKitIds.includes(hpPrimary[0]); %>
+        <% const hpP2Missing = hpPrimary[1] && !hpKitIds.includes(hpPrimary[1]); %>
         <label><span>Primary Product #1</span>
-          <input type="text" name="homepageFeaturedPrimary1" value="<%= hpPrimary[0] || '' %>" placeholder="eukolaki-diy-roll-kit" />
+          <select name="homepageFeaturedPrimary1" id="homepageFeaturedPrimary1">
+            <option value="">-- Select KIT --</option>
+            <% hpKitProducts.forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= hpPrimary[0] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+            <% }) %>
+          </select>
           <small class="helper">Εμφανίζεται στο πρώτο μεγάλο card της homepage.</small>
+          <% if (hpP1Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
         </label>
         <label><span>Primary Product #2</span>
-          <input type="text" name="homepageFeaturedPrimary2" value="<%= hpPrimary[1] || '' %>" placeholder="eukolaki-diy-slide-door-kit" />
+          <select name="homepageFeaturedPrimary2" id="homepageFeaturedPrimary2">
+            <option value="">-- Select KIT --</option>
+            <% hpKitProducts.forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= hpPrimary[1] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+            <% }) %>
+          </select>
           <small class="helper">Εμφανίζεται στο δεύτερο μεγάλο card της homepage.</small>
+          <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
+          <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Pick a KIT now</button><% } %>
         </label>
         <label><span>Secondary Feature Block</span>
           <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="eukolaki-spare-pack" />
@@ -1956,6 +1973,32 @@
           } else {
             logoUploadStatus.textContent = j.error || i18nJs.uploadErr;
           }
+        });
+      }
+
+      const cursorUploadBtn = document.getElementById('cursor-upload-btn');
+      if (cursorUploadBtn) {
+        cursorUploadBtn.addEventListener('click', async () => {
+          const fileEl = document.getElementById('cursor-file');
+          const file = fileEl && fileEl.files && fileEl.files[0];
+          const statusEl = document.getElementById('cursor-upload-status');
+          const urlInput = document.getElementById('themeCursorImage-input');
+          const previewEl = document.getElementById('cursor-preview');
+          const passEl = document.querySelector('#tab-theme input[name="password"]');
+          if (!file) { if (statusEl) statusEl.textContent = 'Επίλεξε αρχείο εικόνας.'; return; }
+          if (statusEl) statusEl.textContent = 'Ανέβασμα cursor...';
+          const fd = new FormData();
+          fd.append('cursorFile', file);
+          fd.append('password', (passEl && passEl.value) || '');
+          const r = await fetch('<%= withTenantLink("/admin/theme/cursor-upload") %>', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (!j.ok) {
+            if (statusEl) statusEl.textContent = j.error || 'Upload error';
+            return;
+          }
+          if (urlInput) urlInput.value = j.url;
+          if (previewEl) { previewEl.src = j.url; previewEl.style.display = 'inline-block'; }
+          if (statusEl) statusEl.textContent = '✓ Ανέβηκε: ' + j.url;
         });
       }
 
