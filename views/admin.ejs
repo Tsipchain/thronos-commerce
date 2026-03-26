@@ -686,11 +686,12 @@
               <input type="text" id="quick-part-name" placeholder="Όνομα ανταλλακτικού" />
               <input type="number" id="quick-part-price" placeholder="Τιμή" min="0" step="0.01" />
               <input type="number" id="quick-part-stock" placeholder="Stock" min="0" step="1" />
-              <input type="text" id="quick-part-image" placeholder="/tenants/.../media/part.jpg" />
+              <input type="text" id="quick-part-image" placeholder="Image URL (auto από upload)" readonly />
               <div style="display:flex;gap:8px;">
                 <label class="cat-upload-btn" style="cursor:pointer;">Upload<input type="file" id="quick-part-file" accept="image/*" style="display:none;" /></label>
                 <button class="button" type="button" id="btn-quick-part-add">Add part</button>
               </div>
+              <input type="password" id="quick-part-password" placeholder="Password (μόνο αν λήξει session)" style="display:none;" />
             </div>
           </details>
         <% } %>
@@ -1159,6 +1160,13 @@
           <label><span><%= t('admin.modalSku') %></span>
             <input type="text" id="f-sku" placeholder="π.χ. SKU-123" />
           </label>
+          <label><span>Product type</span>
+            <select id="f-type">
+              <option value="NORMAL">NORMAL</option>
+              <option value="PART">PART</option>
+              <option value="KIT">KIT</option>
+            </select>
+          </label>
           <label><span><%= t('admin.modalPrice') %></span>
             <input type="number" id="f-price" min="0" step="0.01" placeholder="0.00" />
           </label>
@@ -1307,6 +1315,7 @@
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
+      const isEukolakisClassicPreset = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
       let productFilter = 'all';
 
       // ── Render table ────────────────────────────────────────────
@@ -1329,7 +1338,9 @@
           const editBtn = canEdit
             ? '<button class="btn-sm edit" type="button" onclick="openEdit(' + i + ')">' + i18nJs.editBtn + '</button> ' +
               '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">' + i18nJs.deleteBtn + '</button>' +
-              (p.type === 'KIT' ? ' <button class="btn-sm" type="button" onclick="openKitBuilder(' + i + ')">KIT Builder</button>' : '')
+              (p.type === 'KIT'
+                ? ' <button class="btn-sm" type="button" onclick="openKitBuilder(' + i + ')">Edit KIT wizard</button>'
+                : ' <button class="btn-sm" type="button" onclick="makeProductKit(' + i + ')">Make this a KIT</button>')
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
@@ -1358,6 +1369,7 @@
       const fNameEn     = document.getElementById('f-name-en');
       const fId         = document.getElementById('f-id');
       const fSku        = document.getElementById('f-sku');
+      const fType       = document.getElementById('f-type');
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
@@ -1520,6 +1532,7 @@
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
+        if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
@@ -1538,6 +1551,7 @@
         fNameEn.value     = getLocalizedForEdit(p.name, 'en');
         fId.value         = p.id || '';
         fSku.value        = p.sku || '';
+        if (fType) fType.value = p.type || 'NORMAL';
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
@@ -1572,10 +1586,11 @@
         const specsRows     = readSpecRows();
         const variantRows   = readVariantRows();
         const digitalFields = readDigitalFields();
-        const product = {
+        const editedFields = {
           id,
           name:           nameObj,
           sku:            fSku.value.trim() || undefined,
+          type:           (fType && fType.value) ? fType.value : undefined,
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
@@ -1589,13 +1604,16 @@
           variants:       variantRows.length ? variantRows : undefined,
           ...digitalFields
         };
-        // Remove undefined fields
-        Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);
+        Object.keys(editedFields).forEach(k => editedFields[k] === undefined && delete editedFields[k]);
+        if (editedFields.type === 'KIT' && !editedFields.kitPayMode && isEukolakisClassicPreset) {
+          editedFields.kitPayMode = 'parts_only';
+        }
 
         if (editingIdx === -1) {
-          products.push(product);
+          products.push(editedFields);
         } else {
-          products[editingIdx] = product;
+          const base = products[editingIdx] || {};
+          products[editingIdx] = { ...base, ...editedFields };
         }
         closeModal();
         renderTable();
@@ -1617,27 +1635,39 @@
       if (btnViewAll) btnViewAll.addEventListener('click', function() { productFilter = 'all'; renderTable(); });
       if (btnViewParts) btnViewParts.addEventListener('click', function() { productFilter = 'parts'; renderTable(); });
 
-      async function uploadQuickPartImage() {
-        const input = document.getElementById('quick-part-file');
-        const file = input && input.files && input.files[0];
-        if (!file) return;
-        const pwEl = document.querySelector('#products-save-form input[name="password"]');
+      async function uploadQuickPartImage(file, password) {
         const fd = new FormData();
         fd.append('image', file);
-        fd.append('password', (pwEl && pwEl.value) || '');
+        fd.append('password', password || '');
         const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
         const json = await response.json();
-        if (!json.ok) return alert(json.error || 'Upload error');
-        document.getElementById('quick-part-image').value = json.url;
+        return { status: response.status, body: json };
       }
-      const quickPartFileEl = document.getElementById('quick-part-file');
-      if (quickPartFileEl) quickPartFileEl.addEventListener('change', uploadQuickPartImage);
       const quickPartAddBtn = document.getElementById('btn-quick-part-add');
-      if (quickPartAddBtn) quickPartAddBtn.addEventListener('click', function() {
+      if (quickPartAddBtn) quickPartAddBtn.addEventListener('click', async function() {
         const id = (document.getElementById('quick-part-id').value || '').trim();
         const name = (document.getElementById('quick-part-name').value || '').trim();
         if (!id || !name) return alert('id και όνομα είναι υποχρεωτικά');
         if (products.some(function(p){ return p.id === id; })) return alert('Υπάρχει ήδη προϊόν με αυτό το id');
+        const fileInput = document.getElementById('quick-part-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        let uploadedImageUrl = '';
+        if (file) {
+          const initial = await uploadQuickPartImage(file, '');
+          if (initial.status === 401) {
+            const pwField = document.getElementById('quick-part-password');
+            if (pwField) pwField.style.display = 'block';
+            const pw = (pwField && pwField.value) || prompt('Session έληξε. Δώσε admin password για upload:') || '';
+            if (!pw) return alert('Απαιτείται password για upload εικόνας.');
+            const retried = await uploadQuickPartImage(file, pw);
+            if (!retried.body || !retried.body.ok) return alert((retried.body && retried.body.error) || 'Upload error');
+            uploadedImageUrl = retried.body.url || '';
+          } else {
+            if (!initial.body || !initial.body.ok) return alert((initial.body && initial.body.error) || 'Upload error');
+            uploadedImageUrl = initial.body.url || '';
+          }
+          document.getElementById('quick-part-image').value = uploadedImageUrl;
+        }
         products.push({
           id,
           type: 'PART',
@@ -1645,8 +1675,14 @@
           categoryId: 'spare-parts',
           price: parseFloat(document.getElementById('quick-part-price').value) || 0,
           stock: parseInt(document.getElementById('quick-part-stock').value, 10) || 0,
-          imageUrl: (document.getElementById('quick-part-image').value || '').trim() || undefined
+          imageUrl: uploadedImageUrl || undefined
         });
+        document.getElementById('quick-part-id').value = '';
+        document.getElementById('quick-part-name').value = '';
+        document.getElementById('quick-part-price').value = '';
+        document.getElementById('quick-part-stock').value = '';
+        document.getElementById('quick-part-image').value = '';
+        if (fileInput) fileInput.value = '';
         renderTable();
       });
 
@@ -1900,3 +1936,12 @@
     </script>
   </body>
 </html>
+      window.makeProductKit = function(i) {
+        const existing = products[i];
+        if (!existing) return;
+        const next = { ...existing, type: 'KIT', price: 0 };
+        if (!next.kitOptions) next.kitOptions = [];
+        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
+        products[i] = next;
+        renderTable();
+      };

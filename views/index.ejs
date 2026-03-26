@@ -270,6 +270,7 @@
       <% const heroPrimaryProduct = primaryFeaturedProduct || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
+      <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
@@ -325,9 +326,10 @@
       </section>
       <% } %>
 
-      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length) { %>
+      <% if (isEukolakisLanding) { %>
       <section class="featured-section">
         <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
+        <% if (featuredHomeProducts.length >= 2) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
             <article class="featured-kit-card">
@@ -345,12 +347,18 @@
             </article>
           <% }) %>
         </div>
+        <% } else { %>
+        <div class="home-secondary" style="background:#fff7ed;border-color:#fed7aa;">
+          <h3 style="margin-top:0;"><%= lang === 'el' ? 'Δεν υπάρχουν ακόμη 2 KIT για τη landing σελίδα' : 'No 2 KIT products configured yet for the landing page' %></h3>
+          <p style="margin-bottom:0;"><%= lang === 'el' ? 'Πήγαινε Admin → Products → Make this a KIT / Edit KIT wizard.' : 'Go to Admin → Products → Make this a KIT / Edit KIT wizard.' %></p>
+        </div>
+        <% } %>
       </section>
-      <% if (secondaryCard.title || secondaryCard.text) { %>
+      <% if (secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
-        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title %></h3>
-        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text %></p>
-        <% if (secondaryCard.link) { %><a class="button" href="<%= secondaryCard.link %>"><%= lang === 'el' ? 'Δείτε περισσότερα' : 'Learn more' %></a><% } %>
+        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools') %></h3>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες ανταλλακτικά και εργαλεία ανά κατηγορία.' : 'Browse spare parts and tools by category.')) %></p>
+        <a class="button" href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></a>
       </section>
       <% } %>
       <% } %>
@@ -380,7 +388,7 @@
       </section>
       <% } %>
 
-      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary) { %>
+      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
       <section class="home-secondary">
         <h3 style="margin-top:0;"><%= featuredSecondary.name %></h3>
         <p><%= featuredSecondary.description || '' %></p>
