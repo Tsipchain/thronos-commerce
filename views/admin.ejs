@@ -214,7 +214,7 @@
         <a href="#tab-products">📦 Products</a>
         <a href="#tab-upload">🖼️ Media</a>
         <a href="<%= withTenantLink('/admin/orders') %>">🧾 Orders</a>
-        <a href="#tab-shipping">💳 Payments</a>
+        <a href="<%= withTenantLink('/admin/payments') %>">💳 Payments</a>
         <a href="#tab-notifications">🔔 Notifications</a>
         <a href="#tab-support">⚙️ Advanced</a>
         <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
@@ -223,6 +223,11 @@
       <section id="tab-dashboard" class="admin-block section-panel">
         <h2>Dashboard</h2>
         <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Payments status</strong>
+          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong></p>
+          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments</a>
+        </div>
       </section>
       <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
         <label style="font-size:.84rem;display:flex;align-items:center;gap:8px;">
@@ -459,81 +464,13 @@
           <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
+        <% if (tenant.id === 'eukolakis') { %>
+        <label><span>Cursor image URL (desktop only)</span>
+          <input type="text" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
+        </label>
+        <% } %>
         </details>
-
-        <%# ── Ειδοποιήσεις ── %>
-        <div class="notif-section">
-          <h3><%= t('admin.notifEmail') %></h3>
-          <p class="helper"><%= t('admin.notifEmailHelper') %></p>
-
-          <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
-            <textarea name="notificationEmails" rows="3"
-                      placeholder="owner@myshop.gr&#10;backup@myshop.gr"
-                      <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
-          </label>
-
-          <label class="checkbox-label">
-            <input type="checkbox" name="notificationCcCustomer"
-                   <%= (config.notificationCcCustomer) ? 'checked' : '' %>
-                   <%= permissions.canEditSettings ? '' : 'disabled' %> />
-            <span><%= t('admin.notifCcCustomer') %></span>
-          </label>
-
-          <label><span><%= t('admin.notifFromName') %></span>
-            <input type="text" name="notificationFromName"
-                   value="<%= config.notificationFromName || '' %>"
-                   placeholder="π.χ. FashionMM Store"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-
-          <h3 style="margin-top:18px;"><%= t('admin.notifWebhook') %></h3>
-          <p class="helper"><%= t('admin.notifWebhookHelper') %></p>
-
-          <label><span><%= t('admin.webhookUrl') %></span>
-            <input type="text" name="notificationWebhookUrl"
-                   value="<%= config.notificationWebhookUrl || '' %>"
-                   placeholder="https://myhook.example.com/orders"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-
-          <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
-            <input type="text" name="notificationWebhookSecret"
-                   value="<%= config.notificationWebhookSecret || '' %>"
-                   placeholder="mysecret123"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-        </div>
-
-        <%# ── Stripe Integration ── %>
-        <div style="margin-top:24px;padding:18px 20px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;">
-          <p style="margin:0 0 12px;font-weight:700;font-size:.95rem;color:#5b21b6;">💳 Stripe — Online πληρωμές με κάρτα</p>
-          <p class="helper" style="margin:0 0 14px;color:#6b7280;font-size:.82rem;">
-            Για να ενεργοποιήσετε πληρωμές με κάρτα, εισάγετε τα κλειδιά σας από το
-            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a>.
-            Μετά προσθέστε μέθοδο πληρωμής με <code>type: "stripe"</code> από τον root admin.
-          </p>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
-            <span>Publishable Key <small style="color:#888;">(pk_live_… ή pk_test_…)</small></span>
-            <input type="text" name="stripePublishableKey"
-                   value="<%= config.stripePublishableKey || '' %>"
-                   placeholder="pk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
-            <span>Secret Key <small style="color:#888;">(sk_live_… ή sk_test_…)</small></span>
-            <input type="password" name="stripeSecretKey"
-                   value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>"
-                   placeholder="sk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   autocomplete="new-password"
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-            <small style="color:#888;font-size:.76rem;">Αφήστε κενό αν δεν θέλετε να αλλάξετε το υπάρχον κλειδί.</small>
-          </label>
-          <% if (config.stripeSecretKey) { %>
-            <p style="margin:10px 0 0;font-size:.8rem;color:#059669;">✓ Stripe ενεργοποιημένο</p>
-          <% } %>
-        </div>
 
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
@@ -726,7 +663,6 @@
         <% } %>
       </section>
 
-
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
       <%# ══════════════════════════════════════════════════════════ %>
@@ -741,6 +677,23 @@
 
         <% if (permissions.canEditProducts) { %>
           <button class="button" id="btn-add-product" type="button"><%= t('admin.addProduct') %></button>
+          <button class="button" id="btn-view-all-products" type="button" style="background:#1f2937;">All</button>
+          <button class="button" id="btn-view-parts-products" type="button" style="background:#0f766e;">Spare parts</button>
+          <details style="margin-top:10px;">
+            <summary style="cursor:pointer;font-weight:700;">Quick add spare part</summary>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px;">
+              <input type="text" id="quick-part-id" placeholder="id (e.g. part-bolt-m8)" />
+              <input type="text" id="quick-part-name" placeholder="Όνομα ανταλλακτικού" />
+              <input type="number" id="quick-part-price" placeholder="Τιμή" min="0" step="0.01" />
+              <input type="number" id="quick-part-stock" placeholder="Stock" min="0" step="1" />
+              <input type="text" id="quick-part-image" placeholder="Image URL (auto από upload)" readonly />
+              <div style="display:flex;gap:8px;">
+                <label class="cat-upload-btn" style="cursor:pointer;">Upload<input type="file" id="quick-part-file" accept="image/*" style="display:none;" /></label>
+                <button class="button" type="button" id="btn-quick-part-add">Add part</button>
+              </div>
+              <input type="password" id="quick-part-password" placeholder="Password (μόνο αν λήξει session)" style="display:none;" />
+            </div>
+          </details>
         <% } %>
 
         <table class="products-table" id="products-table">
@@ -927,31 +880,46 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 7 – NOTIFICATIONS                                   %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-notifications" class="admin-block section-panel">
+      <form id="tab-notifications" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/notifications') %>">
         <h2><%= t('admin.notificationsTitle') %></h2>
-        <p class="helper"><%= t('admin.notificationsHelper') %></p>
-
-        <div class="notifications-skeleton">
-          <table class="sp-table" style="opacity:.5;">
-            <thead>
-              <tr>
-                <th><%= t('admin.notifColDate') %></th>
-                <th><%= t('admin.notifColSubject') %></th>
-                <th><%= t('admin.notifColRecipients') %></th>
-                <th><%= t('admin.notifColStatus') %></th>
-                <th><%= t('admin.notifColHash') %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="5" style="text-align:center;color:#aaa;font-style:italic;padding:24px 0;">
-                  <%= t('admin.notificationsComingSoon') %>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <p class="helper">Ρύθμιση παραληπτών email και webhook για ειδοποιήσεις παραγγελιών.</p>
+        <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
+          <textarea name="notificationEmails" rows="3"
+                    placeholder="owner@myshop.gr&#10;backup@myshop.gr"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="notificationCcCustomer"
+                 <%= (config.notificationCcCustomer) ? 'checked' : '' %>
+                 <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span><%= t('admin.notifCcCustomer') %></span>
+        </label>
+        <label><span><%= t('admin.notifFromName') %></span>
+          <input type="text" name="notificationFromName"
+                 value="<%= config.notificationFromName || '' %>"
+                 placeholder="π.χ. FashionMM Store"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span><%= t('admin.webhookUrl') %></span>
+          <input type="text" name="notificationWebhookUrl"
+                 value="<%= config.notificationWebhookUrl || '' %>"
+                 placeholder="https://myhook.example.com/orders"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
+          <input type="text" name="notificationWebhookSecret"
+                 value="<%= config.notificationWebhookSecret || '' %>"
+                 placeholder="mysecret123"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <% if (permissions.canEditSettings) { %>
+        <div class="save-row">
+          <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
+          <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
+          <button type="submit" class="button">Αποθήκευση ειδοποιήσεων</button>
         </div>
-      </section>
+        <% } %>
+      </form>
 
 
       <%# ══════════════════════════════════════════════════════════ %>
@@ -1192,6 +1160,13 @@
           <label><span><%= t('admin.modalSku') %></span>
             <input type="text" id="f-sku" placeholder="π.χ. SKU-123" />
           </label>
+          <label><span>Product type</span>
+            <select id="f-type">
+              <option value="NORMAL">NORMAL</option>
+              <option value="PART">PART</option>
+              <option value="KIT">KIT</option>
+            </select>
+          </label>
           <label><span><%= t('admin.modalPrice') %></span>
             <input type="number" id="f-price" min="0" step="0.01" placeholder="0.00" />
           </label>
@@ -1284,6 +1259,40 @@
         </div>
       </div>
     </div>
+    <div class="modal-overlay" id="kit-builder-modal">
+      <div class="modal" style="max-width:980px;max-height:90vh;overflow:auto;">
+        <h3 style="margin-top:0;">KIT Builder</h3>
+        <p class="helper" id="kit-builder-title"></p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <h4>Option Groups</h4>
+            <div id="kit-groups-list"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+              <input id="kg-id" type="text" placeholder="group id" />
+              <input id="kg-label" type="text" placeholder="label" />
+              <select id="kg-type"><option value="radio">radio</option><option value="checkbox">checkbox</option></select>
+              <input id="kg-order" type="number" placeholder="order" min="0" step="1" />
+              <label class="checkbox-label"><input id="kg-required" type="checkbox" /><span>required</span></label>
+              <button class="button" type="button" id="kg-add">Add group</button>
+            </div>
+          </div>
+          <div>
+            <h4>Choices (selected group)</h4>
+            <div id="kit-choices-list"></div>
+            <div style="display:flex;gap:6px;margin:8px 0;">
+              <input id="kit-choice-search-q" type="text" placeholder="Search parts/products..." />
+              <button class="button" type="button" id="kit-choice-search-btn">Search</button>
+            </div>
+            <div id="kit-choice-search-results" style="max-height:150px;overflow:auto;border:1px solid #e5e7eb;border-radius:6px;padding:6px;"></div>
+          </div>
+        </div>
+        <h4 style="margin-top:12px;">Live preview</h4>
+        <div id="kit-builder-preview" style="font-size:.84rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+          <button class="button" type="button" id="kit-builder-close" style="background:#1f2937;">Close</button>
+        </div>
+      </div>
+    </div>
 
 
     <script>
@@ -1306,22 +1315,32 @@
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
+      const isEukolakisClassicPreset = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      let productFilter = 'all';
 
       // ── Render table ────────────────────────────────────────────
       function renderTable() {
         const tbody = document.getElementById('products-tbody');
-        if (!products.length) {
+        const visibleProducts = products.filter(function(p) {
+          if (productFilter === 'parts') return ['spare-parts', 'tools'].includes(String(p.categoryId || ''));
+          return true;
+        });
+        if (!visibleProducts.length) {
           tbody.innerHTML = '<tr><td colspan="' + (canEdit ? 6 : 5) + '" style="color:#888;font-style:italic;">' + i18nJs.noProducts + '</td></tr>';
           return;
         }
-        tbody.innerHTML = products.map((p, i) => {
+        tbody.innerHTML = visibleProducts.map((p) => {
+          const i = products.findIndex(function(pr) { return pr.id === p.id; });
           const pName = (p.name && typeof p.name === 'object') ? (p.name.el || p.name.en || '') : (p.name || '');
           const img = p.imageUrl
             ? '<img class="thumb" src="' + escHtml(p.imageUrl) + '" alt="" loading="lazy">'
             : '<span class="no-img"></span>';
           const editBtn = canEdit
             ? '<button class="btn-sm edit" type="button" onclick="openEdit(' + i + ')">' + i18nJs.editBtn + '</button> ' +
-              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">' + i18nJs.deleteBtn + '</button>'
+              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">' + i18nJs.deleteBtn + '</button>' +
+              (p.type === 'KIT'
+                ? ' <button class="btn-sm" type="button" onclick="openKitBuilder(' + i + ')">Edit KIT wizard</button>'
+                : ' <button class="btn-sm" type="button" onclick="makeProductKit(' + i + ')">Make this a KIT</button>')
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
@@ -1350,6 +1369,7 @@
       const fNameEn     = document.getElementById('f-name-en');
       const fId         = document.getElementById('f-id');
       const fSku        = document.getElementById('f-sku');
+      const fType       = document.getElementById('f-type');
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
@@ -1512,6 +1532,7 @@
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
+        if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
@@ -1530,6 +1551,7 @@
         fNameEn.value     = getLocalizedForEdit(p.name, 'en');
         fId.value         = p.id || '';
         fSku.value        = p.sku || '';
+        if (fType) fType.value = p.type || 'NORMAL';
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
@@ -1564,10 +1586,11 @@
         const specsRows     = readSpecRows();
         const variantRows   = readVariantRows();
         const digitalFields = readDigitalFields();
-        const product = {
+        const editedFields = {
           id,
           name:           nameObj,
           sku:            fSku.value.trim() || undefined,
+          type:           (fType && fType.value) ? fType.value : undefined,
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
@@ -1581,13 +1604,16 @@
           variants:       variantRows.length ? variantRows : undefined,
           ...digitalFields
         };
-        // Remove undefined fields
-        Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);
+        Object.keys(editedFields).forEach(k => editedFields[k] === undefined && delete editedFields[k]);
+        if (editedFields.type === 'KIT' && !editedFields.kitPayMode && isEukolakisClassicPreset) {
+          editedFields.kitPayMode = 'parts_only';
+        }
 
         if (editingIdx === -1) {
-          products.push(product);
+          products.push(editedFields);
         } else {
-          products[editingIdx] = product;
+          const base = products[editingIdx] || {};
+          products[editingIdx] = { ...base, ...editedFields };
         }
         closeModal();
         renderTable();
@@ -1604,6 +1630,165 @@
       // ── Add button ──────────────────────────────────────────────
       const btnAdd = document.getElementById('btn-add-product');
       if (btnAdd) btnAdd.addEventListener('click', openAdd);
+      const btnViewAll = document.getElementById('btn-view-all-products');
+      const btnViewParts = document.getElementById('btn-view-parts-products');
+      if (btnViewAll) btnViewAll.addEventListener('click', function() { productFilter = 'all'; renderTable(); });
+      if (btnViewParts) btnViewParts.addEventListener('click', function() { productFilter = 'parts'; renderTable(); });
+
+      async function uploadQuickPartImage(file, password) {
+        const fd = new FormData();
+        fd.append('image', file);
+        fd.append('password', password || '');
+        const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
+        const json = await response.json();
+        return { status: response.status, body: json };
+      }
+      const quickPartAddBtn = document.getElementById('btn-quick-part-add');
+      if (quickPartAddBtn) quickPartAddBtn.addEventListener('click', async function() {
+        const id = (document.getElementById('quick-part-id').value || '').trim();
+        const name = (document.getElementById('quick-part-name').value || '').trim();
+        if (!id || !name) return alert('id και όνομα είναι υποχρεωτικά');
+        if (products.some(function(p){ return p.id === id; })) return alert('Υπάρχει ήδη προϊόν με αυτό το id');
+        const fileInput = document.getElementById('quick-part-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        let uploadedImageUrl = '';
+        if (file) {
+          const initial = await uploadQuickPartImage(file, '');
+          if (initial.status === 401) {
+            const pwField = document.getElementById('quick-part-password');
+            if (pwField) pwField.style.display = 'block';
+            const pw = (pwField && pwField.value) || prompt('Session έληξε. Δώσε admin password για upload:') || '';
+            if (!pw) return alert('Απαιτείται password για upload εικόνας.');
+            const retried = await uploadQuickPartImage(file, pw);
+            if (!retried.body || !retried.body.ok) return alert((retried.body && retried.body.error) || 'Upload error');
+            uploadedImageUrl = retried.body.url || '';
+          } else {
+            if (!initial.body || !initial.body.ok) return alert((initial.body && initial.body.error) || 'Upload error');
+            uploadedImageUrl = initial.body.url || '';
+          }
+          document.getElementById('quick-part-image').value = uploadedImageUrl;
+        }
+        products.push({
+          id,
+          type: 'PART',
+          name: { el: name, en: name },
+          categoryId: 'spare-parts',
+          price: parseFloat(document.getElementById('quick-part-price').value) || 0,
+          stock: parseInt(document.getElementById('quick-part-stock').value, 10) || 0,
+          imageUrl: uploadedImageUrl || undefined
+        });
+        document.getElementById('quick-part-id').value = '';
+        document.getElementById('quick-part-name').value = '';
+        document.getElementById('quick-part-price').value = '';
+        document.getElementById('quick-part-stock').value = '';
+        document.getElementById('quick-part-image').value = '';
+        if (fileInput) fileInput.value = '';
+        renderTable();
+      });
+
+      let kitBuilderIdx = -1;
+      let kitBuilderGroupIdx = -1;
+      const kitBuilderModal = document.getElementById('kit-builder-modal');
+      function renderKitBuilder() {
+        if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+        const product = products[kitBuilderIdx];
+        product.kitOptions = Array.isArray(product.kitOptions) ? product.kitOptions : [];
+        product.kitOptions.sort(function(a, b) { return (Number(a.order) || 0) - (Number(b.order) || 0); });
+        document.getElementById('kit-builder-title').textContent = (product.name && (product.name.el || product.name.en)) || product.id;
+        const groupList = document.getElementById('kit-groups-list');
+        groupList.innerHTML = product.kitOptions.map(function(g, idx) {
+          const selected = idx === kitBuilderGroupIdx ? 'background:#eef2ff;' : '';
+          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;' + selected + '">' +
+            '<strong>' + escHtml(g.label || g.id) + '</strong> <small>(' + escHtml(g.inputType || 'radio') + (g.required ? ', required' : '') + ')</small>' +
+            '<div style="margin-top:4px;"><button type="button" onclick="selectKitGroup(' + idx + ')">Edit</button> <button type="button" onclick="removeKitGroup(' + idx + ')">Remove</button></div></div>';
+        }).join('');
+        const preview = document.getElementById('kit-builder-preview');
+        preview.innerHTML = product.kitOptions.map(function(g){
+          return '<p style="margin:0 0 6px;"><strong>' + escHtml(g.label || g.id) + '</strong>: ' + (Array.isArray(g.choices) ? g.choices.map(function(c){ return escHtml(c.label || c.id); }).join(', ') : '—') + '</p>';
+        }).join('') || '<em>No groups yet.</em>';
+        renderKitChoices();
+      }
+      function renderKitChoices() {
+        const product = products[kitBuilderIdx];
+        const box = document.getElementById('kit-choices-list');
+        if (!product || kitBuilderGroupIdx < 0 || !product.kitOptions[kitBuilderGroupIdx]) { box.innerHTML = '<em>Select group.</em>'; return; }
+        const group = product.kitOptions[kitBuilderGroupIdx];
+        group.choices = Array.isArray(group.choices) ? group.choices : [];
+        box.innerHTML = group.choices.map(function(c, idx){
+          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;">' +
+            (c.image ? '<img src="' + escHtml(c.image) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;" />' : '') +
+            '<strong>' + escHtml(c.label || c.id) + '</strong> <small>' + escHtml(c.linkedProductId || '') + '</small>' +
+            '<div>Δ: ' + (Number(c.priceDelta)||0).toFixed(2) + '€ ' + (c.useLinkedPriceDelta ? '(linked)' : '') + '</div>' +
+            '<button type="button" onclick="removeKitChoice(' + idx + ')">Remove</button></div>';
+        }).join('') || '<em>No choices yet.</em>';
+      }
+      window.selectKitGroup = function(idx) { kitBuilderGroupIdx = idx; renderKitBuilder(); };
+      window.removeKitGroup = function(idx) { products[kitBuilderIdx].kitOptions.splice(idx, 1); if (kitBuilderGroupIdx === idx) kitBuilderGroupIdx = -1; renderKitBuilder(); };
+      window.removeKitChoice = function(idx) { products[kitBuilderIdx].kitOptions[kitBuilderGroupIdx].choices.splice(idx, 1); renderKitBuilder(); };
+      window.openKitBuilder = function(i) {
+        if (!products[i] || products[i].type !== 'KIT') return;
+        kitBuilderIdx = i;
+        kitBuilderGroupIdx = -1;
+        kitBuilderModal.classList.add('open');
+        renderKitBuilder();
+      };
+      const kgAddBtn = document.getElementById('kg-add');
+      if (kgAddBtn) kgAddBtn.addEventListener('click', function() {
+        const product = products[kitBuilderIdx];
+        if (!product) return;
+        const gid = (document.getElementById('kg-id').value || '').trim();
+        if (!gid) return alert('Group id required');
+        product.kitOptions = Array.isArray(product.kitOptions) ? product.kitOptions : [];
+        product.kitOptions.push({
+          id: gid,
+          label: (document.getElementById('kg-label').value || gid).trim(),
+          required: document.getElementById('kg-required').checked,
+          inputType: document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : 'radio',
+          order: parseInt(document.getElementById('kg-order').value, 10) || 0,
+          choices: []
+        });
+        kitBuilderGroupIdx = product.kitOptions.length - 1;
+        renderKitBuilder();
+      });
+      document.getElementById('kit-builder-close').addEventListener('click', function() { kitBuilderModal.classList.remove('open'); renderTable(); });
+      document.getElementById('kit-choice-search-btn').addEventListener('click', async function() {
+        if (kitBuilderIdx < 0 || kitBuilderGroupIdx < 0) return alert('Select group first');
+        const q = (document.getElementById('kit-choice-search-q').value || '').trim();
+        const url = '<%= withTenantLink("/admin/products/search") %>?q=' + encodeURIComponent(q);
+        const r = await fetch(url);
+        const items = await r.json();
+        const box = document.getElementById('kit-choice-search-results');
+        box.innerHTML = items.map(function(item, idx) {
+          return '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid #e5e7eb;">' +
+            (item.imageUrl ? '<img src="' + escHtml(item.imageUrl) + '" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />' : '') +
+            '<div style="flex:1;"><strong>' + escHtml(item.name) + '</strong><br><small>' + escHtml(item.id) + ' · ' + item.price.toFixed(2) + '€ · stock ' + item.stock + '</small></div>' +
+            '<button type="button" onclick="addLinkedChoice(' + idx + ')">Use</button></div>';
+        }).join('');
+        window.__kitSearchItems = items;
+      });
+      window.addLinkedChoice = function(idx) {
+        const item = (window.__kitSearchItems || [])[idx];
+        if (!item) return;
+        const product = products[kitBuilderIdx];
+        const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
+        if (!group) return;
+        group.choices = Array.isArray(group.choices) ? group.choices : [];
+        const cId = (item.id + '-' + Date.now()).toLowerCase();
+        const useLinkedPriceDelta = confirm('Use linked product price as delta?');
+        const customLabel = prompt('Choice label override (optional):', item.name || '') || '';
+        const customDesc = prompt('Choice description override (optional):', '') || '';
+        const customDelta = prompt('priceDelta (leave empty to auto/default):', useLinkedPriceDelta ? String(item.price) : '0');
+        group.choices.push({
+          id: cId,
+          linkedProductId: item.id,
+          label: customLabel.trim(),
+          description: customDesc.trim(),
+          image: item.imageUrl || '',
+          useLinkedPriceDelta,
+          priceDelta: customDelta === '' ? (useLinkedPriceDelta ? item.price : 0) : (parseFloat(customDelta) || 0)
+        });
+        renderKitBuilder();
+      };
 
       // ── Serialize before submit ─────────────────────────────────
       const saveForm = document.getElementById('products-save-form');
@@ -1751,15 +1936,12 @@
     </script>
   </body>
 </html>
-      function readLocalizedField(elInput, enInput) {
-        const elVal = (elInput.value || '').trim();
-        const enVal = (enInput.value || '').trim();
-        if (elVal && enVal) return { el: elVal, en: enVal };
-        if (elVal) return elVal;
-        if (enVal) return { en: enVal };
-        return '';
-      }
-      function getLocalizedForEdit(value, langCode) {
-        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
-        return langCode === 'el' ? (value || '') : '';
-      }
+      window.makeProductKit = function(i) {
+        const existing = products[i];
+        if (!existing) return;
+        const next = { ...existing, type: 'KIT', price: 0 };
+        if (!next.kitOptions) next.kitOptions = [];
+        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
+        products[i] = next;
+        renderTable();
+      };

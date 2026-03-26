@@ -131,6 +131,32 @@ function buildTranslatableFromBody(body, baseName, fallbackValue) {
   return fallbackValue;
 }
 
+function normalizeSlug(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function isUrlSafeSlug(value) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value || ''));
+}
+
+function isEukolakisClassicPreset(req) {
+  if (!req || !req.tenant || req.tenant.id !== 'eukolakis') return false;
+  const config = loadTenantConfig(req);
+  const presetId = config && config.theme && config.theme.presetId;
+  return presetId === 'eukolakis_classic_diy';
+}
+
+const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
+function shouldDefaultPartsOnly(tenant, config) {
+  return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
+}
+
 function localizeConfigContent(config, lang) {
   return {
     ...config,
@@ -155,6 +181,50 @@ function localizeProductContent(product, lang) {
     name: resolveTranslatable(product.name, lang),
     description: resolveTranslatable(product.description, lang)
   };
+}
+
+function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, options = {}) {
+  if (!product || product.type !== 'KIT' || !Array.isArray(product.kitOptions)) return product;
+  const kitPayMode = product.kitPayMode || (options.defaultPartsOnly ? 'parts_only' : 'bundle');
+  const hydratedOptions = product.kitOptions.map((group) => {
+    const choices = Array.isArray(group.choices) ? group.choices : [];
+    const hydratedChoices = choices.map((choice) => {
+      const linked = choice.linkedProductId ? catalog.find((p) => p.id === choice.linkedProductId) : null;
+      const linkedName = linked ? resolveTranslatable(linked.name, lang) : '';
+      const linkedDescription = linked ? resolveTranslatable(linked.description, lang) : '';
+      const linkedPrice = linked ? (Number(linked.price) || 0) : 0;
+      const linkedVariants = linked && Array.isArray(linked.variants)
+        ? linked.variants.map((variant) => ({
+          id: variant.id,
+          sku: variant.sku || '',
+          label: resolveTranslatable(variant.label, lang) || variant.id,
+          price: Number(variant.price),
+          stock: variant.stock === undefined ? null : Number(variant.stock),
+          imageUrl: variant.imageUrl || ''
+        }))
+        : [];
+      const isSkipChoice = choice.id === 'skip';
+      const computedPriceDelta = kitPayMode === 'parts_only'
+        ? (isSkipChoice ? 0 : linkedPrice)
+        : (choice.useLinkedPriceDelta && linked ? linkedPrice : (Number(choice.priceDelta) || 0));
+      return {
+        ...choice,
+        label: (choice.label || '').trim() || linkedName || choice.id,
+        description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
+        image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
+        priceDelta: computedPriceDelta,
+        linkedPrice,
+        linkedName: linkedName || '',
+        linkedImageUrl: linked && linked.imageUrl ? linked.imageUrl : '',
+        linkedVariants
+      };
+    });
+    if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
+      hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
+    }
+    return { ...group, choices: hydratedChoices };
+  });
+  return { ...product, kitPayMode, kitOptions: hydratedOptions };
 }
 
 loadLocales();
@@ -407,6 +477,7 @@ function loadTenantConfig(req) {
       bannerVisible: true,
       previewBadgeStyle: 'soft',
       cursorEffect: false,
+      cursorImage: '',
       brandingMode: 'logo_name',
       logoDisplayMode: 'contain',
       logoBgMode: 'auto',
@@ -1199,6 +1270,17 @@ function buildAdminViewModel(req, extra) {
   };
 }
 
+function buildAdminPaymentsViewModel(req, extra) {
+  const config = loadTenantConfig(req);
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  return {
+    tenant: req.tenant,
+    config,
+    permissions,
+    ...(extra || {})
+  };
+}
+
 // Routes
 
 // Per-tenant favicon
@@ -1227,14 +1309,22 @@ app.get('/', (req, res) => {
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
+  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
+    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+  }));
 
-  const catSlug = req.query.category;
-  let products = allProducts;
+  const rawCategory = String(req.query.category || '');
+  let catSlug = normalizeSlug(rawCategory);
+  if (req.tenant.id === 'eukolakis') {
+    const aliasMap = { spare: 'spare-parts' };
+    catSlug = aliasMap[catSlug] || catSlug;
+  }
+  let products = hydratedAllProducts;
 
   if (catSlug) {
-    const cat = categories.find((c) => c.slug === catSlug);
+    const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
     if (cat) {
-      products = allProducts.filter((p) => p.categoryId === cat.id);
+      products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
     } else {
       products = [];
     }
@@ -1242,7 +1332,7 @@ app.get('/', (req, res) => {
 
   const viewLang = req.lang;
   const localizedConfig = localizeConfigContent(config, viewLang);
-  const localizedAllProducts = allProducts.map((p) => localizeProductContent(p, viewLang));
+  const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
   res.render('index', {
     config: localizedConfig,
     categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -1270,9 +1360,12 @@ app.get('/product/:id', (req, res) => {
     saveJson(req.tenantPaths.analytics, analytics);
   } catch (_) { /* non-critical */ }
 
+  const hydratedProduct = hydrateKitProduct(product, products, req.lang, {
+    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+  });
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
-    product: localizeProductContent(product, req.lang),
+    product: localizeProductContent(hydratedProduct, req.lang),
     tenant: req.tenant
   });
 });
@@ -1306,7 +1399,9 @@ app.post('/checkout', async (req, res) => {
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
-    const found = allProductsCatalog.find((p) => p.id === ci.id);
+    const found = hydrateKitProduct(allProductsCatalog.find((p) => p.id === ci.id), allProductsCatalog, req.lang, {
+      defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+    });
     if (found) {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
@@ -1340,18 +1435,70 @@ app.post('/checkout', async (req, res) => {
         selectedOptions = [];
         found.kitOptions.forEach((group) => {
           (selectedByGroup[group.id] || []).forEach((choice) => {
+            const linkedProduct = choice.linkedProductId
+              ? allProductsCatalog.find((p) => p.id === choice.linkedProductId)
+              : null;
+            const selectedVariantIdRaw = rawOptions.find((opt) => opt.groupId === group.id && opt.choiceId === choice.id)?.selectedVariantId;
+            const selectedVariantId = typeof selectedVariantIdRaw === 'string' ? selectedVariantIdRaw.trim() : '';
+            const linkedVariant = linkedProduct && selectedVariantId && Array.isArray(linkedProduct.variants)
+              ? linkedProduct.variants.find((v) => v.id === selectedVariantId)
+              : null;
+            const variantPrice = linkedVariant && linkedVariant.price !== undefined
+              ? Number(linkedVariant.price) || 0
+              : null;
+            const computedChoicePrice = found.kitPayMode === 'parts_only'
+              ? (variantPrice !== null ? variantPrice : (Number(choice.priceDelta) || 0))
+              : (choice.useLinkedPriceDelta && linkedProduct
+                ? (variantPrice !== null ? variantPrice : (Number(linkedProduct.price) || 0))
+                : (Number(choice.priceDelta) || 0));
             selectedOptions.push({
               groupId: group.id,
               groupLabel: group.label || group.id,
               choiceId: choice.id,
               choiceLabel: choice.label || choice.id,
-              priceDelta: Number(choice.priceDelta) || 0,
-              linkedProductId: choice.linkedProductId || null
+              priceDelta: computedChoicePrice,
+              linkedProductId: choice.linkedProductId || null,
+              selectedVariantId: linkedVariant ? linkedVariant.id : undefined,
+              selectedVariantLabel: linkedVariant ? (resolveTranslatable(linkedVariant.label, req.lang) || linkedVariant.id) : undefined,
+              selectedVariantSku: linkedVariant ? (linkedVariant.sku || undefined) : undefined
             });
           });
         });
         const delta = selectedOptions.reduce((s, o) => s + (Number(o.priceDelta) || 0), 0);
-        serverPrice += delta;
+        if (found.kitPayMode === 'parts_only') {
+          serverPrice = 0;
+          if (!ci.isKitSummary) {
+            selectedOptions
+              .filter((o) => o.linkedProductId)
+              .forEach((o) => {
+                const linked = allProductsCatalog.find((p) => p.id === o.linkedProductId);
+                if (!linked) return;
+                const linkedVariant = o.selectedVariantId && Array.isArray(linked.variants)
+                  ? linked.variants.find((v) => v.id === o.selectedVariantId)
+                  : null;
+                const linkedPrice = linkedVariant && linkedVariant.price !== undefined
+                  ? Number(linkedVariant.price) || 0
+                  : Number(linked.price) || 0;
+                const linkedImage = (linkedVariant && linkedVariant.imageUrl) || linked.imageUrl || '';
+                const linkedName = resolveTranslatable(linked.name, req.lang);
+                const variantLabel = linkedVariant ? (resolveTranslatable(linkedVariant.label, req.lang) || linkedVariant.id) : '';
+                enrichedItems.push({
+                  id: linked.id,
+                  name: variantLabel ? `${linkedName} – ${variantLabel}` : linkedName,
+                  variantId: linkedVariant ? linkedVariant.id : undefined,
+                  variantLabel: variantLabel || undefined,
+                  variantSku: linkedVariant ? (linkedVariant.sku || undefined) : undefined,
+                  imageUrl: linkedImage,
+                  price: linkedPrice,
+                  qty: Math.max(1, parseInt(ci.qty, 10) || 1),
+                  sourceKitId: found.id,
+                  sourceKitOption: `${o.groupLabel}: ${o.choiceLabel}${variantLabel ? ` (${variantLabel})` : ''}`
+                });
+              });
+          }
+        } else {
+          serverPrice += delta;
+        }
         optionSummary = selectedOptions.map((o) => `${o.groupLabel}: ${o.choiceLabel}`).join(' | ');
       }
       enrichedItems.push({
@@ -1364,7 +1511,8 @@ app.post('/checkout', async (req, res) => {
         basePrice: Number(found.price) || 0,
         finalUnitPrice: serverPrice,
         price:        serverPrice,
-        qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
+        qty:          Math.max(1, parseInt(ci.qty, 10) || 1),
+        isKitSummary: found.type === 'KIT' && found.kitPayMode === 'parts_only'
       });
     }
   }
@@ -1468,6 +1616,7 @@ app.post('/checkout', async (req, res) => {
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   enrichedItems.forEach((ci) => {
+    if (ci.isKitSummary) return;
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
     if (pIdx < 0) return;
     const prod = allProductsMut[pIdx];
@@ -1797,6 +1946,13 @@ app.get('/admin', (req, res) => {
   res.render('admin', buildAdminViewModel(req));
 });
 
+app.get('/admin/payments', (req, res) => {
+  const extra = {};
+  if (req.query.message) extra.message = String(req.query.message);
+  if (req.query.error) extra.error = String(req.query.error);
+  res.render('admin-payments', buildAdminPaymentsViewModel(req, extra));
+});
+
 // Admin orders view
 app.get('/admin/orders', (req, res) => {
   const config = loadTenantConfig(req);
@@ -1853,7 +2009,8 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoPadding,
     themeLogoRadius,
     themeLogoShadow,
-    themeLogoMaxHeight
+    themeLogoMaxHeight,
+    themeCursorImage
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1905,6 +2062,7 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.bannerVisible = themeBannerVisible === 'on';
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
   config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.cursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
   config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
@@ -1937,28 +2095,65 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
   config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
 
-  // Notification settings
-  config.notificationEmails = (req.body.notificationEmails || '')
-    .split('\n').map((e) => e.trim()).filter((e) => e.length > 0);
-  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
-  config.notificationFromName   = (req.body.notificationFromName   || '').trim();
-  config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
-  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
-
-  // Stripe keys
-  if (req.body.stripePublishableKey !== undefined)
-    config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
-  if (req.body.stripeSecretKey !== undefined) {
-    const sk = (req.body.stripeSecretKey || '').trim();
-    if (sk) config.stripeSecretKey = sk; // only overwrite if non-empty
-  }
-
   saveJson(req.tenantPaths.config, config);
 
   res.render(
     'admin',
     buildAdminViewModel(req, { message: 'Οι ρυθμίσεις αποθηκεύτηκαν.' })
   );
+});
+
+app.post('/admin/notifications', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res
+      .status(403)
+      .render('admin', buildAdminViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή ειδοποιήσεων.' }));
+  }
+
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res
+      .status(401)
+      .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+  config.notificationEmails = (req.body.notificationEmails || '')
+    .split('\n')
+    .map((e) => e.trim())
+    .filter((e) => e.length > 0);
+  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
+  config.notificationFromName = (req.body.notificationFromName || '').trim();
+  config.notificationWebhookUrl = (req.body.notificationWebhookUrl || '').trim();
+  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
+  saveJson(req.tenantPaths.config, config);
+
+  return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις ειδοποιήσεων αποθηκεύτηκαν.' }));
+});
+
+app.post('/admin/payments', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.redirect(buildTenantLink(req, '/admin/payments', { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή πληρωμών.' }));
+  }
+
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.redirect(buildTenantLink(req, '/admin/payments', { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+  config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
+  if (req.body.stripeSecretKey !== undefined) {
+    const sk = (req.body.stripeSecretKey || '').trim();
+    if (sk) config.stripeSecretKey = sk;
+  }
+  saveJson(req.tenantPaths.config, config);
+
+  return res.redirect(buildTenantLink(req, '/admin/payments', { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
 });
 
 // Shipping & Payment options editor
@@ -2032,7 +2227,15 @@ app.post('/admin/categories/add', async (req, res) => {
   }
 
   const categories = loadTenantCategories(req);
-  if (categories.some((c) => c.id === id || c.slug === slug)) {
+  const normalizedId = normalizeSlug(id);
+  const normalizedSlug = normalizeSlug(slug || id);
+  if (!normalizedId || !normalizedSlug || !isUrlSafeSlug(normalizedSlug)) {
+    return res
+      .status(400)
+      .render('admin', buildAdminViewModel(req, { error: 'Το id/slug πρέπει να είναι URL-safe (πεζά, αριθμοί και παύλες).' }));
+  }
+
+  if (categories.some((c) => c.id === normalizedId || c.slug === normalizedSlug)) {
     return res
       .status(400)
       .render(
@@ -2045,7 +2248,7 @@ app.post('/admin/categories/add', async (req, res) => {
 
   const translatedName = buildTranslatableFromBody(req.body, 'name', name || '');
   const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
-  const newCat = { id, name: translatedName, slug };
+  const newCat = { id: normalizedId, name: translatedName, slug: normalizedSlug };
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
   if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
@@ -2095,10 +2298,14 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  if (
-    slug &&
-    categories.some((c) => c.id !== categoryId && c.slug === slug)
-  ) {
+  const normalizedSlug = normalizeSlug(slug || categories[idx].slug);
+  if (!normalizedSlug || !isUrlSafeSlug(normalizedSlug)) {
+    return res
+      .status(400)
+      .render('admin', buildAdminViewModel(req, { error: 'Το slug πρέπει να είναι URL-safe (πεζά, αριθμοί και παύλες).' }));
+  }
+
+  if (categories.some((c) => c.id !== categoryId && c.slug === normalizedSlug)) {
     return res
       .status(400)
       .render(
@@ -2109,11 +2316,24 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
+  if (isEukolakisClassicPreset(req) && EUKOLAKIS_CORE_CATEGORY_IDS.has(categoryId)) {
+    if (normalizedSlug !== categories[idx].slug) {
+      return res
+        .status(400)
+        .render(
+          'admin',
+          buildAdminViewModel(req, {
+            error: 'Στο preset eukolakis_classic_diy δεν επιτρέπεται αλλαγή slug για τις βασικές κατηγορίες diy-rolla, diy-sliding, spare-parts.'
+          })
+        );
+    }
+  }
+
   categories[idx].name = buildTranslatableFromBody(req.body, 'name', name || categories[idx].name);
   const shortDescription = buildTranslatableFromBody(req.body, 'shortDescription', categories[idx].shortDescription);
   if (shortDescription) categories[idx].shortDescription = shortDescription;
   else delete categories[idx].shortDescription;
-  categories[idx].slug = slug || categories[idx].slug;
+  categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
     if (image && image.trim()) categories[idx].image = image.trim();
     else delete categories[idx].image;
@@ -2170,6 +2390,27 @@ app.post('/admin/categories/delete', async (req, res) => {
 });
 
 // Product JSON editor
+app.get('/admin/products/search', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const products = loadTenantProducts(req);
+  const out = products
+    .filter((p) => {
+      if (!q) return true;
+      const pName = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG).toLowerCase();
+      return p.id.toLowerCase().includes(q) || pName.includes(q) || String(p.categoryId || '').toLowerCase().includes(q);
+    })
+    .slice(0, 30)
+    .map((p) => ({
+      id: p.id,
+      name: resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
+      imageUrl: p.imageUrl || '',
+      price: Number(p.price) || 0,
+      stock: Number(p.stock) || 0,
+      categoryId: p.categoryId || ''
+    }));
+  res.json(out);
+});
+
 app.post('/admin/products', async (req, res) => {
   const { password, productsJson } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
