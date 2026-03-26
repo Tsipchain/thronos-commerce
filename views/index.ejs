@@ -169,6 +169,7 @@
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
+    <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
@@ -460,8 +461,8 @@
         </div>
       </div>
     </div>
-    <script id="kit-products-json" type="application/json"><%- JSON.stringify((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })).replace(/</g, '\\u003c') %></script>
-    <script id="catalog-products-json" type="application/json"><%- JSON.stringify((allProducts || products).map(function(p){
+    <script id="kit-products-json" type="application/json"><%- safeJson((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })) %></script>
+    <script id="catalog-products-json" type="application/json"><%- safeJson((allProducts || products).map(function(p){
       return {
         id: p.id,
         name: p.name,
@@ -472,7 +473,7 @@
           return { id: v.id, label: variantLabel, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock };
         }) : []
       };
-    })).replace(/</g, '\\u003c') %></script>
+    })) %></script>
     <% } %>
     <footer class="store-footer">
       <% if (isEukolakisClassic) { %>
@@ -505,20 +506,20 @@
       }
 
       if (isEukolakis) {
-        const KIT_T = <%- JSON.stringify({
-          previewPrompt: (lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.'),
-          noSelections: (lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.'),
-          summary: (lang === 'el' ? 'Σύνοψη' : 'Summary'),
-          total: (lang === 'el' ? 'Σύνολο' : 'Total'),
-          addToCart: (lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart'),
-          next: (lang === 'el' ? 'Επόμενο' : 'Next'),
-          optionSummary: (lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary'),
-          required: (lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection'),
-          optional: (lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection'),
-          variant: (lang === 'el' ? 'Παραλλαγή' : 'Variant'),
-          requiredAlert: (lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.')
-        }).replace(/</g, '\u003c') %>;
-        const KIT_PRODUCT_BASE_URL = <%- JSON.stringify(withTenantLink('/product/', lang !== 'el' ? { lang } : {})).replace(/</g, '\u003c') %>;
+        const KIT_T = {
+          previewPrompt: <%- safeJson(lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.') %>,
+          noSelections: <%- safeJson(lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.') %>,
+          summary: <%- safeJson(lang === 'el' ? 'Σύνοψη' : 'Summary') %>,
+          total: <%- safeJson(lang === 'el' ? 'Σύνολο' : 'Total') %>,
+          addToCart: <%- safeJson(lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart') %>,
+          next: <%- safeJson(lang === 'el' ? 'Επόμενο' : 'Next') %>,
+          optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
+          required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
+          optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
+          variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
+          requiredAlert: <%- safeJson(lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.') %>
+        };
+        const KIT_PRODUCT_BASE_URL = <%- safeJson(withTenantLink('/product/', lang !== 'el' ? { lang } : {})) %>;
         const kitDataEl = document.getElementById('kit-products-json');
         const catalogDataEl = document.getElementById('catalog-products-json');
         const wizard = document.getElementById('kit-wizard-backdrop');

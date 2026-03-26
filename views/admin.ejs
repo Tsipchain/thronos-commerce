@@ -51,14 +51,15 @@
         align-items: center; justify-content: center;
       }
       .modal-overlay.open { display: flex; }
-      #kit-builder-modal.modal-overlay { background: rgba(2,6,23,.72); z-index: 1200; }
-      #kit-builder-modal .modal { background:rgba(248,251,255,.96); border:1px solid #93c5fd; color:#0f172a; box-shadow:0 18px 44px rgba(2,6,23,.45); }
+      #kit-builder-modal.modal-overlay { background: rgba(2,6,23,.84); z-index: 1200; padding:16px; }
+      #kit-builder-modal .modal { background:#ffffff; border:1px solid #93c5fd; color:#0f172a; box-shadow:0 18px 44px rgba(2,6,23,.52); width:min(980px,95vw); max-height:90vh; overflow:auto; padding:18px 20px; border-radius:12px; }
       #kit-builder-modal h3, #kit-builder-modal h4 { color:#0b1120; }
       #kit-builder-modal .helper { color:#1e293b; }
       #kit-builder-modal #kit-groups-list,
       #kit-builder-modal #kit-choices-list,
       #kit-builder-modal #kit-choice-search-results,
       #kit-builder-modal #kit-builder-preview { background:rgba(255,255,255,.9); color:#0f172a; }
+      #kit-builder-modal #kit-builder-preview { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
       .modal-box {
         background: #fff; border-radius: 8px; padding: 28px 28px 20px;
         width: min(520px, 95vw); max-height: 90vh; overflow-y: auto;
@@ -1366,7 +1367,7 @@
       </div>
     </div>
     <div class="modal-overlay" id="kit-builder-modal">
-      <div class="modal" style="max-width:980px;max-height:90vh;overflow:auto;">
+      <div class="modal">
         <h3 style="margin-top:0;">KIT Builder</h3>
         <p class="helper" id="kit-builder-title"></p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1747,7 +1748,8 @@
         const row = buttonEl && buttonEl.closest('.variant-row');
         if (!row) return;
         const variantId = ensureVariantRowId(row);
-        const variantSku = ((row.querySelector('.v-sku') && row.querySelector('.v-sku').value) || '').trim();
+        const variantSkuInput = ((row.querySelector('.v-sku') && row.querySelector('.v-sku').value) || '').trim();
+        const variantSku = variantSkuInput || variantId;
         const productId = (fId && fId.value || '').trim();
         if (!productId) return alert('Συμπλήρωσε πρώτα Product ID.');
         const fileInput = row.querySelector(type === 'image' ? '.v-image-file' : '.v-video-file');
@@ -1824,7 +1826,7 @@
           setVariantImageFeedback(row, 'Add/upload an image to preview it here.', 'neutral');
           return;
         }
-        const srcUrl = opts.bustCache ? (baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'v=' + Date.now()) : baseUrl;
+        const srcUrl = opts.bustCache ? (baseUrl + (baseUrl.includes('?') ? '&' : '?') + 't=' + Date.now()) : baseUrl;
         if (opts.loadingMessage) setVariantImageFeedback(row, opts.loadingMessage, 'neutral');
         preview.onload = function() {
           preview.style.display = 'block';
@@ -1832,8 +1834,11 @@
           if (status && status.textContent && status.textContent.includes('δεν φορτώνει')) status.textContent = '';
         };
         preview.onerror = function() {
-          preview.style.display = 'none';
-          setVariantImageFeedback(row, 'Failed to load image preview. Check URL/path and try again.', 'error');
+          preview.style.display = 'block';
+          preview.onload = null;
+          preview.onerror = null;
+          preview.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><rect width="100%" height="100%" fill="#fee2e2"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="10" fill="#991b1b">404</text></svg>');
+          setVariantImageFeedback(row, '404/invalid path', 'error');
           if (status) status.textContent = 'Η εικόνα δεν φορτώνει (404/invalid path).';
         };
         preview.src = srcUrl;
@@ -2090,7 +2095,12 @@
         }).join('');
         const preview = document.getElementById('kit-builder-preview');
         preview.innerHTML = product.kitOptions.map(function(g){
-          return '<p style="margin:0 0 6px;"><strong>' + escHtml(g.label || g.id) + '</strong>: ' + (Array.isArray(g.choices) ? g.choices.map(function(c){ return escHtml(c.label || c.id); }).join(', ') : '—') + '</p>';
+          const labels = Array.isArray(g.choices) ? g.choices.map(function(c){ return escHtml(c.label || c.id); }) : [];
+          return '<div style="margin:0 0 6px;padding:7px 9px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;min-width:240px;max-width:100%;word-break:break-word;">' +
+            '<strong>' + escHtml(g.label || g.id) + '</strong>' +
+            '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">' +
+            (labels.length ? labels.map(function(lbl){ return '<span style="display:inline-flex;padding:2px 7px;border-radius:999px;background:#e0f2fe;color:#0c4a6e;font-size:.74rem;">' + lbl + '</span>'; }).join('') : '<span style="font-size:.78rem;color:#64748b;">—</span>') +
+            '</div></div>';
         }).join('') || '<em>No groups yet.</em>';
         renderKitChoices();
       }
@@ -2118,7 +2128,7 @@
                 }).join('') +
                 '</select></div>')
             : '';
-          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;">' +
+          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:6px;background:#fff;word-break:break-word;">' +
             (thumb ? '<img src="' + escHtml(thumb) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;" />' : '<span style="display:inline-flex;width:44px;height:44px;border-radius:6px;background:#f1f5f9;align-items:center;justify-content:center;margin-right:6px;">🧩</span>') +
             '<strong>' + escHtml(c.label || c.id) + '</strong> <small>' + escHtml(c.linkedProductId || '') + '</small>' +
             (linked ? '<div style="font-size:.78rem;color:#334155;">' + escHtml(linkedName) + ' · ' + linkedPrice + '€</div>' : '') +
