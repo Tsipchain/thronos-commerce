@@ -153,6 +153,15 @@ function isEukolakisClassicPreset(req) {
   return presetId === 'eukolakis_classic_diy';
 }
 
+function detectDeviceInfo(req) {
+  const ua = String((req && req.headers && req.headers['user-agent']) || '').toLowerCase();
+  const os = /iphone|ipad|ipod/.test(ua) ? 'ios' : (/android/.test(ua) ? 'android' : 'other');
+  let device = 'desktop';
+  if (/ipad|tablet/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua))) device = 'tablet';
+  else if (/mobile|iphone|ipod/.test(ua) || (/android/.test(ua) && /mobile/.test(ua))) device = 'mobile';
+  return { device, os };
+}
+
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
   return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
@@ -1217,8 +1226,14 @@ function sanitizeMediaSegment(value, fallback) {
 }
 
 function getVariantMediaMeta(req) {
-  const productId = sanitizeMediaSegment(req && req.body && req.body.productId, 'unknown-product');
-  const variantSku = sanitizeMediaSegment(req && req.body && req.body.variantSku, 'unknown-variant');
+  const productId = sanitizeMediaSegment(
+    (req && req.query && req.query.productId) || (req && req.body && req.body.productId),
+    'unknown-product'
+  );
+  const variantSku = sanitizeMediaSegment(
+    (req && req.query && req.query.variantSku) || (req && req.body && req.body.variantSku),
+    'unknown-variant'
+  );
   return { productId, variantSku };
 }
 
@@ -1395,6 +1410,14 @@ app.use((req, res, next) => {
   res.locals.t = (key) => translate(req.lang, key);
   res.locals.contentLangs = CONTENT_LANGS;
   res.locals.resolveField = (value, lang = req.lang) => resolveTranslatable(value, lang);
+  next();
+});
+
+app.use((req, res, next) => {
+  const info = detectDeviceInfo(req);
+  req.deviceInfo = info;
+  res.locals.device = info.device;
+  res.locals.os = info.os;
   next();
 });
 

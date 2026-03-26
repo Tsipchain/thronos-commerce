@@ -143,6 +143,11 @@
       body.eukolakis-classic .featured-primary-grid { gap: 20px; }
       body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
       body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
+      body.device-mobile main { padding-left: 10px; padding-right: 10px; }
+      body.device-mobile .pill-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
+      body.device-mobile .hero { padding: 18px; }
+      body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
@@ -157,7 +162,7 @@
       }
     </style>
   </head>
-  <body class="<%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
@@ -253,7 +258,6 @@
           <% } %>
         <% } %>
       </div>
-      <% } %>
       <% } %>
     </header>
 

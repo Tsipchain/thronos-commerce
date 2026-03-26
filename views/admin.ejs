@@ -60,6 +60,8 @@
       #kit-builder-modal #kit-choice-search-results,
       #kit-builder-modal #kit-builder-preview { background:rgba(255,255,255,.9); color:#0f172a; }
       #kit-builder-modal #kit-builder-preview { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
+      body.device-mobile #kit-builder-modal .modal { width: 100%; max-height: 100vh; border-radius: 0; padding: 14px; }
+      body.device-mobile .modal-actions { position: sticky; bottom: 0; background: #fff; padding-top: 10px; }
       .modal-box {
         background: #fff; border-radius: 8px; padding: 28px 28px 20px;
         width: min(520px, 95vw); max-height: 90vh; overflow-y: auto;
@@ -150,7 +152,7 @@
       .cat-meta { font-size:.76rem; color:#6b7280; margin-top:4px; line-height:1.3; }
     </style>
   </head>
-  <body>
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %>">
     <header>
       <h1><%= t('admin.headerTitle') %></h1>
       <p class="subtitle">
@@ -1758,18 +1760,20 @@
         const status = row.querySelector('.v-upload-status');
         if (status) status.textContent = 'Uploading...';
         const fd = new FormData();
-        fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
         fd.append('productId', productId);
-        fd.append('variantId', variantId);
         fd.append('variantSku', variantSku);
+        fd.append('variantId', variantId);
+        fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
         fd.append('password', '');
-        let r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
+        const endpointBase = type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>';
+        const endpoint = endpointBase + '?productId=' + encodeURIComponent(productId) + '&variantSku=' + encodeURIComponent(variantSku);
+        let r = await fetch(endpoint, { method: 'POST', body: fd });
         let j = await r.json();
         if (r.status === 401) {
           const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
           if (!pw) return;
           fd.set('password', pw);
-          r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
+          r = await fetch(endpoint, { method: 'POST', body: fd });
           j = await r.json();
         }
         if (!j.ok) {
@@ -2062,7 +2066,7 @@
             kitBuilderIdx = pendingKitCreate.productIdx;
             kitBuilderGroupIdx = pendingKitCreate.groupIdx;
             pendingKitCreate = null;
-            kitBuilderModal.classList.add('open');
+            openKitBuilderModal();
             renderKitBuilder();
           }
         }
@@ -2080,6 +2084,14 @@
       let kitBuilderIdx = -1;
       let kitBuilderGroupIdx = -1;
       const kitBuilderModal = document.getElementById('kit-builder-modal');
+      function openKitBuilderModal() {
+        kitBuilderModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeKitBuilderModal() {
+        kitBuilderModal.classList.remove('open');
+        document.body.style.overflow = '';
+      }
       function renderKitBuilder() {
         if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
         const product = products[kitBuilderIdx];
@@ -2151,7 +2163,7 @@
         if (!products[i] || products[i].type !== 'KIT') return;
         kitBuilderIdx = i;
         kitBuilderGroupIdx = -1;
-        kitBuilderModal.classList.add('open');
+        openKitBuilderModal();
         renderKitBuilder();
       };
       const kgAddBtn = document.getElementById('kg-add');
@@ -2179,7 +2191,8 @@
         kitBuilderGroupIdx = product.kitOptions.length - 1;
         renderKitBuilder();
       });
-      document.getElementById('kit-builder-close').addEventListener('click', function() { kitBuilderModal.classList.remove('open'); renderTable(); });
+      document.getElementById('kit-builder-close').addEventListener('click', function() { closeKitBuilderModal(); renderTable(); });
+      kitBuilderModal.addEventListener('click', function(e) { if (e.target === kitBuilderModal) closeKitBuilderModal(); });
       document.getElementById('kit-choice-search-btn').addEventListener('click', async function() {
         if (kitBuilderIdx < 0 || kitBuilderGroupIdx < 0) return alert('Select group first');
         const q = (document.getElementById('kit-choice-search-q').value || '').trim();
