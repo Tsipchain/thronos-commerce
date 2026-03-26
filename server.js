@@ -204,20 +204,30 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
           imageUrl: variant.imageUrl || ''
         }))
         : [];
+      const fixedVariantId = typeof choice.linkedVariantId === 'string' ? choice.linkedVariantId.trim() : '';
+      const linkedVariant = fixedVariantId
+        ? linkedVariants.find((variant) => variant.id === fixedVariantId)
+        : null;
+      const effectiveLinkedPrice = linkedVariant && linkedVariant.price !== undefined && !Number.isNaN(Number(linkedVariant.price))
+        ? Number(linkedVariant.price)
+        : linkedPrice;
+      const effectiveLinkedImageUrl = (linkedVariant && linkedVariant.imageUrl) || (linked && linked.imageUrl ? linked.imageUrl : '');
       const isSkipChoice = choice.id === 'skip';
       const computedPriceDelta = kitPayMode === 'parts_only'
-        ? (isSkipChoice ? 0 : linkedPrice)
-        : (choice.useLinkedPriceDelta && linked ? linkedPrice : (Number(choice.priceDelta) || 0));
+        ? (isSkipChoice ? 0 : effectiveLinkedPrice)
+        : (choice.useLinkedPriceDelta && linked ? effectiveLinkedPrice : (Number(choice.priceDelta) || 0));
       return {
         ...choice,
         label: (choice.label || '').trim() || linkedName || choice.id,
         description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
-        image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
+        image: (choice.image || '').trim() || effectiveLinkedImageUrl,
         priceDelta: computedPriceDelta,
-        linkedPrice,
+        linkedPrice: effectiveLinkedPrice,
         linkedName: linkedName || '',
-        linkedImageUrl: linked && linked.imageUrl ? linked.imageUrl : '',
-        linkedVariants
+        linkedImageUrl: effectiveLinkedImageUrl,
+        linkedVariants,
+        linkedVariantId: linkedVariant ? linkedVariant.id : '',
+        linkedVariant: linkedVariant || undefined
       };
     });
     if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
@@ -1163,6 +1173,38 @@ const partsUpload = multer({
     }
   })
 });
+const productsImageUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'products');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'product', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
+const bannerUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'banners');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'banner', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
 const cursorUpload = multer({
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -1594,7 +1636,9 @@ app.post('/checkout', async (req, res) => {
               ? allProductsCatalog.find((p) => p.id === choice.linkedProductId)
               : null;
             const selectedVariantIdRaw = rawOptions.find((opt) => opt.groupId === group.id && opt.choiceId === choice.id)?.selectedVariantId;
-            const selectedVariantId = typeof selectedVariantIdRaw === 'string' ? selectedVariantIdRaw.trim() : '';
+            const selectedVariantId = typeof selectedVariantIdRaw === 'string' && selectedVariantIdRaw.trim()
+              ? selectedVariantIdRaw.trim()
+              : (typeof choice.linkedVariantId === 'string' ? choice.linkedVariantId.trim() : '');
             const linkedVariant = linkedProduct && selectedVariantId && Array.isArray(linkedProduct.variants)
               ? linkedProduct.variants.find((v) => v.id === selectedVariantId)
               : null;
@@ -2120,20 +2164,55 @@ app.get('/admin/export/products.csv', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   const products = loadTenantProducts(req);
   const esc = (v) => `"${String(v === undefined ? '' : v).replace(/"/g, '""')}"`;
-  const rows = [
-    ['id', 'name', 'type', 'categoryId', 'sku', 'price', 'stock', 'featured', 'imageUrl'],
-    ...products.map((p) => ([
+  const rows = [[
+    'id', 'type', 'categoryId', 'name_el', 'name_en', 'sku', 'price', 'stock', 'featured', 'imageUrl',
+    'variantId', 'variantLabel_el', 'variantLabel_en', 'variantSku', 'variantPrice', 'variantStock', 'variantImageUrl'
+  ]];
+  products.forEach((p) => {
+    const baseRow = [
       p.id || '',
-      resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
       p.type || 'NORMAL',
       p.categoryId || '',
+      resolveTranslatable(p.name, 'el'),
+      resolveTranslatable(p.name, 'en'),
       p.sku || '',
       Number(p.price) || 0,
       p.stock === undefined ? '' : Number(p.stock),
       p.featured ? '1' : '0',
-      p.imageUrl || ''
-    ]))
-  ];
+      p.imageUrl || '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ];
+    rows.push(baseRow);
+    if (Array.isArray(p.variants)) {
+      p.variants.forEach((v) => {
+        rows.push([
+          p.id || '',
+          p.type || 'NORMAL',
+          p.categoryId || '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          v.id || '',
+          resolveTranslatable(v.label, 'el'),
+          resolveTranslatable(v.label, 'en'),
+          v.sku || '',
+          v.price === undefined ? '' : Number(v.price),
+          v.stock === undefined ? '' : Number(v.stock),
+          v.imageUrl || ''
+        ]);
+      });
+    }
+  });
   const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-products.csv\"`);
@@ -2197,60 +2276,169 @@ app.post('/admin/backups/restore', async (req, res) => {
   }
 });
 
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(cell);
+      cell = '';
+    } else if (ch === '\n') {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else if (ch !== '\r') {
+      cell += ch;
+    }
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows;
+}
+
 app.post('/admin/import/products', importUpload.single('file'), async (req, res) => {
   const auth = await verifyAdminAction(req, req.body.password);
   if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
   if (!req.file) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'No import file uploaded.' }));
   const ext = path.extname(req.file.originalname || '').toLowerCase();
-  if (!['.csv', '.xlsx'].includes(ext)) {
-    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Allowed formats: csv, xlsx' }));
-  }
-  if (ext === '.xlsx') {
-    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'XLSX import preview is not enabled in this build yet. Please export/save as CSV.' }));
-  }
-  const text = req.file.buffer.toString('utf8');
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'CSV has no rows.' }));
-  const headers = lines[0].split(',').map((h) => h.trim());
+  if (!['.csv', '.xlsx'].includes(ext)) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Allowed formats: csv, xlsx' }));
+  if (ext === '.xlsx') return res.status(400).render('admin', buildAdminViewModel(req, { error: 'XLSX import preview is not enabled in this build yet. Please export/save as CSV.' }));
+  const mode = String(req.body.importMode || 'merge').toLowerCase() === 'replace' ? 'replace' : 'merge';
+  const rows = parseCsv(req.file.buffer.toString('utf8')).filter((r) => r.some((c) => String(c || '').trim()));
+  if (rows.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'CSV has no rows.' }));
+  const headers = rows[0].map((h) => String(h || '').trim());
   const idx = (name) => headers.indexOf(name);
-  const required = ['id', 'type', 'categoryId', 'name_el', 'name_en', 'price', 'stock', 'imageUrl', 'sku'];
-  const missingCols = required.filter((c) => idx(c) === -1);
+  const missingCols = ['id', 'type', 'categoryId'].filter((c) => idx(c) === -1);
   if (missingCols.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missingCols.join(', ') }));
+  const numberOr = (val, fallback) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
   const errors = [];
-  const imported = [];
-  for (let i = 1; i < lines.length; i += 1) {
-    const cols = lines[i].split(',');
-    const row = {
-      id: (cols[idx('id')] || '').trim(),
-      type: (cols[idx('type')] || 'NORMAL').trim().toUpperCase(),
-      categoryId: (cols[idx('categoryId')] || '').trim(),
-      nameEl: (cols[idx('name_el')] || '').trim(),
-      nameEn: (cols[idx('name_en')] || '').trim(),
-      price: Number(cols[idx('price')] || 0),
-      stock: Number(cols[idx('stock')] || 0),
-      imageUrl: (cols[idx('imageUrl')] || '').trim(),
-      sku: (cols[idx('sku')] || '').trim()
-    };
-    if (!row.id || !row.nameEl) {
-      errors.push(`Row ${i + 1}: id and name_el are required`);
+  const currentProducts = loadTenantProducts(req);
+  const map = new Map((mode === 'replace' ? [] : currentProducts).map((p) => [p.id, { ...p }]));
+  let variantsTouched = 0;
+  for (let i = 1; i < rows.length; i += 1) {
+    const cols = rows[i];
+    const get = (k) => String(cols[idx(k)] || '').trim();
+    const productId = get('id');
+    const variantId = get('variantId');
+    if (!productId) { errors.push(`Row ${i + 1}: id is required`); continue; }
+    const existing = map.get(productId) || {};
+    const next = { ...existing, id: productId };
+    const typeRaw = get('type').toUpperCase();
+    if (typeRaw) next.type = ['NORMAL', 'PART', 'KIT'].includes(typeRaw) ? typeRaw : 'NORMAL';
+    const categoryId = get('categoryId');
+    if (categoryId) next.categoryId = categoryId;
+    const nameEl = get('name_el');
+    const nameEn = get('name_en');
+    if (nameEl || nameEn) next.name = nameEn ? { el: nameEl || nameEn, en: nameEn } : nameEl;
+    const sku = get('sku');
+    if (sku) next.sku = sku;
+    const imageUrl = get('imageUrl');
+    if (imageUrl) next.imageUrl = imageUrl;
+    const featuredRaw = get('featured');
+    if (featuredRaw) next.featured = ['1', 'true', 'yes'].includes(featuredRaw.toLowerCase());
+    if (get('price') !== '') next.price = numberOr(get('price'), Number(next.price) || 0);
+    if (get('stock') !== '') next.stock = numberOr(get('stock'), Number(next.stock) || 0);
+    if (!variantId) {
+      if (!next.name) {
+        errors.push(`Row ${i + 1}: name_el/name_en required for base product row`);
+        continue;
+      }
+      map.set(productId, next);
       continue;
     }
-    imported.push({
-      id: row.id,
-      type: ['NORMAL', 'PART', 'KIT'].includes(row.type) ? row.type : 'NORMAL',
-      categoryId: row.categoryId || undefined,
-      name: row.nameEn ? { el: row.nameEl, en: row.nameEn } : row.nameEl,
-      price: Number.isFinite(row.price) ? row.price : 0,
-      stock: Number.isFinite(row.stock) ? row.stock : 0,
-      imageUrl: row.imageUrl || undefined,
-      sku: row.sku || undefined
-    });
+    next.variants = Array.isArray(next.variants) ? next.variants.slice() : [];
+    const vLabelEl = get('variantLabel_el');
+    const vLabelEn = get('variantLabel_en');
+    const variant = {
+      id: variantId,
+      label: vLabelEn ? { el: vLabelEl || vLabelEn, en: vLabelEn } : (vLabelEl || variantId),
+      sku: get('variantSku') || undefined,
+      price: get('variantPrice') === '' ? 0 : numberOr(get('variantPrice'), 0),
+      stock: get('variantStock') === '' ? 0 : numberOr(get('variantStock'), 0),
+      imageUrl: get('variantImageUrl') || undefined
+    };
+    const vIdx = next.variants.findIndex((v) => v.id === variantId);
+    if (vIdx >= 0) next.variants[vIdx] = { ...next.variants[vIdx], ...variant };
+    else next.variants.push(variant);
+    variantsTouched += 1;
+    map.set(productId, next);
   }
-  if (errors.length) {
-    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Import errors: ' + errors.join(' | ') }));
-  }
+  if (errors.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Import errors: ' + errors.join(' | ') }));
+  const imported = Array.from(map.values());
   saveTenantProducts(req, imported);
-  return res.render('admin', buildAdminViewModel(req, { message: `Imported ${imported.length} products from CSV.` }));
+  return res.render('admin', buildAdminViewModel(req, { message: `Imported ${imported.length} products (${variantsTouched} variant rows) in ${mode} mode.` }));
+});
+
+app.post('/admin/import/variants', importUpload.single('file'), async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  if (!req.file) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'No variants CSV uploaded.' }));
+  const rows = parseCsv(req.file.buffer.toString('utf8')).filter((r) => r.some((c) => String(c || '').trim()));
+  if (rows.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'CSV has no rows.' }));
+  const headers = rows[0].map((h) => String(h || '').trim());
+  const idx = (name) => headers.indexOf(name);
+  const missing = ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock'].filter((c) => idx(c) === -1);
+  if (missing.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missing.join(', ') }));
+  const products = loadTenantProducts(req);
+  let okRows = 0;
+  const failRows = [];
+  for (let i = 1; i < rows.length; i += 1) {
+    const cols = rows[i];
+    const get = (k) => String(cols[idx(k)] || '').trim();
+    const productId = get('productId');
+    const variantName = get('variantName');
+    const variantSku = get('variantSku');
+    if (!productId || !variantName) { failRows.push(`Row ${i + 1}: productId + variantName required`); continue; }
+    const product = products.find((p) => p.id === productId);
+    if (!product) { failRows.push(`Row ${i + 1}: product "${productId}" not found`); continue; }
+    product.variants = Array.isArray(product.variants) ? product.variants : [];
+    const existingIdx = product.variants.findIndex((v) => (variantSku ? String(v.sku || '') === variantSku : resolveTranslatable(v.label, DEFAULT_CONTENT_LANG) === variantName));
+    const price = Number(get('priceEUR'));
+    const stock = Number(get('stock'));
+    const nextVariant = {
+      id: (variantSku || variantName).toLowerCase().replace(/[^a-z0-9\u0370-\u03ff]+/g, '-').replace(/^-+|-+$/g, '') || ('v-' + Date.now()),
+      label: variantName,
+      sku: variantSku || undefined,
+      price: Number.isFinite(price) ? price : 0,
+      stock: Number.isFinite(stock) ? stock : 0,
+      imageUrl: get('imageUrl') || undefined,
+      videoUrl: get('videoUrl') || undefined,
+      contentDescription: get('videoDescription') || undefined
+    };
+    if (existingIdx >= 0) product.variants[existingIdx] = { ...product.variants[existingIdx], ...nextVariant };
+    else product.variants.push(nextVariant);
+    okRows += 1;
+  }
+  saveTenantProducts(req, products);
+  const msg = `Variants import finished: ${okRows} rows updated.`;
+  if (failRows.length) {
+    return res.render('admin', buildAdminViewModel(req, { message: msg, error: 'Failed rows: ' + failRows.slice(0, 12).join(' | ') }));
+  }
+  return res.render('admin', buildAdminViewModel(req, { message: msg }));
 });
 
 // Admin orders view
@@ -2707,7 +2895,14 @@ app.get('/admin/products/search', (req, res) => {
       imageUrl: p.imageUrl || '',
       price: Number(p.price) || 0,
       stock: Number(p.stock) || 0,
-      categoryId: p.categoryId || ''
+      categoryId: p.categoryId || '',
+      variants: Array.isArray(p.variants) ? p.variants.map((v) => ({
+        id: v.id,
+        label: resolveTranslatable(v.label, DEFAULT_CONTENT_LANG) || v.id,
+        price: Number(v.price) || 0,
+        stock: v.stock === undefined ? 0 : Number(v.stock),
+        imageUrl: v.imageUrl || ''
+      })) : []
     }));
   res.json(out);
 });
@@ -2842,6 +3037,38 @@ app.post(
     }
 
     const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/products/image-upload',
+  productsImageUpload.single('imageFile'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/products/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/homepage/banner-upload',
+  bannerUpload.single('bannerFile'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditSettings) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No banner uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/banners/${req.file.filename}`;
     return res.json({ ok: true, url });
   }
 );
@@ -3828,7 +4055,13 @@ app.post('/root/referral/mark-paid', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
-preflightCompileTemplates();
+if (process.env.THRC_PREFLIGHT_EJS === '1') {
+  try {
+    preflightCompileTemplates();
+  } catch (e) {
+    console.error('[boot] EJS preflight warning:', e.message);
+  }
+}
 app.listen(PORT, () => {
   console.log(`Thronos Commerce running on port ${PORT}`);
 });

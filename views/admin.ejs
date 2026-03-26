@@ -505,7 +505,14 @@
           <textarea name="heroSubtitle_en" rows="2" placeholder="English"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
         </label>
         <label><span>Hero image / banner URL</span>
-          <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <input type="text" id="homepageHeroImage" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <img id="homepage-hero-preview" src="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" alt="" style="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) ? '' : 'display:none;' %>margin-top:6px;width:180px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+            <input type="file" id="homepage-banner-file" accept="image/*" />
+            <button type="button" class="btn-xs" id="homepage-banner-upload-btn">Upload banner</button>
+            <small id="homepage-banner-status" style="font-size:.78rem;color:#64748b;"></small>
+          </div>
+          <small class="helper">Recommended: 1600x600 (desktop). Keep important content in the center (safe crop area).</small>
         </label>
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
         <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
@@ -1146,9 +1153,20 @@
           </form>
           <form method="POST" action="<%= withTenantLink('/admin/import/products') %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
             <input type="file" name="file" accept=".csv,.xlsx" required />
+            <select name="importMode" style="padding:6px 8px;">
+              <option value="merge">Merge (safe)</option>
+              <option value="replace">Replace all</option>
+            </select>
             <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
             <button class="button" type="submit" style="background:#0f766e;">Import products from Excel/CSV</button>
           </form>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Variant columns: variantId, variantLabel_el, variantLabel_en, variantSku, variantPrice, variantStock, variantImageUrl.</p>
+          <form method="POST" action="<%= withTenantLink('/admin/import/variants') %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv" required />
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit" style="background:#0f766e;">Import variants CSV</button>
+          </form>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Columns: productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription.</p>
         </div>
 
         <%# ── Ticket list ── %>
@@ -1258,11 +1276,13 @@
           </label>
           <label class="full"><span><%= t('admin.modalImageUrl') %></span>
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
+            <img id="f-image-preview" alt="" style="display:none;margin-top:6px;width:70px;height:70px;object-fit:cover;border:1px solid #d1d5db;border-radius:8px;" />
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
               <label class="cat-upload-btn" style="cursor:pointer;">
                 <input type="file" id="f-image-file" accept="image/*" style="display:none;" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
                 Upload image
               </label>
+              <button type="button" class="btn-xs" id="f-image-upload-btn">Upload</button>
               <small id="f-image-upload-status" style="font-size:.78rem;color:#64748b;"></small>
             </div>
           </label>
@@ -1470,7 +1490,9 @@
       const fFeatured   = document.getElementById('f-featured');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
+      const fImgPreview = document.getElementById('f-image-preview');
       const fImgFile    = document.getElementById('f-image-file');
+      const fImgUploadBtn = document.getElementById('f-image-upload-btn');
       const fImgStatus  = document.getElementById('f-image-upload-status');
       const fDescEl     = document.getElementById('f-description-el');
       const fDescEn     = document.getElementById('f-description-en');
@@ -1567,14 +1589,16 @@
         const row = document.createElement('div');
         row.className = 'variant-row';
         row.dataset.vid = v.id || '';
-        row.style.cssText = 'background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 90px 80px;gap:6px;';
+        row.style.cssText = 'background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 120px 90px 80px;gap:6px;';
         row.innerHTML =
           '<input class="v-label" type="text" placeholder="<%= t("admin.variantLabel") %>" value="' + escHtml(v.label || '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
+          '<input class="v-sku" type="text" placeholder="Variant SKU" value="' + escHtml(v.sku || '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
           '<input class="v-price" type="number" step="0.01" min="0" placeholder="<%= t("admin.variantPrice") %>" value="' + (v.price !== undefined ? v.price : '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
           '<input class="v-stock" type="number" min="0" placeholder="<%= t("admin.variantStock") %>" value="' + (v.stock !== undefined ? v.stock : '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
-          '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="grid-column:1/3;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
-          '<button type="button" onclick="this.closest(\'.variant-row\').remove()" style="grid-column:3;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:4px 6px;cursor:pointer;font-size:.9rem;">×</button>' +
-          '<textarea class="v-desc" rows="2" placeholder="<%= t("admin.variantDesc") %>" style="grid-column:1/4;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;resize:vertical;">' + escHtml(v.contentDescription || '') + '</textarea>';
+          '<button type="button" onclick="this.closest(\'.variant-row\').remove()" style="grid-column:4;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:4px 6px;cursor:pointer;font-size:.9rem;">×</button>' +
+          '<input class="v-image" type="text" placeholder="Variant image URL" value="' + escHtml(v.imageUrl || '') + '" style="grid-column:1/3;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
+          '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="grid-column:3/5;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
+          '<textarea class="v-desc" rows="2" placeholder="<%= t("admin.variantDesc") %>" style="grid-column:1/5;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;resize:vertical;">' + escHtml(v.contentDescription || '') + '</textarea>';
         container.appendChild(row);
       }
 
@@ -1588,13 +1612,17 @@
           const id = existingId || label.toLowerCase().replace(/[^a-z0-9\u0370-\u03ff]+/g, '-').replace(/^-+|-+$/g, '') || ('v' + Date.now());
           const price = parseFloat(row.querySelector('.v-price').value);
           const stock = parseInt(row.querySelector('.v-stock').value, 10);
+          const sku = (row.querySelector('.v-sku').value || '').trim() || undefined;
+          const imageUrl = (row.querySelector('.v-image').value || '').trim() || undefined;
           const videoUrl = (row.querySelector('.v-video').value || '').trim() || undefined;
           const contentDescription = (row.querySelector('.v-desc').value || '').trim() || undefined;
           result.push({
             id,
             label,
+            sku,
             price:  isNaN(price) ? 0 : price,
             stock:  isNaN(stock) ? 0 : stock,
+            imageUrl,
             videoUrl,
             contentDescription
           });
@@ -1627,9 +1655,10 @@
 
       async function uploadProductImage(file, password) {
         const fd = new FormData();
-        fd.append('image', file);
+        fd.append('imageFile', file);
+        fd.append('categoryId', (fCat && fCat.value) ? fCat.value : '');
         fd.append('password', password || '');
-        const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
+        const response = await fetch('<%= withTenantLink("/admin/products/image-upload") %>', { method: 'POST', body: fd });
         const json = await response.json();
         return { status: response.status, body: json };
       }
@@ -1663,6 +1692,10 @@
           return;
         }
         fImg.value = result.body.url || '';
+        if (fImgPreview && fImg.value) {
+          fImgPreview.src = fImg.value;
+          fImgPreview.style.display = 'block';
+        }
         if (fImgStatus) {
           fImgStatus.style.color = '#059669';
           fImgStatus.textContent = '✓ Uploaded';
@@ -1677,6 +1710,7 @@
         if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
+        if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         renderSpecRows([]);
@@ -1700,6 +1734,10 @@
         fFeatured.checked = !!p.featured;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
+        if (fImgPreview) {
+          if (fImg.value) { fImgPreview.src = fImg.value; fImgPreview.style.display = 'block'; }
+          else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
+        }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fDescEl.value     = getLocalizedForEdit(p.description, 'el');
         fDescEn.value     = getLocalizedForEdit(p.description, 'en');
@@ -1778,7 +1816,12 @@
       const btnViewParts = document.getElementById('btn-view-parts-products');
       if (btnViewAll) btnViewAll.addEventListener('click', function() { productFilter = 'all'; renderTable(); });
       if (btnViewParts) btnViewParts.addEventListener('click', function() { productFilter = 'parts'; renderTable(); });
-      if (fImgFile) fImgFile.addEventListener('change', handleModalImageUpload);
+      if (fImgUploadBtn) fImgUploadBtn.addEventListener('click', handleModalImageUpload);
+      if (fImg) fImg.addEventListener('input', function() {
+        if (!fImgPreview) return;
+        if (fImg.value.trim()) { fImgPreview.src = fImg.value.trim(); fImgPreview.style.display = 'block'; }
+        else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
+      });
 
       async function uploadQuickPartImage(file, password) {
         const fd = new FormData();
@@ -1897,12 +1940,26 @@
         box.innerHTML = group.choices.map(function(c, idx){
           const linked = c.linkedProductId ? products.find(function(p){ return p.id === c.linkedProductId; }) : null;
           const linkedName = linked ? ((linked.name && (linked.name.el || linked.name.en)) || linked.id) : '';
-          const linkedPrice = linked ? (Number(linked.price) || 0).toFixed(2) : '0.00';
-          const thumb = c.image || (linked && linked.imageUrl) || '';
+          const linkedVariants = linked && Array.isArray(linked.variants) ? linked.variants : [];
+          const fixedVariantId = (c.linkedVariantId || '').trim();
+          const fixedVariant = fixedVariantId ? linkedVariants.find(function(v){ return v.id === fixedVariantId; }) : null;
+          const linkedPrice = fixedVariant ? (Number(fixedVariant.price) || 0).toFixed(2) : (linked ? (Number(linked.price) || 0).toFixed(2) : '0.00');
+          const thumb = c.image || (fixedVariant && fixedVariant.imageUrl) || (linked && linked.imageUrl) || '';
+          const variantSelect = linkedVariants.length
+            ? ('<div style="margin-top:6px;"><label style="font-size:.74rem;color:#475569;display:block;">Variant (optional)</label>' +
+                '<select onchange="setKitChoiceVariant(' + idx + ', this.value)" style="width:100%;max-width:240px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;">' +
+                '<option value="">Customer chooses</option>' +
+                linkedVariants.map(function(v){
+                  const vLabel = (v.label && (v.label.el || v.label.en)) || v.label || v.id;
+                  return '<option value="' + escHtml(v.id) + '"' + (v.id === fixedVariantId ? ' selected' : '') + '>' + escHtml(vLabel) + ' (' + (Number(v.price) || 0).toFixed(2) + '€)</option>';
+                }).join('') +
+                '</select></div>')
+            : '';
           return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;">' +
             (thumb ? '<img src="' + escHtml(thumb) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;" />' : '<span style="display:inline-flex;width:44px;height:44px;border-radius:6px;background:#f1f5f9;align-items:center;justify-content:center;margin-right:6px;">🧩</span>') +
             '<strong>' + escHtml(c.label || c.id) + '</strong> <small>' + escHtml(c.linkedProductId || '') + '</small>' +
             (linked ? '<div style="font-size:.78rem;color:#334155;">' + escHtml(linkedName) + ' · ' + linkedPrice + '€</div>' : '') +
+            variantSelect +
             '<div>Δ: ' + (Number(c.priceDelta)||0).toFixed(2) + '€ ' + (c.useLinkedPriceDelta ? '(linked)' : '') + '</div>' +
             '<button type="button" onclick="removeKitChoice(' + idx + ')">Remove</button></div>';
         }).join('') || '<em>No choices yet.</em>';
@@ -1910,6 +1967,13 @@
       window.selectKitGroup = function(idx) { kitBuilderGroupIdx = idx; renderKitBuilder(); };
       window.removeKitGroup = function(idx) { products[kitBuilderIdx].kitOptions.splice(idx, 1); if (kitBuilderGroupIdx === idx) kitBuilderGroupIdx = -1; renderKitBuilder(); };
       window.removeKitChoice = function(idx) { products[kitBuilderIdx].kitOptions[kitBuilderGroupIdx].choices.splice(idx, 1); renderKitBuilder(); };
+      window.setKitChoiceVariant = function(idx, value) {
+        const product = products[kitBuilderIdx];
+        const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
+        if (!group || !group.choices || !group.choices[idx]) return;
+        group.choices[idx].linkedVariantId = (value || '').trim();
+        renderKitBuilder();
+      };
       window.openKitBuilder = function(i) {
         if (!products[i] || products[i].type !== 'KIT') return;
         kitBuilderIdx = i;
@@ -1987,6 +2051,7 @@
         group.choices.push({
           id: cId,
           linkedProductId: item.id,
+          linkedVariantId: '',
           label: customLabel.trim(),
           description: customDesc.trim(),
           image: item.imageUrl || '',
@@ -2024,6 +2089,37 @@
           } else {
             uploadResult.textContent = json.error || i18nJs.uploadErr;
           }
+        });
+      }
+
+      const homepageBannerFile = document.getElementById('homepage-banner-file');
+      const homepageBannerBtn = document.getElementById('homepage-banner-upload-btn');
+      const homepageBannerStatus = document.getElementById('homepage-banner-status');
+      const homepageHeroInput = document.getElementById('homepageHeroImage');
+      const homepageHeroPreview = document.getElementById('homepage-hero-preview');
+      if (homepageBannerBtn) {
+        homepageBannerBtn.addEventListener('click', async function() {
+          const file = homepageBannerFile && homepageBannerFile.files && homepageBannerFile.files[0];
+          if (!file) return alert('Select a banner image first.');
+          if (homepageBannerStatus) homepageBannerStatus.textContent = 'Uploading...';
+          const fd = new FormData();
+          fd.append('bannerFile', file);
+          const inlinePw = (document.querySelector('#tab-homepage input[name=\"password\"]') || { value: '' }).value || '';
+          const pw = inlinePw || prompt('Admin password for banner upload:') || '';
+          fd.append('password', pw);
+          const r = await fetch('<%= withTenantLink("/admin/homepage/banner-upload") %>', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (!j.ok) {
+            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || 'Upload failed.';
+            alert(j.error || 'Upload failed');
+            return;
+          }
+          if (homepageHeroInput) homepageHeroInput.value = j.url || '';
+          if (homepageHeroPreview && j.url) {
+            homepageHeroPreview.src = j.url;
+            homepageHeroPreview.style.display = 'block';
+          }
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '✓ Uploaded';
         });
       }
 

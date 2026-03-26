@@ -467,7 +467,10 @@
         name: p.name,
         price: p.price,
         imageUrl: p.imageUrl,
-        variants: Array.isArray(p.variants) ? p.variants.map(function(v){ return { id: v.id, label: v.label, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock }; }) : []
+        variants: Array.isArray(p.variants) ? p.variants.map(function(v){
+          const variantLabel = (v.label && typeof v.label === 'object') ? (v.label[lang] || v.label.el || v.label.en || v.id) : (v.label || v.id);
+          return { id: v.id, label: variantLabel, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock };
+        }) : []
       };
     })).replace(/</g, '\\u003c') %></script>
     <% } %>
@@ -542,7 +545,7 @@
               const c = (g.choices || []).find(function(ch){ return ch.id === cid; });
               if (!c) return;
               const variantKey = g.id + '::' + c.id;
-              const variantId = state.selectedVariants[variantKey] || '';
+              const variantId = (c.linkedVariantId || state.selectedVariants[variantKey] || '');
               const variants = Array.isArray(c.linkedVariants) ? c.linkedVariants : [];
               const variant = variants.find(function(v){ return v.id === variantId; });
               const priceDelta = variant && variant.price !== undefined && !Number.isNaN(Number(variant.price))
@@ -573,7 +576,7 @@
             const c = (group.choices||[]).find(function(choice){ return choice.id === cid; });
             if (!c) return null;
             const variantKey = group.id + '::' + c.id;
-            const variantId = state.selectedVariants[variantKey] || '';
+            const variantId = (c.linkedVariantId || state.selectedVariants[variantKey] || '');
             const variant = (Array.isArray(c.linkedVariants) ? c.linkedVariants : []).find(function(v){ return v.id === variantId; });
             return {
               label: c.label,
@@ -629,14 +632,15 @@
             card.type = 'button';
             card.className = 'kit-choice' + (checked ? ' selected' : '');
             const variantKey = group.id + '::' + choice.id;
-            const variantId = state.selectedVariants[variantKey] || '';
+            const fixedVariantId = choice.linkedVariantId || '';
+            const variantId = fixedVariantId || state.selectedVariants[variantKey] || '';
             const choiceVariants = Array.isArray(choice.linkedVariants) ? choice.linkedVariants : [];
             const selectedVariant = choiceVariants.find(function(v){ return v.id === variantId; });
             const choiceImage = (selectedVariant && selectedVariant.imageUrl) || choice.image || choice.linkedImageUrl || '';
             const choicePrice = selectedVariant && selectedVariant.price !== undefined && !Number.isNaN(Number(selectedVariant.price))
               ? Number(selectedVariant.price)
               : (Number(choice.priceDelta)||0);
-            const variantSelectHtml = checked && choiceVariants.length
+            const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
               ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;"><%= lang === 'el' ? 'Παραλλαγή' : 'Variant' %></label>' +
                   '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
                   choiceVariants.map(function(v){
@@ -660,6 +664,8 @@
               }
               if (!state.selections[group.id].includes(choice.id)) {
                 delete state.selectedVariants[variantKey];
+              } else if (fixedVariantId) {
+                state.selectedVariants[variantKey] = fixedVariantId;
               } else if (choiceVariants.length && !state.selectedVariants[variantKey]) {
                 state.selectedVariants[variantKey] = choiceVariants[0].id;
               }
