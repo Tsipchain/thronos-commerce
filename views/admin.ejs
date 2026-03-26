@@ -51,6 +51,8 @@
         align-items: center; justify-content: center;
       }
       .modal-overlay.open { display: flex; }
+      #kit-builder-modal.modal-overlay { background: rgba(2,6,23,.72); z-index: 1200; }
+      #kit-builder-modal .modal { background:#f8fbff; border:1px solid #bfdbfe; color:#0f172a; }
       .modal-box {
         background: #fff; border-radius: 8px; padding: 28px 28px 20px;
         width: min(520px, 95vw); max-height: 90vh; overflow-y: auto;
@@ -1605,6 +1607,7 @@
                 '<button type="button" class="btn-xs" onclick="uploadVariantImage(this)">Upload image</button>' +
               '</div>' +
               '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-top:6px;" />' +
+              '<video class="v-video-preview" controls style="' + (v.videoUrl ? '' : 'display:none;') + 'margin-top:6px;max-width:220px;border-radius:8px;border:1px solid #cbd5e1;"></video>' +
               '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">' +
                 '<input class="v-video-file" type="file" accept="video/mp4,video/webm" />' +
                 '<button type="button" class="btn-xs" onclick="uploadVariantVideo(this)">Upload video</button>' +
@@ -1614,6 +1617,7 @@
           '</div>' +
           '<textarea class="v-desc" rows="2" placeholder="<%= t("admin.variantDesc") %>" style="grid-column:1/5;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;resize:vertical;">' + escHtml(v.contentDescription || '') + '</textarea>';
         container.appendChild(row);
+        bindVariantUrlPreview(row);
       }
 
       function readVariantRows() {
@@ -1733,6 +1737,7 @@
         const row = buttonEl && buttonEl.closest('.variant-row');
         if (!row) return;
         const variantId = ensureVariantRowId(row);
+        const variantSku = ((row.querySelector('.v-sku') && row.querySelector('.v-sku').value) || '').trim();
         const productId = (fId && fId.value || '').trim();
         if (!productId) return alert('Συμπλήρωσε πρώτα Product ID.');
         const fileInput = row.querySelector(type === 'image' ? '.v-image-file' : '.v-video-file');
@@ -1744,6 +1749,7 @@
         fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
         fd.append('productId', productId);
         fd.append('variantId', variantId);
+        fd.append('variantSku', variantSku);
         fd.append('password', '');
         let r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
         let j = await r.json();
@@ -1762,15 +1768,59 @@
           const urlEl = row.querySelector('.v-image');
           const previewEl = row.querySelector('.v-image-preview');
           if (urlEl) urlEl.value = j.url || '';
-          if (previewEl && j.url) { previewEl.src = j.url; previewEl.style.display = 'block'; }
+          if (previewEl && j.url) {
+            previewEl.onload = function() {
+              previewEl.style.display = 'block';
+              if (status) status.textContent = '✓ Uploaded';
+            };
+            previewEl.onerror = function() {
+              previewEl.style.display = 'none';
+              if (status) status.textContent = 'Η εικόνα δεν φορτώνει (404/invalid path).';
+            };
+            previewEl.src = j.url;
+            previewEl.style.display = 'block';
+          }
         } else {
           const urlEl = row.querySelector('.v-video');
           if (urlEl) urlEl.value = j.url || '';
+          const videoPreview = row.querySelector('.v-video-preview');
+          if (videoPreview && j.url) { videoPreview.src = j.url; videoPreview.style.display = 'block'; }
+          if (status) status.textContent = '✓ Uploaded (video)';
+          return;
         }
-        if (status) status.textContent = '✓ Uploaded';
+        if (status && (!row.querySelector('.v-image-preview') || !row.querySelector('.v-image-preview').src)) status.textContent = '✓ Uploaded';
       }
       window.uploadVariantImage = function(buttonEl) { uploadVariantAsset(buttonEl, 'image'); };
       window.uploadVariantVideo = function(buttonEl) { uploadVariantAsset(buttonEl, 'video'); };
+
+      function bindVariantUrlPreview(row) {
+        const input = row && row.querySelector('.v-image');
+        const preview = row && row.querySelector('.v-image-preview');
+        const videoInput = row && row.querySelector('.v-video');
+        const videoPreview = row && row.querySelector('.v-video-preview');
+        const status = row && row.querySelector('.v-upload-status');
+        if (!input || !preview) return;
+        const refresh = function() {
+          const url = (input.value || '').trim();
+          if (!url) { preview.style.display = 'none'; preview.removeAttribute('src'); return; }
+          preview.onload = function() { preview.style.display = 'block'; if (status) status.textContent = ''; };
+          preview.onerror = function() { preview.style.display = 'none'; if (status) status.textContent = 'Η εικόνα δεν φορτώνει (404/invalid path).'; };
+          preview.src = url;
+        };
+        input.addEventListener('change', refresh);
+        input.addEventListener('blur', refresh);
+        const refreshVideo = function() {
+          const vurl = (videoInput && videoInput.value || '').trim();
+          if (!videoPreview) return;
+          if (!vurl) { videoPreview.style.display = 'none'; videoPreview.removeAttribute('src'); return; }
+          videoPreview.src = vurl;
+          videoPreview.style.display = 'block';
+        };
+        if (videoInput) {
+          videoInput.addEventListener('change', refreshVideo);
+          videoInput.addEventListener('blur', refreshVideo);
+        }
+      }
 
       function openAdd() {
         editingIdx = -1;

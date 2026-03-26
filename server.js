@@ -1212,8 +1212,8 @@ const variantImageUpload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantId);
+      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
       ensureDir(dir);
       cb(null, dir);
     },
@@ -1231,8 +1231,8 @@ const variantVideoUpload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantId);
+      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
       ensureDir(dir);
       cb(null, dir);
     },
@@ -1586,14 +1586,19 @@ app.get('/', (req, res) => {
   const viewLang = req.lang;
   const localizedConfig = localizeConfigContent(config, viewLang);
   const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
-  res.render('index', {
-    config: localizedConfig,
-    categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
-    products: products.map((p) => localizeProductContent(p, viewLang)),
-    allProducts: localizedAllProducts,
-    activeCategory: catSlug || null,
-    tenant: req.tenant
-  });
+  try {
+    res.render('index', {
+      config: localizedConfig,
+      categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
+      products: products.map((p) => localizeProductContent(p, viewLang)),
+      allProducts: localizedAllProducts,
+      activeCategory: catSlug || null,
+      tenant: req.tenant
+    });
+  } catch (err) {
+    console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
+    res.status(500).send('<!doctype html><html><body style="font-family:system-ui;padding:20px;"><h2>Store temporarily unavailable</h2><p>Please try again shortly.</p></body></html>');
+  }
 });
 
 // Product detail
@@ -3148,9 +3153,9 @@ app.post(
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No image uploaded.' });
     const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantId) return res.status(400).json({ ok: false, error: 'productId and variantId are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantId}/${req.file.filename}` });
+    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
+    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
   }
 );
 
@@ -3166,9 +3171,9 @@ app.post(
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No video uploaded.' });
     const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantId = String(req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantId) return res.status(400).json({ ok: false, error: 'productId and variantId are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantId}/${req.file.filename}` });
+    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
+    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
   }
 );
 
