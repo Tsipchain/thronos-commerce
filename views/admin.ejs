@@ -500,13 +500,30 @@
           <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
         </label>
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
+        <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
+        <% const hpKitIds = hpKitProducts.map(function(p){ return p.id; }); %>
+        <% const hpP1Missing = hpPrimary[0] && !hpKitIds.includes(hpPrimary[0]); %>
+        <% const hpP2Missing = hpPrimary[1] && !hpKitIds.includes(hpPrimary[1]); %>
         <label><span>Primary Product #1</span>
-          <input type="text" name="homepageFeaturedPrimary1" value="<%= hpPrimary[0] || '' %>" placeholder="eukolaki-diy-roll-kit" />
+          <select name="homepageFeaturedPrimary1" id="homepageFeaturedPrimary1">
+            <option value="">-- Select KIT --</option>
+            <% hpKitProducts.forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= hpPrimary[0] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+            <% }) %>
+          </select>
           <small class="helper">Εμφανίζεται στο πρώτο μεγάλο card της homepage.</small>
+          <% if (hpP1Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
         </label>
         <label><span>Primary Product #2</span>
-          <input type="text" name="homepageFeaturedPrimary2" value="<%= hpPrimary[1] || '' %>" placeholder="eukolaki-diy-slide-door-kit" />
+          <select name="homepageFeaturedPrimary2" id="homepageFeaturedPrimary2">
+            <option value="">-- Select KIT --</option>
+            <% hpKitProducts.forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= hpPrimary[1] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+            <% }) %>
+          </select>
           <small class="helper">Εμφανίζεται στο δεύτερο μεγάλο card της homepage.</small>
+          <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
+          <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Pick a KIT now</button><% } %>
         </label>
         <label><span>Secondary Feature Block</span>
           <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="eukolaki-spare-pack" />
@@ -692,6 +709,7 @@
                 <button class="button" type="button" id="btn-quick-part-add">Add part</button>
               </div>
               <input type="password" id="quick-part-password" placeholder="Password (μόνο αν λήξει session)" style="display:none;" />
+              <img id="quick-part-preview" alt="" style="display:none;width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />
             </div>
           </details>
         <% } %>
@@ -1086,6 +1104,8 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
               <a class="button" href="<%= withTenantLink('/admin/export/products.json') %>">Export products.json</a>
               <a class="button" href="<%= withTenantLink('/admin/export/products.csv') %>" style="background:#1f2937;">Export products.csv</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/categories.json') %>" style="background:#334155;">Export categories.json</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/config.json') %>" style="background:#475569;">Export config.json</a>
             </div>
           <% } else { %>
             <p style="margin:0 0 10px;color:#92400e;">Export available on paid plans. Contact support / upgrade.</p>
@@ -1112,6 +1132,15 @@
               <p style="margin:0;font-size:.82rem;color:#64748b;">No backups yet. Save products/categories/settings to generate backups.</p>
             <% } %>
           </div>
+          <form method="POST" action="<%= withTenantLink('/admin/backups/create-now') %>" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit">Create backup now</button>
+          </form>
+          <form method="POST" action="<%= withTenantLink('/admin/import/products') %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv,.xlsx" required />
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit" style="background:#0f766e;">Import products from Excel/CSV</button>
+          </form>
         </div>
 
         <%# ── Ticket list ── %>
@@ -1316,6 +1345,7 @@
             <div style="display:flex;gap:6px;margin:8px 0;">
               <input id="kit-choice-search-q" type="text" placeholder="Search parts/products..." />
               <button class="button" type="button" id="kit-choice-search-btn">Search</button>
+              <button class="button" type="button" id="kit-create-part-btn" style="background:#0f766e;">Create new part</button>
             </div>
             <div id="kit-choice-search-results" style="max-height:150px;overflow:auto;border:1px solid #e5e7eb;border-radius:6px;padding:6px;"></div>
           </div>
@@ -1673,10 +1703,37 @@
         const fd = new FormData();
         fd.append('image', file);
         fd.append('password', password || '');
-        const response = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
+        const response = await fetch('<%= withTenantLink("/admin/parts/image-upload") %>', { method: 'POST', body: fd });
         const json = await response.json();
         return { status: response.status, body: json };
       }
+      async function handleQuickPartUpload() {
+        const fileInput = document.getElementById('quick-part-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        if (!file) return;
+        const preview = document.getElementById('quick-part-preview');
+        const initial = await uploadQuickPartImage(file, '');
+        let uploadUrl = '';
+        if (initial.status === 401) {
+          const pwField = document.getElementById('quick-part-password');
+          if (pwField) pwField.style.display = 'block';
+          const pw = (pwField && pwField.value) || prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!pw) return alert('Απαιτείται password για upload εικόνας.');
+          const retried = await uploadQuickPartImage(file, pw);
+          if (!retried.body || !retried.body.ok) return alert((retried.body && retried.body.error) || 'Upload error');
+          uploadUrl = retried.body.url || '';
+        } else {
+          if (!initial.body || !initial.body.ok) return alert((initial.body && initial.body.error) || 'Upload error');
+          uploadUrl = initial.body.url || '';
+        }
+        document.getElementById('quick-part-image').value = uploadUrl;
+        if (preview && uploadUrl) {
+          preview.src = uploadUrl;
+          preview.style.display = 'block';
+        }
+      }
+      const quickPartFileInput = document.getElementById('quick-part-file');
+      if (quickPartFileInput) quickPartFileInput.addEventListener('change', handleQuickPartUpload);
       const quickPartAddBtn = document.getElementById('btn-quick-part-add');
       if (quickPartAddBtn) quickPartAddBtn.addEventListener('click', async function() {
         const id = (document.getElementById('quick-part-id').value || '').trim();
@@ -1685,23 +1742,8 @@
         if (products.some(function(p){ return p.id === id; })) return alert('Υπάρχει ήδη προϊόν με αυτό το id');
         const fileInput = document.getElementById('quick-part-file');
         const file = fileInput && fileInput.files && fileInput.files[0];
-        let uploadedImageUrl = '';
-        if (file) {
-          const initial = await uploadQuickPartImage(file, '');
-          if (initial.status === 401) {
-            const pwField = document.getElementById('quick-part-password');
-            if (pwField) pwField.style.display = 'block';
-            const pw = (pwField && pwField.value) || prompt('Session έληξε. Δώσε admin password για upload:') || '';
-            if (!pw) return alert('Απαιτείται password για upload εικόνας.');
-            const retried = await uploadQuickPartImage(file, pw);
-            if (!retried.body || !retried.body.ok) return alert((retried.body && retried.body.error) || 'Upload error');
-            uploadedImageUrl = retried.body.url || '';
-          } else {
-            if (!initial.body || !initial.body.ok) return alert((initial.body && initial.body.error) || 'Upload error');
-            uploadedImageUrl = initial.body.url || '';
-          }
-          document.getElementById('quick-part-image').value = uploadedImageUrl;
-        }
+        if (file && !document.getElementById('quick-part-image').value) await handleQuickPartUpload();
+        const uploadedImageUrl = (document.getElementById('quick-part-image').value || '').trim();
         products.push({
           id,
           type: 'PART',
@@ -1717,6 +1759,8 @@
         document.getElementById('quick-part-stock').value = '';
         document.getElementById('quick-part-image').value = '';
         if (fileInput) fileInput.value = '';
+        const preview = document.getElementById('quick-part-preview');
+        if (preview) { preview.src = ''; preview.style.display = 'none'; }
         renderTable();
       });
 
@@ -1779,7 +1823,14 @@
           required: document.getElementById('kg-required').checked,
           inputType: document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : 'radio',
           order: parseInt(document.getElementById('kg-order').value, 10) || 0,
-          choices: []
+          choices: document.getElementById('kg-required').checked ? [] : [{
+            id: 'skip',
+            label: 'Δεν το χρειάζομαι / Το έχω ήδη',
+            description: '',
+            image: '',
+            linkedProductId: '',
+            priceDelta: 0
+          }]
         });
         kitBuilderGroupIdx = product.kitOptions.length - 1;
         renderKitBuilder();
@@ -1799,6 +1850,17 @@
             '<button type="button" onclick="addLinkedChoice(' + idx + ')">Use</button></div>';
         }).join('');
         window.__kitSearchItems = items;
+      });
+      const createPartBtn = document.getElementById('kit-create-part-btn');
+      if (createPartBtn) createPartBtn.addEventListener('click', function() {
+        const q = (document.getElementById('kit-choice-search-q').value || '').trim();
+        window.location.hash = '#tab-products';
+        const quickName = document.getElementById('quick-part-name');
+        const quickId = document.getElementById('quick-part-id');
+        if (quickName) quickName.value = q;
+        if (quickId && q) quickId.value = q.toLowerCase().replace(/[^a-z0-9\u0370-\u03ff]+/g, '-').replace(/^-+|-+$/g, '');
+        const details = document.querySelector('#tab-products details');
+        if (details) details.open = true;
       });
       window.addLinkedChoice = function(idx) {
         const item = (window.__kitSearchItems || [])[idx];

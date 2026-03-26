@@ -1146,6 +1146,22 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const partsUpload = multer({
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\//.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'parts');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'part', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
 const categoryUpload = multer({
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -1173,6 +1189,10 @@ const favUpload = multer({
     const ok = /^image\/(png|jpeg|x-icon|vnd\.microsoft\.icon|svg\+xml)$/.test(file.mimetype);
     cb(null, ok);
   }
+});
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }
 });
 
 // View engine & middleware
@@ -2063,6 +2083,29 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/export/categories.json', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-categories.json\"`);
+  res.send(JSON.stringify(loadTenantCategories(req), null, 2));
+});
+
+app.get('/admin/export/config.json', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-config.json\"`);
+  res.send(JSON.stringify(loadTenantConfig(req), null, 2));
+});
+
+app.post('/admin/backups/create-now', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  backupJsonWithRotation(req, 'products', loadTenantProducts(req));
+  backupJsonWithRotation(req, 'categories', loadTenantCategories(req));
+  backupJsonWithRotation(req, 'config', loadTenantConfig(req));
+  return res.render('admin', buildAdminViewModel(req, { message: 'Δημιουργήθηκε backup snapshot.' }));
+});
+
 app.get('/admin/backups/:filename', (req, res) => {
   const filename = String(req.params.filename || '');
   if (!/^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(filename)) return res.status(400).send('Invalid filename');
@@ -2095,6 +2138,62 @@ app.post('/admin/backups/restore', async (req, res) => {
   } catch (err) {
     return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Αποτυχία restore: ' + err.message }));
   }
+});
+
+app.post('/admin/import/products', importUpload.single('file'), async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  if (!req.file) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'No import file uploaded.' }));
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  if (!['.csv', '.xlsx'].includes(ext)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Allowed formats: csv, xlsx' }));
+  }
+  if (ext === '.xlsx') {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'XLSX import preview is not enabled in this build yet. Please export/save as CSV.' }));
+  }
+  const text = req.file.buffer.toString('utf8');
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'CSV has no rows.' }));
+  const headers = lines[0].split(',').map((h) => h.trim());
+  const idx = (name) => headers.indexOf(name);
+  const required = ['id', 'type', 'categoryId', 'name_el', 'name_en', 'price', 'stock', 'imageUrl', 'sku'];
+  const missingCols = required.filter((c) => idx(c) === -1);
+  if (missingCols.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missingCols.join(', ') }));
+  const errors = [];
+  const imported = [];
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = lines[i].split(',');
+    const row = {
+      id: (cols[idx('id')] || '').trim(),
+      type: (cols[idx('type')] || 'NORMAL').trim().toUpperCase(),
+      categoryId: (cols[idx('categoryId')] || '').trim(),
+      nameEl: (cols[idx('name_el')] || '').trim(),
+      nameEn: (cols[idx('name_en')] || '').trim(),
+      price: Number(cols[idx('price')] || 0),
+      stock: Number(cols[idx('stock')] || 0),
+      imageUrl: (cols[idx('imageUrl')] || '').trim(),
+      sku: (cols[idx('sku')] || '').trim()
+    };
+    if (!row.id || !row.nameEl) {
+      errors.push(`Row ${i + 1}: id and name_el are required`);
+      continue;
+    }
+    imported.push({
+      id: row.id,
+      type: ['NORMAL', 'PART', 'KIT'].includes(row.type) ? row.type : 'NORMAL',
+      categoryId: row.categoryId || undefined,
+      name: row.nameEn ? { el: row.nameEl, en: row.nameEn } : row.nameEl,
+      price: Number.isFinite(row.price) ? row.price : 0,
+      stock: Number.isFinite(row.stock) ? row.stock : 0,
+      imageUrl: row.imageUrl || undefined,
+      sku: row.sku || undefined
+    });
+  }
+  if (errors.length) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Import errors: ' + errors.join(' | ') }));
+  }
+  saveTenantProducts(req, imported);
+  return res.render('admin', buildAdminViewModel(req, { message: `Imported ${imported.length} products from CSV.` }));
 });
 
 // Admin orders view
@@ -2685,6 +2784,22 @@ app.post(
     }
 
     const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/parts/image-upload',
+  partsUpload.single('image'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/parts/${req.file.filename}`;
     return res.json({ ok: true, url });
   }
 );
