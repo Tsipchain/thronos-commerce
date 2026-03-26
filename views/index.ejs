@@ -159,11 +159,8 @@
   <body class="<%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
-    <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
-    <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
-    <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
     <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
-    <% const hideMenuForHeroFocus = isEukolakisClassic && !activeCategory; %>
+    <% const hideMenuForHeroFocus = isEukolakisClassic && !activeCategory && !!homepage.heroImage; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
@@ -227,28 +224,20 @@
         </ul>
       </nav>
       </div>
-      <% } %>
       <% if (tenant.id === 'eukolakis') { %>
       <div class="pill-nav">
-        <% if (isEukolakisClassic && !activeCategory) { %>
-          <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
-          <% if (topPrimaryKit2) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit2.id %>"><span>Slide Door Kit</span></a><% } %>
-          <a class="pill-item" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
+        <% const navHomepage = config.homepage || {}; %>
+        <% navCategories.forEach(function(cat){ %>
+          <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <span><%= cat.name %></span>
+          </a>
+        <% }) %>
+        <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
+        <% if (subscriptionCategory) { %>
+          <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
+        <% } else if (navHomepage.showSubscriptionsCard) { %>
           <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
-        <% } else { %>
-          <% const navHomepage = config.homepage || {}; %>
-          <% navCategories.forEach(function(cat){ %>
-            <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-              <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-              <span><%= cat.name %></span>
-            </a>
-          <% }) %>
-          <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
-          <% if (subscriptionCategory) { %>
-            <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
-          <% } else if (navHomepage.showSubscriptionsCard) { %>
-            <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
-          <% } %>
         <% } %>
       </div>
       <% } %>
@@ -277,7 +266,7 @@
       <% const primaryFeaturedProduct = (allProducts || products).find(function(p){ return p.id === primaryFeaturedId; }); %>
       <% const featuredFromIds = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }); %>
       <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT'; }).slice(0, 2); %>
-      <% const featuredHomeProducts = (featuredFromIds.length >= 2 ? featuredFromIds : fallbackKitProducts).slice(0, 2); %>
+      <% const featuredHomeProducts = (featuredFromIds.length ? featuredFromIds : fallbackKitProducts).slice(0, 2); %>
       <% const heroPrimaryProduct = primaryFeaturedProduct || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
@@ -477,7 +466,7 @@
       if (isEukolakis && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
         if (cursorImage) {
-          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 16 16, auto';
+          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 8 8, crosshair';
         } else {
           document.body.classList.add('cursor-tool');
         }
