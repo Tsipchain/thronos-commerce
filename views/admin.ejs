@@ -214,7 +214,7 @@
         <a href="#tab-products">📦 Products</a>
         <a href="#tab-upload">🖼️ Media</a>
         <a href="<%= withTenantLink('/admin/orders') %>">🧾 Orders</a>
-        <a href="#tab-shipping">💳 Payments</a>
+        <a href="<%= withTenantLink('/admin/payments') %>">💳 Payments</a>
         <a href="#tab-notifications">🔔 Notifications</a>
         <a href="#tab-support">⚙️ Advanced</a>
         <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
@@ -223,6 +223,11 @@
       <section id="tab-dashboard" class="admin-block section-panel">
         <h2>Dashboard</h2>
         <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Payments status</strong>
+          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong></p>
+          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments</a>
+        </div>
       </section>
       <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
         <label style="font-size:.84rem;display:flex;align-items:center;gap:8px;">
@@ -459,81 +464,21 @@
           <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
+        <% if (tenant.id === 'eukolakis') { %>
+        <label><span>Cursor image URL (desktop only)</span>
+          <input type="text" id="themeCursorImage-input" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+            <input type="file" id="cursor-file" accept="image/png,image/webp,image/jpeg" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+            <button type="button" class="btn-xs" id="cursor-upload-btn" <%= permissions.canEditSettings ? '' : 'disabled' %>>Upload cursor</button>
+          </div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+            <img id="cursor-preview" src="<%= (config.theme && config.theme.cursorImage) || '' %>" alt="" style="width:34px;height:34px;object-fit:contain;border:1px solid #d1d5db;border-radius:6px;<%= (config.theme && config.theme.cursorImage) ? '' : 'display:none;' %>" />
+            <span id="cursor-upload-status" style="font-size:.78rem;color:#475569;"></span>
+          </div>
+          <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
+        </label>
+        <% } %>
         </details>
-
-        <%# ── Ειδοποιήσεις ── %>
-        <div class="notif-section">
-          <h3><%= t('admin.notifEmail') %></h3>
-          <p class="helper"><%= t('admin.notifEmailHelper') %></p>
-
-          <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
-            <textarea name="notificationEmails" rows="3"
-                      placeholder="owner@myshop.gr&#10;backup@myshop.gr"
-                      <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
-          </label>
-
-          <label class="checkbox-label">
-            <input type="checkbox" name="notificationCcCustomer"
-                   <%= (config.notificationCcCustomer) ? 'checked' : '' %>
-                   <%= permissions.canEditSettings ? '' : 'disabled' %> />
-            <span><%= t('admin.notifCcCustomer') %></span>
-          </label>
-
-          <label><span><%= t('admin.notifFromName') %></span>
-            <input type="text" name="notificationFromName"
-                   value="<%= config.notificationFromName || '' %>"
-                   placeholder="π.χ. FashionMM Store"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-
-          <h3 style="margin-top:18px;"><%= t('admin.notifWebhook') %></h3>
-          <p class="helper"><%= t('admin.notifWebhookHelper') %></p>
-
-          <label><span><%= t('admin.webhookUrl') %></span>
-            <input type="text" name="notificationWebhookUrl"
-                   value="<%= config.notificationWebhookUrl || '' %>"
-                   placeholder="https://myhook.example.com/orders"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-
-          <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
-            <input type="text" name="notificationWebhookSecret"
-                   value="<%= config.notificationWebhookSecret || '' %>"
-                   placeholder="mysecret123"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          </label>
-        </div>
-
-        <%# ── Stripe Integration ── %>
-        <div style="margin-top:24px;padding:18px 20px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;">
-          <p style="margin:0 0 12px;font-weight:700;font-size:.95rem;color:#5b21b6;">💳 Stripe — Online πληρωμές με κάρτα</p>
-          <p class="helper" style="margin:0 0 14px;color:#6b7280;font-size:.82rem;">
-            Για να ενεργοποιήσετε πληρωμές με κάρτα, εισάγετε τα κλειδιά σας από το
-            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard</a>.
-            Μετά προσθέστε μέθοδο πληρωμής με <code>type: "stripe"</code> από τον root admin.
-          </p>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;margin-bottom:10px;">
-            <span>Publishable Key <small style="color:#888;">(pk_live_… ή pk_test_…)</small></span>
-            <input type="text" name="stripePublishableKey"
-                   value="<%= config.stripePublishableKey || '' %>"
-                   placeholder="pk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-          </label>
-          <label style="display:flex;flex-direction:column;gap:4px;font-size:.86rem;">
-            <span>Secret Key <small style="color:#888;">(sk_live_… ή sk_test_…)</small></span>
-            <input type="password" name="stripeSecretKey"
-                   value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>"
-                   placeholder="sk_live_..."
-                   <%= permissions.canEditSettings ? '' : 'readonly' %>
-                   autocomplete="new-password"
-                   style="padding:7px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.84rem;font-family:monospace;" />
-            <small style="color:#888;font-size:.76rem;">Αφήστε κενό αν δεν θέλετε να αλλάξετε το υπάρχον κλειδί.</small>
-          </label>
-          <% if (config.stripeSecretKey) { %>
-            <p style="margin:10px 0 0;font-size:.8rem;color:#059669;">✓ Stripe ενεργοποιημένο</p>
-          <% } %>
-        </div>
 
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
@@ -560,16 +505,40 @@
           <textarea name="heroSubtitle_en" rows="2" placeholder="English"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
         </label>
         <label><span>Hero image / banner URL</span>
-          <input type="text" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <input type="text" id="homepageHeroImage" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <img id="homepage-hero-preview" src="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" alt="" style="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) ? '' : 'display:none;' %>margin-top:6px;width:180px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+            <input type="file" id="homepage-banner-file" accept="image/*" />
+            <button type="button" class="btn-xs" id="homepage-banner-upload-btn">Upload banner</button>
+            <small id="homepage-banner-status" style="font-size:.78rem;color:#64748b;"></small>
+          </div>
+          <small class="helper">Recommended: 1600x600 (desktop). Keep important content in the center (safe crop area).</small>
         </label>
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
+        <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
+        <% const hpKitIds = hpKitProducts.map(function(p){ return p.id; }); %>
+        <% const hpP1Missing = hpPrimary[0] && !hpKitIds.includes(hpPrimary[0]); %>
+        <% const hpP2Missing = hpPrimary[1] && !hpKitIds.includes(hpPrimary[1]); %>
         <label><span>Primary Product #1</span>
-          <input type="text" name="homepageFeaturedPrimary1" value="<%= hpPrimary[0] || '' %>" placeholder="eukolaki-diy-roll-kit" />
+          <select name="homepageFeaturedPrimary1" id="homepageFeaturedPrimary1">
+            <option value="">-- Select KIT --</option>
+            <% hpKitProducts.forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= hpPrimary[0] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+            <% }) %>
+          </select>
           <small class="helper">Εμφανίζεται στο πρώτο μεγάλο card της homepage.</small>
+          <% if (hpP1Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
         </label>
         <label><span>Primary Product #2</span>
-          <input type="text" name="homepageFeaturedPrimary2" value="<%= hpPrimary[1] || '' %>" placeholder="eukolaki-diy-slide-door-kit" />
+          <select name="homepageFeaturedPrimary2" id="homepageFeaturedPrimary2">
+            <option value="">-- Select KIT --</option>
+            <% hpKitProducts.forEach(function(p){ %>
+              <option value="<%= p.id %>" <%= hpPrimary[1] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+            <% }) %>
+          </select>
           <small class="helper">Εμφανίζεται στο δεύτερο μεγάλο card της homepage.</small>
+          <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
+          <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Pick a KIT now</button><% } %>
         </label>
         <label><span>Secondary Feature Block</span>
           <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="eukolaki-spare-pack" />
@@ -726,7 +695,6 @@
         <% } %>
       </section>
 
-
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 3 – PRODUCTS (table + modal editor)                 %>
       <%# ══════════════════════════════════════════════════════════ %>
@@ -741,6 +709,24 @@
 
         <% if (permissions.canEditProducts) { %>
           <button class="button" id="btn-add-product" type="button"><%= t('admin.addProduct') %></button>
+          <button class="button" id="btn-view-all-products" type="button" style="background:#1f2937;">All</button>
+          <button class="button" id="btn-view-parts-products" type="button" style="background:#0f766e;">Spare parts</button>
+          <details style="margin-top:10px;">
+            <summary style="cursor:pointer;font-weight:700;">Quick add spare part</summary>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px;">
+              <input type="text" id="quick-part-id" placeholder="id (e.g. part-bolt-m8)" />
+              <input type="text" id="quick-part-name" placeholder="Όνομα ανταλλακτικού" />
+              <input type="number" id="quick-part-price" placeholder="Τιμή" min="0" step="0.01" />
+              <input type="number" id="quick-part-stock" placeholder="Stock" min="0" step="1" />
+              <input type="text" id="quick-part-image" placeholder="Image URL (auto από upload)" readonly />
+              <div style="display:flex;gap:8px;">
+                <label class="cat-upload-btn" style="cursor:pointer;">Upload<input type="file" id="quick-part-file" accept="image/*" style="display:none;" /></label>
+                <button class="button" type="button" id="btn-quick-part-add">Add part</button>
+              </div>
+              <input type="password" id="quick-part-password" placeholder="Password (μόνο αν λήξει session)" style="display:none;" />
+              <img id="quick-part-preview" alt="" style="display:none;width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />
+            </div>
+          </details>
         <% } %>
 
         <table class="products-table" id="products-table">
@@ -927,31 +913,46 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 7 – NOTIFICATIONS                                   %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <section id="tab-notifications" class="admin-block section-panel">
+      <form id="tab-notifications" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/notifications') %>">
         <h2><%= t('admin.notificationsTitle') %></h2>
-        <p class="helper"><%= t('admin.notificationsHelper') %></p>
-
-        <div class="notifications-skeleton">
-          <table class="sp-table" style="opacity:.5;">
-            <thead>
-              <tr>
-                <th><%= t('admin.notifColDate') %></th>
-                <th><%= t('admin.notifColSubject') %></th>
-                <th><%= t('admin.notifColRecipients') %></th>
-                <th><%= t('admin.notifColStatus') %></th>
-                <th><%= t('admin.notifColHash') %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="5" style="text-align:center;color:#aaa;font-style:italic;padding:24px 0;">
-                  <%= t('admin.notificationsComingSoon') %>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <p class="helper">Ρύθμιση παραληπτών email και webhook για ειδοποιήσεις παραγγελιών.</p>
+        <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
+          <textarea name="notificationEmails" rows="3"
+                    placeholder="owner@myshop.gr&#10;backup@myshop.gr"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="notificationCcCustomer"
+                 <%= (config.notificationCcCustomer) ? 'checked' : '' %>
+                 <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span><%= t('admin.notifCcCustomer') %></span>
+        </label>
+        <label><span><%= t('admin.notifFromName') %></span>
+          <input type="text" name="notificationFromName"
+                 value="<%= config.notificationFromName || '' %>"
+                 placeholder="π.χ. FashionMM Store"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span><%= t('admin.webhookUrl') %></span>
+          <input type="text" name="notificationWebhookUrl"
+                 value="<%= config.notificationWebhookUrl || '' %>"
+                 placeholder="https://myhook.example.com/orders"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
+          <input type="text" name="notificationWebhookSecret"
+                 value="<%= config.notificationWebhookSecret || '' %>"
+                 placeholder="mysecret123"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+        </label>
+        <% if (permissions.canEditSettings) { %>
+        <div class="save-row">
+          <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
+          <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
+          <button type="submit" class="button">Αποθήκευση ειδοποιήσεων</button>
         </div>
-      </section>
+        <% } %>
+      </form>
 
 
       <%# ══════════════════════════════════════════════════════════ %>
@@ -1112,6 +1113,62 @@
         <h2>💬 <%= t('admin.supportTitle') %></h2>
         <p class="helper"><%= t('admin.supportHelper') %></p>
 
+        <div style="margin:0 0 20px;padding:14px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;">
+          <h3 style="margin:0 0 8px;">Backups & Export</h3>
+          <% if (exportAccess) { %>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <a class="button" href="<%= withTenantLink('/admin/export/products.json') %>">Export products.json</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/products.csv') %>" style="background:#1f2937;">Export products.csv</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/categories.json') %>" style="background:#334155;">Export categories.json</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/config.json') %>" style="background:#475569;">Export config.json</a>
+            </div>
+          <% } else { %>
+            <p style="margin:0 0 10px;color:#92400e;">Export available on paid plans. Contact support / upgrade.</p>
+          <% } %>
+          <div style="max-height:210px;overflow:auto;border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px;">
+            <% if (backups && backups.length) { %>
+              <% backups.forEach(function(b) { %>
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                  <div style="font-size:.82rem;">
+                    <strong><%= b.filename %></strong><br />
+                    <span style="color:#64748b;"><%= b.type %> · <%= Math.max(1, Math.round(Number(b.size || 0) / 1024)) %>KB · <%= new Date(b.modifiedAt).toLocaleString('el-GR') %></span>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <a class="button" style="padding:4px 10px;font-size:.75rem;" href="<%= withTenantLink('/admin/backups/' + b.filename) %>">Download</a>
+                    <form method="POST" action="<%= withTenantLink('/admin/backups/restore') %>" onsubmit="return confirm('Restore backup <%= b.filename %>;')" style="display:flex;gap:6px;align-items:center;">
+                      <input type="hidden" name="filename" value="<%= b.filename %>" />
+                      <input type="password" name="password" placeholder="password" style="padding:4px 6px;font-size:.74rem;width:110px;" />
+                      <button class="button" type="submit" style="padding:4px 8px;font-size:.75rem;background:#0f766e;">Restore</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p style="margin:0;font-size:.82rem;color:#64748b;">No backups yet. Save products/categories/settings to generate backups.</p>
+            <% } %>
+          </div>
+          <form method="POST" action="<%= withTenantLink('/admin/backups/create-now') %>" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit">Create backup now</button>
+          </form>
+          <form method="POST" action="<%= withTenantLink('/admin/import/products') %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv,.xlsx" required />
+            <select name="importMode" style="padding:6px 8px;">
+              <option value="merge">Merge (safe)</option>
+              <option value="replace">Replace all</option>
+            </select>
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit" style="background:#0f766e;">Import products from Excel/CSV</button>
+          </form>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Variant columns: variantId, variantLabel_el, variantLabel_en, variantSku, variantPrice, variantStock, variantImageUrl.</p>
+          <form method="POST" action="<%= withTenantLink('/admin/import/variants') %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv" required />
+            <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
+            <button class="button" type="submit" style="background:#0f766e;">Import variants CSV</button>
+          </form>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Columns: productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription.</p>
+        </div>
+
         <%# ── Ticket list ── %>
         <% if (tickets && tickets.length) { %>
           <h3 style="font-size:.9rem;margin-bottom:10px;"><%= t('admin.supportHistory') %></h3>
@@ -1192,6 +1249,13 @@
           <label><span><%= t('admin.modalSku') %></span>
             <input type="text" id="f-sku" placeholder="π.χ. SKU-123" />
           </label>
+          <label><span>Product type</span>
+            <select id="f-type">
+              <option value="NORMAL">NORMAL</option>
+              <option value="PART">PART</option>
+              <option value="KIT">KIT</option>
+            </select>
+          </label>
           <label><span><%= t('admin.modalPrice') %></span>
             <input type="number" id="f-price" min="0" step="0.01" placeholder="0.00" />
           </label>
@@ -1212,6 +1276,15 @@
           </label>
           <label class="full"><span><%= t('admin.modalImageUrl') %></span>
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
+            <img id="f-image-preview" alt="" style="display:none;margin-top:6px;width:70px;height:70px;object-fit:cover;border:1px solid #d1d5db;border-radius:8px;" />
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+              <label class="cat-upload-btn" style="cursor:pointer;">
+                <input type="file" id="f-image-file" accept="image/*" style="display:none;" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
+                Upload image
+              </label>
+              <button type="button" class="btn-xs" id="f-image-upload-btn">Upload</button>
+              <small id="f-image-upload-status" style="font-size:.78rem;color:#64748b;"></small>
+            </div>
           </label>
           <label class="full"><span><%= t('admin.modalDescription') %></span>
             <textarea id="f-description-el" rows="2" placeholder="Περιγραφή (Ελληνικά)"></textarea>
@@ -1284,6 +1357,56 @@
         </div>
       </div>
     </div>
+    <div class="modal-overlay" id="kit-builder-modal">
+      <div class="modal" style="max-width:980px;max-height:90vh;overflow:auto;">
+        <h3 style="margin-top:0;">KIT Builder</h3>
+        <p class="helper" id="kit-builder-title"></p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <h4>Option Groups</h4>
+            <div id="kit-groups-list"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+              <input id="kg-id" type="text" placeholder="group id" />
+              <input id="kg-label" type="text" placeholder="label" />
+              <select id="kg-type"><option value="radio">radio</option><option value="checkbox">checkbox</option></select>
+              <input id="kg-order" type="number" placeholder="order" min="0" step="1" />
+              <label class="checkbox-label"><input id="kg-required" type="checkbox" /><span>required</span></label>
+              <button class="button" type="button" id="kg-add">Add group</button>
+            </div>
+          </div>
+          <div>
+            <h4>Choices (selected group)</h4>
+            <div id="kit-choices-list"></div>
+            <div style="display:flex;gap:6px;margin:8px 0;">
+              <input id="kit-choice-search-q" type="text" placeholder="Search parts/products..." />
+              <button class="button" type="button" id="kit-choice-search-btn">Search</button>
+              <button class="button" type="button" id="kit-create-part-btn" style="background:#0f766e;">Create new part</button>
+            </div>
+            <div id="kit-choice-search-results" style="max-height:150px;overflow:auto;border:1px solid #e5e7eb;border-radius:6px;padding:6px;"></div>
+          </div>
+        </div>
+        <h4 style="margin-top:12px;">Live preview</h4>
+        <div id="kit-builder-preview" style="font-size:.84rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+          <button class="button" type="button" id="kit-builder-close" style="background:#1f2937;">Close</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-overlay" id="kit-part-modal">
+      <div class="modal-box" style="max-width:520px;">
+        <h3 style="margin-top:0;">Create part for this choice</h3>
+        <label><span>Part name</span><input id="kit-part-name" type="text" /></label>
+        <label><span>Part id</span><input id="kit-part-id" type="text" placeholder="auto-if-empty" /></label>
+        <label><span>Price</span><input id="kit-part-price" type="number" min="0" step="0.01" /></label>
+        <label><span>Stock</span><input id="kit-part-stock" type="number" min="0" step="1" value="0" /></label>
+        <label><span>Image</span><input id="kit-part-file" type="file" accept="image/png,image/webp,image/jpeg" /></label>
+        <img id="kit-part-preview" alt="" style="display:none;width:52px;height:52px;object-fit:cover;border:1px solid #d1d5db;border-radius:8px;" />
+        <div class="modal-actions">
+          <button class="button" type="button" id="kit-part-cancel" style="background:#eee;color:#333;">Cancel</button>
+          <button class="button" type="button" id="kit-part-save">Create & link</button>
+        </div>
+      </div>
+    </div>
 
 
     <script>
@@ -1306,22 +1429,33 @@
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
+      const isEukolakisClassicPreset = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      let productFilter = 'all';
+      let pendingKitCreate = null;
 
       // ── Render table ────────────────────────────────────────────
       function renderTable() {
         const tbody = document.getElementById('products-tbody');
-        if (!products.length) {
+        const visibleProducts = products.filter(function(p) {
+          if (productFilter === 'parts') return ['spare-parts', 'tools'].includes(String(p.categoryId || ''));
+          return true;
+        });
+        if (!visibleProducts.length) {
           tbody.innerHTML = '<tr><td colspan="' + (canEdit ? 6 : 5) + '" style="color:#888;font-style:italic;">' + i18nJs.noProducts + '</td></tr>';
           return;
         }
-        tbody.innerHTML = products.map((p, i) => {
+        tbody.innerHTML = visibleProducts.map((p) => {
+          const i = products.findIndex(function(pr) { return pr.id === p.id; });
           const pName = (p.name && typeof p.name === 'object') ? (p.name.el || p.name.en || '') : (p.name || '');
           const img = p.imageUrl
             ? '<img class="thumb" src="' + escHtml(p.imageUrl) + '" alt="" loading="lazy">'
             : '<span class="no-img"></span>';
           const editBtn = canEdit
             ? '<button class="btn-sm edit" type="button" onclick="openEdit(' + i + ')">' + i18nJs.editBtn + '</button> ' +
-              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">' + i18nJs.deleteBtn + '</button>'
+              '<button class="btn-sm del" type="button" onclick="deleteProduct(' + i + ')">' + i18nJs.deleteBtn + '</button>' +
+              (p.type === 'KIT'
+                ? ' <button class="btn-sm" type="button" onclick="openKitBuilder(' + i + ')">Edit KIT wizard</button>'
+                : ' <button class="btn-sm" type="button" onclick="makeProductKit(' + i + ')">Make this a KIT</button>')
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
@@ -1350,11 +1484,16 @@
       const fNameEn     = document.getElementById('f-name-en');
       const fId         = document.getElementById('f-id');
       const fSku        = document.getElementById('f-sku');
+      const fType       = document.getElementById('f-type');
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
+      const fImgPreview = document.getElementById('f-image-preview');
+      const fImgFile    = document.getElementById('f-image-file');
+      const fImgUploadBtn = document.getElementById('f-image-upload-btn');
+      const fImgStatus  = document.getElementById('f-image-upload-status');
       const fDescEl     = document.getElementById('f-description-el');
       const fDescEn     = document.getElementById('f-description-en');
       const fSeoTitle   = document.getElementById('f-seoTitle');
@@ -1449,15 +1588,31 @@
         const container = document.getElementById('variants-rows');
         const row = document.createElement('div');
         row.className = 'variant-row';
-        row.dataset.vid = v.id || '';
-        row.style.cssText = 'background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 90px 80px;gap:6px;';
+        row.dataset.vid = v.id || ('v-' + Date.now().toString(36));
+        row.style.cssText = 'background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 120px 90px 80px;gap:6px;';
         row.innerHTML =
           '<input class="v-label" type="text" placeholder="<%= t("admin.variantLabel") %>" value="' + escHtml(v.label || '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
+          '<input class="v-sku" type="text" placeholder="Variant SKU" value="' + escHtml(v.sku || '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
           '<input class="v-price" type="number" step="0.01" min="0" placeholder="<%= t("admin.variantPrice") %>" value="' + (v.price !== undefined ? v.price : '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
           '<input class="v-stock" type="number" min="0" placeholder="<%= t("admin.variantStock") %>" value="' + (v.stock !== undefined ? v.stock : '') + '" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.84rem;" />' +
-          '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="grid-column:1/3;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
-          '<button type="button" onclick="this.closest(\'.variant-row\').remove()" style="grid-column:3;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:4px 6px;cursor:pointer;font-size:.9rem;">×</button>' +
-          '<textarea class="v-desc" rows="2" placeholder="<%= t("admin.variantDesc") %>" style="grid-column:1/4;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;resize:vertical;">' + escHtml(v.contentDescription || '') + '</textarea>';
+          '<button type="button" onclick="this.closest(\'.variant-row\').remove()" style="grid-column:4;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:4px 6px;cursor:pointer;font-size:.9rem;">×</button>' +
+          '<div style="grid-column:1/5;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;">' +
+            '<img class="v-image-preview" src="' + escHtml(v.imageUrl || '') + '" alt="" style="' + (v.imageUrl ? '' : 'display:none;') + 'width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid #d1d5db;" />' +
+            '<div style="flex:1;min-width:240px;">' +
+              '<input class="v-image" type="text" placeholder="Variant image URL" value="' + escHtml(v.imageUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-bottom:6px;" />' +
+              '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
+                '<input class="v-image-file" type="file" accept="image/png,image/webp,image/jpeg" />' +
+                '<button type="button" class="btn-xs" onclick="uploadVariantImage(this)">Upload image</button>' +
+              '</div>' +
+              '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-top:6px;" />' +
+              '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">' +
+                '<input class="v-video-file" type="file" accept="video/mp4,video/webm" />' +
+                '<button type="button" class="btn-xs" onclick="uploadVariantVideo(this)">Upload video</button>' +
+              '</div>' +
+              '<small class="v-upload-status" style="display:block;margin-top:5px;font-size:.76rem;color:#64748b;"></small>' +
+            '</div>' +
+          '</div>' +
+          '<textarea class="v-desc" rows="2" placeholder="<%= t("admin.variantDesc") %>" style="grid-column:1/5;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;resize:vertical;">' + escHtml(v.contentDescription || '') + '</textarea>';
         container.appendChild(row);
       }
 
@@ -1471,14 +1626,19 @@
           const id = existingId || label.toLowerCase().replace(/[^a-z0-9\u0370-\u03ff]+/g, '-').replace(/^-+|-+$/g, '') || ('v' + Date.now());
           const price = parseFloat(row.querySelector('.v-price').value);
           const stock = parseInt(row.querySelector('.v-stock').value, 10);
+          const sku = (row.querySelector('.v-sku').value || '').trim() || undefined;
+          const imageUrl = (row.querySelector('.v-image').value || '').trim() || undefined;
           const videoUrl = (row.querySelector('.v-video').value || '').trim() || undefined;
           const contentDescription = (row.querySelector('.v-desc').value || '').trim() || undefined;
           result.push({
             id,
             label,
+            sku,
             price:  isNaN(price) ? 0 : price,
             stock:  isNaN(stock) ? 0 : stock,
+            imageUrl,
             videoUrl,
+            videoDescription: contentDescription,
             contentDescription
           });
         });
@@ -1508,12 +1668,119 @@
         };
       }
 
+      async function uploadProductImage(file, password) {
+        const fd = new FormData();
+        fd.append('imageFile', file);
+        fd.append('categoryId', (fCat && fCat.value) ? fCat.value : '');
+        fd.append('password', password || '');
+        const response = await fetch('<%= withTenantLink("/admin/products/image-upload") %>', { method: 'POST', body: fd });
+        const json = await response.json();
+        return { status: response.status, body: json };
+      }
+
+      async function handleModalImageUpload() {
+        const file = fImgFile && fImgFile.files && fImgFile.files[0];
+        if (!file) return;
+        if (fImgStatus) {
+          fImgStatus.style.color = '#475569';
+          fImgStatus.textContent = 'Uploading...';
+        }
+        let result = await uploadProductImage(file, '');
+        if (result.status === 401) {
+          const password = prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!password) {
+            if (fImgStatus) {
+              fImgStatus.style.color = '#dc2626';
+              fImgStatus.textContent = 'Απαιτείται κωδικός.';
+            }
+            fImgFile.value = '';
+            return;
+          }
+          result = await uploadProductImage(file, password);
+        }
+        if (!result.body || !result.body.ok) {
+          if (fImgStatus) {
+            fImgStatus.style.color = '#dc2626';
+            fImgStatus.textContent = (result.body && result.body.error) || 'Upload failed.';
+          }
+          fImgFile.value = '';
+          return;
+        }
+        fImg.value = result.body.url || '';
+        if (fImgPreview && fImg.value) {
+          fImgPreview.src = fImg.value;
+          fImgPreview.style.display = 'block';
+        }
+        if (fImgStatus) {
+          fImgStatus.style.color = '#059669';
+          fImgStatus.textContent = '✓ Uploaded';
+        }
+        fImgFile.value = '';
+      }
+
+      function ensureVariantRowId(row) {
+        if (!row) return '';
+        let id = (row.dataset.vid || '').trim();
+        if (!id) {
+          const label = (row.querySelector('.v-label') && row.querySelector('.v-label').value || '').trim();
+          id = (label || ('v-' + Date.now())).toLowerCase().replace(/[^a-z0-9\u0370-\u03ff_-]+/g, '-').replace(/^-+|-+$/g, '') || ('v-' + Date.now().toString(36));
+          row.dataset.vid = id;
+        }
+        return id;
+      }
+
+      async function uploadVariantAsset(buttonEl, type) {
+        const row = buttonEl && buttonEl.closest('.variant-row');
+        if (!row) return;
+        const variantId = ensureVariantRowId(row);
+        const productId = (fId && fId.value || '').trim();
+        if (!productId) return alert('Συμπλήρωσε πρώτα Product ID.');
+        const fileInput = row.querySelector(type === 'image' ? '.v-image-file' : '.v-video-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        if (!file) return alert(type === 'image' ? 'Select variant image first.' : 'Select variant video first.');
+        const status = row.querySelector('.v-upload-status');
+        if (status) status.textContent = 'Uploading...';
+        const fd = new FormData();
+        fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
+        fd.append('productId', productId);
+        fd.append('variantId', variantId);
+        fd.append('password', '');
+        let r = await fetch('<%= withTenantLink("/admin/variants") %>/' + (type === 'image' ? 'image-upload' : 'video-upload'), { method: 'POST', body: fd });
+        let j = await r.json();
+        if (r.status === 401) {
+          const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!pw) return;
+          fd.set('password', pw);
+          r = await fetch('<%= withTenantLink("/admin/variants") %>/' + (type === 'image' ? 'image-upload' : 'video-upload'), { method: 'POST', body: fd });
+          j = await r.json();
+        }
+        if (!j.ok) {
+          if (status) status.textContent = j.error || 'Upload failed.';
+          return alert(j.error || 'Upload failed.');
+        }
+        if (type === 'image') {
+          const urlEl = row.querySelector('.v-image');
+          const previewEl = row.querySelector('.v-image-preview');
+          if (urlEl) urlEl.value = j.url || '';
+          if (previewEl && j.url) { previewEl.src = j.url; previewEl.style.display = 'block'; }
+        } else {
+          const urlEl = row.querySelector('.v-video');
+          if (urlEl) urlEl.value = j.url || '';
+        }
+        if (status) status.textContent = '✓ Uploaded';
+      }
+      window.uploadVariantImage = function(buttonEl) { uploadVariantAsset(buttonEl, 'image'); };
+      window.uploadVariantVideo = function(buttonEl) { uploadVariantAsset(buttonEl, 'video'); };
+
       function openAdd() {
         editingIdx = -1;
         mTitle.textContent = i18nJs.newProduct;
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
+        if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
+        if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
+        if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
         renderSpecRows([]);
         renderVariantRows([]);
@@ -1530,11 +1797,17 @@
         fNameEn.value     = getLocalizedForEdit(p.name, 'en');
         fId.value         = p.id || '';
         fSku.value        = p.sku || '';
+        if (fType) fType.value = p.type || 'NORMAL';
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
+        if (fImgPreview) {
+          if (fImg.value) { fImgPreview.src = fImg.value; fImgPreview.style.display = 'block'; }
+          else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
+        }
+        if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fDescEl.value     = getLocalizedForEdit(p.description, 'el');
         fDescEn.value     = getLocalizedForEdit(p.description, 'en');
         fSeoTitle.value   = p.seoTitle || '';
@@ -1564,10 +1837,11 @@
         const specsRows     = readSpecRows();
         const variantRows   = readVariantRows();
         const digitalFields = readDigitalFields();
-        const product = {
+        const editedFields = {
           id,
           name:           nameObj,
           sku:            fSku.value.trim() || undefined,
+          type:           (fType && fType.value) ? fType.value : undefined,
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
@@ -1581,13 +1855,16 @@
           variants:       variantRows.length ? variantRows : undefined,
           ...digitalFields
         };
-        // Remove undefined fields
-        Object.keys(product).forEach(k => product[k] === undefined && delete product[k]);
+        Object.keys(editedFields).forEach(k => editedFields[k] === undefined && delete editedFields[k]);
+        if (editedFields.type === 'KIT' && !editedFields.kitPayMode && isEukolakisClassicPreset) {
+          editedFields.kitPayMode = 'parts_only';
+        }
 
         if (editingIdx === -1) {
-          products.push(product);
+          products.push(editedFields);
         } else {
-          products[editingIdx] = product;
+          const base = products[editingIdx] || {};
+          products[editingIdx] = { ...base, ...editedFields };
         }
         closeModal();
         renderTable();
@@ -1604,6 +1881,283 @@
       // ── Add button ──────────────────────────────────────────────
       const btnAdd = document.getElementById('btn-add-product');
       if (btnAdd) btnAdd.addEventListener('click', openAdd);
+      const btnViewAll = document.getElementById('btn-view-all-products');
+      const btnViewParts = document.getElementById('btn-view-parts-products');
+      if (btnViewAll) btnViewAll.addEventListener('click', function() { productFilter = 'all'; renderTable(); });
+      if (btnViewParts) btnViewParts.addEventListener('click', function() { productFilter = 'parts'; renderTable(); });
+      if (fImgUploadBtn) fImgUploadBtn.addEventListener('click', handleModalImageUpload);
+      if (fImg) fImg.addEventListener('input', function() {
+        if (!fImgPreview) return;
+        if (fImg.value.trim()) { fImgPreview.src = fImg.value.trim(); fImgPreview.style.display = 'block'; }
+        else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
+      });
+
+      async function uploadQuickPartImage(file, password) {
+        const fd = new FormData();
+        fd.append('partFile', file);
+        fd.append('password', password || '');
+        const response = await fetch('<%= withTenantLink("/admin/parts/image-upload") %>', { method: 'POST', body: fd });
+        const json = await response.json();
+        return { status: response.status, body: json };
+      }
+      async function handleQuickPartUpload() {
+        const fileInput = document.getElementById('quick-part-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        if (!file) return;
+        const preview = document.getElementById('quick-part-preview');
+        const initial = await uploadQuickPartImage(file, '');
+        let uploadUrl = '';
+        if (initial.status === 401) {
+          const pwField = document.getElementById('quick-part-password');
+          if (pwField) pwField.style.display = 'block';
+          const pw = (pwField && pwField.value) || prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!pw) return alert('Απαιτείται password για upload εικόνας.');
+          const retried = await uploadQuickPartImage(file, pw);
+          if (!retried.body || !retried.body.ok) return alert((retried.body && retried.body.error) || 'Upload error');
+          uploadUrl = retried.body.url || '';
+        } else {
+          if (!initial.body || !initial.body.ok) return alert((initial.body && initial.body.error) || 'Upload error');
+          uploadUrl = initial.body.url || '';
+        }
+        document.getElementById('quick-part-image').value = uploadUrl;
+        if (preview && uploadUrl) {
+          preview.src = uploadUrl;
+          preview.style.display = 'block';
+        }
+      }
+      const quickPartFileInput = document.getElementById('quick-part-file');
+      if (quickPartFileInput) quickPartFileInput.addEventListener('change', handleQuickPartUpload);
+      const quickPartAddBtn = document.getElementById('btn-quick-part-add');
+      if (quickPartAddBtn) quickPartAddBtn.addEventListener('click', async function() {
+        const id = (document.getElementById('quick-part-id').value || '').trim();
+        const name = (document.getElementById('quick-part-name').value || '').trim();
+        if (!id || !name) return alert('id και όνομα είναι υποχρεωτικά');
+        if (products.some(function(p){ return p.id === id; })) return alert('Υπάρχει ήδη προϊόν με αυτό το id');
+        const fileInput = document.getElementById('quick-part-file');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        if (file && !document.getElementById('quick-part-image').value) await handleQuickPartUpload();
+        const uploadedImageUrl = (document.getElementById('quick-part-image').value || '').trim();
+        products.push({
+          id,
+          type: 'PART',
+          name: { el: name, en: name },
+          categoryId: 'spare-parts',
+          price: parseFloat(document.getElementById('quick-part-price').value) || 0,
+          stock: parseInt(document.getElementById('quick-part-stock').value, 10) || 0,
+          imageUrl: uploadedImageUrl || undefined
+        });
+        if (pendingKitCreate && pendingKitCreate.productIdx >= 0 && pendingKitCreate.groupIdx >= 0) {
+          const kp = products[pendingKitCreate.productIdx];
+          const kg = kp && Array.isArray(kp.kitOptions) ? kp.kitOptions[pendingKitCreate.groupIdx] : null;
+          if (kg) {
+            kg.choices = Array.isArray(kg.choices) ? kg.choices : [];
+            kg.choices.push({
+              id: (id + '-' + Date.now()).toLowerCase(),
+              linkedProductId: id,
+              label: name,
+              description: '',
+              image: uploadedImageUrl || '',
+              useLinkedPriceDelta: true,
+              priceDelta: parseFloat(document.getElementById('quick-part-price').value) || 0
+            });
+            kitBuilderIdx = pendingKitCreate.productIdx;
+            kitBuilderGroupIdx = pendingKitCreate.groupIdx;
+            pendingKitCreate = null;
+            kitBuilderModal.classList.add('open');
+            renderKitBuilder();
+          }
+        }
+        document.getElementById('quick-part-id').value = '';
+        document.getElementById('quick-part-name').value = '';
+        document.getElementById('quick-part-price').value = '';
+        document.getElementById('quick-part-stock').value = '';
+        document.getElementById('quick-part-image').value = '';
+        if (fileInput) fileInput.value = '';
+        const preview = document.getElementById('quick-part-preview');
+        if (preview) { preview.src = ''; preview.style.display = 'none'; }
+        renderTable();
+      });
+
+      let kitBuilderIdx = -1;
+      let kitBuilderGroupIdx = -1;
+      const kitBuilderModal = document.getElementById('kit-builder-modal');
+      function renderKitBuilder() {
+        if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+        const product = products[kitBuilderIdx];
+        product.kitOptions = Array.isArray(product.kitOptions) ? product.kitOptions : [];
+        product.kitOptions.sort(function(a, b) { return (Number(a.order) || 0) - (Number(b.order) || 0); });
+        document.getElementById('kit-builder-title').textContent = (product.name && (product.name.el || product.name.en)) || product.id;
+        const groupList = document.getElementById('kit-groups-list');
+        groupList.innerHTML = product.kitOptions.map(function(g, idx) {
+          const selected = idx === kitBuilderGroupIdx ? 'background:#eef2ff;' : '';
+          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;' + selected + '">' +
+            '<strong>' + escHtml(g.label || g.id) + '</strong> <small>(' + escHtml(g.inputType || 'radio') + (g.required ? ', required' : '') + ')</small>' +
+            '<div style="margin-top:4px;"><button type="button" onclick="selectKitGroup(' + idx + ')">Edit</button> <button type="button" onclick="removeKitGroup(' + idx + ')">Remove</button></div></div>';
+        }).join('');
+        const preview = document.getElementById('kit-builder-preview');
+        preview.innerHTML = product.kitOptions.map(function(g){
+          return '<p style="margin:0 0 6px;"><strong>' + escHtml(g.label || g.id) + '</strong>: ' + (Array.isArray(g.choices) ? g.choices.map(function(c){ return escHtml(c.label || c.id); }).join(', ') : '—') + '</p>';
+        }).join('') || '<em>No groups yet.</em>';
+        renderKitChoices();
+      }
+      function renderKitChoices() {
+        const product = products[kitBuilderIdx];
+        const box = document.getElementById('kit-choices-list');
+        if (!product || kitBuilderGroupIdx < 0 || !product.kitOptions[kitBuilderGroupIdx]) { box.innerHTML = '<em>Select group.</em>'; return; }
+        const group = product.kitOptions[kitBuilderGroupIdx];
+        group.choices = Array.isArray(group.choices) ? group.choices : [];
+        box.innerHTML = group.choices.map(function(c, idx){
+          const linked = c.linkedProductId ? products.find(function(p){ return p.id === c.linkedProductId; }) : null;
+          const linkedName = linked ? ((linked.name && (linked.name.el || linked.name.en)) || linked.id) : '';
+          const linkedVariants = linked && Array.isArray(linked.variants) ? linked.variants : [];
+          const fixedVariantId = (c.linkedVariantId || '').trim();
+          const fixedVariant = fixedVariantId ? linkedVariants.find(function(v){ return v.id === fixedVariantId; }) : null;
+          const linkedPrice = fixedVariant ? (Number(fixedVariant.price) || 0).toFixed(2) : (linked ? (Number(linked.price) || 0).toFixed(2) : '0.00');
+          const thumb = c.image || (fixedVariant && fixedVariant.imageUrl) || (linked && linked.imageUrl) || '';
+          const variantSelect = linkedVariants.length
+            ? ('<div style="margin-top:6px;"><label style="font-size:.74rem;color:#475569;display:block;">Variant (optional)</label>' +
+                '<select onchange="setKitChoiceVariant(' + idx + ', this.value)" style="width:100%;max-width:240px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;">' +
+                '<option value="">Customer chooses</option>' +
+                linkedVariants.map(function(v){
+                  const vLabel = (v.label && (v.label.el || v.label.en)) || v.label || v.id;
+                  return '<option value="' + escHtml(v.id) + '"' + (v.id === fixedVariantId ? ' selected' : '') + '>' + escHtml(vLabel) + ' (' + (Number(v.price) || 0).toFixed(2) + '€)</option>';
+                }).join('') +
+                '</select></div>')
+            : '';
+          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;">' +
+            (thumb ? '<img src="' + escHtml(thumb) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;" />' : '<span style="display:inline-flex;width:44px;height:44px;border-radius:6px;background:#f1f5f9;align-items:center;justify-content:center;margin-right:6px;">🧩</span>') +
+            '<strong>' + escHtml(c.label || c.id) + '</strong> <small>' + escHtml(c.linkedProductId || '') + '</small>' +
+            (linked ? '<div style="font-size:.78rem;color:#334155;">' + escHtml(linkedName) + ' · ' + linkedPrice + '€</div>' : '') +
+            variantSelect +
+            '<div>Δ: ' + (Number(c.priceDelta)||0).toFixed(2) + '€ ' + (c.useLinkedPriceDelta ? '(linked)' : '') + '</div>' +
+            '<button type="button" onclick="removeKitChoice(' + idx + ')">Remove</button></div>';
+        }).join('') || '<em>No choices yet.</em>';
+      }
+      window.selectKitGroup = function(idx) { kitBuilderGroupIdx = idx; renderKitBuilder(); };
+      window.removeKitGroup = function(idx) { products[kitBuilderIdx].kitOptions.splice(idx, 1); if (kitBuilderGroupIdx === idx) kitBuilderGroupIdx = -1; renderKitBuilder(); };
+      window.removeKitChoice = function(idx) { products[kitBuilderIdx].kitOptions[kitBuilderGroupIdx].choices.splice(idx, 1); renderKitBuilder(); };
+      window.setKitChoiceVariant = function(idx, value) {
+        const product = products[kitBuilderIdx];
+        const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
+        if (!group || !group.choices || !group.choices[idx]) return;
+        group.choices[idx].linkedVariantId = (value || '').trim();
+        renderKitBuilder();
+      };
+      window.openKitBuilder = function(i) {
+        if (!products[i] || products[i].type !== 'KIT') return;
+        kitBuilderIdx = i;
+        kitBuilderGroupIdx = -1;
+        kitBuilderModal.classList.add('open');
+        renderKitBuilder();
+      };
+      const kgAddBtn = document.getElementById('kg-add');
+      if (kgAddBtn) kgAddBtn.addEventListener('click', function() {
+        const product = products[kitBuilderIdx];
+        if (!product) return;
+        const gid = (document.getElementById('kg-id').value || '').trim();
+        if (!gid) return alert('Group id required');
+        product.kitOptions = Array.isArray(product.kitOptions) ? product.kitOptions : [];
+        product.kitOptions.push({
+          id: gid,
+          label: (document.getElementById('kg-label').value || gid).trim(),
+          required: document.getElementById('kg-required').checked,
+          inputType: document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : 'radio',
+          order: parseInt(document.getElementById('kg-order').value, 10) || 0,
+          choices: document.getElementById('kg-required').checked ? [] : [{
+            id: 'skip',
+            label: 'Δεν το χρειάζομαι / Το έχω ήδη',
+            description: '',
+            image: '',
+            linkedProductId: '',
+            priceDelta: 0
+          }]
+        });
+        kitBuilderGroupIdx = product.kitOptions.length - 1;
+        renderKitBuilder();
+      });
+      document.getElementById('kit-builder-close').addEventListener('click', function() { kitBuilderModal.classList.remove('open'); renderTable(); });
+      document.getElementById('kit-choice-search-btn').addEventListener('click', async function() {
+        if (kitBuilderIdx < 0 || kitBuilderGroupIdx < 0) return alert('Select group first');
+        const q = (document.getElementById('kit-choice-search-q').value || '').trim();
+        const url = '<%= withTenantLink("/admin/products/search") %>?q=' + encodeURIComponent(q);
+        const r = await fetch(url);
+        const items = await r.json();
+        const box = document.getElementById('kit-choice-search-results');
+        box.innerHTML = items.map(function(item, idx) {
+          const variantRows = Array.isArray(item.variants) && item.variants.length
+            ? ('<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #cbd5e1;">' + item.variants.map(function(v, vIdx){
+                return '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
+                  (v.imageUrl ? '<img src="' + escHtml(v.imageUrl) + '" style="width:28px;height:28px;object-fit:cover;border-radius:6px;" />' : '<span style="display:inline-flex;width:28px;height:28px;background:#e2e8f0;border-radius:6px;"></span>') +
+                  '<small style="flex:1;">' + escHtml(v.label || v.id) + ' · ' + (Number(v.price) || 0).toFixed(2) + '€</small>' +
+                  '<button type="button" onclick="addLinkedVariantChoice(' + idx + ',' + vIdx + ')">Use variant</button></div>';
+              }).join('') + '</div>')
+            : '';
+          return '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid #e5e7eb;">' +
+            (item.imageUrl ? '<img src="' + escHtml(item.imageUrl) + '" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" />' : '') +
+            '<div style="flex:1;"><strong>' + escHtml(item.name) + '</strong><br><small>' + escHtml(item.id) + ' · ' + item.price.toFixed(2) + '€ · stock ' + item.stock + '</small>' + variantRows + '</div>' +
+            '<button type="button" onclick="addLinkedChoice(' + idx + ')">Use base</button></div>';
+        }).join('');
+        window.__kitSearchItems = items;
+      });
+      const createPartBtn = document.getElementById('kit-create-part-btn');
+      if (createPartBtn) createPartBtn.addEventListener('click', function() {
+        const q = (document.getElementById('kit-choice-search-q').value || '').trim();
+        pendingKitCreate = { productIdx: kitBuilderIdx, groupIdx: kitBuilderGroupIdx };
+        window.location.hash = '#tab-products';
+        const quickName = document.getElementById('quick-part-name');
+        const quickId = document.getElementById('quick-part-id');
+        const quickPrice = document.getElementById('quick-part-price');
+        if (quickName) quickName.value = q;
+        if (quickId && q) quickId.value = q.toLowerCase().replace(/[^a-z0-9\u0370-\u03ff]+/g, '-').replace(/^-+|-+$/g, '');
+        if (quickPrice) quickPrice.value = '';
+        const details = document.querySelector('#tab-products details');
+        if (details) details.open = true;
+      });
+      window.addLinkedChoice = function(idx) {
+        const item = (window.__kitSearchItems || [])[idx];
+        if (!item) return;
+        const product = products[kitBuilderIdx];
+        const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
+        if (!group) return;
+        group.choices = Array.isArray(group.choices) ? group.choices : [];
+        const cId = (item.id + '-' + Date.now()).toLowerCase();
+        const useLinkedPriceDelta = confirm('Use linked product price as delta?');
+        const customLabel = prompt('Choice label override (optional):', item.name || '') || '';
+        const customDesc = prompt('Choice description override (optional):', '') || '';
+        const customDelta = prompt('priceDelta (leave empty to auto/default):', useLinkedPriceDelta ? String(item.price) : '0');
+        group.choices.push({
+          id: cId,
+          linkedProductId: item.id,
+          linkedVariantId: '',
+          label: customLabel.trim(),
+          description: customDesc.trim(),
+          image: item.imageUrl || '',
+          useLinkedPriceDelta,
+          priceDelta: customDelta === '' ? (useLinkedPriceDelta ? item.price : 0) : (parseFloat(customDelta) || 0)
+        });
+        renderKitBuilder();
+      };
+      window.addLinkedVariantChoice = function(idx, variantIdx) {
+        const item = (window.__kitSearchItems || [])[idx];
+        const variant = item && Array.isArray(item.variants) ? item.variants[variantIdx] : null;
+        if (!item || !variant) return;
+        const product = products[kitBuilderIdx];
+        const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
+        if (!group) return;
+        group.choices = Array.isArray(group.choices) ? group.choices : [];
+        const cId = (item.id + '-' + variant.id + '-' + Date.now()).toLowerCase();
+        group.choices.push({
+          id: cId,
+          linkedProductId: item.id,
+          linkedVariantId: variant.id,
+          label: (item.name || item.id) + ' - ' + (variant.label || variant.id),
+          description: '',
+          image: variant.imageUrl || item.imageUrl || '',
+          useLinkedPriceDelta: true,
+          priceDelta: Number(variant.price) || 0
+        });
+        renderKitBuilder();
+      };
 
       // ── Serialize before submit ─────────────────────────────────
       const saveForm = document.getElementById('products-save-form');
@@ -1633,6 +2187,37 @@
           } else {
             uploadResult.textContent = json.error || i18nJs.uploadErr;
           }
+        });
+      }
+
+      const homepageBannerFile = document.getElementById('homepage-banner-file');
+      const homepageBannerBtn = document.getElementById('homepage-banner-upload-btn');
+      const homepageBannerStatus = document.getElementById('homepage-banner-status');
+      const homepageHeroInput = document.getElementById('homepageHeroImage');
+      const homepageHeroPreview = document.getElementById('homepage-hero-preview');
+      if (homepageBannerBtn) {
+        homepageBannerBtn.addEventListener('click', async function() {
+          const file = homepageBannerFile && homepageBannerFile.files && homepageBannerFile.files[0];
+          if (!file) return alert('Select a banner image first.');
+          if (homepageBannerStatus) homepageBannerStatus.textContent = 'Uploading...';
+          const fd = new FormData();
+          fd.append('bannerFile', file);
+          const inlinePw = (document.querySelector('#tab-homepage input[name=\"password\"]') || { value: '' }).value || '';
+          const pw = inlinePw || prompt('Admin password for banner upload:') || '';
+          fd.append('password', pw);
+          const r = await fetch('<%= withTenantLink("/admin/homepage/banner-upload") %>', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (!j.ok) {
+            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || 'Upload failed.';
+            alert(j.error || 'Upload failed');
+            return;
+          }
+          if (homepageHeroInput) homepageHeroInput.value = j.url || '';
+          if (homepageHeroPreview && j.url) {
+            homepageHeroPreview.src = j.url;
+            homepageHeroPreview.style.display = 'block';
+          }
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '✓ Uploaded';
         });
       }
 
@@ -1740,6 +2325,32 @@
         });
       }
 
+      const cursorUploadBtn = document.getElementById('cursor-upload-btn');
+      if (cursorUploadBtn) {
+        cursorUploadBtn.addEventListener('click', async () => {
+          const fileEl = document.getElementById('cursor-file');
+          const file = fileEl && fileEl.files && fileEl.files[0];
+          const statusEl = document.getElementById('cursor-upload-status');
+          const urlInput = document.getElementById('themeCursorImage-input');
+          const previewEl = document.getElementById('cursor-preview');
+          const passEl = document.querySelector('#tab-theme input[name="password"]');
+          if (!file) { if (statusEl) statusEl.textContent = 'Επίλεξε αρχείο εικόνας.'; return; }
+          if (statusEl) statusEl.textContent = 'Ανέβασμα cursor...';
+          const fd = new FormData();
+          fd.append('cursorFile', file);
+          fd.append('password', (passEl && passEl.value) || '');
+          const r = await fetch('<%= withTenantLink("/admin/theme/cursor-upload") %>', { method: 'POST', body: fd });
+          const j = await r.json();
+          if (!j.ok) {
+            if (statusEl) statusEl.textContent = j.error || 'Upload error';
+            return;
+          }
+          if (urlInput) urlInput.value = j.url;
+          if (previewEl) { previewEl.src = j.url; previewEl.style.display = 'inline-block'; }
+          if (statusEl) statusEl.textContent = '✓ Ανέβηκε: ' + j.url;
+        });
+      }
+
       // ── Favicon delete (prompt for password inline) ──
       function deleteFavicon(btn) {
         const pw = prompt('Root admin κωδικός για διαγραφή favicon:');
@@ -1751,15 +2362,12 @@
     </script>
   </body>
 </html>
-      function readLocalizedField(elInput, enInput) {
-        const elVal = (elInput.value || '').trim();
-        const enVal = (enInput.value || '').trim();
-        if (elVal && enVal) return { el: elVal, en: enVal };
-        if (elVal) return elVal;
-        if (enVal) return { en: enVal };
-        return '';
-      }
-      function getLocalizedForEdit(value, langCode) {
-        if (value && typeof value === 'object' && !Array.isArray(value)) return value[langCode] || '';
-        return langCode === 'el' ? (value || '') : '';
-      }
+      window.makeProductKit = function(i) {
+        const existing = products[i];
+        if (!existing) return;
+        const next = { ...existing, type: 'KIT', price: 0 };
+        if (!next.kitOptions) next.kitOptions = [];
+        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
+        products[i] = next;
+        renderTable();
+      };
