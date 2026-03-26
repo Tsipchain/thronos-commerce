@@ -1218,7 +1218,7 @@ const bannerUpload = multer({
 function sanitizeMediaSegment(value, fallback) {
   const clean = String(value || '')
     .trim()
-    .replace(/[^a-z0-9_-]/gi, '-')
+    .replace(/[^a-z0-9-]/gi, '-')
     .toLowerCase()
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -1249,8 +1249,8 @@ const variantImageUpload = multer({
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const safeExt = '.jpg';
-      const base = path.basename(file.originalname || 'variant-image', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.jpg';
+      const base = sanitizeMediaSegment(path.basename(file.originalname || 'variant-image', ext), 'variant-image');
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
@@ -1267,8 +1267,8 @@ const variantVideoUpload = multer({
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const safeExt = '.mp4';
-      const base = path.basename(file.originalname || 'variant-video', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const safeExt = ['.mp4', '.webm'].includes(ext) ? ext : '.mp4';
+      const base = sanitizeMediaSegment(path.basename(file.originalname || 'variant-video', ext), 'variant-video');
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
