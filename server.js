@@ -1332,8 +1332,9 @@ function preflightCompileTemplates() {
     failures.forEach((failure) => {
       console.error(`- ${path.relative(__dirname, failure.templatePath)}: ${failure.message}`);
     });
-    throw new Error(`EJS preflight failed for ${failures.length} template(s).`);
+    return false;
   }
+  return true;
 }
 
 // Security headers
@@ -4132,7 +4133,10 @@ app.post('/root/referral/mark-paid', (req, res) => {
 const PORT = process.env.PORT || 3000;
 if (process.env.THRC_PREFLIGHT_EJS === '1') {
   try {
-    preflightCompileTemplates();
+    const ok = preflightCompileTemplates();
+    if (!ok) {
+      console.warn('[boot] EJS preflight completed with template errors (continuing startup).');
+    }
   } catch (e) {
     console.error('[boot] EJS preflight warning:', e.message);
   }
