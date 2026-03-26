@@ -1745,13 +1745,13 @@
         fd.append('productId', productId);
         fd.append('variantId', variantId);
         fd.append('password', '');
-        let r = await fetch('<%= withTenantLink("/admin/variants") %>/' + (type === 'image' ? 'image-upload' : 'video-upload'), { method: 'POST', body: fd });
+        let r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
         let j = await r.json();
         if (r.status === 401) {
           const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
           if (!pw) return;
           fd.set('password', pw);
-          r = await fetch('<%= withTenantLink("/admin/variants") %>/' + (type === 'image' ? 'image-upload' : 'video-upload'), { method: 'POST', body: fd });
+          r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
           j = await r.json();
         }
         if (!j.ok) {

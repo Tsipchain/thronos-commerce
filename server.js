@@ -325,6 +325,7 @@ function loadJson(filePath, fallback) {
     const raw = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(raw);
   } catch (err) {
+    if (err && err.code === 'ENOENT') return fallback;
     console.warn(`Could not load ${filePath}: ${err.message}`);
     return fallback;
   }
@@ -1506,10 +1507,19 @@ function buildAdminViewModel(req, extra) {
 function buildAdminPaymentsViewModel(req, extra) {
   const config = loadTenantConfig(req);
   const permissions = getSupportPermissions(req.tenant.supportTier);
+  const paymentOptions = Array.isArray(config.paymentOptions) ? config.paymentOptions : [];
+  const stripeOpt = paymentOptions.find((p) => p.type === 'stripe' || p.id === 'stripe');
+  const paypalOpt = paymentOptions.find((p) => p.type === 'paypal' || p.id === 'paypal');
   return {
     tenant: req.tenant,
     config,
     permissions,
+    paymentFlags: {
+      stripeEnabled: !!stripeOpt,
+      paypalEnabled: !!paypalOpt
+    },
+    message: null,
+    error: null,
     ...(extra || {})
   };
 }
@@ -2685,6 +2695,28 @@ app.post('/admin/payments', async (req, res) => {
   if (req.body.stripeSecretKey !== undefined) {
     const sk = (req.body.stripeSecretKey || '').trim();
     if (sk) config.stripeSecretKey = sk;
+  }
+  config.paypalEmail = (req.body.paypalEmail || '').trim();
+  const stripeEnabled = req.body.enableStripe === 'on';
+  const paypalEnabled = req.body.enablePaypal === 'on';
+  const existing = Array.isArray(config.paymentOptions) ? config.paymentOptions.slice() : [];
+  const nonGateway = existing.filter((opt) => !['stripe', 'paypal'].includes(String(opt.id || '').toLowerCase()) && !['stripe', 'paypal'].includes(String(opt.type || '').toLowerCase()));
+  const rebuilt = nonGateway.slice();
+  if (stripeEnabled) {
+    rebuilt.push({ id: 'stripe', label: 'Stripe (Card)', type: 'stripe', gatewaySurchargePercent: 0 });
+  }
+  if (paypalEnabled) {
+    rebuilt.push({ id: 'paypal', label: 'PayPal', type: 'paypal', gatewaySurchargePercent: 0 });
+  }
+  config.paymentOptions = rebuilt;
+  if (Array.isArray(config.shippingOptions)) {
+    config.shippingOptions.forEach((ship) => {
+      const existingAllowed = Array.isArray(ship.allowedPaymentMethods) ? ship.allowedPaymentMethods : [];
+      let allowed = existingAllowed.filter((id) => !['stripe', 'paypal'].includes(String(id).toLowerCase()));
+      if (stripeEnabled) allowed.push('stripe');
+      if (paypalEnabled) allowed.push('paypal');
+      ship.allowedPaymentMethods = Array.from(new Set(allowed));
+    });
   }
   saveTenantConfig(req, config);
 

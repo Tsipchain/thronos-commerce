@@ -40,6 +40,16 @@
           <h2 style="margin-top:0;">Stripe configuration</h2>
           <p class="helper">Manage Stripe keys only from this page.</p>
           <form method="POST" action="<%= withTenantLink('/admin/payments') %>">
+            <div class="row" style="margin-bottom:10px;">
+              <label style="margin:0;flex-direction:row;align-items:center;gap:6px;">
+                <input type="checkbox" name="enableStripe" <%= paymentFlags && paymentFlags.stripeEnabled ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+                <span>Enable Stripe payments</span>
+              </label>
+              <label style="margin:0;flex-direction:row;align-items:center;gap:6px;">
+                <input type="checkbox" name="enablePaypal" <%= paymentFlags && paymentFlags.paypalEnabled ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+                <span>Enable PayPal payments</span>
+              </label>
+            </div>
             <label>
               <span>Publishable Key</span>
               <input type="text" name="stripePublishableKey" value="<%= config.stripePublishableKey || '' %>" placeholder="pk_live_..." <%= permissions.canEditSettings ? '' : 'readonly' %> />
@@ -49,9 +59,13 @@
               <input type="password" name="stripeSecretKey" value="<%= config.stripeSecretKey ? '••••••••••••••••' : '' %>" placeholder="sk_live_..." autocomplete="new-password" <%= permissions.canEditSettings ? '' : 'readonly' %> />
               <small class="helper">Leave empty to keep current secret key.</small>
             </label>
+            <label>
+              <span>PayPal account email (optional)</span>
+              <input type="email" name="paypalEmail" value="<%= config.paypalEmail || '' %>" placeholder="paypal@business.com" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            </label>
             <div class="row">
               <input type="password" name="password" placeholder="Admin password" <%= permissions.canEditSettings ? '' : 'disabled' %> />
-              <button class="button" type="submit" <%= permissions.canEditSettings ? '' : 'disabled' %>>Save Stripe keys</button>
+              <button class="button" type="submit" <%= permissions.canEditSettings ? '' : 'disabled' %>>Save payment settings</button>
             </div>
           </form>
         </section>
