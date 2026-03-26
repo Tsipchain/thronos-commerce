@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const ejs = require('ejs');
 const crypto = require('crypto');
 const axios = require('axios');
 const multer = require('multer');
@@ -131,6 +132,32 @@ function buildTranslatableFromBody(body, baseName, fallbackValue) {
   return fallbackValue;
 }
 
+function normalizeSlug(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function isUrlSafeSlug(value) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value || ''));
+}
+
+function isEukolakisClassicPreset(req) {
+  if (!req || !req.tenant || req.tenant.id !== 'eukolakis') return false;
+  const config = loadTenantConfig(req);
+  const presetId = config && config.theme && config.theme.presetId;
+  return presetId === 'eukolakis_classic_diy';
+}
+
+const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
+function shouldDefaultPartsOnly(tenant, config) {
+  return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
+}
+
 function localizeConfigContent(config, lang) {
   return {
     ...config,
@@ -155,6 +182,50 @@ function localizeProductContent(product, lang) {
     name: resolveTranslatable(product.name, lang),
     description: resolveTranslatable(product.description, lang)
   };
+}
+
+function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, options = {}) {
+  if (!product || product.type !== 'KIT' || !Array.isArray(product.kitOptions)) return product;
+  const kitPayMode = product.kitPayMode || (options.defaultPartsOnly ? 'parts_only' : 'bundle');
+  const hydratedOptions = product.kitOptions.map((group) => {
+    const choices = Array.isArray(group.choices) ? group.choices : [];
+    const hydratedChoices = choices.map((choice) => {
+      const linked = choice.linkedProductId ? catalog.find((p) => p.id === choice.linkedProductId) : null;
+      const linkedName = linked ? resolveTranslatable(linked.name, lang) : '';
+      const linkedDescription = linked ? resolveTranslatable(linked.description, lang) : '';
+      const linkedPrice = linked ? (Number(linked.price) || 0) : 0;
+      const linkedVariants = linked && Array.isArray(linked.variants)
+        ? linked.variants.map((variant) => ({
+          id: variant.id,
+          sku: variant.sku || '',
+          label: resolveTranslatable(variant.label, lang) || variant.id,
+          price: Number(variant.price),
+          stock: variant.stock === undefined ? null : Number(variant.stock),
+          imageUrl: variant.imageUrl || ''
+        }))
+        : [];
+      const isSkipChoice = choice.id === 'skip';
+      const computedPriceDelta = kitPayMode === 'parts_only'
+        ? (isSkipChoice ? 0 : linkedPrice)
+        : (choice.useLinkedPriceDelta && linked ? linkedPrice : (Number(choice.priceDelta) || 0));
+      return {
+        ...choice,
+        label: (choice.label || '').trim() || linkedName || choice.id,
+        description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
+        image: (choice.image || '').trim() || (linked && linked.imageUrl ? linked.imageUrl : ''),
+        priceDelta: computedPriceDelta,
+        linkedPrice,
+        linkedName: linkedName || '',
+        linkedImageUrl: linked && linked.imageUrl ? linked.imageUrl : '',
+        linkedVariants
+      };
+    });
+    if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
+      hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
+    }
+    return { ...group, choices: hydratedChoices };
+  });
+  return { ...product, kitPayMode, kitOptions: hydratedOptions };
 }
 
 loadLocales();
@@ -333,6 +404,8 @@ function tenantPaths(tenantId) {
   ensureDir(base);
   const media = path.join(base, 'media');
   ensureDir(media);
+  const backups = path.join(base, 'backups');
+  ensureDir(backups);
   return {
     base,
     config: path.join(base, 'config.json'),
@@ -346,8 +419,61 @@ function tenantPaths(tenantId) {
     favicon:       path.join(base, 'favicon.png'),
     pendingOrders: path.join(base, 'pending_orders.json'),
     tickets:       path.join(base, 'tickets.json'),
-    media
+    media,
+    backups
   };
+}
+
+function backupJsonWithRotation(req, type, data, keep = 20) {
+  const safeType = String(type || '').replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'data';
+  const now = new Date();
+  const ts = [
+    now.getUTCFullYear(),
+    String(now.getUTCMonth() + 1).padStart(2, '0'),
+    String(now.getUTCDate()).padStart(2, '0')
+  ].join('') + '-' + [
+    String(now.getUTCHours()).padStart(2, '0'),
+    String(now.getUTCMinutes()).padStart(2, '0'),
+    String(now.getUTCSeconds()).padStart(2, '0')
+  ].join('');
+  const filename = `${safeType}-${ts}.json`;
+  const target = path.join(req.tenantPaths.backups, filename);
+  fs.writeFileSync(target, JSON.stringify(data, null, 2), 'utf8');
+  const files = fs.readdirSync(req.tenantPaths.backups)
+    .filter((f) => f.startsWith(`${safeType}-`) && f.endsWith('.json'))
+    .sort()
+    .reverse();
+  files.slice(keep).forEach((f) => {
+    try { fs.unlinkSync(path.join(req.tenantPaths.backups, f)); } catch (_) {}
+  });
+}
+
+function listRecentBackups(req, limit = 40) {
+  const files = fs.readdirSync(req.tenantPaths.backups)
+    .filter((f) => /^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(f))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map((filename) => {
+      const full = path.join(req.tenantPaths.backups, filename);
+      const stat = fs.statSync(full);
+      return {
+        filename,
+        size: stat.size,
+        modifiedAt: stat.mtime.toISOString(),
+        type: filename.split('-')[0]
+      };
+    });
+  return files;
+}
+
+function hasExportAccess(req) {
+  if (req.session && req.session.rootAdmin) return true;
+  const tier = req.tenant && req.tenant.supportTier;
+  if (tier && tier !== 'SELF_SERVICE') return true;
+  const sub = getSubscriptionInfo(req.tenant || {});
+  const status = String((req.tenant && req.tenant.subscriptionStatus) || '').toLowerCase();
+  return status === 'active' || (!!req.tenant.subscriptionExpiry && !sub.isExpired);
 }
 
 function loadTenantOrders(req) {
@@ -407,6 +533,7 @@ function loadTenantConfig(req) {
       bannerVisible: true,
       previewBadgeStyle: 'soft',
       cursorEffect: false,
+      cursorImage: '',
       brandingMode: 'logo_name',
       logoDisplayMode: 'contain',
       logoBgMode: 'auto',
@@ -436,8 +563,19 @@ function saveTenantUsers(req, users) {
   saveJson(req.tenantPaths.users, users);
 }
 
+function saveTenantProducts(req, products) {
+  saveJson(req.tenantPaths.products, products);
+  backupJsonWithRotation(req, 'products', products);
+}
+
 function saveTenantCategories(req, categories) {
   saveJson(req.tenantPaths.categories, categories);
+  backupJsonWithRotation(req, 'categories', categories);
+}
+
+function saveTenantConfig(req, config) {
+  saveJson(req.tenantPaths.config, config);
+  backupJsonWithRotation(req, 'config', config);
 }
 
 function normalizeEmail(email) {
@@ -1009,6 +1147,42 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const partsUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'parts');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const base = path.basename(file.originalname || 'part', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
+const cursorUpload = multer({
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''));
+    cb(null, ok);
+  },
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'cursors');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
+      const base = path.basename(file.originalname || 'cursor', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${safeExt}`);
+    }
+  })
+});
 const categoryUpload = multer({
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -1037,10 +1211,50 @@ const favUpload = multer({
     cb(null, ok);
   }
 });
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }
+});
 
 // View engine & middleware
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+function collectEjsTemplates(dir) {
+  const templates = [];
+  if (!fs.existsSync(dir)) return templates;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      templates.push(...collectEjsTemplates(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.ejs')) {
+      templates.push(fullPath);
+    }
+  }
+  return templates;
+}
+
+function preflightCompileTemplates() {
+  const viewsDir = app.get('views');
+  const templates = collectEjsTemplates(viewsDir);
+  const failures = [];
+  for (const templatePath of templates) {
+    try {
+      const source = fs.readFileSync(templatePath, 'utf8');
+      ejs.compile(source, { filename: templatePath });
+    } catch (e) {
+      failures.push({ templatePath, message: e.message });
+    }
+  }
+  if (failures.length) {
+    console.error('[boot] EJS preflight failed:');
+    failures.forEach((failure) => {
+      console.error(`- ${path.relative(__dirname, failure.templatePath)}: ${failure.message}`);
+    });
+    throw new Error(`EJS preflight failed for ${failures.length} template(s).`);
+  }
+}
 
 // Security headers
 app.use((req, res, next) => {
@@ -1192,11 +1406,34 @@ function buildAdminViewModel(req, extra) {
     cityCounts,
     hasFavicon: fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
+    exportAccess: hasExportAccess(req),
+    backups: listRecentBackups(req, 30),
     tickets: tickets.slice().reverse(),
     message: null,
     error: null,
     ...(extra || {})
   };
+}
+
+function buildAdminPaymentsViewModel(req, extra) {
+  const config = loadTenantConfig(req);
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  return {
+    tenant: req.tenant,
+    config,
+    permissions,
+    ...(extra || {})
+  };
+}
+
+function renderExportBlockedPage(req, res) {
+  const supportEmail = process.env.SUPPORT_EMAIL || 'support@thronoschain.org';
+  res.status(403).send(`<!doctype html><html><head><meta charset="utf-8"><title>Export locked</title></head><body style="font-family:Arial,sans-serif;padding:24px;">
+    <h2>Export available on paid plans</h2>
+    <p>Contact support / upgrade to unlock exports for this tenant.</p>
+    <p><a href="mailto:${supportEmail}">${supportEmail}</a></p>
+    <p><a href="${buildTenantLink(req, '/admin')}">← Back to admin</a></p>
+  </body></html>`);
 }
 
 // Routes
@@ -1227,14 +1464,22 @@ app.get('/', (req, res) => {
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
+  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
+    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+  }));
 
-  const catSlug = req.query.category;
-  let products = allProducts;
+  const rawCategory = String(req.query.category || '');
+  let catSlug = normalizeSlug(rawCategory);
+  if (req.tenant.id === 'eukolakis') {
+    const aliasMap = { spare: 'spare-parts' };
+    catSlug = aliasMap[catSlug] || catSlug;
+  }
+  let products = hydratedAllProducts;
 
   if (catSlug) {
-    const cat = categories.find((c) => c.slug === catSlug);
+    const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
     if (cat) {
-      products = allProducts.filter((p) => p.categoryId === cat.id);
+      products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
     } else {
       products = [];
     }
@@ -1242,7 +1487,7 @@ app.get('/', (req, res) => {
 
   const viewLang = req.lang;
   const localizedConfig = localizeConfigContent(config, viewLang);
-  const localizedAllProducts = allProducts.map((p) => localizeProductContent(p, viewLang));
+  const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
   res.render('index', {
     config: localizedConfig,
     categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -1270,9 +1515,12 @@ app.get('/product/:id', (req, res) => {
     saveJson(req.tenantPaths.analytics, analytics);
   } catch (_) { /* non-critical */ }
 
+  const hydratedProduct = hydrateKitProduct(product, products, req.lang, {
+    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+  });
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
-    product: localizeProductContent(product, req.lang),
+    product: localizeProductContent(hydratedProduct, req.lang),
     tenant: req.tenant
   });
 });
@@ -1306,7 +1554,9 @@ app.post('/checkout', async (req, res) => {
   const allProductsCatalog = loadTenantProducts(req);
   const enrichedItems = [];
   for (const ci of cartItems) {
-    const found = allProductsCatalog.find((p) => p.id === ci.id);
+    const found = hydrateKitProduct(allProductsCatalog.find((p) => p.id === ci.id), allProductsCatalog, req.lang, {
+      defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+    });
     if (found) {
       let serverPrice = Number(found.price) || 0;
       let variantLabel = '';
@@ -1340,18 +1590,70 @@ app.post('/checkout', async (req, res) => {
         selectedOptions = [];
         found.kitOptions.forEach((group) => {
           (selectedByGroup[group.id] || []).forEach((choice) => {
+            const linkedProduct = choice.linkedProductId
+              ? allProductsCatalog.find((p) => p.id === choice.linkedProductId)
+              : null;
+            const selectedVariantIdRaw = rawOptions.find((opt) => opt.groupId === group.id && opt.choiceId === choice.id)?.selectedVariantId;
+            const selectedVariantId = typeof selectedVariantIdRaw === 'string' ? selectedVariantIdRaw.trim() : '';
+            const linkedVariant = linkedProduct && selectedVariantId && Array.isArray(linkedProduct.variants)
+              ? linkedProduct.variants.find((v) => v.id === selectedVariantId)
+              : null;
+            const variantPrice = linkedVariant && linkedVariant.price !== undefined
+              ? Number(linkedVariant.price) || 0
+              : null;
+            const computedChoicePrice = found.kitPayMode === 'parts_only'
+              ? (variantPrice !== null ? variantPrice : (Number(choice.priceDelta) || 0))
+              : (choice.useLinkedPriceDelta && linkedProduct
+                ? (variantPrice !== null ? variantPrice : (Number(linkedProduct.price) || 0))
+                : (Number(choice.priceDelta) || 0));
             selectedOptions.push({
               groupId: group.id,
               groupLabel: group.label || group.id,
               choiceId: choice.id,
               choiceLabel: choice.label || choice.id,
-              priceDelta: Number(choice.priceDelta) || 0,
-              linkedProductId: choice.linkedProductId || null
+              priceDelta: computedChoicePrice,
+              linkedProductId: choice.linkedProductId || null,
+              selectedVariantId: linkedVariant ? linkedVariant.id : undefined,
+              selectedVariantLabel: linkedVariant ? (resolveTranslatable(linkedVariant.label, req.lang) || linkedVariant.id) : undefined,
+              selectedVariantSku: linkedVariant ? (linkedVariant.sku || undefined) : undefined
             });
           });
         });
         const delta = selectedOptions.reduce((s, o) => s + (Number(o.priceDelta) || 0), 0);
-        serverPrice += delta;
+        if (found.kitPayMode === 'parts_only') {
+          serverPrice = 0;
+          if (!ci.isKitSummary) {
+            selectedOptions
+              .filter((o) => o.linkedProductId)
+              .forEach((o) => {
+                const linked = allProductsCatalog.find((p) => p.id === o.linkedProductId);
+                if (!linked) return;
+                const linkedVariant = o.selectedVariantId && Array.isArray(linked.variants)
+                  ? linked.variants.find((v) => v.id === o.selectedVariantId)
+                  : null;
+                const linkedPrice = linkedVariant && linkedVariant.price !== undefined
+                  ? Number(linkedVariant.price) || 0
+                  : Number(linked.price) || 0;
+                const linkedImage = (linkedVariant && linkedVariant.imageUrl) || linked.imageUrl || '';
+                const linkedName = resolveTranslatable(linked.name, req.lang);
+                const variantLabel = linkedVariant ? (resolveTranslatable(linkedVariant.label, req.lang) || linkedVariant.id) : '';
+                enrichedItems.push({
+                  id: linked.id,
+                  name: variantLabel ? `${linkedName} – ${variantLabel}` : linkedName,
+                  variantId: linkedVariant ? linkedVariant.id : undefined,
+                  variantLabel: variantLabel || undefined,
+                  variantSku: linkedVariant ? (linkedVariant.sku || undefined) : undefined,
+                  imageUrl: linkedImage,
+                  price: linkedPrice,
+                  qty: Math.max(1, parseInt(ci.qty, 10) || 1),
+                  sourceKitId: found.id,
+                  sourceKitOption: `${o.groupLabel}: ${o.choiceLabel}${variantLabel ? ` (${variantLabel})` : ''}`
+                });
+              });
+          }
+        } else {
+          serverPrice += delta;
+        }
         optionSummary = selectedOptions.map((o) => `${o.groupLabel}: ${o.choiceLabel}`).join(' | ');
       }
       enrichedItems.push({
@@ -1364,7 +1666,8 @@ app.post('/checkout', async (req, res) => {
         basePrice: Number(found.price) || 0,
         finalUnitPrice: serverPrice,
         price:        serverPrice,
-        qty:          Math.max(1, parseInt(ci.qty, 10) || 1)
+        qty:          Math.max(1, parseInt(ci.qty, 10) || 1),
+        isKitSummary: found.type === 'KIT' && found.kitPayMode === 'parts_only'
       });
     }
   }
@@ -1468,6 +1771,7 @@ app.post('/checkout', async (req, res) => {
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   enrichedItems.forEach((ci) => {
+    if (ci.isKitSummary) return;
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
     if (pIdx < 0) return;
     const prod = allProductsMut[pIdx];
@@ -1797,6 +2101,158 @@ app.get('/admin', (req, res) => {
   res.render('admin', buildAdminViewModel(req));
 });
 
+app.get('/admin/payments', (req, res) => {
+  const extra = {};
+  if (req.query.message) extra.message = String(req.query.message);
+  if (req.query.error) extra.error = String(req.query.error);
+  res.render('admin-payments', buildAdminPaymentsViewModel(req, extra));
+});
+
+app.get('/admin/export/products.json', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  const products = loadTenantProducts(req);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-products.json\"`);
+  res.send(JSON.stringify(products, null, 2));
+});
+
+app.get('/admin/export/products.csv', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  const products = loadTenantProducts(req);
+  const esc = (v) => `"${String(v === undefined ? '' : v).replace(/"/g, '""')}"`;
+  const rows = [
+    ['id', 'name', 'type', 'categoryId', 'sku', 'price', 'stock', 'featured', 'imageUrl'],
+    ...products.map((p) => ([
+      p.id || '',
+      resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
+      p.type || 'NORMAL',
+      p.categoryId || '',
+      p.sku || '',
+      Number(p.price) || 0,
+      p.stock === undefined ? '' : Number(p.stock),
+      p.featured ? '1' : '0',
+      p.imageUrl || ''
+    ]))
+  ];
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-products.csv\"`);
+  res.send(csv);
+});
+
+app.get('/admin/export/categories.json', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-categories.json\"`);
+  res.send(JSON.stringify(loadTenantCategories(req), null, 2));
+});
+
+app.get('/admin/export/config.json', (req, res) => {
+  if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-config.json\"`);
+  res.send(JSON.stringify(loadTenantConfig(req), null, 2));
+});
+
+app.post('/admin/backups/create-now', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  backupJsonWithRotation(req, 'products', loadTenantProducts(req));
+  backupJsonWithRotation(req, 'categories', loadTenantCategories(req));
+  backupJsonWithRotation(req, 'config', loadTenantConfig(req));
+  return res.render('admin', buildAdminViewModel(req, { message: 'Δημιουργήθηκε backup snapshot.' }));
+});
+
+app.get('/admin/backups/:filename', (req, res) => {
+  const filename = String(req.params.filename || '');
+  if (!/^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(filename)) return res.status(400).send('Invalid filename');
+  const full = path.join(req.tenantPaths.backups, filename);
+  if (!fs.existsSync(full)) return res.status(404).send('Backup not found');
+  res.download(full, filename);
+});
+
+app.post('/admin/backups/restore', async (req, res) => {
+  const { filename, password } = req.body;
+  if (!filename || !/^[a-z0-9_-]+-\d{8}-\d{6}\.json$/i.test(filename)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Μη έγκυρο backup αρχείο.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  const full = path.join(req.tenantPaths.backups, filename);
+  if (!fs.existsSync(full)) return res.status(404).render('admin', buildAdminViewModel(req, { error: 'Το backup δεν βρέθηκε.' }));
+  try {
+    const parsed = JSON.parse(fs.readFileSync(full, 'utf8'));
+    if (filename.startsWith('products-')) {
+      saveTenantProducts(req, Array.isArray(parsed) ? parsed : []);
+    } else if (filename.startsWith('categories-')) {
+      saveTenantCategories(req, Array.isArray(parsed) ? parsed : []);
+    } else if (filename.startsWith('config-')) {
+      saveTenantConfig(req, parsed && typeof parsed === 'object' ? parsed : {});
+    } else {
+      return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Μη υποστηριζόμενο backup type.' }));
+    }
+    return res.render('admin', buildAdminViewModel(req, { message: `Επαναφέρθηκε το backup ${filename}.` }));
+  } catch (err) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Αποτυχία restore: ' + err.message }));
+  }
+});
+
+app.post('/admin/import/products', importUpload.single('file'), async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  if (!req.file) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'No import file uploaded.' }));
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  if (!['.csv', '.xlsx'].includes(ext)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Allowed formats: csv, xlsx' }));
+  }
+  if (ext === '.xlsx') {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'XLSX import preview is not enabled in this build yet. Please export/save as CSV.' }));
+  }
+  const text = req.file.buffer.toString('utf8');
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'CSV has no rows.' }));
+  const headers = lines[0].split(',').map((h) => h.trim());
+  const idx = (name) => headers.indexOf(name);
+  const required = ['id', 'type', 'categoryId', 'name_el', 'name_en', 'price', 'stock', 'imageUrl', 'sku'];
+  const missingCols = required.filter((c) => idx(c) === -1);
+  if (missingCols.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missingCols.join(', ') }));
+  const errors = [];
+  const imported = [];
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = lines[i].split(',');
+    const row = {
+      id: (cols[idx('id')] || '').trim(),
+      type: (cols[idx('type')] || 'NORMAL').trim().toUpperCase(),
+      categoryId: (cols[idx('categoryId')] || '').trim(),
+      nameEl: (cols[idx('name_el')] || '').trim(),
+      nameEn: (cols[idx('name_en')] || '').trim(),
+      price: Number(cols[idx('price')] || 0),
+      stock: Number(cols[idx('stock')] || 0),
+      imageUrl: (cols[idx('imageUrl')] || '').trim(),
+      sku: (cols[idx('sku')] || '').trim()
+    };
+    if (!row.id || !row.nameEl) {
+      errors.push(`Row ${i + 1}: id and name_el are required`);
+      continue;
+    }
+    imported.push({
+      id: row.id,
+      type: ['NORMAL', 'PART', 'KIT'].includes(row.type) ? row.type : 'NORMAL',
+      categoryId: row.categoryId || undefined,
+      name: row.nameEn ? { el: row.nameEl, en: row.nameEn } : row.nameEl,
+      price: Number.isFinite(row.price) ? row.price : 0,
+      stock: Number.isFinite(row.stock) ? row.stock : 0,
+      imageUrl: row.imageUrl || undefined,
+      sku: row.sku || undefined
+    });
+  }
+  if (errors.length) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Import errors: ' + errors.join(' | ') }));
+  }
+  saveTenantProducts(req, imported);
+  return res.render('admin', buildAdminViewModel(req, { message: `Imported ${imported.length} products from CSV.` }));
+});
+
 // Admin orders view
 app.get('/admin/orders', (req, res) => {
   const config = loadTenantConfig(req);
@@ -1853,7 +2309,8 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoPadding,
     themeLogoRadius,
     themeLogoShadow,
-    themeLogoMaxHeight
+    themeLogoMaxHeight,
+    themeCursorImage
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -1905,6 +2362,8 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.bannerVisible = themeBannerVisible === 'on';
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
   config.theme.cursorEffect = themeCursorEffect === 'on';
+  const rawCursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
+  config.theme.cursorImage = (/^(\/|https?:\/\/)/i.test(rawCursorImage) ? rawCursorImage : '');
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
   config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
@@ -1937,28 +2396,65 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
   config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
 
-  // Notification settings
-  config.notificationEmails = (req.body.notificationEmails || '')
-    .split('\n').map((e) => e.trim()).filter((e) => e.length > 0);
-  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
-  config.notificationFromName   = (req.body.notificationFromName   || '').trim();
-  config.notificationWebhookUrl    = (req.body.notificationWebhookUrl    || '').trim();
-  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
-
-  // Stripe keys
-  if (req.body.stripePublishableKey !== undefined)
-    config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
-  if (req.body.stripeSecretKey !== undefined) {
-    const sk = (req.body.stripeSecretKey || '').trim();
-    if (sk) config.stripeSecretKey = sk; // only overwrite if non-empty
-  }
-
-  saveJson(req.tenantPaths.config, config);
+  saveTenantConfig(req, config);
 
   res.render(
     'admin',
     buildAdminViewModel(req, { message: 'Οι ρυθμίσεις αποθηκεύτηκαν.' })
   );
+});
+
+app.post('/admin/notifications', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res
+      .status(403)
+      .render('admin', buildAdminViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή ειδοποιήσεων.' }));
+  }
+
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res
+      .status(401)
+      .render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+  config.notificationEmails = (req.body.notificationEmails || '')
+    .split('\n')
+    .map((e) => e.trim())
+    .filter((e) => e.length > 0);
+  config.notificationCcCustomer = req.body.notificationCcCustomer === 'on';
+  config.notificationFromName = (req.body.notificationFromName || '').trim();
+  config.notificationWebhookUrl = (req.body.notificationWebhookUrl || '').trim();
+  config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
+  saveTenantConfig(req, config);
+
+  return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις ειδοποιήσεων αποθηκεύτηκαν.' }));
+});
+
+app.post('/admin/payments', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.redirect(buildTenantLink(req, '/admin/payments', { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή πληρωμών.' }));
+  }
+
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.redirect(buildTenantLink(req, '/admin/payments', { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const config = loadTenantConfig(req);
+  config.stripePublishableKey = (req.body.stripePublishableKey || '').trim();
+  if (req.body.stripeSecretKey !== undefined) {
+    const sk = (req.body.stripeSecretKey || '').trim();
+    if (sk) config.stripeSecretKey = sk;
+  }
+  saveTenantConfig(req, config);
+
+  return res.redirect(buildTenantLink(req, '/admin/payments', { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
 });
 
 // Shipping & Payment options editor
@@ -1999,7 +2495,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
     if (label !== undefined) opt.label = label;
   });
 
-  saveJson(req.tenantPaths.config, config);
+  saveTenantConfig(req, config);
 
   res.render('admin', buildAdminViewModel(req, {
     message: 'Τα μεταφορικά και οι τρόποι πληρωμής αποθηκεύτηκαν.'
@@ -2032,7 +2528,15 @@ app.post('/admin/categories/add', async (req, res) => {
   }
 
   const categories = loadTenantCategories(req);
-  if (categories.some((c) => c.id === id || c.slug === slug)) {
+  const normalizedId = normalizeSlug(id);
+  const normalizedSlug = normalizeSlug(slug || id);
+  if (!normalizedId || !normalizedSlug || !isUrlSafeSlug(normalizedSlug)) {
+    return res
+      .status(400)
+      .render('admin', buildAdminViewModel(req, { error: 'Το id/slug πρέπει να είναι URL-safe (πεζά, αριθμοί και παύλες).' }));
+  }
+
+  if (categories.some((c) => c.id === normalizedId || c.slug === normalizedSlug)) {
     return res
       .status(400)
       .render(
@@ -2045,7 +2549,7 @@ app.post('/admin/categories/add', async (req, res) => {
 
   const translatedName = buildTranslatableFromBody(req.body, 'name', name || '');
   const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
-  const newCat = { id, name: translatedName, slug };
+  const newCat = { id: normalizedId, name: translatedName, slug: normalizedSlug };
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
   if (image && image.trim()) newCat.image = image.trim();
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
@@ -2095,10 +2599,14 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
-  if (
-    slug &&
-    categories.some((c) => c.id !== categoryId && c.slug === slug)
-  ) {
+  const normalizedSlug = normalizeSlug(slug || categories[idx].slug);
+  if (!normalizedSlug || !isUrlSafeSlug(normalizedSlug)) {
+    return res
+      .status(400)
+      .render('admin', buildAdminViewModel(req, { error: 'Το slug πρέπει να είναι URL-safe (πεζά, αριθμοί και παύλες).' }));
+  }
+
+  if (categories.some((c) => c.id !== categoryId && c.slug === normalizedSlug)) {
     return res
       .status(400)
       .render(
@@ -2109,11 +2617,24 @@ app.post('/admin/categories/update', async (req, res) => {
       );
   }
 
+  if (isEukolakisClassicPreset(req) && EUKOLAKIS_CORE_CATEGORY_IDS.has(categoryId)) {
+    if (normalizedSlug !== categories[idx].slug) {
+      return res
+        .status(400)
+        .render(
+          'admin',
+          buildAdminViewModel(req, {
+            error: 'Στο preset eukolakis_classic_diy δεν επιτρέπεται αλλαγή slug για τις βασικές κατηγορίες diy-rolla, diy-sliding, spare-parts.'
+          })
+        );
+    }
+  }
+
   categories[idx].name = buildTranslatableFromBody(req.body, 'name', name || categories[idx].name);
   const shortDescription = buildTranslatableFromBody(req.body, 'shortDescription', categories[idx].shortDescription);
   if (shortDescription) categories[idx].shortDescription = shortDescription;
   else delete categories[idx].shortDescription;
-  categories[idx].slug = slug || categories[idx].slug;
+  categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
     if (image && image.trim()) categories[idx].image = image.trim();
     else delete categories[idx].image;
@@ -2170,6 +2691,27 @@ app.post('/admin/categories/delete', async (req, res) => {
 });
 
 // Product JSON editor
+app.get('/admin/products/search', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const products = loadTenantProducts(req);
+  const out = products
+    .filter((p) => {
+      if (!q) return true;
+      const pName = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG).toLowerCase();
+      return p.id.toLowerCase().includes(q) || pName.includes(q) || String(p.categoryId || '').toLowerCase().includes(q);
+    })
+    .slice(0, 30)
+    .map((p) => ({
+      id: p.id,
+      name: resolveTranslatable(p.name, DEFAULT_CONTENT_LANG),
+      imageUrl: p.imageUrl || '',
+      price: Number(p.price) || 0,
+      stock: Number(p.stock) || 0,
+      categoryId: p.categoryId || ''
+    }));
+  res.json(out);
+});
+
 app.post('/admin/products', async (req, res) => {
   const { password, productsJson } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -2220,7 +2762,7 @@ app.post('/admin/products', async (req, res) => {
       }
       if (!Array.isArray(p.gallery)) p.gallery = [];
     });
-    saveJson(req.tenantPaths.products, parsed);
+    saveTenantProducts(req, parsed);
     res.render(
       'admin',
       buildAdminViewModel(req, {
@@ -2259,7 +2801,7 @@ app.post('/admin/stock/adjust', async (req, res) => {
   const qty = Math.max(0, parseInt(newStock, 10) || 0);
   const delta = qty - oldStock;
   products[pIdx].stock = qty;
-  saveJson(req.tenantPaths.products, products);
+  saveTenantProducts(req, products);
 
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   stockLog.push({
@@ -2300,6 +2842,38 @@ app.post(
     }
 
     const url = `/tenants/${req.tenant.id}/media/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/parts/image-upload',
+  partsUpload.single('partFile'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/parts/${req.file.filename}`;
+    return res.json({ ok: true, url });
+  }
+);
+
+app.post(
+  '/admin/theme/cursor-upload',
+  cursorUpload.single('cursorFile'),
+  async (req, res) => {
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditSettings) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Session expired. Please enter admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No cursor file uploaded.' });
+    const url = `/tenants/${req.tenant.id}/media/cursors/${req.file.filename}`;
     return res.json({ ok: true, url });
   }
 );
@@ -3254,6 +3828,7 @@ app.post('/root/referral/mark-paid', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
+preflightCompileTemplates();
 app.listen(PORT, () => {
   console.log(`Thronos Commerce running on port ${PORT}`);
 });
