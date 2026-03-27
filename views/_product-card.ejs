@@ -6,16 +6,18 @@
       <% if (product.featured) { %><span class="featured-badge">⭐ <%= t('storefront.featured') %></span><% } %>
     </div>
   <% } else if (product.featured) { %>
-    <div class="product-thumb" style="background:#fffbeb;min-height:60px;">
+    <div class="product-thumb placeholder" style="background:#fffbeb;min-height:60px;">
       <span class="featured-badge" style="position:relative;top:0;left:0;display:inline-block;margin:10px;">⭐ <%= t('storefront.featured') %></span>
     </div>
+  <% } else { %>
+    <div class="product-thumb placeholder" aria-hidden="true"></div>
   <% } %>
   <div class="product-card-body">
     <h2><%= product.name %></h2>
     <% if (product.type === 'KIT') { %>
       <p style="margin:0 0 8px;font-size:.72rem;font-weight:700;letter-spacing:.04em;color:#0f766e;">DIY KIT CONFIGURATOR</p>
     <% } %>
-    <p><%= product.description %></p>
+    <% if (product.description) { %><p><%= product.description %></p><% } %>
     <p class="price">
       <%= Number(product.price).toFixed(2) %> €
       <% if (product.stock !== undefined) { %>
