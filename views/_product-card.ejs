@@ -1,21 +1,25 @@
 <% const isEukolakisTenant = (typeof tenantId !== 'undefined' && tenantId === 'eukolakis'); %>
-<article class="product-card <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %> <%= isEukolakisTenant && product.type === 'KIT' ? 'kit-clickable' : '' %>" <%= isEukolakisTenant && product.type === 'KIT' ? 'data-kit-product-id="' + product.id + '"' : '' %>>
+<% const productSkuValue = String(product.sku || '').trim().toLowerCase(); %>
+<% const productTagsValue = Array.isArray(product.tags) ? product.tags.map(function(tag){ return String(tag || '').trim().toLowerCase(); }).filter(Boolean).join(',') : ''; %>
+<article class="product-card hover-<%= (config && config.theme && config.theme.productCardHoverEffect) || 'lift' %> <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %> <%= isEukolakisTenant && product.type === 'KIT' ? 'kit-clickable' : '' %>" data-product-id="<%= product.id %>" data-product-price="<%= Number(product.price) || 0 %>" data-product-sku="<%= productSkuValue %>" data-product-tags="<%= productTagsValue %>" <%= isEukolakisTenant && product.type === 'KIT' ? 'data-kit-product-id="' + product.id + '"' : '' %> <%= product.type !== 'KIT' ? ('data-product-open-url=\"' + withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) + '\"') : '' %>>
   <% if (product.imageUrl) { %>
     <div class="product-thumb">
       <img src="<%= product.imageUrl %>" alt="<%= product.name %>" loading="lazy" />
       <% if (product.featured) { %><span class="featured-badge">⭐ <%= t('storefront.featured') %></span><% } %>
     </div>
   <% } else if (product.featured) { %>
-    <div class="product-thumb" style="background:#fffbeb;min-height:60px;">
+    <div class="product-thumb placeholder" style="background:#fffbeb;min-height:60px;">
       <span class="featured-badge" style="position:relative;top:0;left:0;display:inline-block;margin:10px;">⭐ <%= t('storefront.featured') %></span>
     </div>
+  <% } else { %>
+    <div class="product-thumb placeholder" aria-hidden="true"><span style="font-size:22px;">🖼️</span></div>
   <% } %>
   <div class="product-card-body">
     <h2><%= product.name %></h2>
     <% if (product.type === 'KIT') { %>
       <p style="margin:0 0 8px;font-size:.72rem;font-weight:700;letter-spacing:.04em;color:#0f766e;">DIY KIT CONFIGURATOR</p>
     <% } %>
-    <p><%= product.description %></p>
+    <% if (product.description) { %><p><%= product.description %></p><% } %>
     <p class="price">
       <%= Number(product.price).toFixed(2) %> €
       <% if (product.stock !== undefined) { %>
@@ -32,16 +36,16 @@
       <% if (isEukolakisTenant && product.type === 'KIT') { %>
         <a class="btn-cart" href="#" data-kit-launch="<%= product.id %>" style="text-decoration:none;display:inline-block;"><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
       <% } else if (product.type === 'KIT') { %>
-        <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+        <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <a class="btn-cart" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>" data-kit-launch="<%= product.id %>" style="text-decoration:none;display:inline-block;"><%= lang === 'el' ? 'Διαμόρφωση Kit' : 'Configure Kit' %></a>
       <% } else if (product.stock !== 0) { %>
-        <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+        <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <button class="btn-cart" type="button"
           onclick="window.thrcAddToCart && window.thrcAddToCart({id:'<%= product.id %>',name:'<%= product.name.replace(/'/g,"\\'") %>',price:<%= Number(product.price) || 0 %>,imageUrl:'<%= (product.imageUrl||'').replace(/'/g,"\\'") %>'})">
           <%= t('storefront.addToCart') %>
         </button>
       <% } else { %>
-        <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+        <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <button class="btn-cart" type="button" disabled><%= t('checkout.stockOut') %></button>
       <% } %>
     </div>
