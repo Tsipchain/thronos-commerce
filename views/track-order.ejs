@@ -20,6 +20,7 @@
         <p><strong>ID:</strong> <%= order.id %></p>
         <p><strong><%= lang === 'el' ? 'Κατάσταση πληρωμής' : 'Payment status' %>:</strong> <%= order.paymentStatus || '-' %></p>
         <p><strong><%= lang === 'el' ? 'Ημερομηνία' : 'Created at' %>:</strong> <%= order.createdAt %></p>
+        <% if (order.trackingNumber) { %><p><strong>Tracking:</strong> <%= order.trackingNumber %></p><% } %>
         <p><strong><%= lang === 'el' ? 'Σύνολο' : 'Total' %>:</strong> <%= Number(order.total || 0).toFixed(2) %> €</p>
       </section>
     <% } %>

@@ -562,6 +562,15 @@ function loadTenantConfig(req) {
       instagramUrl: '',
       tiktokUrl: ''
     },
+    assistant: {
+      enabled: false,
+      apiKey: '',
+      webhookUrl: '',
+      notifyNewOrders: true,
+      notifyLowStock: true,
+      notifyTrackingReminder: true,
+      lowStockThreshold: 3
+    },
     theme: {
       menuBg: '#111111',
       menuText: '#ffffff',
@@ -600,6 +609,7 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+  cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
 }
@@ -1118,6 +1128,28 @@ async function sendOrderWebhook({ tenant, config, order }) {
 
   await axios.post(url, payload, { timeout: 3000, headers });
   console.log(`[Thronos Commerce] Webhook sent for order ${order.id} → ${url}`);
+}
+
+async function dispatchAssistantEvent(req, eventType, payload) {
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  if (!assistant.enabled) return;
+  const webhookUrl = String(assistant.webhookUrl || '').trim();
+  if (!webhookUrl) return;
+  const apiKey = String(assistant.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['X-Thronos-Assistant-Key'] = apiKey;
+  const eventPayload = {
+    tenantId: req.tenant.id,
+    eventType,
+    timestamp: new Date().toISOString(),
+    payload
+  };
+  try {
+    await axios.post(webhookUrl, eventPayload, { timeout: 3500, headers });
+  } catch (err) {
+    console.warn('[assistant-event] failed:', err.message);
+  }
 }
 
 // ── Enhanced mailer (THRC_MAIL_* env vars) ───────────────────────────────────
@@ -2060,6 +2092,8 @@ app.post('/checkout', async (req, res) => {
   // ── Stock deduction (per item) ────────────────────────────────────
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const lowStockAlerts = [];
+  const lowStockThreshold = Number((config.assistant && config.assistant.lowStockThreshold) || 3);
   enrichedItems.forEach((ci) => {
     if (ci.isKitSummary) return;
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
@@ -2069,6 +2103,15 @@ app.post('/checkout', async (req, res) => {
       const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
       if (vIdx >= 0) {
         prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        if (prod.variants[vIdx].stock <= lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: ci.id,
+            productName: ci.name,
+            variantId: ci.variantId,
+            variantLabel: ci.variantLabel,
+            remainingStock: prod.variants[vIdx].stock
+          });
+        }
         stockLog.push({
           id:           Date.now().toString(36) + '_' + ci.id,
           productId:    ci.id,
@@ -2083,6 +2126,13 @@ app.post('/checkout', async (req, res) => {
       }
     } else if ((prod.stock || 0) > 0) {
       prod.stock = Math.max(0, prod.stock - ci.qty);
+      if (prod.stock <= lowStockThreshold) {
+        lowStockAlerts.push({
+          productId: ci.id,
+          productName: ci.name,
+          remainingStock: prod.stock
+        });
+      }
       stockLog.push({
         id:          Date.now().toString(36) + '_' + ci.id,
         productId:   ci.id,
@@ -2116,6 +2166,15 @@ app.post('/checkout', async (req, res) => {
     await sendOrderWebhook({ tenant: req.tenant, config, order });
   } catch (err) {
     console.error('[Thronos Commerce] sendOrderWebhook failed:', err.message);
+  }
+  dispatchAssistantEvent(req, 'new_order', {
+    orderId: order.id,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    items: Array.isArray(order.items) ? order.items.length : 0
+  });
+  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
+    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId });
   }
 
   const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
@@ -2184,6 +2243,8 @@ app.get('/checkout/stripe-success', async (req, res) => {
   // Stock deduction
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const lowStockAlerts = [];
+  const lowStockThreshold = Number((config.assistant && config.assistant.lowStockThreshold) || 3);
   enrichedItems.forEach((ci) => {
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
     if (pIdx < 0) return;
@@ -2192,10 +2253,26 @@ app.get('/checkout/stripe-success', async (req, res) => {
       const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
       if (vIdx >= 0) {
         prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        if (prod.variants[vIdx].stock <= lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: ci.id,
+            productName: ci.name,
+            variantId: ci.variantId,
+            variantLabel: ci.variantLabel,
+            remainingStock: prod.variants[vIdx].stock
+          });
+        }
         stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, variantLabel: ci.variantLabel, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
       }
     } else if ((prod.stock || 0) > 0) {
       prod.stock = Math.max(0, prod.stock - ci.qty);
+      if (prod.stock <= lowStockThreshold) {
+        lowStockAlerts.push({
+          productId: ci.id,
+          productName: ci.name,
+          remainingStock: prod.stock
+        });
+      }
       stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
     }
   });
@@ -2213,6 +2290,15 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
+  dispatchAssistantEvent(req, 'new_order', {
+    orderId: order.id,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    items: Array.isArray(order.items) ? order.items.length : 0
+  });
+  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
+    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId: order.id });
+  }
 
   const allProductsForContent = loadTenantProducts(req);
   const hasDigital = enrichedItems.some((ci) => {
@@ -2248,6 +2334,46 @@ app.post('/track', (req, res) => {
     });
   }
   return res.render('track-order', { config, tenant: req.tenant, order, error: null });
+});
+
+app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
+  const config = loadTenantConfig(req);
+  const assistantCfg = config.assistant || {};
+  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
+  if (expectedKey && providedKey !== expectedKey) {
+    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
+  }
+  const action = String((req.body && req.body.action) || '').trim();
+  if (action === 'set_setting') {
+    const section = String(req.body.section || '').trim();
+    const key = String(req.body.key || '').trim();
+    const value = req.body.value;
+    const allowList = {
+      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
+      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
+    };
+    if (!allowList[section] || !allowList[section].has(key)) {
+      return res.status(400).json({ ok: false, error: 'setting not allowed' });
+    }
+    config[section] = config[section] || {};
+    config[section][key] = value;
+    saveTenantConfig(req, config);
+    return res.json({ ok: true, action, section, key, value });
+  }
+  if (action === 'send_tracking_reminder') {
+    const orderId = String(req.body.orderId || '').trim();
+    const orders = loadTenantOrders(req);
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
+    await dispatchAssistantEvent(req, 'tracking_reminder', {
+      orderId: order.id,
+      email: order.email,
+      trackingNumber: order.trackingNumber || ''
+    });
+    return res.json({ ok: true, action, orderId });
+  }
+  return res.status(400).json({ ok: false, error: 'unknown action' });
 });
 
 app.get('/admin/login', (req, res) => {
@@ -2767,6 +2893,45 @@ app.get('/admin/orders', (req, res) => {
     config,
     orders,
     permissions: getSupportPermissions(req.tenant.supportTier)
+  });
+});
+
+app.post('/admin/orders/tracking', async (req, res) => {
+  const { password, orderId, trackingNumber } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: loadTenantOrders(req).slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Λάθος κωδικός διαχειριστή.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: orders.slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Η παραγγελία δεν βρέθηκε.'
+    });
+  }
+  orders[idx].trackingNumber = String(trackingNumber || '').trim();
+  saveJson(req.tenantPaths.orders, orders);
+  await dispatchAssistantEvent(req, 'tracking_updated', {
+    orderId: orders[idx].id,
+    trackingNumber: orders[idx].trackingNumber,
+    email: orders[idx].email
+  });
+  return res.render('admin-orders', {
+    tenant: req.tenant,
+    config: loadTenantConfig(req),
+    orders: orders.slice(-100).reverse(),
+    permissions: getSupportPermissions(req.tenant.supportTier),
+    message: 'Το tracking ενημερώθηκε.'
   });
 });
 
