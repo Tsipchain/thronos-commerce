@@ -74,11 +74,30 @@
         <% } %>
       </section>
     </main>
+    <button type="button" id="quick-back-btn" style="position:fixed;left:12px;bottom:18px;z-index:1200;border:none;border-radius:999px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(2,6,23,.28);"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
     <% if (locals.clearCart) { %>
     <script>
       // Clear cart after successful order
       try { localStorage.removeItem('thrc_cart'); } catch(e) {}
     </script>
     <% } %>
+    <script>
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = '<%= withTenantLink("/") %>';
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try { sessionStorage.setItem(key, currentUrl); } catch (err) {}
+        const btn = document.getElementById('quick-back-btn');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+          if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.origin) === 0) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
+    </script>
   </body>
 </html>

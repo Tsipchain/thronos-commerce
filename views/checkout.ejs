@@ -37,6 +37,7 @@
         font-size: .9rem; font-family: inherit; box-sizing: border-box; width: 100%;
       }
       .form-row textarea { resize: vertical; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
 
       /* ── Order summary card ── */
       .checkout-summary {
@@ -111,6 +112,7 @@
       </div>
       <% } %>
     </header>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
 
     <div id="empty-cart-msg" style="display:none;">
       <p><%= t('checkout.cartEmptyMsg') %></p>
@@ -329,6 +331,30 @@
         if (!cart.length) { e.preventDefault(); return; }
         document.getElementById('cart-json-input').value = JSON.stringify(cart);
       });
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = '<%= withTenantLink("/") %>';
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try { if (currentUrl.indexOf('/admin') !== 0) sessionStorage.setItem(key, currentUrl); } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
     </script>
   </body>
 </html>
