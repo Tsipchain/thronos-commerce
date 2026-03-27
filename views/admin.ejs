@@ -487,6 +487,9 @@
               <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
             </select>
           </label>
+          <label><span>Footer text color</span>
+            <input type="text" name="themeFooterTextColor" value="<%= ((config.theme && config.theme.footerTextColor) || '#6b7280') %>" placeholder="#6b7280" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
           <div style="margin-top:8px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;">
             <small style="display:block;margin-bottom:6px;color:#475569;">Live preview</small>
             <div style="width:160px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
