@@ -7,12 +7,8 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
-
-function safeRequire(mod) {
-  try { return require(mod); } catch (e) { return null; }
-}
-const nodemailer = safeRequire('nodemailer');
-const StripeLib  = safeRequire('stripe');
+const nodemailer = require('nodemailer');
+const StripeLib = require('stripe');
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
 function stripeForTenant(config) {
