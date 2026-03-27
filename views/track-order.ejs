@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Order Tracking' %> – <%= config.storeName %></title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main style="max-width:720px;margin:30px auto;padding:0 16px;">
+    <h2><%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Track your order' %></h2>
+    <form method="POST" action="<%= withTenantLink('/track') %>" style="display:grid;gap:10px;margin-bottom:16px;">
+      <label>Order ID <input type="text" name="orderId" required /></label>
+      <label>Email <input type="email" name="email" required /></label>
+      <button class="button" type="submit"><%= lang === 'el' ? 'Έλεγχος' : 'Track' %></button>
+    </form>
+    <% if (error) { %><p style="color:#b91c1c;"><%= error %></p><% } %>
+    <% if (order) { %>
+      <section style="border:1px solid #e5e7eb;border-radius:10px;padding:14px;background:#fff;">
+        <p><strong>ID:</strong> <%= order.id %></p>
+        <p><strong><%= lang === 'el' ? 'Κατάσταση πληρωμής' : 'Payment status' %>:</strong> <%= order.paymentStatus || '-' %></p>
+        <p><strong><%= lang === 'el' ? 'Ημερομηνία' : 'Created at' %>:</strong> <%= order.createdAt %></p>
+        <p><strong><%= lang === 'el' ? 'Σύνολο' : 'Total' %>:</strong> <%= Number(order.total || 0).toFixed(2) %> €</p>
+      </section>
+    <% } %>
+    <p style="margin-top:12px;"><a href="<%= withTenantLink('/') %>">← <%= lang === 'el' ? 'Επιστροφή στο κατάστημα' : 'Back to store' %></a></p>
+  </main>
+</body>
+</html>

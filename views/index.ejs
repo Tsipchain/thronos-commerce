@@ -2,7 +2,15 @@
 <html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
-    <title><%= config.storeName %></title>
+    <% const seoActiveCategory = (categories || []).find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+    <% const seoTitle = seoActiveCategory ? ((seoActiveCategory.name || '') + ' | ' + config.storeName) : config.storeName; %>
+    <% const seoDescription = seoActiveCategory
+      ? (lang === 'el' ? ('Προϊόντα κατηγορίας: ' + (seoActiveCategory.name || '') + ' με διαθεσιμότητα και τεχνικά φίλτρα.') : ('Browse ' + (seoActiveCategory.name || '') + ' with availability and technical filters.'))
+      : (lang === 'el' ? ('Εξειδικευμένο ηλεκτρονικό κατάστημα ' + config.storeName + ' για kits και ανταλλακτικά.') : ('Specialized e-commerce storefront for kits and spare parts.')); %>
+    <title><%= seoTitle %></title>
+    <meta name="description" content="<%= seoDescription %>" />
+    <meta property="og:title" content="<%= seoTitle %>" />
+    <meta property="og:description" content="<%= seoDescription %>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.ico" />
     <link rel="stylesheet" href="/styles.css" />
@@ -16,6 +24,9 @@
         --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+        --product-thumb-aspect: <%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;
+        --product-thumb-fit: <%= (config.theme && config.theme.productThumbFit) || 'cover' %>;
+        --product-thumb-bg: <%= (config.theme && config.theme.productThumbBg) || '#111111' %>;
       }
       .lang-switcher { padding: 8px 16px; background: rgba(0,0,0,.06); font-size: 0.8rem; display:flex; align-items:center; gap:8px; }
       .lang-switcher select { padding: 4px 8px; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
@@ -34,20 +45,28 @@
         border: 1px solid #e8e8e8; border-radius: 8px;
         overflow: hidden; background: #fff;
         display: flex; flex-direction: column;
-        transition: box-shadow .2s;
+        transition: box-shadow .22s ease, transform .22s ease, opacity .35s ease;
+        animation: cardReveal .38s ease both;
       }
+      @keyframes cardReveal { from { opacity:.01; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
       .product-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.1); }
+      .product-card.hover-none:hover { box-shadow:none; transform:none; }
+      .product-card.hover-lift:hover { transform:translateY(-4px); box-shadow: 0 10px 24px rgba(15,23,42,.16); }
+      .product-card.hover-glow:hover { box-shadow: 0 0 0 2px rgba(14,165,233,.25), 0 12px 28px rgba(56,189,248,.18); }
       .product-card .product-thumb {
-        width: 100%; aspect-ratio: 1; overflow: hidden; background: #f5f5f5;
+        width: 100%; aspect-ratio: var(--product-thumb-aspect, 4 / 3); overflow: hidden; background: var(--product-thumb-bg, #111111);
+        display:flex; align-items:center; justify-content:center;
       }
+      .product-card .product-thumb.placeholder { background: var(--product-thumb-bg, #111111); color:#cbd5e1; }
       .product-card .product-thumb img {
-        width: 100%; height: 100%; object-fit: cover; display: block;
+        width: 100%; height: 100%; object-fit: var(--product-thumb-fit, cover); display: block;
       }
       .product-card-body { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; }
       .product-card h2 { font-size: 0.95rem; margin: 0 0 6px; }
       .product-card p  { font-size: 0.82rem; color: #555; margin: 0 0 8px; flex: 1;
                          display: -webkit-box; -webkit-line-clamp: 3;
                          -webkit-box-orient: vertical; overflow: hidden; }
+      .product-card p:empty { display:none; margin:0; }
       .product-card .price { font-size: 1.1rem; font-weight: 700; color: var(--primary-color); margin: 0 0 12px; }
       .product-card .button { align-self: flex-start; font-size: 0.85rem; padding: 7px 16px; }
       .product-card .card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
@@ -76,6 +95,21 @@
       .stock-pill.ok  { background: #d1fae5; color: #065f46; }
       .stock-pill.low { background: #fef3c7; color: #92400e; }
       .stock-pill.out { background: #fee2e2; color: #991b1b; }
+      .spare-filters { border:1px solid #dbe2ea; border-radius:12px; background:linear-gradient(180deg,#ffffff,#f8fafc); padding:12px; display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:8px; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,23,42,.06); }
+      .spare-filters input, .spare-filters select { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:7px; font-size:.85rem; }
+      .spare-filters .filter-note { grid-column:1/-1; color:#64748b; font-size:.76rem; }
+      .spare-filters .reset-btn { border:none; background:#111827; color:#fff; border-radius:7px; padding:8px 10px; font-size:.82rem; cursor:pointer; }
+      .filter-results { font-size:.84rem; color:#334155; margin: -2px 0 10px; }
+      .filter-empty-state { border:1px dashed #cbd5e1; border-radius:10px; padding:22px; text-align:center; color:#64748b; background:#fff; display:none; }
+      .filter-empty-state strong { display:block; margin-bottom:6px; color:#0f172a; }
+      .filter-empty-state .button { margin-top:8px; display:inline-block; }
+      .product-card.filter-hidden { display:none !important; }
+      .kit-choice-grid.fade-step { opacity:.15; transform:translateY(6px); transition:opacity .2s ease, transform .2s ease; }
+      .kit-choice-grid.fade-step.ready { opacity:1; transform:translateY(0); }
+      body.card-density-compact .product-list { gap: 12px; }
+      body.card-density-compact .product-card .product-card-body { padding: 10px 12px; }
+      body.card-density-spacious .product-list { gap: 26px; }
+      body.card-density-spacious .product-card .product-card-body { padding: 16px 18px; }
       .cat-logo { width:22px;height:22px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px; }
       .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0 8px; }
       .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
@@ -84,34 +118,51 @@
       .hero.strong { background:linear-gradient(130deg,#111827,#1f2937); color:#fff; border-radius:12px; padding:24px; }
       .category-card.only-image div { display:none; }
       body.cursor-tool { cursor: crosshair; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1700; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
       .hero .hero-title { margin: 0 0 8px; font-size: clamp(1.2rem, 2.2vw, 1.9rem); }
       .hero .hero-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
       .hero .hero-actions a { text-decoration:none; }
+      .hero .hero-actions .button { transition: transform .18s ease, box-shadow .2s ease; box-shadow: 0 8px 16px rgba(15,23,42,.16); }
+      .hero .hero-actions .button:hover { transform: translateY(-2px); box-shadow: 0 12px 22px rgba(15,23,42,.24); }
       .category-card.featured { border-color: var(--accent-color); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
       .category-card small { display:block; color:#6b7280; margin-top:3px; font-size:.74rem; }
-      .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
+      .store-header { position: sticky; top: 0; z-index: 1300; transition: background .28s ease, box-shadow .28s ease, padding .22s ease; border-bottom: none !important; box-shadow:none !important; background: linear-gradient(135deg, rgba(15,23,42,.18), rgba(31,41,55,.16)); backdrop-filter: blur(3px); }
+      .store-header.is-scrolled { background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(31,41,55,.96)); box-shadow: 0 8px 22px rgba(2,6,23,.3) !important; }
+      .store-header.premium { border-bottom: none; }
       .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
       .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
       .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
       .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
       .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
-      .logo-frame img { display:block; max-width: 240px; }
+      .logo-frame img { display:block; max-width: 360px; }
+      .store-header.is-scrolled .logo-image-dynamic { transform: scale(.9); transform-origin: left center; }
+      .logo-frame.logo-transparent-safe { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      .logo-transparent-safe img { filter: drop-shadow(0 4px 12px rgba(15,23,42,.35)); }
       .logo-image.cover { object-fit: cover; }
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      .logo-image-dynamic { height: auto !important; width: auto; }
       .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
       .header-main-row { display:flex; align-items:center; gap:12px; }
-      .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
+      .store-header.is-scrolled .header-main-row { padding-top: 2px; padding-bottom: 2px; }
+      .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; border-top: none; box-shadow:none; }
       .header-nav-row .main-nav { flex: 1; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
       .pill-nav.compact a { padding:4px 10px; font-size:.8rem; opacity:.95; }
       .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
       .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
+      .pill-nav a { position:relative; overflow:hidden; }
+      .pill-nav a::after { content:''; position:absolute; left:10px; right:10px; bottom:4px; height:2px; background:rgba(255,255,255,.9); transform:scaleX(0); transform-origin:left; transition:transform .24s ease; }
+      .pill-nav a:hover::after, .pill-nav a.active::after { transform:scaleX(1); }
       .pill-nav .pill-item { display:inline-flex; align-items:center; gap:6px; }
       .pill-nav .pill-item img { width:20px; height:20px; border-radius:999px; object-fit:cover; }
       .home-secondary { border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff; }
-      .store-footer { margin-top:26px; padding:18px 0; color:#6b7280; font-size:.85rem; border-top:1px solid #e5e7eb; }
+      .store-footer { margin-top:26px; padding:22px 0 28px; color: var(--footer-text-color, #6b7280); font-size:.9rem; border-top:1px solid #e5e7eb; text-align:center; position:relative; }
+      .store-footer .social-links { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+      .store-footer .social-links a { text-decoration:none; font-size:1.05rem; }
+      .store-footer .meta-line { margin-top:6px; }
+      .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
       .featured-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
       .featured-kit-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
       .featured-kit-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,.12); }
@@ -119,15 +170,24 @@
       .featured-kit-card .body { padding:12px 14px; }
       .kit-badge { display:inline-block; font-size:.72rem; font-weight:700; background:#0f766e; color:#fff; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
       .kit-clickable { cursor: pointer; }
-      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.58); z-index: 1200; display: none; padding: 24px; }
+      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(2,6,23,.74); z-index: 1200; display: none; padding: 24px; }
       .kit-wizard-backdrop.open { display: block; }
-      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: linear-gradient(180deg,#e0f2fe 0%,#f0f9ff 60%,#ffffff 100%); border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
+      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: #f8fafc; border:1px solid #bfdbfe; border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
       .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
       .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
       .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
       .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
       .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
-      .kit-choice img { width:56px; height:56px; object-fit:cover; border-radius:8px; }
+      .kit-choice .kit-choice-thumb { width:72px; aspect-ratio: var(--product-thumb-aspect, 4 / 3); object-fit: var(--product-thumb-fit, cover); border-radius:8px; background: var(--product-thumb-bg, #111111); }
+      .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
+      .exposure-overlay {
+        position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
+        backdrop-filter: blur(5px);
+        transform: scale(1.03); transition: opacity .32s ease, transform .32s ease;
+      }
+      .exposure-overlay.open { opacity:1; transform: scale(1); }
+      .hero.has-parallax { position:relative; overflow:hidden; }
+      .hero.has-parallax::after { content:''; position:absolute; inset:-25% -15%; background: radial-gradient(circle at var(--hero-glow-x, 20%) var(--hero-glow-y, 20%), rgba(255,255,255,.18), rgba(255,255,255,0) 40%); pointer-events:none; transition: transform .15s linear; }
       .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
       .kit-preview img { width:100%; max-height:220px; object-fit:contain; border-radius:8px; background:#fff; }
       .kit-summary-line { font-size:.84rem; color:#334155; margin:4px 0; }
@@ -135,16 +195,31 @@
       .kit-total { font-weight:800; font-size:1.05rem; color:#0f172a; }
       .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
       body.eukolakis-classic main { max-width: 1180px; margin: 0 auto; padding: 0 16px 30px; }
-      body.eukolakis-classic .store-header { padding: 14px 16px 10px; }
+      body.eukolakis-classic .store-header { padding: 14px 16px 10px; border-bottom:none !important; box-shadow:none !important; }
       body.eukolakis-classic .logo-title { align-items: center; gap: 16px; }
       body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
-      body.eukolakis-classic .logo-frame img { max-height: 76px !important; }
+      body.eukolakis-classic .header-nav-row { margin-top: 6px; padding-top: 0; }
+      body.eukolakis-classic .pill-nav { margin-top: 6px; }
+      body.eukolakis-classic .pill-nav { display:none; }
+      body.eukolakis-classic .hero .hero-actions { display:none; }
+      .branding-mode-logo_only .logo-title { width:100%; justify-content:center; text-align:center; }
+      .branding-mode-logo_only .header-main-row { justify-content:center; }
+      .branding-mode-logo_only .header-auth-actions { margin-left: 0; }
       body.eukolakis-classic .store-name-wrap h1 { font-size: clamp(2rem, 2.8vw, 2.4rem); letter-spacing: .01em; margin: 0; }
       body.eukolakis-classic .featured-primary-grid { gap: 20px; }
       body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
       body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
+      body.device-mobile main { padding-left: 10px; padding-right: 10px; }
+      body.device-mobile .pill-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
+      body.device-mobile .hero { padding: 18px; }
+      body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
+        .store-header.is-scrolled .logo-image-dynamic { transform: scale(.92); transform-origin: center; }
+        .quick-back-btn { left: 10px; bottom: 10px; padding:9px 12px; font-size:.84rem; }
+        .logo-image-dynamic { max-height: var(--logo-max-height-mobile, 64px) !important; }
+        .branding-mode-logo_only .store-name-wrap.logo-only-fallback { display:block; margin-top:6px; font-size:.92rem; color:#e2e8f0; font-weight:700; }
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
         .header-auth-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
@@ -157,24 +232,39 @@
       }
     </style>
   </head>
-  <body class="<%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
     <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
     <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
     <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
-    <% const hideMenuForHeroFocus = isEukolakisClassic && !activeCategory; %>
+    <% const hideMenuForHeroFocus = false; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
+    <% const logoDisplayMode = theme.logoDisplayMode || 'contain'; %>
+    <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
+    <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
+    <% const logoDefaultHeight = isEukolakisClassic ? 96 : 88; %>
+    <% const logoRequestedHeight = Number(theme.logoMaxHeight || logoDefaultHeight); %>
+    <% const logoMaxHeight = Math.max(80, Math.min(120, logoRequestedHeight || logoDefaultHeight)); %>
+    <% const logoMobileHeight = Math.max(56, Math.min(86, Math.round(logoMaxHeight * 0.72))); %>
+    <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
+    <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
+    <% const logoShadowMode = (theme.logoShadow === 'none' || theme.logoShadow === 'floating') ? theme.logoShadow : 'soft'; %>
+    <% const hasLogoBg = !!effectiveLogoFrameClass; %>
+    <% const logoFilterShadow = logoShadowMode === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (logoShadowMode === 'soft' ? 'drop-shadow(0 6px 10px rgba(15,23,42,.22))' : 'none'); %>
+    <% const logoBoxShadow = hasLogoBg ? (logoShadowMode === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (logoShadowMode === 'soft' ? '0 4px 12px rgba(15,23,42,.12)' : 'none')) : 'none'; %>
+    <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
+    <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (config.logoPath && brandingMode !== 'name_only') { %>
-          <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
+          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= logoPadding %>px;border-radius:<%= logoRadius %>px;box-shadow:<%= logoBoxShadow %>;--logo-max-height-desktop:<%= logoMaxHeight %>px;--logo-max-height-mobile:<%= logoMobileHeight %>px;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
           </span>
         <% } %>
         <% if (brandingMode !== 'logo_only') { %>
@@ -184,6 +274,9 @@
             <p class="subtitle"><%= t('storefront.web3Domain') %>: <%= config.web3Domain %></p>
           <% } %>
         </div>
+        <% } %>
+        <% if (brandingMode === 'logo_only') { %>
+        <div class="store-name-wrap logo-only-fallback"><%= config.storeName %></div>
         <% } %>
       </div>
       <% if (isEukolakisClassic) { %>
@@ -208,15 +301,14 @@
             <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
           <% } %>
-          <% if (!isEukolakisClassic && (!theme.categoryMenuStyle || theme.categoryMenuStyle === 'text')) { %>
-            <% categories.forEach(function(cat) { %>
-              <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
-                <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-                  <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
-                </a>
-              </li>
-            <% }); %>
-          <% } %>
+          <% (isEukolakisClassic ? navCategories : categories).forEach(function(cat) { %>
+            <% if (!isEukolakisClassic && theme.categoryMenuStyle && theme.categoryMenuStyle !== 'text') { return; } %>
+            <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
+              <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+                <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+              </a>
+            </li>
+          <% }); %>
           <% if (!isEukolakisClassic && !user) { %>
             <li><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
             <li><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
@@ -235,7 +327,9 @@
           <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
           <% if (topPrimaryKit2) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit2.id %>"><span>Slide Door Kit</span></a><% } %>
           <a class="pill-item <%= activeCategory === 'spare-parts' ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
+          <% if (subscriptionsEnabled) { %>
           <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+          <% } %>
         <% } else { %>
           <% const navHomepage = config.homepage || {}; %>
           <% navCategories.forEach(function(cat){ %>
@@ -245,14 +339,13 @@
             </a>
           <% }) %>
           <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
-          <% if (subscriptionCategory) { %>
+          <% if (subscriptionCategory && subscriptionsEnabled) { %>
             <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
-          <% } else if (navHomepage.showSubscriptionsCard) { %>
+          <% } else if (subscriptionsEnabled) { %>
             <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
           <% } %>
         <% } %>
       </div>
-      <% } %>
       <% } %>
     </header>
 
@@ -271,19 +364,22 @@
         <% }) %>
       </select>
     </div>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
 
     <main>
-      <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
-      <% const primaryFeaturedId = hpFeaturedPrimary[0]; %>
-      <% const primaryFeaturedProduct = (allProducts || products).find(function(p){ return p.id === primaryFeaturedId; }); %>
-      <% const featuredFromIds = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }); %>
-      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT'; }).slice(0, 2); %>
-      <% const featuredHomeProducts = (featuredFromIds.length >= 2 ? featuredFromIds : fallbackKitProducts).slice(0, 2); %>
-      <% const heroPrimaryProduct = primaryFeaturedProduct || featuredHomeProducts[0]; %>
+      <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary.slice(0,2) : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+      <% const featuredPrimaryProducts = hpFeaturedPrimary.map(function(id){ return (allProducts || products).find(function(p){ return p.id === id; }); }).filter(Boolean); %>
+      <% const missingConfiguredPrimary = hpFeaturedPrimary.length < 2 || featuredPrimaryProducts.length < 2; %>
+      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT' && !featuredPrimaryProducts.some(function(fp){ return fp.id === p.id; }); }); %>
+      <% const featuredHomeProducts = featuredPrimaryProducts.concat(fallbackKitProducts).slice(0, 2); %>
+      <% const heroPrimaryProduct = featuredPrimaryProducts[0] || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
       <% const activeCategoryObj = categories.find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+      <% const spareCategory = categories.find(function(c){ return c.slug === 'spare-parts' || c.id === 'spare-parts'; }); %>
+      <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
+      <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
@@ -293,7 +389,7 @@
           </a>
         <% }) %>
         <% const hasSubscriptionsCategory = navCategories.some(function(c){ return c.slug === 'subscriptions'; }); %>
-        <% if ((homepage.showSubscriptionsCard || false) && !hasSubscriptionsCategory) { %>
+        <% if (subscriptionsEnabled && !hasSubscriptionsCategory) { %>
           <a class="category-card" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>">
             <div style="height:60px;display:flex;align-items:center;justify-content:center;background:#111827;color:#fff;border-radius:8px;">▶</div>
             <div><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></div>
@@ -311,24 +407,39 @@
         <% }) %>
       </section>
       <% } %>
+      <% const dynamicHeroByCategory = {
+        'diy-rolla': { el: { title: 'DIY Kit Ρολών', subtitle: 'Σχεδίασε βήμα-βήμα το σωστό roll kit για την πόρτα σου.' }, en: { title: 'DIY Roller Kits', subtitle: 'Build the right roller kit with guided configuration.' } },
+        'diy-sliding': { el: { title: 'DIY Συρόμενα Συστήματα', subtitle: 'Βρες οδηγούς, ράουλα και στηρίγματα για ομαλή κύλιση.' }, en: { title: 'DIY Sliding Systems', subtitle: 'Find rails, wheels and supports for smooth sliding.' } },
+        'spare-parts': { el: { title: 'Ανταλλακτικά & Εργαλεία', subtitle: 'SKU αναζήτηση και φίλτρα για γρήγορο εντοπισμό τεχνικών εξαρτημάτων.' }, en: { title: 'Spare Parts & Tools', subtitle: 'Use SKU search and filters to quickly find technical parts.' } }
+      }; %>
+      <% const dynamicHeroEntry = activeCategory && dynamicHeroByCategory[activeCategory] ? dynamicHeroByCategory[activeCategory][lang] : null; %>
       <% if (((!config.theme || config.theme.bannerVisible !== false) || (isEukolakisClassic && !activeCategory)) && !(isEukolakisClassic && activeCategory)) { %>
-      <section class="hero <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
+      <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
         <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
-          <div style="margin-bottom:14px;"><img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" /></div>
+          <div style="margin-bottom:14px;">
+            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
+              <a href="#" class="kit-clickable" data-kit-launch="<%= heroPrimaryProduct.id %>" style="display:block;">
+                <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" />
+              </a>
+            <% } else { %>
+              <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" />
+            <% } %>
+          </div>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
-          <h2 class="hero-title"><%= resolveField(homepage.heroTitle, lang) || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
-          <p style="margin:0;color:inherit;opacity:.92;"><%= resolveField(homepage.heroSubtitle, lang) || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
+          <h2 class="hero-title"><%= (dynamicHeroEntry && dynamicHeroEntry.title) || resolveField(homepage.heroTitle, lang) || config.storeName %></h2>
+          <% const resolvedHeroSubtitle = (dynamicHeroEntry && dynamicHeroEntry.subtitle) || resolveField(homepage.heroSubtitle, lang); %>
+          <% if (resolvedHeroSubtitle) { %><p style="margin:0;color:inherit;opacity:.92;"><%= resolvedHeroSubtitle %></p><% } %>
         <% } else { %>
-        <p><%= config.heroText %></p>
+        <% if (config.heroText) { %><p><%= config.heroText %></p><% } %>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
-            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
+            <% if (isEukolakisClassic && topPrimaryKit1) { %>
             <a
               class="button"
               href="#"
-              data-kit-launch="<%= heroPrimaryProduct.id %>"
+              data-kit-launch="<%= topPrimaryKit1.id %>"
             ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
             <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
@@ -351,24 +462,25 @@
       <% if (isEukolakisLanding) { %>
       <section class="featured-section">
         <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
-        <% if (featuredHomeProducts.length >= 2) { %>
+        <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
-            <article class="featured-kit-card">
+            <article class="featured-kit-card kit-clickable" data-kit-product-id="<%= product.id %>">
               <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <h3 style="margin:0 0 8px;"><%= product.name %></h3>
-                <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
-                <a
-                  class="button"
-                  href="<%= tenant.id === 'eukolakis' && product.type === 'KIT' ? '#' : withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"
-                  <%= tenant.id === 'eukolakis' && product.type === 'KIT' ? ('data-kit-launch="' + product.id + '"') : '' %>
-                ><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
+                <% if (product.description) { %><p style="margin:0 0 10px;color:#4b5563;"><%= product.description %></p><% } %>
+                <small style="color:#0f766e;font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
               </div>
             </article>
           <% }) %>
         </div>
+        <% if (missingConfiguredPrimary) { %>
+        <div class="home-secondary" style="margin-top:10px;background:#fff7ed;border-color:#fed7aa;">
+          <p style="margin:0;font-size:.86rem;color:#9a3412;"><%= lang === 'el' ? 'Hint: Έλεγξε Homepage → Primary Product #1 / #2 για σωστό KIT mapping.' : 'Hint: Check Homepage → Primary Product #1 / #2 mapping.' %></p>
+        </div>
+        <% } %>
         <% } else { %>
         <div class="home-secondary" style="background:#fff7ed;border-color:#fed7aa;">
           <h3 style="margin-top:0;"><%= lang === 'el' ? 'Δεν υπάρχουν ακόμη 2 KIT για τη landing σελίδα' : 'No 2 KIT products configured yet for the landing page' %></h3>
@@ -376,14 +488,17 @@
         </div>
         <% } %>
       </section>
-      <% if (secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
+      <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
+      <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
-        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools') %></h3>
-        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες ανταλλακτικά και εργαλεία ανά κατηγορία.' : 'Browse spare parts and tools by category.')) %></p>
-        <a class="button" href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></a>
+        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
+        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
+        <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
       </section>
+      </a>
       <% } %>
-      <% if ((homepage.showSubscriptionsCard || false)) { %>
+      <% if (subscriptionsEnabled) { %>
       <section class="home-secondary" style="margin-top:10px;">
         <h3 style="margin-top:0;"><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></h3>
         <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
@@ -406,7 +521,26 @@
       </section>
       <% } %>
 
-      <section class="product-list">
+      <% const spareFilterTags = activeCategory === 'spare-parts'
+        ? Array.from(new Set(products.reduce(function(acc, p){
+            if (Array.isArray(p.tags)) p.tags.forEach(function(tag){ if (String(tag || '').trim()) acc.push(String(tag).trim()); });
+            return acc;
+          }, []))).slice(0, 60)
+        : []; %>
+      <% if (activeCategory === 'spare-parts') { %>
+      <section class="spare-filters" id="spare-filters">
+        <input type="search" id="spare-filter-search" placeholder="<%= lang === 'el' ? 'Αναζήτηση SKU ή ονόματος' : 'Search SKU or name' %>" />
+        <select id="spare-filter-tag">
+          <option value=""><%= lang === 'el' ? 'Συμβατότητα: όλες' : 'Compatibility: all' %></option>
+          <% spareFilterTags.forEach(function(tag){ %><option value="<%= String(tag).toLowerCase() %>"><%= tag %></option><% }) %>
+        </select>
+        <input type="range" id="spare-filter-price" min="0" max="<%= Math.max(10, Math.ceil(Math.max.apply(null, products.map(function(p){ return Number(p.price) || 0; })) || 0)) %>" value="<%= Math.max(10, Math.ceil(Math.max.apply(null, products.map(function(p){ return Number(p.price) || 0; })) || 0)) %>" />
+        <button type="button" id="spare-filter-reset" class="reset-btn"><%= lang === 'el' ? 'Reset' : 'Reset' %></button>
+        <div class="filter-note"><%= lang === 'el' ? 'Τιμή έως:' : 'Price up to:' %> <strong id="spare-filter-price-value"></strong> €</div>
+      </section>
+      <div id="spare-filter-results" class="filter-results"></div>
+      <% } %>
+      <section class="product-list" id="product-list-grid">
         <% if (products.length === 0) { %>
           <p><%= t('storefront.noProducts') %></p>
         <% } %>
@@ -415,6 +549,12 @@
           <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
         <% }); %>
       </section>
+      <div id="spare-filter-empty" class="filter-empty-state">
+        <div style="font-size:1.4rem;">🧰</div>
+        <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
+        <div><%= lang === 'el' ? 'Δοκίμασε άλλο SKU ή κάνε reset.' : 'Try another SKU or reset filters.' %></div>
+        <button type="button" id="spare-filter-empty-reset" class="button"><%= lang === 'el' ? 'Καθαρισμός φίλτρων' : 'Reset filters' %></button>
+      </div>
       <% } %>
 
       <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
@@ -460,8 +600,8 @@
         </div>
       </div>
     </div>
-    <script id="kit-products-json" type="application/json"><%- JSON.stringify((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })).replace(/</g, '\\u003c') %></script>
-    <script id="catalog-products-json" type="application/json"><%- JSON.stringify((allProducts || products).map(function(p){
+    <script id="kit-products-json" type="application/json"><%- safeJson((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })) %></script>
+    <script id="catalog-products-json" type="application/json"><%- safeJson((allProducts || products).map(function(p){
       return {
         id: p.id,
         name: p.name,
@@ -472,18 +612,25 @@
           return { id: v.id, label: variantLabel, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock };
         }) : []
       };
-    })).replace(/</g, '\\u003c') %></script>
+    })) %></script>
     <% } %>
-    <footer class="store-footer">
-      <% if (isEukolakisClassic) { %>
-      <strong><%= config.storeName %></strong>
-      <% } else { %>
-      <strong><%= config.storeName %></strong> · DIY Kits · Spare Parts · Tools
+    <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
+      <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
+      <div class="social-links" style="justify-content:center;">
+        <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
+        <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
+        <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
+      </div>
       <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <a class="thronos-sign" href="https://thronoscommerce.thronoschain.org/" target="_blank" rel="noopener noreferrer">Powered by Thronos Commerce ↗</a>
     </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
     <%- include('_cart') %>
+    <div id="exposure-overlay" class="exposure-overlay" aria-hidden="true"></div>
 
     <script>
       // ── Menu toggle ────────────────────────────────────────────────
@@ -495,16 +642,58 @@
         });
       }
       const isEukolakis = <%= tenant.id === 'eukolakis' ? 'true' : 'false' %>;
-      if (isEukolakis && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
+      const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
+      const productPreOpenEffect = <%- safeJson((config.theme && config.theme.productPreOpenEffect) || 'none') %>;
+      if (isEukolakis && isDesktopDevice && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %>) {
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
-        if (cursorImage && (/^(\/|https?:\/\/)/i).test(cursorImage)) {
-          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 16 16, auto';
-        } else {
+        const cursorTargets = 'a,button,input,select,textarea,label,[role="button"],.button,.btn-cart';
+        const isDevHost = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+        const applyCursorRule = function(cursorRule) {
+          let styleEl = document.getElementById('thrc-cursor-style');
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'thrc-cursor-style';
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = 'html,body,a,button,input,select,textarea,label,[role=\"button\"],.button,.btn-cart{cursor:' + cursorRule + ' !important;}';
+        };
+        const applyCrosshair = function() {
           document.body.classList.add('cursor-tool');
-        }
+          applyCursorRule('crosshair');
+        };
+        if (cursorImage && (/^\//).test(cursorImage)) {
+          const testImg = new Image();
+          testImg.onload = function() {
+            const safeCursor = cursorImage.replace(/"/g, '\\"');
+            const cursorRule = 'url("' + safeCursor + '") 16 16, auto';
+            applyCursorRule(cursorRule);
+          };
+          testImg.onerror = function() {
+            if (isDevHost) console.warn('[cursor] preload failed, falling back to crosshair:', cursorImage);
+            applyCrosshair();
+          };
+          testImg.src = cursorImage;
+        } else applyCrosshair();
       }
 
       if (isEukolakis) {
+        const KIT_T = {
+          previewPrompt: <%- safeJson(lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.') %>,
+          noSelections: <%- safeJson(lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.') %>,
+          summary: <%- safeJson(lang === 'el' ? 'Σύνοψη' : 'Summary') %>,
+          total: <%- safeJson(lang === 'el' ? 'Σύνολο' : 'Total') %>,
+          addToCart: <%- safeJson(lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart') %>,
+          next: <%- safeJson(lang === 'el' ? 'Συνέχεια' : 'Continue') %>,
+          optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
+          addSelected: <%- safeJson(lang === 'el' ? 'Προσθήκη επιλεγμένων στο καλάθι' : 'Add selected to cart') %>,
+          multiSelect: <%- safeJson(lang === 'el' ? '• πολλαπλές επιλογές' : '• multi-select') %>,
+          singleSelect: <%- safeJson(lang === 'el' ? '• μία επιλογή' : '• single-select') %>,
+          required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
+          optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
+          variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
+          requiredAlert: <%- safeJson(lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.') %>
+        };
+        const KIT_PRODUCT_BASE_URL = <%- safeJson(withTenantLink('/product/', lang !== 'el' ? { lang } : {})) %>;
         const kitDataEl = document.getElementById('kit-products-json');
         const catalogDataEl = document.getElementById('catalog-products-json');
         const wizard = document.getElementById('kit-wizard-backdrop');
@@ -537,10 +726,15 @@
             .replace(/"/g, '&quot;');
         }
 
+        function getSelectionArray(group) {
+          const raw = state.selections[group.id];
+          if (group.inputType === 'checkbox') return Array.isArray(raw) ? raw : [];
+          return raw ? [raw] : [];
+        }
         function selectedEntries() {
           const out = [];
           (state.product.kitOptions || []).forEach(function(g){
-            const sel = state.selections[g.id] || [];
+            const sel = getSelectionArray(g);
             sel.forEach(function(cid){
               const c = (g.choices || []).find(function(ch){ return ch.id === cid; });
               if (!c) return;
@@ -571,7 +765,7 @@
           return (Number(state.product.price)||0) + delta;
         }
         function renderPreview(group) {
-          const sel = state.selections[group.id] || [];
+          const sel = getSelectionArray(group);
           const imgs = sel.map(function(cid){
             const c = (group.choices||[]).find(function(choice){ return choice.id === cid; });
             if (!c) return null;
@@ -585,7 +779,7 @@
               variantLabel: variant ? variant.label : ''
             };
           }).filter(Boolean).filter(function(c){ return c.image; });
-          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;"><%= lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.' %></p>'; return; }
+          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;">' + esc(KIT_T.previewPrompt) + '</p>'; return; }
           previewEl.innerHTML = imgs.map(function(c){
             return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\"><strong>' + esc(c.label) + '</strong>' +
               (c.variantLabel ? (' · ' + esc(c.variantLabel)) : '') + ' — ' + c.price.toFixed(2) + '€</p></div>';
@@ -597,26 +791,27 @@
             return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong>' +
               (e.selectedVariantLabel ? (' · ' + esc(e.selectedVariantLabel)) : '') +
               ' (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>';
-          }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
+          }).join('') : '<p class="kit-summary-line">' + esc(KIT_T.noSelections) + '</p>';
         }
         function groupDone(group) {
-          const sel = state.selections[group.id] || [];
+          const sel = getSelectionArray(group);
           return !group.required || sel.length > 0;
         }
         function renderStep() {
           const groups = state.product.kitOptions || [];
           const summaryStep = state.step >= groups.length;
           titleEl.textContent = state.product.name || 'KIT';
-          progressEl.textContent = summaryStep ? ('<%= lang === 'el' ? 'Σύνοψη' : 'Summary' %>') : ((state.step + 1) + '/' + groups.length);
-          totalEl.textContent = '<%= lang === 'el' ? 'Σύνολο' : 'Total' %>: ' + totalPrice().toFixed(2) + '€';
-          fullLinkEl.href = '<%= withTenantLink('/product/', lang !== 'el' ? { lang } : {}) %>' + state.product.id;
+          progressEl.textContent = summaryStep ? KIT_T.summary : ((state.step + 1) + '/' + groups.length);
+          totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
+          fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
           btnBack.disabled = state.step === 0;
-          btnNext.textContent = summaryStep ? '<%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart' %>' : '<%= lang === 'el' ? 'Επόμενο' : 'Next' %>';
+          btnNext.disabled = false;
+          btnNext.textContent = summaryStep ? KIT_T.addSelected : KIT_T.next;
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
           addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
           if (summaryStep) {
-            groupTitleEl.textContent = '<%= lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary' %>';
+            groupTitleEl.textContent = KIT_T.optionSummary;
             groupReqEl.textContent = '';
             previewEl.innerHTML = '';
             renderSummary();
@@ -624,9 +819,11 @@
           }
           const group = groups[state.step];
           groupTitleEl.textContent = group.label || group.id;
-          groupReqEl.textContent = group.required ? '<%= lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection' %>' : '<%= lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection' %>';
+          const selectionModeLabel = group.inputType === 'checkbox' ? KIT_T.multiSelect : KIT_T.singleSelect;
+          groupReqEl.textContent = (group.required ? KIT_T.required : KIT_T.optional) + ' ' + selectionModeLabel;
+          btnNext.disabled = group.required && !groupDone(group);
           (group.choices || []).forEach(function(choice){
-            const sel = state.selections[group.id] || [];
+            const sel = getSelectionArray(group);
             const checked = sel.includes(choice.id);
             const card = document.createElement('button');
             card.type = 'button';
@@ -640,8 +837,11 @@
             const choicePrice = selectedVariant && selectedVariant.price !== undefined && !Number.isNaN(Number(selectedVariant.price))
               ? Number(selectedVariant.price)
               : (Number(choice.priceDelta)||0);
+            const checkboxHtml = group.inputType === 'checkbox'
+              ? '<input type="checkbox" ' + (checked ? 'checked' : '') + ' tabindex="-1" aria-hidden="true" style="margin-right:6px;pointer-events:none;" />'
+              : '';
             const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
-              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;"><%= lang === 'el' ? 'Παραλλαγή' : 'Variant' %></label>' +
+              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;">' + esc(KIT_T.variant) + '</label>' +
                   '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
                   choiceVariants.map(function(v){
                     const vPrice = !Number.isNaN(Number(v.price)) ? Number(v.price).toFixed(2) : (Number(choice.priceDelta)||0).toFixed(2);
@@ -649,20 +849,21 @@
                   }).join('') +
                   '</select></div>')
               : '';
-            card.innerHTML = (choiceImage ? ('<img src="' + esc(choiceImage) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
-              '<div style="text-align:left;"><strong>' + esc(choice.label || choice.id) + '</strong>' +
+            card.innerHTML = (choiceImage ? ('<img class="kit-choice-thumb" src="' + esc(choiceImage) + '" alt="">') : '<div class="kit-choice-thumb placeholder">🖼️</div>') +
+              '<div style="text-align:left;">' + checkboxHtml + '<strong>' + esc(choice.label || choice.id) + '</strong>' +
               '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
               (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
               variantSelectHtml + '</div>';
             card.addEventListener('click', function(){
-              state.selections[group.id] = state.selections[group.id] || [];
               if (group.inputType === 'checkbox') {
+                state.selections[group.id] = Array.isArray(state.selections[group.id]) ? state.selections[group.id] : [];
                 if (state.selections[group.id].includes(choice.id)) state.selections[group.id] = state.selections[group.id].filter(function(v){ return v !== choice.id; });
                 else state.selections[group.id].push(choice.id);
               } else {
-                state.selections[group.id] = [choice.id];
+                state.selections[group.id] = choice.id;
               }
-              if (!state.selections[group.id].includes(choice.id)) {
+              const nowSelected = getSelectionArray(group).includes(choice.id);
+              if (!nowSelected) {
                 delete state.selectedVariants[variantKey];
               } else if (fixedVariantId) {
                 state.selectedVariants[variantKey] = fixedVariantId;
@@ -719,7 +920,7 @@
           const groups = state.product.kitOptions || [];
           if (state.step < groups.length) {
             const g = groups[state.step];
-            if (!groupDone(g)) { alert('<%= lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.' %>'); return; }
+            if (!groupDone(g)) { alert(KIT_T.requiredAlert); return; }
             state.step += 1;
             renderStep();
             return;
@@ -796,6 +997,137 @@
         }
         }
       }
+      if (productPreOpenEffect === 'exposure') {
+        const exposureOverlay = document.getElementById('exposure-overlay');
+        const openWithExposure = function(href) {
+          if (!href || !exposureOverlay) return window.location.href = href;
+          exposureOverlay.classList.add('open');
+          setTimeout(function(){ window.location.href = href; }, 320);
+        };
+        document.querySelectorAll('.product-card[data-product-open-url]').forEach(function(card){
+          card.addEventListener('click', function(e){
+            if (e.target.closest('a,button,input,textarea,select,label,[role="button"]')) return;
+            const href = card.getAttribute('data-product-open-url');
+            openWithExposure(href);
+          });
+        });
+        document.querySelectorAll('a[data-exposure-link]').forEach(function(link) {
+          link.addEventListener('click', function(e){
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWithExposure(link.getAttribute('href'));
+          });
+        });
+      }
+      (function() {
+        const headerEl = document.querySelector('.store-header');
+        if (!headerEl) return;
+        const onScroll = function() {
+          headerEl.classList.toggle('is-scrolled', window.scrollY > 16);
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+      })();
+      (function() {
+        const hero = document.querySelector('.hero.has-parallax');
+        if (!hero) return;
+        hero.addEventListener('mousemove', function(e) {
+          const rect = hero.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 100;
+          const y = ((e.clientY - rect.top) / Math.max(1, rect.height)) * 100;
+          hero.style.setProperty('--hero-glow-x', x.toFixed(2) + '%');
+          hero.style.setProperty('--hero-glow-y', y.toFixed(2) + '%');
+        });
+      })();
+      (function() {
+        const filtersRoot = document.getElementById('spare-filters');
+        const grid = document.getElementById('product-list-grid');
+        if (!filtersRoot || !grid) return;
+        const searchEl = document.getElementById('spare-filter-search');
+        const tagEl = document.getElementById('spare-filter-tag');
+        const priceEl = document.getElementById('spare-filter-price');
+        const priceValueEl = document.getElementById('spare-filter-price-value');
+        const resetBtn = document.getElementById('spare-filter-reset');
+        const emptyResetBtn = document.getElementById('spare-filter-empty-reset');
+        const resultEl = document.getElementById('spare-filter-results');
+        const emptyStateEl = document.getElementById('spare-filter-empty');
+        const cards = Array.from(grid.querySelectorAll('.product-card'));
+        const renderResultText = function(count) {
+          if (!resultEl) return;
+          resultEl.textContent = count + ' ' + <%- safeJson(lang === 'el' ? 'προϊόντα βρέθηκαν' : 'products found') %>;
+        };
+        const updateFilters = function() {
+          const q = (searchEl && searchEl.value || '').trim().toLowerCase();
+          const tag = (tagEl && tagEl.value || '').trim().toLowerCase();
+          const maxPrice = Number(priceEl && priceEl.value || 0);
+          if (priceValueEl) priceValueEl.textContent = maxPrice.toFixed(0);
+          let visibleCount = 0;
+          cards.forEach(function(card) {
+            const nameText = (card.querySelector('h2') && card.querySelector('h2').textContent || '').toLowerCase();
+            const sku = String(card.getAttribute('data-product-sku') || '').toLowerCase();
+            const tags = String(card.getAttribute('data-product-tags') || '').toLowerCase();
+            const price = Number(card.getAttribute('data-product-price') || 0);
+            const okQuery = !q || nameText.includes(q) || sku.includes(q);
+            const okTag = !tag || tags.split(',').includes(tag);
+            const okPrice = !maxPrice || price <= maxPrice;
+            const visible = okQuery && okTag && okPrice;
+            if (visible) visibleCount += 1;
+            card.classList.toggle('filter-hidden', !visible);
+          });
+          renderResultText(visibleCount);
+          if (emptyStateEl) emptyStateEl.style.display = visibleCount === 0 ? 'block' : 'none';
+        };
+        [searchEl, tagEl, priceEl].forEach(function(el){ if (el) el.addEventListener('input', updateFilters); });
+        const resetFilters = function() {
+          if (searchEl) searchEl.value = '';
+          if (tagEl) tagEl.value = '';
+          if (priceEl) priceEl.value = priceEl.max || priceEl.value;
+          updateFilters();
+        };
+        if (resetBtn) resetBtn.addEventListener('click', resetFilters);
+        if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetFilters);
+        updateFilters();
+      })();
+      (function() {
+        const grid = document.getElementById('kit-choice-grid');
+        if (!grid) return;
+        const pulse = function() {
+          grid.classList.remove('fade-step', 'ready');
+          void grid.offsetWidth;
+          grid.classList.add('fade-step');
+          requestAnimationFrame(function(){ grid.classList.add('ready'); });
+        };
+        pulse();
+        const observer = new MutationObserver(pulse);
+        observer.observe(grid, { childList: true, subtree: true });
+      })();
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = <%- safeJson(withTenantLink('/', lang !== 'el' ? { lang } : {})) %>;
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try {
+          const prev = sessionStorage.getItem(key);
+          if (prev !== currentUrl) sessionStorage.setItem(key, currentUrl);
+        } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
     </script>
   </body>
 </html>
