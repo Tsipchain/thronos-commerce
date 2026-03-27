@@ -111,6 +111,7 @@
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
       .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      .logo-image-dynamic { height: auto !important; width: auto; }
       .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
       .header-main-row { display:flex; align-items:center; gap:12px; }
       .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; border-top: none; box-shadow:none; }
@@ -145,8 +146,8 @@
       .kit-choice .kit-choice-thumb { width:72px; aspect-ratio: var(--product-thumb-aspect, 4 / 3); object-fit: var(--product-thumb-fit, cover); border-radius:8px; background: var(--product-thumb-bg, #111111); }
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
       .exposure-overlay {
-        position: fixed; inset: 0; background: rgba(2,6,23,.64); z-index: 1500; opacity: 0; pointer-events:none;
-        transform: scale(1.01); transition: opacity .24s ease, transform .24s ease;
+        position: fixed; inset: 0; background: rgba(2,6,23,.78); z-index: 1500; opacity: 0; pointer-events:none;
+        transform: scale(1.03); transition: opacity .32s ease, transform .32s ease;
       }
       .exposure-overlay.open { opacity:1; transform: scale(1); }
       .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
@@ -441,10 +442,10 @@
         <% } %>
       </section>
       <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
-      <a href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>" style="display:block;text-decoration:none;color:inherit;">
+      <a data-exposure-link href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
         <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
-        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:38px;height:38px;object-fit:cover;border-radius:999px;margin-bottom:8px;" /><% } %>
+        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:72px;height:72px;object-fit:cover;border-radius:999px;margin-bottom:8px;" /><% } %>
         <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
         <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
       </section>
@@ -552,7 +553,7 @@
       <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
       <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
       <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
-      <a class="thronos-sign" href="https://thronoscommerce.thronoschain.org" target="_blank" rel="noopener noreferrer">Powered by Thronos Commerce ↗</a>
+      <a class="thronos-sign" href="https://thronoscommerce.thronoschain.org/" target="_blank" rel="noopener noreferrer">Powered by Thronos Commerce ↗</a>
     </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
@@ -575,24 +576,25 @@
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
         const cursorTargets = 'a,button,input,select,textarea,label,[role="button"],.button,.btn-cart';
         const isDevHost = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+        const applyCursorRule = function(cursorRule) {
+          let styleEl = document.getElementById('thrc-cursor-style');
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'thrc-cursor-style';
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = 'html,body,a,button,input,select,textarea,label,[role=\"button\"],.button,.btn-cart{cursor:' + cursorRule + ' !important;}';
+        };
         const applyCrosshair = function() {
           document.body.classList.add('cursor-tool');
-          document.documentElement.style.cursor = 'crosshair';
-          document.body.style.cursor = 'crosshair';
-          document.querySelectorAll(cursorTargets).forEach(function(el){
-            el.style.cursor = 'crosshair';
-          });
+          applyCursorRule('crosshair');
         };
         if (cursorImage && (/^\//).test(cursorImage)) {
           const testImg = new Image();
           testImg.onload = function() {
             const safeCursor = cursorImage.replace(/"/g, '\\"');
             const cursorRule = 'url("' + safeCursor + '") 16 16, auto';
-            document.documentElement.style.cursor = cursorRule;
-            document.body.style.cursor = cursorRule;
-            document.querySelectorAll(cursorTargets).forEach(function(el){
-              el.style.cursor = cursorRule;
-            });
+            applyCursorRule(cursorRule);
           };
           testImg.onerror = function() {
             if (isDevHost) console.warn('[cursor] preload failed, falling back to crosshair:', cursorImage);
