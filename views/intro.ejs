@@ -11,9 +11,10 @@
       .intro-card { width:min(980px,96vw); background:rgba(15,23,42,.86); border:1px solid rgba(148,163,184,.35); border-radius:14px; padding:16px; box-shadow:0 26px 54px rgba(0,0,0,.45); }
       .intro-player { width:100%; border-radius:10px; overflow:hidden; background:#000; }
       .intro-player video { width:100%; max-height:72vh; display:block; object-fit:cover; }
-      .intro-actions { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+      .intro-actions { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
       .intro-enter { border:none; background:#0ea5e9; color:#fff; border-radius:8px; padding:10px 16px; font-weight:700; cursor:pointer; }
       .intro-skip { color:#cbd5e1; text-decoration:none; padding:10px 12px; }
+      .intro-sound { border:1px solid rgba(148,163,184,.45); background:#0b1220; color:#e2e8f0; border-radius:8px; padding:9px 12px; cursor:pointer; }
     </style>
   </head>
   <body>
@@ -21,12 +22,13 @@
       <div class="intro-card">
         <h2 style="margin:0 0 10px;"><%= config.storeName %></h2>
         <div class="intro-player">
-          <video controls playsinline preload="metadata" <%= homepage.introPosterUrl ? ('poster=\"' + homepage.introPosterUrl + '\"') : '' %>>
+          <video id="intro-video" controls playsinline preload="metadata" muted <%= homepage.introPosterUrl ? ('poster=\"' + homepage.introPosterUrl + '\"') : '' %>>
             <% if (homepage.introVideoUrl) { %><source src="<%= homepage.introVideoUrl %>" type="video/mp4" /><% } %>
           </video>
         </div>
         <div class="intro-actions">
-          <a class="intro-skip" href="<%= skipHref %>"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></a>
+          <button class="intro-sound" id="intro-sound-toggle" type="button"><%= lang === 'el' ? 'Αναπαραγωγή με ήχο' : 'Play with sound' %></button>
+          <a class="intro-skip" id="intro-skip" href="<%= skipHref %>"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></a>
           <button class="intro-enter" id="intro-enter"><%= lang === 'el' ? 'Μπες στο κατάστημα' : 'Enter store' %></button>
         </div>
       </div>
@@ -34,16 +36,36 @@
     <script>
       (function(){
         var nextHref = <%- JSON.stringify(skipHref).replace(/</g, '\\u003c') %>;
+        var videoEl = document.getElementById('intro-video');
+        var soundBtn = document.getElementById('intro-sound-toggle');
         function persistIntroSeen() {
-          var days = 30;
+          var days = 180;
           var expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-          document.cookie = 'intro_seen=1; expires=' + expires + '; path=/';
-          try { localStorage.setItem('intro_seen', '1'); } catch (_) {}
+          var cookieName = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
+          var storageKey = <%- JSON.stringify(introStorageKey || 'intro_seen') %>;
+          document.cookie = cookieName + '=1; expires=' + expires + '; path=/';
+          try { localStorage.setItem(storageKey, '1'); } catch (_) {}
+        }
+        if (soundBtn && videoEl) {
+          soundBtn.addEventListener('click', function() {
+            videoEl.muted = !videoEl.muted;
+            soundBtn.textContent = videoEl.muted
+              ? <%- JSON.stringify(lang === 'el' ? 'Αναπαραγωγή με ήχο' : 'Play with sound').replace(/</g, '\\u003c') %>
+              : <%- JSON.stringify(lang === 'el' ? 'Σίγαση' : 'Mute').replace(/</g, '\\u003c') %>;
+            if (!videoEl.paused) return;
+            videoEl.play().catch(function(){});
+          });
         }
         document.getElementById('intro-enter').addEventListener('click', function() {
           persistIntroSeen();
           window.location.href = nextHref;
         });
+        var skipEl = document.getElementById('intro-skip');
+        if (skipEl) {
+          skipEl.addEventListener('click', function() {
+            persistIntroSeen();
+          });
+        }
       })();
     </script>
   </body>

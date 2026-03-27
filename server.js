@@ -573,7 +573,12 @@ function loadTenantConfig(req) {
       logoPadding: 6,
       logoRadius: 10,
       logoShadow: 'soft',
-      logoMaxHeight: 52
+      logoMaxHeight: 72,
+      productThumbAspect: '4:3',
+      productThumbFit: 'cover',
+      productThumbBg: '#111111',
+      productCardHoverEffect: 'lift',
+      productPreOpenEffect: 'none'
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -1613,8 +1618,9 @@ app.get('/', (req, res) => {
     return res.redirect(buildTenantLink(req, '/admin'));
   }
   const config = loadTenantConfig(req);
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
   const cookieHeader = String(req.headers.cookie || '');
-  const introSeen = /(?:^|;\s*)intro_seen=1(?:;|$)/.test(cookieHeader);
+  const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
   const skipIntro = String(req.query.skipIntro || '') === '1';
   if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
     return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
@@ -1667,11 +1673,15 @@ app.get('/intro', (req, res) => {
     return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
   }
   const skipHref = buildTenantLink(req, '/', Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+  const introStorageKey = `${introCookieName}_ls`;
   return res.render('intro', {
     config: localizeConfigContent(config, req.lang),
     homepage: config.homepage || {},
     tenant: req.tenant,
-    skipHref
+    skipHref,
+    introCookieName,
+    introStorageKey
   });
 });
 
@@ -2354,6 +2364,22 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/import/variants-template.csv', (req, res) => {
+  const rows = [
+    ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
+    ['example-product-id', 'Variant name', 'example-sku', '19.90', '5', '/tenants/' + req.tenant.id + '/media/variants/example-product-id/example-sku/example.png', '', '']
+  ];
+  const esc = (value) => {
+    const v = String(value || '');
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-variants-template.csv\"`);
+  res.send(csv);
+});
+
 app.get('/admin/export/categories.json', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -2537,7 +2563,12 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
   const headers = rows[0].map((h) => String(h || '').trim());
   const idx = (name) => headers.indexOf(name);
   const missing = ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock'].filter((c) => idx(c) === -1);
-  if (missing.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missing.join(', ') }));
+  if (missing.length) {
+    const templateUrl = buildTenantLink(req, '/admin/import/variants-template.csv');
+    return res.status(400).render('admin', buildAdminViewModel(req, {
+      error: `Missing columns: ${missing.join(', ')}. Download template: ${templateUrl}`
+    }));
+  }
   const products = loadTenantProducts(req);
   let okRows = 0;
   const failRows = [];
@@ -2641,7 +2672,12 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
-    themeCursorImage
+    themeCursorImage,
+    themeProductThumbAspect,
+    themeProductThumbFit,
+    themeProductThumbBg,
+    themeProductCardHoverEffect,
+    themeProductPreOpenEffect
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -2700,8 +2736,15 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
   config.theme.logoPadding = Math.max(0, Math.min(24, Number(themeLogoPadding) || Number(config.theme.logoPadding) || 6));
   config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
-  config.theme.logoShadow = themeLogoShadow || config.theme.logoShadow || 'soft';
-  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
+  const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
+  config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 72));
+  config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
+  config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
+  const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
+  config.theme.productThumbBg = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawThumbBg) ? rawThumbBg : '#111111';
+  config.theme.productCardHoverEffect = ['none', 'lift', 'glow'].includes(String(themeProductCardHoverEffect || '')) ? String(themeProductCardHoverEffect) : (config.theme.productCardHoverEffect || 'lift');
+  config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
   config.homepage = config.homepage || {};
   config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
   const legacyFeaturedIds = String(homepageFeaturedIds || '')

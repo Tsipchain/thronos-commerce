@@ -60,6 +60,10 @@
       #kit-builder-modal #kit-choice-search-results,
       #kit-builder-modal #kit-builder-preview { background:rgba(255,255,255,.9); color:#0f172a; }
       #kit-builder-modal #kit-builder-preview { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
+      #kit-builder-modal input, #kit-builder-modal select, #kit-builder-modal textarea {
+        border:1px solid #cbd5e1; border-radius:8px; padding:7px 8px; font-size:.84rem;
+      }
+      #kit-builder-modal h4 { margin: 6px 0 8px; }
       body.device-mobile #kit-builder-modal .modal { width: 100%; max-height: 100vh; border-radius: 0; padding: 14px; }
       body.device-mobile .modal-actions { position: sticky; bottom: 0; background: #fff; padding-top: 10px; }
       .modal-box {
@@ -122,6 +126,10 @@
       .logo-preview-frame.is-light { background:#f8fafc; border:1px solid #e5e7eb; }
       .logo-preview-frame.is-auto { background:linear-gradient(135deg,#0f172a,#1f2937); }
       .logo-preview-frame img { max-width: 220px; object-fit: contain; }
+      .branding-live-preview {
+        margin-top: 8px; padding: 10px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc;
+      }
+      .branding-live-preview .title { font-size:.78rem; color:#475569; margin-bottom:6px; font-weight:700; }
 
       /* ── Notifications section ── */
       .notif-section { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #ddd; }
@@ -320,7 +328,7 @@
           <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
           <div style="margin:-8px 0 10px;">
             <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
-              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;" />
+              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px;" />
             </div>
           </div>
         <% } %>
@@ -422,9 +430,11 @@
         </label>
         <label><span>Logo padding (px)</span>
           <input type="number" min="0" max="24" name="themeLogoPadding" value="<%= Number((config.theme && config.theme.logoPadding) || 6) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Εσωτερικό κενό γύρω από το logo frame.</small>
         </label>
         <label><span>Logo radius (px)</span>
           <input type="number" min="0" max="36" name="themeLogoRadius" value="<%= Number((config.theme && config.theme.logoRadius) || 10) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Γωνίες του frame που περιβάλλει το logo.</small>
         </label>
         <label><span>Logo shadow</span>
           <select name="themeLogoShadow" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -432,10 +442,64 @@
             <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
             <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating</option>
           </select>
+          <small class="helper">Drop-shadow πάνω στο logo (ιδανικό για διαφανή PNG).</small>
         </label>
         <label><span>Logo max height (px)</span>
-          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Μέγιστο ύψος logo στο header (το storefront το τηρεί 1:1).</small>
         </label>
+        <% if (config.logoPath) { %>
+        <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
+        <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
+        <div class="branding-live-preview">
+          <div class="title">Live preview (logo size + shadow)</div>
+          <div class="logo-preview-frame <%= liveLogoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;box-shadow:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : '0 4px 12px rgba(15,23,42,.12)') %>;">
+            <img src="<%= config.logoPath %>" alt="Logo live preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px;filter:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : 'drop-shadow(0 6px 10px rgba(15,23,42,.22))') %>;" />
+          </div>
+        </div>
+        <% } %>
+        <div style="margin-top:10px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;">
+          <h4 style="margin:0 0 8px;">Product Cards</h4>
+          <p class="helper" style="margin-bottom:8px;">Uniform thumbnail and hover behavior for storefront product cards.</p>
+          <label><span>Thumb aspect ratio</span>
+            <select name="themeProductThumbAspect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="4:3" <%= ((config.theme && config.theme.productThumbAspect) || '4:3') === '4:3' ? 'selected' : '' %>>4:3</option>
+              <option value="1:1" <%= ((config.theme && config.theme.productThumbAspect) || '') === '1:1' ? 'selected' : '' %>>1:1</option>
+              <option value="3:4" <%= ((config.theme && config.theme.productThumbAspect) || '') === '3:4' ? 'selected' : '' %>>3:4</option>
+            </select>
+          </label>
+          <label><span>Thumb fit</span>
+            <select name="themeProductThumbFit" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="cover" <%= ((config.theme && config.theme.productThumbFit) || 'cover') === 'cover' ? 'selected' : '' %>>Cover</option>
+              <option value="contain" <%= ((config.theme && config.theme.productThumbFit) || '') === 'contain' ? 'selected' : '' %>>Contain</option>
+            </select>
+          </label>
+          <label><span>Thumb background</span>
+            <input type="text" name="themeProductThumbBg" value="<%= ((config.theme && config.theme.productThumbBg) || '#111111') %>" placeholder="#111111" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+          <label><span>Card hover effect</span>
+            <select name="themeProductCardHoverEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="lift" <%= ((config.theme && config.theme.productCardHoverEffect) || 'lift') === 'lift' ? 'selected' : '' %>>Lift</option>
+              <option value="glow" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'glow' ? 'selected' : '' %>>Glow</option>
+            </select>
+          </label>
+          <label><span>Pre-open effect</span>
+            <select name="themeProductPreOpenEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
+            </select>
+          </label>
+          <div style="margin-top:8px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;">
+            <small style="display:block;margin-bottom:6px;color:#475569;">Live preview</small>
+            <div style="width:160px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+              <div style="aspect-ratio:<%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;background:<%= (config.theme && config.theme.productThumbBg) || '#111111' %>;display:flex;align-items:center;justify-content:center;">
+                <span style="font-size:20px;">🖼️</span>
+              </div>
+              <div style="padding:8px;font-size:.78rem;">Sample card</div>
+            </div>
+          </div>
+        </div>
         <label><span>Hero Style</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
@@ -495,8 +559,9 @@
           <strong>Applied to storefront:</strong>
           brandingMode=<%= (config.theme && config.theme.brandingMode) || 'logo_name' %>,
           logoDisplayMode=<%= (config.theme && config.theme.logoDisplayMode) || 'contain' %>,
-          logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px,
-          cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>.
+          logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px,
+          cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>,
+          thumb=<%= (config.theme && config.theme.productThumbAspect) || '4:3' %>/<%= (config.theme && config.theme.productThumbFit) || 'cover' %>.
           <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" target="_blank" rel="noopener noreferrer">Storefront preview</a>
         </div>
         </details>
@@ -1212,7 +1277,10 @@
             <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
             <button class="button" type="submit" style="background:#0f766e;">Import variants CSV</button>
           </form>
-          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Columns: productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription.</p>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">
+            Columns: <strong>productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription</strong>.
+            <a href="<%= withTenantLink('/admin/import/variants-template.csv') %>">Download template</a>
+          </p>
         </div>
 
         <%# ── Ticket list ── %>
@@ -1656,6 +1724,7 @@
               '<small class="v-image-feedback" style="display:block;margin-top:5px;font-size:.76rem;color:#334155;">' + (v.imageUrl ? 'Image preview ready.' : 'Add/upload an image to preview it here.') + '</small>' +
               '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-top:6px;" />' +
               '<video class="v-video-preview" controls muted playsinline style="' + (v.videoUrl ? '' : 'display:none;') + 'margin-top:6px;max-width:220px;max-height:132px;border-radius:8px;border:1px solid #cbd5e1;background:#0f172a;"></video>' +
+              '<small class="v-video-feedback" style="display:block;margin-top:5px;font-size:.76rem;color:#334155;">' + (v.videoUrl ? 'Video preview ready.' : 'Add/upload a video URL to preview it here.') + '</small>' +
               '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">' +
                 '<input class="v-video-file" type="file" accept="video/mp4,video/webm" />' +
                 '<button type="button" class="btn-xs" onclick="uploadVariantVideo(this)">Upload video</button>' +
@@ -1823,8 +1892,7 @@
         } else {
           const urlEl = row.querySelector('.v-video');
           if (urlEl) urlEl.value = j.url || '';
-          const videoPreview = row.querySelector('.v-video-preview');
-          if (videoPreview && j.url) { videoPreview.src = j.url; videoPreview.style.display = 'block'; }
+          updateVariantVideoPreview(row, j.url || '', { bustCache: true, loadingMessage: 'Loading video preview…' });
           if (status) status.textContent = '✓ Uploaded (video)';
           return;
         }
@@ -1850,6 +1918,35 @@
           linkEl.removeAttribute('href');
           linkEl.style.display = 'none';
         }
+      }
+      function setVariantVideoFeedback(row, message, tone) {
+        const feedbackEl = row && row.querySelector('.v-video-feedback');
+        if (!feedbackEl) return;
+        feedbackEl.textContent = message || '';
+        feedbackEl.style.color = tone === 'error' ? '#b91c1c' : (tone === 'success' ? '#166534' : '#334155');
+      }
+      function updateVariantVideoPreview(row, rawUrl, options) {
+        const preview = row && row.querySelector('.v-video-preview');
+        if (!preview) return;
+        const opts = options || {};
+        const baseUrl = (rawUrl || '').trim();
+        if (!baseUrl) {
+          preview.style.display = 'none';
+          preview.removeAttribute('src');
+          setVariantVideoFeedback(row, 'Add/upload a video URL to preview it here.', 'neutral');
+          return;
+        }
+        const srcUrl = opts.bustCache ? (baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'v=' + Date.now()) : baseUrl;
+        if (opts.loadingMessage) setVariantVideoFeedback(row, opts.loadingMessage, 'neutral');
+        preview.onerror = function() {
+          preview.style.display = 'none';
+          setVariantVideoFeedback(row, 'Could not load video preview. URL was kept.', 'error');
+        };
+        preview.onloadeddata = function() {
+          preview.style.display = 'block';
+          setVariantVideoFeedback(row, 'Video preview ready.', 'success');
+        };
+        preview.src = srcUrl;
       }
 
       function updateVariantImagePreview(row, rawUrl, options) {
@@ -1898,9 +1995,7 @@
         const refreshVideo = function() {
           const vurl = (videoInput && videoInput.value || '').trim();
           if (!videoPreview) return;
-          if (!vurl) { videoPreview.style.display = 'none'; videoPreview.removeAttribute('src'); return; }
-          videoPreview.src = vurl;
-          videoPreview.style.display = 'block';
+          updateVariantVideoPreview(row, vurl);
         };
         if (videoInput) {
           videoInput.addEventListener('change', refreshVideo);
@@ -2201,6 +2296,28 @@
         openKitBuilderModal();
         renderKitBuilder();
       };
+      window.makeProductKit = function(i) {
+        const existing = products[i];
+        if (!existing) return;
+        const next = { ...existing, type: 'KIT', price: 0 };
+        if (!next.kitOptions) next.kitOptions = [];
+        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
+        products[i] = next;
+        renderTable();
+      };
+      function suggestGroupTypeById(groupId) {
+        const normalized = String(groupId || '').toLowerCase();
+        if (!isEukolakisClassicPreset) return 'radio';
+        if (normalized.includes('spare') || normalized.includes('part') || normalized.includes('tool') || normalized.includes('ανταλλακ')) return 'checkbox';
+        return 'radio';
+      }
+      const kgIdInput = document.getElementById('kg-id');
+      const kgTypeInput = document.getElementById('kg-type');
+      if (kgIdInput && kgTypeInput) {
+        kgIdInput.addEventListener('input', function() {
+          kgTypeInput.value = suggestGroupTypeById(kgIdInput.value);
+        });
+      }
       const kgAddBtn = document.getElementById('kg-add');
       if (kgAddBtn) kgAddBtn.addEventListener('click', function() {
         const product = products[kitBuilderIdx];
@@ -2212,7 +2329,7 @@
           id: gid,
           label: (document.getElementById('kg-label').value || gid).trim(),
           required: document.getElementById('kg-required').checked,
-          inputType: document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : 'radio',
+          inputType: (document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : suggestGroupTypeById(gid)),
           order: parseInt(document.getElementById('kg-order').value, 10) || 0,
           choices: document.getElementById('kg-required').checked ? [] : [{
             id: 'skip',
@@ -2531,12 +2648,3 @@
     </script>
   </body>
 </html>
-      window.makeProductKit = function(i) {
-        const existing = products[i];
-        if (!existing) return;
-        const next = { ...existing, type: 'KIT', price: 0 };
-        if (!next.kitOptions) next.kitOptions = [];
-        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
-        products[i] = next;
-        renderTable();
-      };
