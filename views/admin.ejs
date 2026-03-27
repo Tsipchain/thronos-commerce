@@ -458,6 +458,48 @@
           </div>
         </div>
         <% } %>
+        <div style="margin-top:10px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;">
+          <h4 style="margin:0 0 8px;">Product Cards</h4>
+          <p class="helper" style="margin-bottom:8px;">Uniform thumbnail and hover behavior for storefront product cards.</p>
+          <label><span>Thumb aspect ratio</span>
+            <select name="themeProductThumbAspect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="4:3" <%= ((config.theme && config.theme.productThumbAspect) || '4:3') === '4:3' ? 'selected' : '' %>>4:3</option>
+              <option value="1:1" <%= ((config.theme && config.theme.productThumbAspect) || '') === '1:1' ? 'selected' : '' %>>1:1</option>
+              <option value="3:4" <%= ((config.theme && config.theme.productThumbAspect) || '') === '3:4' ? 'selected' : '' %>>3:4</option>
+            </select>
+          </label>
+          <label><span>Thumb fit</span>
+            <select name="themeProductThumbFit" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="cover" <%= ((config.theme && config.theme.productThumbFit) || 'cover') === 'cover' ? 'selected' : '' %>>Cover</option>
+              <option value="contain" <%= ((config.theme && config.theme.productThumbFit) || '') === 'contain' ? 'selected' : '' %>>Contain</option>
+            </select>
+          </label>
+          <label><span>Thumb background</span>
+            <input type="text" name="themeProductThumbBg" value="<%= ((config.theme && config.theme.productThumbBg) || '#111111') %>" placeholder="#111111" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+          <label><span>Card hover effect</span>
+            <select name="themeProductCardHoverEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="lift" <%= ((config.theme && config.theme.productCardHoverEffect) || 'lift') === 'lift' ? 'selected' : '' %>>Lift</option>
+              <option value="glow" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'glow' ? 'selected' : '' %>>Glow</option>
+            </select>
+          </label>
+          <label><span>Pre-open effect</span>
+            <select name="themeProductPreOpenEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
+            </select>
+          </label>
+          <div style="margin-top:8px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;">
+            <small style="display:block;margin-bottom:6px;color:#475569;">Live preview</small>
+            <div style="width:160px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+              <div style="aspect-ratio:<%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;background:<%= (config.theme && config.theme.productThumbBg) || '#111111' %>;display:flex;align-items:center;justify-content:center;">
+                <span style="font-size:20px;">🖼️</span>
+              </div>
+              <div style="padding:8px;font-size:.78rem;">Sample card</div>
+            </div>
+          </div>
+        </div>
         <label><span>Hero Style</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
@@ -518,7 +560,8 @@
           brandingMode=<%= (config.theme && config.theme.brandingMode) || 'logo_name' %>,
           logoDisplayMode=<%= (config.theme && config.theme.logoDisplayMode) || 'contain' %>,
           logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px,
-          cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>.
+          cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>,
+          thumb=<%= (config.theme && config.theme.productThumbAspect) || '4:3' %>/<%= (config.theme && config.theme.productThumbFit) || 'cover' %>.
           <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" target="_blank" rel="noopener noreferrer">Storefront preview</a>
         </div>
         </details>

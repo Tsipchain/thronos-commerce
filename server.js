@@ -573,7 +573,12 @@ function loadTenantConfig(req) {
       logoPadding: 6,
       logoRadius: 10,
       logoShadow: 'soft',
-      logoMaxHeight: 72
+      logoMaxHeight: 72,
+      productThumbAspect: '4:3',
+      productThumbFit: 'cover',
+      productThumbBg: '#111111',
+      productCardHoverEffect: 'lift',
+      productPreOpenEffect: 'none'
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -2662,7 +2667,12 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
-    themeCursorImage
+    themeCursorImage,
+    themeProductThumbAspect,
+    themeProductThumbFit,
+    themeProductThumbBg,
+    themeProductCardHoverEffect,
+    themeProductPreOpenEffect
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -2724,6 +2734,12 @@ app.post('/admin/settings', async (req, res) => {
   const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
   config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
   config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 72));
+  config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
+  config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
+  const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
+  config.theme.productThumbBg = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawThumbBg) ? rawThumbBg : '#111111';
+  config.theme.productCardHoverEffect = ['none', 'lift', 'glow'].includes(String(themeProductCardHoverEffect || '')) ? String(themeProductCardHoverEffect) : (config.theme.productCardHoverEffect || 'lift');
+  config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
   config.homepage = config.homepage || {};
   config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
   const legacyFeaturedIds = String(homepageFeaturedIds || '')

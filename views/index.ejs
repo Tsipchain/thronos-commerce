@@ -16,6 +16,9 @@
         --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+        --product-thumb-aspect: <%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;
+        --product-thumb-fit: <%= (config.theme && config.theme.productThumbFit) || 'cover' %>;
+        --product-thumb-bg: <%= (config.theme && config.theme.productThumbBg) || '#111111' %>;
       }
       .lang-switcher { padding: 8px 16px; background: rgba(0,0,0,.06); font-size: 0.8rem; display:flex; align-items:center; gap:8px; }
       .lang-switcher select { padding: 4px 8px; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
@@ -37,13 +40,16 @@
         transition: box-shadow .2s;
       }
       .product-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.1); }
+      .product-card.hover-none:hover { box-shadow:none; transform:none; }
+      .product-card.hover-lift:hover { transform:translateY(-4px); box-shadow: 0 10px 24px rgba(15,23,42,.16); }
+      .product-card.hover-glow:hover { box-shadow: 0 0 0 2px rgba(14,165,233,.25), 0 12px 28px rgba(56,189,248,.18); }
       .product-card .product-thumb {
-        width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%);
+        width: 100%; aspect-ratio: var(--product-thumb-aspect, 4 / 3); overflow: hidden; background: var(--product-thumb-bg, #111111);
         display:flex; align-items:center; justify-content:center;
       }
-      .product-card .product-thumb.placeholder { background: #f1f5f9; }
+      .product-card .product-thumb.placeholder { background: var(--product-thumb-bg, #111111); color:#cbd5e1; }
       .product-card .product-thumb img {
-        width: 100%; height: 100%; object-fit: cover; display: block;
+        width: 100%; height: 100%; object-fit: var(--product-thumb-fit, cover); display: block;
       }
       .product-card-body { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; }
       .product-card h2 { font-size: 0.95rem; margin: 0 0 6px; }
@@ -98,7 +104,7 @@
       .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
       .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
       .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
-      .logo-frame img { display:block; max-width: 240px; }
+      .logo-frame img { display:block; max-width: 360px; }
       .logo-frame.logo-transparent-safe { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       .logo-transparent-safe img { filter: drop-shadow(0 4px 12px rgba(15,23,42,.35)); }
       .logo-image.cover { object-fit: cover; }
@@ -134,7 +140,13 @@
       .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
       .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
       .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
-      .kit-choice img { width:56px; height:56px; object-fit:cover; border-radius:8px; }
+      .kit-choice .kit-choice-thumb { width:72px; aspect-ratio: var(--product-thumb-aspect, 4 / 3); object-fit: var(--product-thumb-fit, cover); border-radius:8px; background: var(--product-thumb-bg, #111111); }
+      .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
+      .exposure-overlay {
+        position: fixed; inset: 0; background: rgba(2,6,23,.64); z-index: 1500; opacity: 0; pointer-events:none;
+        transform: scale(1.01); transition: opacity .24s ease, transform .24s ease;
+      }
+      .exposure-overlay.open { opacity:1; transform: scale(1); }
       .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
       .kit-preview img { width:100%; max-height:220px; object-fit:contain; border-radius:8px; background:#fff; }
       .kit-summary-line { font-size:.84rem; color:#334155; margin:4px 0; }
@@ -160,6 +172,7 @@
       body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
+        .logo-image-dynamic { max-height: var(--logo-max-height-mobile, 64px) !important; }
         .branding-mode-logo_only .store-name-wrap.logo-only-fallback { display:block; margin-top:6px; font-size:.92rem; color:#e2e8f0; font-weight:700; }
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
@@ -188,8 +201,9 @@
     <% const logoDisplayMode = theme.logoDisplayMode || 'contain'; %>
     <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
     <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
-    <% const logoDefaultHeight = isEukolakisClassic ? 88 : 72; %>
-    <% const logoMaxHeight = Math.max(28, Math.min(140, Number(theme.logoMaxHeight || logoDefaultHeight))); %>
+    <% const logoDefaultHeight = isEukolakisClassic ? 96 : 72; %>
+    <% const logoMaxHeight = Math.max(28, Math.min(160, Number(theme.logoMaxHeight || logoDefaultHeight))); %>
+    <% const logoMobileHeight = isEukolakisClassic ? Math.min(logoMaxHeight, 64) : Math.min(logoMaxHeight, 72); %>
     <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
     <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
     <% const logoShadowMode = (theme.logoShadow === 'none' || theme.logoShadow === 'floating') ? theme.logoShadow : 'soft'; %>
@@ -202,8 +216,8 @@
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (config.logoPath && brandingMode !== 'name_only') { %>
-          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= logoPadding %>px;border-radius:<%= logoRadius %>px;box-shadow:<%= logoBoxShadow %>;">
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
+          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= logoPadding %>px;border-radius:<%= logoRadius %>px;box-shadow:<%= logoBoxShadow %>;--logo-max-height-desktop:<%= logoMaxHeight %>px;--logo-max-height-mobile:<%= logoMobileHeight %>px;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
           </span>
         <% } %>
         <% if (brandingMode !== 'logo_only') { %>
@@ -530,6 +544,7 @@
 
     <%# ── Floating draggable cart (shared partial) ── %>
     <%- include('_cart') %>
+    <div id="exposure-overlay" class="exposure-overlay" aria-hidden="true"></div>
 
     <script>
       // ── Menu toggle ────────────────────────────────────────────────
@@ -542,6 +557,7 @@
       }
       const isEukolakis = <%= tenant.id === 'eukolakis' ? 'true' : 'false' %>;
       const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
+      const productPreOpenEffect = <%- safeJson((config.theme && config.theme.productPreOpenEffect) || 'none') %>;
       if (isEukolakis && isDesktopDevice && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %>) {
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
         const cursorTargets = 'a,button,input,select,textarea,label,[role="button"],.button,.btn-cart';
@@ -741,7 +757,7 @@
                   }).join('') +
                   '</select></div>')
               : '';
-            card.innerHTML = (choiceImage ? ('<img src="' + esc(choiceImage) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
+            card.innerHTML = (choiceImage ? ('<img class="kit-choice-thumb" src="' + esc(choiceImage) + '" alt="">') : '<div class="kit-choice-thumb placeholder">🖼️</div>') +
               '<div style="text-align:left;">' + checkboxHtml + '<strong>' + esc(choice.label || choice.id) + '</strong>' +
               '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
               (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
@@ -888,6 +904,28 @@
           openWizard(wizardParam);
         }
         }
+      }
+      if (productPreOpenEffect === 'exposure') {
+        const exposureOverlay = document.getElementById('exposure-overlay');
+        const openWithExposure = function(href) {
+          if (!href || !exposureOverlay) return window.location.href = href;
+          exposureOverlay.classList.add('open');
+          setTimeout(function(){ window.location.href = href; }, 260);
+        };
+        document.querySelectorAll('.product-card[data-product-open-url]').forEach(function(card){
+          card.addEventListener('click', function(e){
+            if (e.target.closest('a,button,input,textarea,select,label,[role="button"]')) return;
+            const href = card.getAttribute('data-product-open-url');
+            openWithExposure(href);
+          });
+        });
+        document.querySelectorAll('a[data-exposure-link]').forEach(function(link) {
+          link.addEventListener('click', function(e){
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWithExposure(link.getAttribute('href'));
+          });
+        });
       }
     </script>
   </body>

@@ -1,5 +1,5 @@
 <% const isEukolakisTenant = (typeof tenantId !== 'undefined' && tenantId === 'eukolakis'); %>
-<article class="product-card <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %> <%= isEukolakisTenant && product.type === 'KIT' ? 'kit-clickable' : '' %>" <%= isEukolakisTenant && product.type === 'KIT' ? 'data-kit-product-id="' + product.id + '"' : '' %>>
+<article class="product-card hover-<%= (config && config.theme && config.theme.productCardHoverEffect) || 'lift' %> <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %> <%= isEukolakisTenant && product.type === 'KIT' ? 'kit-clickable' : '' %>" <%= isEukolakisTenant && product.type === 'KIT' ? 'data-kit-product-id="' + product.id + '"' : '' %> <%= product.type !== 'KIT' ? ('data-product-open-url=\"' + withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) + '\"') : '' %>>
   <% if (product.imageUrl) { %>
     <div class="product-thumb">
       <img src="<%= product.imageUrl %>" alt="<%= product.name %>" loading="lazy" />
@@ -10,7 +10,7 @@
       <span class="featured-badge" style="position:relative;top:0;left:0;display:inline-block;margin:10px;">⭐ <%= t('storefront.featured') %></span>
     </div>
   <% } else { %>
-    <div class="product-thumb placeholder" aria-hidden="true"></div>
+    <div class="product-thumb placeholder" aria-hidden="true"><span style="font-size:22px;">🖼️</span></div>
   <% } %>
   <div class="product-card-body">
     <h2><%= product.name %></h2>
@@ -34,16 +34,16 @@
       <% if (isEukolakisTenant && product.type === 'KIT') { %>
         <a class="btn-cart" href="#" data-kit-launch="<%= product.id %>" style="text-decoration:none;display:inline-block;"><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
       <% } else if (product.type === 'KIT') { %>
-        <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+        <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <a class="btn-cart" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>" data-kit-launch="<%= product.id %>" style="text-decoration:none;display:inline-block;"><%= lang === 'el' ? 'Διαμόρφωση Kit' : 'Configure Kit' %></a>
       <% } else if (product.stock !== 0) { %>
-        <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+        <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <button class="btn-cart" type="button"
           onclick="window.thrcAddToCart && window.thrcAddToCart({id:'<%= product.id %>',name:'<%= product.name.replace(/'/g,"\\'") %>',price:<%= Number(product.price) || 0 %>,imageUrl:'<%= (product.imageUrl||'').replace(/'/g,"\\'") %>'})">
           <%= t('storefront.addToCart') %>
         </button>
       <% } else { %>
-        <a class="button" href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
+        <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <button class="btn-cart" type="button" disabled><%= t('checkout.stockOut') %></button>
       <% } %>
     </div>
