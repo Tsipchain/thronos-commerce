@@ -7,12 +7,8 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
-
-function safeRequire(mod) {
-  try { return require(mod); } catch (e) { return null; }
-}
-const nodemailer = safeRequire('nodemailer');
-const StripeLib  = safeRequire('stripe');
+const nodemailer = require('nodemailer');
+const StripeLib = require('stripe');
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
 function stripeForTenant(config) {
@@ -562,7 +558,6 @@ function loadTenantConfig(req) {
       instagramUrl: '',
       tiktokUrl: ''
     },
-<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
     assistant: {
       enabled: false,
       apiKey: '',
@@ -572,8 +567,6 @@ function loadTenantConfig(req) {
       notifyTrackingReminder: true,
       lowStockThreshold: 3
     },
-=======
->>>>>>> main
     theme: {
       menuBg: '#111111',
       menuText: '#ffffff',
@@ -612,10 +605,8 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
-<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
-=======
->>>>>>> main
+  cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
 }
@@ -2619,7 +2610,6 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
-<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
 app.get('/admin/export/orders.csv', (req, res) => {
   const orders = loadTenantOrders(req);
   const esc = (v) => `"${String(v === undefined || v === null ? '' : v).replace(/"/g, '""')}"`;
@@ -2647,8 +2637,6 @@ app.get('/admin/export/orders.csv', (req, res) => {
   res.send(csv);
 });
 
-=======
->>>>>>> main
 app.get('/admin/import/variants-template.csv', (req, res) => {
   const rows = [
     ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
@@ -4473,107 +4461,118 @@ app.post('/root/tenants/payment-config', (req, res) => {
 
 // ── Stripe webhook → referral earnings ───────────────────────────────────────
 app.post('/stripe/webhook', async (req, res) => {
-  const sig    = req.headers['stripe-signature'] || '';
-  const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
-  let event;
+  try {
+    const sig = req.headers['stripe-signature'] || '';
+    const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    let event;
 
-  // Verify signature when secret is configured
-  if (secret) {
-    try {
-      // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
-      const payload   = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
-      const parts     = sig.split(',').reduce((acc, p) => {
-        const [k, v] = p.split('='); acc[k] = v; return acc;
-      }, {});
-      const ts        = parts.t;
-      const expected  = crypto.createHmac('sha256', secret)
-                              .update(`${ts}.${payload.toString()}`)
-                              .digest('hex');
-      if (expected !== parts.v1) {
-        console.warn('[Stripe Webhook] Invalid signature');
-        return res.status(400).json({ error: 'Invalid signature' });
+    // Verify signature when secret is configured
+    if (secret) {
+      try {
+        // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
+        const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+        const parts = sig.split(',').reduce((acc, p) => {
+          const [k, v] = p.split('='); acc[k] = v; return acc;
+        }, {});
+        const ts = parts.t;
+        const expected = crypto.createHmac('sha256', secret)
+          .update(`${ts}.${payload.toString()}`)
+          .digest('hex');
+        if (expected !== parts.v1) {
+          console.warn('[Stripe Webhook] Invalid signature');
+          return res.status(400).json({ error: 'Invalid signature' });
+        }
+        event = JSON.parse(payload.toString());
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
       }
-      event = JSON.parse(payload.toString());
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
+    } else {
+      // In production, webhook secret is required — reject unverified events
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      // Dev/testing only — accept raw JSON
+      try {
+        event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid JSON' });
+      }
     }
-  } else {
-    // In production, webhook secret is required — reject unverified events
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
-    }
-    // Dev/testing only — accept raw JSON
-    try {
-      event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
-    } catch (err) {
-      return res.status(400).json({ error: 'Invalid JSON' });
-    }
+
+    const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
+    if (!HANDLED.includes(event.type)) return res.json({ received: true });
+
+    const obj = event.data && event.data.object;
+    if (!obj) return res.json({ received: true });
+
+    // Resolve tenantId from metadata
+    const tenantId = (obj.metadata && obj.metadata.tenantId) || '';
+    const externalId = obj.id || '';
+    const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
+    const amountFiat = +(amountRaw / 100).toFixed(2);
+    const currency = (obj.currency || 'eur').toUpperCase();
+
+    if (!tenantId || amountFiat <= 0) return res.json({ received: true });
+
+    const tenants = loadTenantsRegistry();
+    const tenant = tenants.find((t) => t.id === tenantId);
+    if (!tenant || !tenant.referral || !tenant.referral.code) return res.json({ received: true });
+
+    const refCode = tenant.referral.code;
+    const percent = typeof tenant.referral.percent === 'number' ? tenant.referral.percent : 0.1;
+    const commission = +(amountFiat * percent).toFixed(2);
+    const source = event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout';
+
+    // Write earning row (idempotent for webhook retries)
+    const earnings = loadReferralEarnings();
+    const alreadyRecorded = earnings.some((e) =>
+      e && e.tenantId === tenantId && e.externalId === externalId && e.source === source
+    );
+    if (alreadyRecorded) return res.json({ received: true });
+
+    const earningId = `re_${Date.now().toString(36)}`;
+    earnings.push({
+      id:          earningId,
+      tenantId,
+      refCode,
+      amountFiat:  commission,
+      currency,
+      source,
+      externalId,
+      status:      'pending',
+      createdAt:   new Date().toISOString(),
+      paidAt:      null,
+      paidVia:     null,
+      txId:        null
+    });
+    saveReferralEarnings(earnings);
+
+    // Update account totals
+    const accounts = ensureReferralAccount(refCode, percent);
+    accounts[refCode].totals.earnedFiat = +(accounts[refCode].totals.earnedFiat + commission).toFixed(2);
+    if (!accounts[refCode].tenants.includes(tenantId)) accounts[refCode].tenants.push(tenantId);
+    saveReferralAccounts(accounts);
+
+    console.log(`[Referral] Earning recorded: refCode=${refCode} tenant=${tenantId} commission=${commission} ${currency}`);
+
+    // Notify core (fire-and-forget)
+    coreReferralEarn({
+      tenantId,
+      refCode,
+      amountFiat: commission,
+      currency,
+      source,
+      externalId,
+      payoutMode: 'offchain_fiat',
+      meta: { stripeEvent: event.type }
+    }).catch(() => {});
+
+    return res.json({ received: true });
+  } catch (err) {
+    console.error('[Stripe Webhook] Unexpected error:', err.message);
+    return res.status(200).json({ received: true });
   }
-
-  const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
-  if (!HANDLED.includes(event.type)) return res.json({ received: true });
-
-  const obj       = event.data && event.data.object;
-  if (!obj) return res.json({ received: true });
-
-  // Resolve tenantId from metadata
-  const tenantId  = (obj.metadata && obj.metadata.tenantId) || '';
-  const externalId = obj.id || '';
-  const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
-  const amountFiat = +(amountRaw / 100).toFixed(2);
-  const currency  = (obj.currency || 'eur').toUpperCase();
-
-  if (!tenantId || amountFiat <= 0) return res.json({ received: true });
-
-  const tenants   = loadTenantsRegistry();
-  const tenant    = tenants.find((t) => t.id === tenantId);
-  if (!tenant || !tenant.referral || !tenant.referral.code) return res.json({ received: true });
-
-  const refCode   = tenant.referral.code;
-  const percent   = typeof tenant.referral.percent === 'number' ? tenant.referral.percent : 0.1;
-  const commission = +(amountFiat * percent).toFixed(2);
-
-  // Write earning row
-  const earnings  = loadReferralEarnings();
-  const earningId = `re_${Date.now().toString(36)}`;
-  earnings.push({
-    id:          earningId,
-    tenantId,
-    refCode,
-    amountFiat:  commission,
-    currency,
-    source:      event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout',
-    externalId,
-    status:      'pending',
-    createdAt:   new Date().toISOString(),
-    paidAt:      null,
-    paidVia:     null,
-    txId:        null
-  });
-  saveReferralEarnings(earnings);
-
-  // Update account totals
-  const accounts  = ensureReferralAccount(refCode, percent);
-  accounts[refCode].totals.earnedFiat = +(accounts[refCode].totals.earnedFiat + commission).toFixed(2);
-  if (!accounts[refCode].tenants.includes(tenantId)) accounts[refCode].tenants.push(tenantId);
-  saveReferralAccounts(accounts);
-
-  console.log(`[Referral] Earning recorded: refCode=${refCode} tenant=${tenantId} commission=${commission} ${currency}`);
-
-  // Notify core (fire-and-forget)
-  coreReferralEarn({
-    tenantId,
-    refCode,
-    amountFiat: commission,
-    currency,
-    source:     event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout',
-    externalId,
-    payoutMode: 'offchain_fiat',
-    meta:       { stripeEvent: event.type }
-  }).catch(() => {});
-
-  res.json({ received: true });
 });
 
 // ── Root: referral config per tenant ─────────────────────────────────────────
