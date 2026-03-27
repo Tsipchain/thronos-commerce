@@ -481,6 +481,14 @@
               <option value="glow" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'glow' ? 'selected' : '' %>>Glow</option>
             </select>
           </label>
+          <label><span>Card density</span>
+            <select name="themeCardDensity" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="compact" <%= ((config.theme && config.theme.cardDensity) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+              <option value="normal" <%= ((config.theme && config.theme.cardDensity) || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
+              <option value="spacious" <%= ((config.theme && config.theme.cardDensity) || '') === 'spacious' ? 'selected' : '' %>>Spacious</option>
+            </select>
+            <small class="helper">Controls product-card spacing and visual density on storefront.</small>
+          </label>
           <label><span>Pre-open effect</span>
             <select name="themeProductPreOpenEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
               <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>None</option>

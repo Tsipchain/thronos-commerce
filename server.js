@@ -588,6 +588,7 @@ function loadTenantConfig(req) {
       productThumbFit: 'cover',
       productThumbBg: '#111111',
       productCardHoverEffect: 'lift',
+      cardDensity: 'normal',
       productPreOpenEffect: 'none',
       footerTextColor: '#6b7280'
     }
@@ -2700,6 +2701,7 @@ app.post('/admin/settings', async (req, res) => {
     themeProductThumbFit,
     themeProductThumbBg,
     themeProductCardHoverEffect,
+    themeCardDensity,
     themeProductPreOpenEffect,
     themeFooterTextColor
   } = req.body;
@@ -2772,6 +2774,7 @@ app.post('/admin/settings', async (req, res) => {
   const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
   config.theme.productThumbBg = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawThumbBg) ? rawThumbBg : '#111111';
   config.theme.productCardHoverEffect = ['none', 'lift', 'glow'].includes(String(themeProductCardHoverEffect || '')) ? String(themeProductCardHoverEffect) : (config.theme.productCardHoverEffect || 'lift');
+  config.theme.cardDensity = ['compact', 'normal', 'spacious'].includes(String(themeCardDensity || '')) ? String(themeCardDensity) : (config.theme.cardDensity || 'normal');
   config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
   const rawFooterTextColor = String(themeFooterTextColor || config.theme.footerTextColor || '#6b7280').trim();
   config.theme.footerTextColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawFooterTextColor) ? rawFooterTextColor : '#6b7280';
