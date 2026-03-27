@@ -87,6 +87,21 @@
       .stock-pill.ok  { background: #d1fae5; color: #065f46; }
       .stock-pill.low { background: #fef3c7; color: #92400e; }
       .stock-pill.out { background: #fee2e2; color: #991b1b; }
+      .spare-filters { border:1px solid #dbe2ea; border-radius:12px; background:linear-gradient(180deg,#ffffff,#f8fafc); padding:12px; display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:8px; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,23,42,.06); }
+      .spare-filters input, .spare-filters select { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:7px; font-size:.85rem; }
+      .spare-filters .filter-note { grid-column:1/-1; color:#64748b; font-size:.76rem; }
+      .spare-filters .reset-btn { border:none; background:#111827; color:#fff; border-radius:7px; padding:8px 10px; font-size:.82rem; cursor:pointer; }
+      .filter-results { font-size:.84rem; color:#334155; margin: -2px 0 10px; }
+      .filter-empty-state { border:1px dashed #cbd5e1; border-radius:10px; padding:22px; text-align:center; color:#64748b; background:#fff; display:none; }
+      .filter-empty-state strong { display:block; margin-bottom:6px; color:#0f172a; }
+      .filter-empty-state .button { margin-top:8px; display:inline-block; }
+      .product-card.filter-hidden { display:none !important; }
+      .kit-choice-grid.fade-step { opacity:.15; transform:translateY(6px); transition:opacity .2s ease, transform .2s ease; }
+      .kit-choice-grid.fade-step.ready { opacity:1; transform:translateY(0); }
+      body.card-density-compact .product-list { gap: 12px; }
+      body.card-density-compact .product-card .product-card-body { padding: 10px 12px; }
+      body.card-density-spacious .product-list { gap: 26px; }
+      body.card-density-spacious .product-card .product-card-body { padding: 16px 18px; }
       .cat-logo { width:22px;height:22px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px; }
       .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0 8px; }
       .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
@@ -99,15 +114,20 @@
       .hero .hero-title { margin: 0 0 8px; font-size: clamp(1.2rem, 2.2vw, 1.9rem); }
       .hero .hero-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
       .hero .hero-actions a { text-decoration:none; }
+      .hero .hero-actions .button { transition: transform .18s ease, box-shadow .2s ease; box-shadow: 0 8px 16px rgba(15,23,42,.16); }
+      .hero .hero-actions .button:hover { transform: translateY(-2px); box-shadow: 0 12px 22px rgba(15,23,42,.24); }
       .category-card.featured { border-color: var(--accent-color); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
       .category-card small { display:block; color:#6b7280; margin-top:3px; font-size:.74rem; }
-      .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: none; }
+      .store-header { position: sticky; top: 0; z-index: 1300; transition: background .28s ease, box-shadow .28s ease, padding .22s ease; border-bottom: none !important; box-shadow:none !important; background: linear-gradient(135deg, rgba(15,23,42,.18), rgba(31,41,55,.16)); backdrop-filter: blur(3px); }
+      .store-header.is-scrolled { background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(31,41,55,.96)); box-shadow: 0 8px 22px rgba(2,6,23,.3) !important; }
+      .store-header.premium { border-bottom: none; }
       .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
       .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
       .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
       .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
       .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
       .logo-frame img { display:block; max-width: 360px; }
+      .store-header.is-scrolled .logo-image-dynamic { transform: scale(.9); transform-origin: left center; }
       .logo-frame.logo-transparent-safe { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       .logo-transparent-safe img { filter: drop-shadow(0 4px 12px rgba(15,23,42,.35)); }
       .logo-image.cover { object-fit: cover; }
@@ -117,6 +137,7 @@
       .logo-image-dynamic { height: auto !important; width: auto; }
       .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
       .header-main-row { display:flex; align-items:center; gap:12px; }
+      .store-header.is-scrolled .header-main-row { padding-top: 2px; padding-bottom: 2px; }
       .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; border-top: none; box-shadow:none; }
       .header-nav-row .main-nav { flex: 1; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
@@ -157,6 +178,8 @@
         transform: scale(1.03); transition: opacity .32s ease, transform .32s ease;
       }
       .exposure-overlay.open { opacity:1; transform: scale(1); }
+      .hero.has-parallax { position:relative; overflow:hidden; }
+      .hero.has-parallax::after { content:''; position:absolute; inset:-25% -15%; background: radial-gradient(circle at var(--hero-glow-x, 20%) var(--hero-glow-y, 20%), rgba(255,255,255,.18), rgba(255,255,255,0) 40%); pointer-events:none; transition: transform .15s linear; }
       .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
       .kit-preview img { width:100%; max-height:220px; object-fit:contain; border-radius:8px; background:#fff; }
       .kit-summary-line { font-size:.84rem; color:#334155; margin:4px 0; }
@@ -185,6 +208,7 @@
       body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
+        .store-header.is-scrolled .logo-image-dynamic { transform: scale(.92); transform-origin: center; }
         .quick-back-btn { left: 10px; bottom: 10px; padding:9px 12px; font-size:.84rem; }
         .logo-image-dynamic { max-height: var(--logo-max-height-mobile, 64px) !important; }
         .branding-mode-logo_only .store-name-wrap.logo-only-fallback { display:block; margin-top:6px; font-size:.92rem; color:#e2e8f0; font-weight:700; }
@@ -200,7 +224,7 @@
       }
     </style>
   </head>
-  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
@@ -215,12 +239,10 @@
     <% const logoDisplayMode = theme.logoDisplayMode || 'contain'; %>
     <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
     <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
-    <% const logoDefaultHeight = isEukolakisClassic ? 96 : 72; %>
+    <% const logoDefaultHeight = isEukolakisClassic ? 96 : 88; %>
     <% const logoRequestedHeight = Number(theme.logoMaxHeight || logoDefaultHeight); %>
-    <% const logoMaxHeight = (isEukolakisClassic && brandingMode === 'logo_only')
-      ? Math.max(96, Math.min(140, logoRequestedHeight || 96))
-      : Math.max(28, Math.min(140, logoRequestedHeight || logoDefaultHeight)); %>
-    <% const logoMobileHeight = isEukolakisClassic ? Math.min(logoMaxHeight, 64) : Math.min(logoMaxHeight, 72); %>
+    <% const logoMaxHeight = Math.max(80, Math.min(120, logoRequestedHeight || logoDefaultHeight)); %>
+    <% const logoMobileHeight = Math.max(56, Math.min(86, Math.round(logoMaxHeight * 0.72))); %>
     <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
     <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
     <% const logoShadowMode = (theme.logoShadow === 'none' || theme.logoShadow === 'floating') ? theme.logoShadow : 'soft'; %>
@@ -505,8 +527,10 @@
           <% spareFilterTags.forEach(function(tag){ %><option value="<%= String(tag).toLowerCase() %>"><%= tag %></option><% }) %>
         </select>
         <input type="range" id="spare-filter-price" min="0" max="<%= Math.max(10, Math.ceil(Math.max.apply(null, products.map(function(p){ return Number(p.price) || 0; })) || 0)) %>" value="<%= Math.max(10, Math.ceil(Math.max.apply(null, products.map(function(p){ return Number(p.price) || 0; })) || 0)) %>" />
+        <button type="button" id="spare-filter-reset" class="reset-btn"><%= lang === 'el' ? 'Reset' : 'Reset' %></button>
         <div class="filter-note"><%= lang === 'el' ? 'Τιμή έως:' : 'Price up to:' %> <strong id="spare-filter-price-value"></strong> €</div>
       </section>
+      <div id="spare-filter-results" class="filter-results"></div>
       <% } %>
       <section class="product-list" id="product-list-grid">
         <% if (products.length === 0) { %>
@@ -517,6 +541,12 @@
           <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
         <% }); %>
       </section>
+      <div id="spare-filter-empty" class="filter-empty-state">
+        <div style="font-size:1.4rem;">🧰</div>
+        <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
+        <div><%= lang === 'el' ? 'Δοκίμασε άλλο SKU ή κάνε reset.' : 'Try another SKU or reset filters.' %></div>
+        <button type="button" id="spare-filter-empty-reset" class="button"><%= lang === 'el' ? 'Καθαρισμός φίλτρων' : 'Reset filters' %></button>
+      </div>
       <% } %>
 
       <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
@@ -982,6 +1012,15 @@
         });
       }
       (function() {
+        const headerEl = document.querySelector('.store-header');
+        if (!headerEl) return;
+        const onScroll = function() {
+          headerEl.classList.toggle('is-scrolled', window.scrollY > 16);
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+      })();
+      (function() {
         const hero = document.querySelector('.hero.has-parallax');
         if (!hero) return;
         hero.addEventListener('mousemove', function(e) {
@@ -1000,12 +1039,21 @@
         const tagEl = document.getElementById('spare-filter-tag');
         const priceEl = document.getElementById('spare-filter-price');
         const priceValueEl = document.getElementById('spare-filter-price-value');
+        const resetBtn = document.getElementById('spare-filter-reset');
+        const emptyResetBtn = document.getElementById('spare-filter-empty-reset');
+        const resultEl = document.getElementById('spare-filter-results');
+        const emptyStateEl = document.getElementById('spare-filter-empty');
         const cards = Array.from(grid.querySelectorAll('.product-card'));
+        const renderResultText = function(count) {
+          if (!resultEl) return;
+          resultEl.textContent = count + ' ' + <%- safeJson(lang === 'el' ? 'προϊόντα βρέθηκαν' : 'products found') %>;
+        };
         const updateFilters = function() {
           const q = (searchEl && searchEl.value || '').trim().toLowerCase();
           const tag = (tagEl && tagEl.value || '').trim().toLowerCase();
           const maxPrice = Number(priceEl && priceEl.value || 0);
           if (priceValueEl) priceValueEl.textContent = maxPrice.toFixed(0);
+          let visibleCount = 0;
           cards.forEach(function(card) {
             const nameText = (card.querySelector('h2') && card.querySelector('h2').textContent || '').toLowerCase();
             const sku = String(card.getAttribute('data-product-sku') || '').toLowerCase();
@@ -1014,10 +1062,22 @@
             const okQuery = !q || nameText.includes(q) || sku.includes(q);
             const okTag = !tag || tags.split(',').includes(tag);
             const okPrice = !maxPrice || price <= maxPrice;
-            card.classList.toggle('filter-hidden', !(okQuery && okTag && okPrice));
+            const visible = okQuery && okTag && okPrice;
+            if (visible) visibleCount += 1;
+            card.classList.toggle('filter-hidden', !visible);
           });
+          renderResultText(visibleCount);
+          if (emptyStateEl) emptyStateEl.style.display = visibleCount === 0 ? 'block' : 'none';
         };
         [searchEl, tagEl, priceEl].forEach(function(el){ if (el) el.addEventListener('input', updateFilters); });
+        const resetFilters = function() {
+          if (searchEl) searchEl.value = '';
+          if (tagEl) tagEl.value = '';
+          if (priceEl) priceEl.value = priceEl.max || priceEl.value;
+          updateFilters();
+        };
+        if (resetBtn) resetBtn.addEventListener('click', resetFilters);
+        if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetFilters);
         updateFilters();
       })();
       (function() {
@@ -1063,11 +1123,3 @@
     </script>
   </body>
 </html>
-      .hero.has-parallax { position:relative; overflow:hidden; }
-      .hero.has-parallax::after { content:''; position:absolute; inset:-25% -15%; background: radial-gradient(circle at var(--hero-glow-x, 20%) var(--hero-glow-y, 20%), rgba(255,255,255,.18), rgba(255,255,255,0) 40%); pointer-events:none; transition: transform .15s linear; }
-      .spare-filters { border:1px solid #e5e7eb; border-radius:10px; background:#fff; padding:10px; display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; margin-bottom:10px; }
-      .spare-filters input, .spare-filters select { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:7px; font-size:.85rem; }
-      .spare-filters .filter-note { grid-column:1/-1; color:#64748b; font-size:.76rem; }
-      .product-card.filter-hidden { display:none !important; }
-      .kit-choice-grid.fade-step { opacity:.15; transform:translateY(6px); transition:opacity .2s ease, transform .2s ease; }
-      .kit-choice-grid.fade-step.ready { opacity:1; transform:translateY(0); }
