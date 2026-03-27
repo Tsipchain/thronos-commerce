@@ -96,6 +96,8 @@
       .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
       .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
       .logo-frame img { display:block; max-width: 240px; }
+      .logo-frame.logo-transparent-safe { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      .logo-transparent-safe img { filter: drop-shadow(0 4px 12px rgba(15,23,42,.35)); }
       .logo-image.cover { object-fit: cover; }
       .logo-image.contain { object-fit: contain; }
       .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
@@ -143,8 +145,14 @@
       body.eukolakis-classic .featured-primary-grid { gap: 20px; }
       body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
       body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
+      body.device-mobile main { padding-left: 10px; padding-right: 10px; }
+      body.device-mobile .pill-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
+      body.device-mobile .hero { padding: 18px; }
+      body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
+        .branding-mode-logo_only .store-name-wrap.logo-only-fallback { display:block; margin-top:6px; font-size:.92rem; color:#e2e8f0; font-weight:700; }
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
         .category-card { min-width: 150px; }
         .header-auth-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
@@ -157,7 +165,7 @@
       }
     </style>
   </head>
-  <body class="<%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
@@ -169,12 +177,16 @@
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
+    <% const transparentLogoLikely = !!(config.logoPath && /\.png(?:$|\?)/i.test(config.logoPath)); %>
+    <% const effectiveLogoFrameClass = (transparentLogoLikely ? 'logo-transparent-safe' : logoFrameClass); %>
+    <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
+    <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (config.logoPath && brandingMode !== 'name_only') { %>
-          <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
+          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image contain" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
           </span>
         <% } %>
         <% if (brandingMode !== 'logo_only') { %>
@@ -184,6 +196,9 @@
             <p class="subtitle"><%= t('storefront.web3Domain') %>: <%= config.web3Domain %></p>
           <% } %>
         </div>
+        <% } %>
+        <% if (brandingMode === 'logo_only') { %>
+        <div class="store-name-wrap logo-only-fallback"><%= config.storeName %></div>
         <% } %>
       </div>
       <% if (isEukolakisClassic) { %>
@@ -235,7 +250,9 @@
           <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
           <% if (topPrimaryKit2) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit2.id %>"><span>Slide Door Kit</span></a><% } %>
           <a class="pill-item <%= activeCategory === 'spare-parts' ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
+          <% if (subscriptionsEnabled) { %>
           <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+          <% } %>
         <% } else { %>
           <% const navHomepage = config.homepage || {}; %>
           <% navCategories.forEach(function(cat){ %>
@@ -247,12 +264,11 @@
           <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
           <% if (subscriptionCategory) { %>
             <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
-          <% } else if (navHomepage.showSubscriptionsCard) { %>
+          <% } else if (subscriptionsEnabled) { %>
             <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
           <% } %>
         <% } %>
       </div>
-      <% } %>
       <% } %>
     </header>
 
@@ -273,13 +289,12 @@
     </div>
 
     <main>
-      <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
-      <% const primaryFeaturedId = hpFeaturedPrimary[0]; %>
-      <% const primaryFeaturedProduct = (allProducts || products).find(function(p){ return p.id === primaryFeaturedId; }); %>
-      <% const featuredFromIds = (allProducts || products).filter(function(p){ return hpFeaturedPrimary.includes(p.id); }); %>
-      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT'; }).slice(0, 2); %>
-      <% const featuredHomeProducts = (featuredFromIds.length >= 2 ? featuredFromIds : fallbackKitProducts).slice(0, 2); %>
-      <% const heroPrimaryProduct = primaryFeaturedProduct || featuredHomeProducts[0]; %>
+      <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary.slice(0,2) : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+      <% const featuredPrimaryProducts = hpFeaturedPrimary.map(function(id){ return (allProducts || products).find(function(p){ return p.id === id; }); }).filter(Boolean); %>
+      <% const missingConfiguredPrimary = hpFeaturedPrimary.length < 2 || featuredPrimaryProducts.length < 2; %>
+      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT' && !featuredPrimaryProducts.some(function(fp){ return fp.id === p.id; }); }); %>
+      <% const featuredHomeProducts = featuredPrimaryProducts.concat(fallbackKitProducts).slice(0, 2); %>
+      <% const heroPrimaryProduct = featuredPrimaryProducts[0] || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
@@ -293,7 +308,7 @@
           </a>
         <% }) %>
         <% const hasSubscriptionsCategory = navCategories.some(function(c){ return c.slug === 'subscriptions'; }); %>
-        <% if ((homepage.showSubscriptionsCard || false) && !hasSubscriptionsCategory) { %>
+        <% if (subscriptionsEnabled && !hasSubscriptionsCategory) { %>
           <a class="category-card" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>">
             <div style="height:60px;display:flex;align-items:center;justify-content:center;background:#111827;color:#fff;border-radius:8px;">▶</div>
             <div><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></div>
@@ -317,10 +332,11 @@
           <div style="margin-bottom:14px;"><img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" /></div>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
-          <h2 class="hero-title"><%= resolveField(homepage.heroTitle, lang) || (lang === 'el' ? 'DIY λύσεις για ρολά, πόρτες και ανταλλακτικά' : 'DIY solutions for shutters, doors and spare parts') %></h2>
-          <p style="margin:0;color:inherit;opacity:.92;"><%= resolveField(homepage.heroSubtitle, lang) || (lang === 'el' ? 'Επαγγελματικό αποτέλεσμα με kits, ανταλλακτικά και καθοδήγηση βήμα-βήμα.' : 'Professional results with kits, spare parts and step-by-step guidance.') %></p>
+          <h2 class="hero-title"><%= resolveField(homepage.heroTitle, lang) || config.storeName %></h2>
+          <% const resolvedHeroSubtitle = resolveField(homepage.heroSubtitle, lang); %>
+          <% if (resolvedHeroSubtitle) { %><p style="margin:0;color:inherit;opacity:.92;"><%= resolvedHeroSubtitle %></p><% } %>
         <% } else { %>
-        <p><%= config.heroText %></p>
+        <% if (config.heroText) { %><p><%= config.heroText %></p><% } %>
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
@@ -351,7 +367,7 @@
       <% if (isEukolakisLanding) { %>
       <section class="featured-section">
         <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
-        <% if (featuredHomeProducts.length >= 2) { %>
+        <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
             <article class="featured-kit-card">
@@ -369,6 +385,11 @@
             </article>
           <% }) %>
         </div>
+        <% if (missingConfiguredPrimary) { %>
+        <div class="home-secondary" style="margin-top:10px;background:#fff7ed;border-color:#fed7aa;">
+          <p style="margin:0;font-size:.86rem;color:#9a3412;"><%= lang === 'el' ? 'Hint: Έλεγξε Homepage → Primary Product #1 / #2 για σωστό KIT mapping.' : 'Hint: Check Homepage → Primary Product #1 / #2 mapping.' %></p>
+        </div>
+        <% } %>
         <% } else { %>
         <div class="home-secondary" style="background:#fff7ed;border-color:#fed7aa;">
           <h3 style="margin-top:0;"><%= lang === 'el' ? 'Δεν υπάρχουν ακόμη 2 KIT για τη landing σελίδα' : 'No 2 KIT products configured yet for the landing page' %></h3>
@@ -378,12 +399,12 @@
       </section>
       <% if (secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
-        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools') %></h3>
-        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες ανταλλακτικά και εργαλεία ανά κατηγορία.' : 'Browse spare parts and tools by category.')) %></p>
+        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : '') %></h3>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : '') %></p>
         <a class="button" href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></a>
       </section>
       <% } %>
-      <% if ((homepage.showSubscriptionsCard || false)) { %>
+      <% if (subscriptionsEnabled) { %>
       <section class="home-secondary" style="margin-top:10px;">
         <h3 style="margin-top:0;"><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></h3>
         <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
@@ -460,8 +481,8 @@
         </div>
       </div>
     </div>
-    <script id="kit-products-json" type="application/json"><%- JSON.stringify((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })).replace(/</g, '\\u003c') %></script>
-    <script id="catalog-products-json" type="application/json"><%- JSON.stringify((allProducts || products).map(function(p){
+    <script id="kit-products-json" type="application/json"><%- safeJson((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })) %></script>
+    <script id="catalog-products-json" type="application/json"><%- safeJson((allProducts || products).map(function(p){
       return {
         id: p.id,
         name: p.name,
@@ -472,7 +493,7 @@
           return { id: v.id, label: variantLabel, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock };
         }) : []
       };
-    })).replace(/</g, '\\u003c') %></script>
+    })) %></script>
     <% } %>
     <footer class="store-footer">
       <% if (isEukolakisClassic) { %>
@@ -495,16 +516,45 @@
         });
       }
       const isEukolakis = <%= tenant.id === 'eukolakis' ? 'true' : 'false' %>;
-      if (isEukolakis && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %> && window.matchMedia('(pointer:fine)').matches) {
+      const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
+      if (isEukolakis && isDesktopDevice && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %>) {
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
-        if (cursorImage && (/^(\/|https?:\/\/)/i).test(cursorImage)) {
-          document.body.style.cursor = 'url("' + cursorImage.replace(/"/g, '\\"') + '") 16 16, auto';
-        } else {
+        const applyCrosshair = function() {
           document.body.classList.add('cursor-tool');
-        }
+          document.querySelectorAll('a,button,input,textarea,select,label,.button,.btn-cart').forEach(function(el){
+            el.style.cursor = 'crosshair';
+          });
+        };
+        if (cursorImage && (/^(\/|https?:\/\/)/i).test(cursorImage)) {
+          const testImg = new Image();
+          testImg.onload = function() {
+            const safeCursor = cursorImage.replace(/"/g, '\\"');
+            const cursorRule = 'url("' + safeCursor + '") 16 16, auto';
+            document.body.style.cursor = cursorRule;
+            document.querySelectorAll('a,button,input,textarea,select,label,.button,.btn-cart').forEach(function(el){
+              el.style.cursor = cursorRule;
+            });
+          };
+          testImg.onerror = applyCrosshair;
+          testImg.src = cursorImage;
+        } else applyCrosshair();
       }
 
       if (isEukolakis) {
+        const KIT_T = {
+          previewPrompt: <%- safeJson(lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.') %>,
+          noSelections: <%- safeJson(lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.') %>,
+          summary: <%- safeJson(lang === 'el' ? 'Σύνοψη' : 'Summary') %>,
+          total: <%- safeJson(lang === 'el' ? 'Σύνολο' : 'Total') %>,
+          addToCart: <%- safeJson(lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart') %>,
+          next: <%- safeJson(lang === 'el' ? 'Επόμενο' : 'Next') %>,
+          optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
+          required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
+          optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
+          variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
+          requiredAlert: <%- safeJson(lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.') %>
+        };
+        const KIT_PRODUCT_BASE_URL = <%- safeJson(withTenantLink('/product/', lang !== 'el' ? { lang } : {})) %>;
         const kitDataEl = document.getElementById('kit-products-json');
         const catalogDataEl = document.getElementById('catalog-products-json');
         const wizard = document.getElementById('kit-wizard-backdrop');
@@ -585,7 +635,7 @@
               variantLabel: variant ? variant.label : ''
             };
           }).filter(Boolean).filter(function(c){ return c.image; });
-          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;"><%= lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.' %></p>'; return; }
+          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;">' + esc(KIT_T.previewPrompt) + '</p>'; return; }
           previewEl.innerHTML = imgs.map(function(c){
             return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\"><strong>' + esc(c.label) + '</strong>' +
               (c.variantLabel ? (' · ' + esc(c.variantLabel)) : '') + ' — ' + c.price.toFixed(2) + '€</p></div>';
@@ -597,7 +647,7 @@
             return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong>' +
               (e.selectedVariantLabel ? (' · ' + esc(e.selectedVariantLabel)) : '') +
               ' (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>';
-          }).join('') : '<p class="kit-summary-line"><%= lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.' %></p>';
+          }).join('') : '<p class="kit-summary-line">' + esc(KIT_T.noSelections) + '</p>';
         }
         function groupDone(group) {
           const sel = state.selections[group.id] || [];
@@ -607,16 +657,16 @@
           const groups = state.product.kitOptions || [];
           const summaryStep = state.step >= groups.length;
           titleEl.textContent = state.product.name || 'KIT';
-          progressEl.textContent = summaryStep ? ('<%= lang === 'el' ? 'Σύνοψη' : 'Summary' %>') : ((state.step + 1) + '/' + groups.length);
-          totalEl.textContent = '<%= lang === 'el' ? 'Σύνολο' : 'Total' %>: ' + totalPrice().toFixed(2) + '€';
-          fullLinkEl.href = '<%= withTenantLink('/product/', lang !== 'el' ? { lang } : {}) %>' + state.product.id;
+          progressEl.textContent = summaryStep ? KIT_T.summary : ((state.step + 1) + '/' + groups.length);
+          totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
+          fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
           btnBack.disabled = state.step === 0;
-          btnNext.textContent = summaryStep ? '<%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart' %>' : '<%= lang === 'el' ? 'Επόμενο' : 'Next' %>';
+          btnNext.textContent = summaryStep ? KIT_T.addToCart : KIT_T.next;
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
           addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
           if (summaryStep) {
-            groupTitleEl.textContent = '<%= lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary' %>';
+            groupTitleEl.textContent = KIT_T.optionSummary;
             groupReqEl.textContent = '';
             previewEl.innerHTML = '';
             renderSummary();
@@ -624,7 +674,7 @@
           }
           const group = groups[state.step];
           groupTitleEl.textContent = group.label || group.id;
-          groupReqEl.textContent = group.required ? '<%= lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection' %>' : '<%= lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection' %>';
+          groupReqEl.textContent = group.required ? KIT_T.required : KIT_T.optional;
           (group.choices || []).forEach(function(choice){
             const sel = state.selections[group.id] || [];
             const checked = sel.includes(choice.id);
@@ -641,7 +691,7 @@
               ? Number(selectedVariant.price)
               : (Number(choice.priceDelta)||0);
             const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
-              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;"><%= lang === 'el' ? 'Παραλλαγή' : 'Variant' %></label>' +
+              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;">' + esc(KIT_T.variant) + '</label>' +
                   '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
                   choiceVariants.map(function(v){
                     const vPrice = !Number.isNaN(Number(v.price)) ? Number(v.price).toFixed(2) : (Number(choice.priceDelta)||0).toFixed(2);
@@ -719,7 +769,7 @@
           const groups = state.product.kitOptions || [];
           if (state.step < groups.length) {
             const g = groups[state.step];
-            if (!groupDone(g)) { alert('<%= lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.' %>'); return; }
+            if (!groupDone(g)) { alert(KIT_T.requiredAlert); return; }
             state.step += 1;
             renderStep();
             return;
