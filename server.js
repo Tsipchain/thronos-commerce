@@ -153,6 +153,22 @@ function isEukolakisClassicPreset(req) {
   return presetId === 'eukolakis_classic_diy';
 }
 
+function detectDeviceInfo(req) {
+  const ua = String((req && req.headers && req.headers['user-agent']) || '').toLowerCase();
+  const os = /iphone|ipad|ipod/.test(ua) ? 'ios' : (/android/.test(ua) ? 'android' : 'other');
+  let device = 'desktop';
+  if (/ipad|tablet/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua))) device = 'tablet';
+  else if (/mobile|iphone|ipod/.test(ua) || (/android/.test(ua) && /mobile/.test(ua))) device = 'mobile';
+  return { device, os };
+}
+function readCheckbox(body, key, currentValue) {
+  if (!body || !Object.prototype.hasOwnProperty.call(body, key)) return currentValue;
+  let raw = body[key];
+  if (Array.isArray(raw)) raw = raw[raw.length - 1];
+  const normalized = String(raw || '').trim().toLowerCase();
+  return ['1', 'true', 'on', 'yes'].includes(normalized);
+}
+
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
   return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
@@ -530,6 +546,19 @@ function loadTenantConfig(req) {
     logoPath: '/logo.svg',
     shippingOptions: [],
     paymentOptions: [],
+    homepage: {
+      showSubscriptionsCard: false,
+      introEnabled: false,
+      introVideoUrl: '',
+      introPosterUrl: ''
+    },
+    footer: {
+      contactEmail: '',
+      pickupAddress: '',
+      facebookUrl: '',
+      instagramUrl: '',
+      tiktokUrl: ''
+    },
     theme: {
       menuBg: '#111111',
       menuText: '#ffffff',
@@ -551,10 +580,19 @@ function loadTenantConfig(req) {
       logoPadding: 6,
       logoRadius: 10,
       logoShadow: 'soft',
-      logoMaxHeight: 52
+      logoMaxHeight: 72,
+      productThumbAspect: '4:3',
+      productThumbFit: 'cover',
+      productThumbBg: '#111111',
+      productCardHoverEffect: 'lift',
+      productPreOpenEffect: 'none',
+      footerTextColor: '#6b7280'
     }
   };
-  return loadJson(req.tenantPaths.config, fallback);
+  const cfg = loadJson(req.tenantPaths.config, fallback);
+  cfg.homepage = Object.assign({}, fallback.homepage, cfg.homepage || {});
+  cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+  return cfg;
 }
 
 function loadTenantProducts(req) {
@@ -1206,21 +1244,42 @@ const bannerUpload = multer({
     }
   })
 });
+function sanitizeMediaSegment(value, fallback) {
+  const clean = String(value || '')
+    .trim()
+    .replace(/[^a-z0-9-]/gi, '-')
+    .toLowerCase()
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return clean || fallback;
+}
+
+function getVariantMediaMeta(req) {
+  const productId = sanitizeMediaSegment(
+    (req && req.query && req.query.productId) || (req && req.body && req.body.productId),
+    'unknown-product'
+  );
+  const variantSku = sanitizeMediaSegment(
+    (req && req.query && req.query.variantSku) || (req && req.body && req.body.variantSku),
+    'unknown-variant'
+  );
+  return { productId, variantSku };
+}
+
 const variantImageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
+      const { productId, variantSku } = getVariantMediaMeta(req);
+      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
-      const base = path.basename(file.originalname || 'variant-image', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.jpg';
+      const base = sanitizeMediaSegment(path.basename(file.originalname || 'variant-image', ext), 'variant-image');
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
@@ -1230,16 +1289,15 @@ const variantVideoUpload = multer({
   fileFilter: (_req, file, cb) => cb(null, /^video\/(mp4|webm)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
+      const { productId, variantSku } = getVariantMediaMeta(req);
+      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
       const safeExt = ['.mp4', '.webm'].includes(ext) ? ext : '.mp4';
-      const base = path.basename(file.originalname || 'variant-video', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const base = sanitizeMediaSegment(path.basename(file.originalname || 'variant-video', ext), 'variant-video');
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
@@ -1381,6 +1439,14 @@ app.use((req, res, next) => {
   res.locals.t = (key) => translate(req.lang, key);
   res.locals.contentLangs = CONTENT_LANGS;
   res.locals.resolveField = (value, lang = req.lang) => resolveTranslatable(value, lang);
+  next();
+});
+
+app.use((req, res, next) => {
+  const info = detectDeviceInfo(req);
+  req.deviceInfo = info;
+  res.locals.device = info.device;
+  res.locals.os = info.os;
   next();
 });
 
@@ -1560,6 +1626,13 @@ app.get('/', (req, res) => {
     return res.redirect(buildTenantLink(req, '/admin'));
   }
   const config = loadTenantConfig(req);
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+  const cookieHeader = String(req.headers.cookie || '');
+  const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
+  const skipIntro = String(req.query.skipIntro || '') === '1';
+  if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
+    return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
+  }
   const categories = loadTenantCategories(req);
   const allProducts = loadTenantProducts(req);
   const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
@@ -1599,6 +1672,25 @@ app.get('/', (req, res) => {
     console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
     res.status(500).send('<!doctype html><html><body style="font-family:system-ui;padding:20px;"><h2>Store temporarily unavailable</h2><p>Please try again shortly.</p></body></html>');
   }
+});
+
+app.get('/intro', (req, res) => {
+  if (req.isPlatformRequest) return res.redirect('/');
+  const config = loadTenantConfig(req);
+  if (!config.homepage || !config.homepage.introEnabled) {
+    return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
+  }
+  const skipHref = buildTenantLink(req, '/', Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+  const introStorageKey = `${introCookieName}_ls`;
+  return res.render('intro', {
+    config: localizeConfigContent(config, req.lang),
+    homepage: config.homepage || {},
+    tenant: req.tenant,
+    skipHref,
+    introCookieName,
+    introStorageKey
+  });
 });
 
 // Product detail
@@ -2280,6 +2372,22 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/import/variants-template.csv', (req, res) => {
+  const rows = [
+    ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
+    ['example-product-id', 'Variant name', 'example-sku', '19.90', '5', '/tenants/' + req.tenant.id + '/media/variants/example-product-id/example-sku/example.png', '', '']
+  ];
+  const esc = (value) => {
+    const v = String(value || '');
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-variants-template.csv\"`);
+  res.send(csv);
+});
+
 app.get('/admin/export/categories.json', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -2463,7 +2571,12 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
   const headers = rows[0].map((h) => String(h || '').trim());
   const idx = (name) => headers.indexOf(name);
   const missing = ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock'].filter((c) => idx(c) === -1);
-  if (missing.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missing.join(', ') }));
+  if (missing.length) {
+    const templateUrl = buildTenantLink(req, '/admin/import/variants-template.csv');
+    return res.status(400).render('admin', buildAdminViewModel(req, {
+      error: `Missing columns: ${missing.join(', ')}. Download template: ${templateUrl}`
+    }));
+  }
   const products = loadTenantProducts(req);
   let okRows = 0;
   const failRows = [];
@@ -2536,6 +2649,14 @@ app.post('/admin/settings', async (req, res) => {
     homepageSecondaryLink,
     homepageSecondaryImage,
     homepageShowSubscriptionsCard,
+    homepageIntroEnabled,
+    homepageIntroVideoUrl,
+    homepageIntroPosterUrl,
+    footerContactEmail,
+    footerPickupAddress,
+    footerFacebookUrl,
+    footerInstagramUrl,
+    footerTiktokUrl,
     web3Domain,
     logoPath,
     themeMenuBg,
@@ -2559,7 +2680,13 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
-    themeCursorImage
+    themeCursorImage,
+    themeProductThumbAspect,
+    themeProductThumbFit,
+    themeProductThumbBg,
+    themeProductCardHoverEffect,
+    themeProductPreOpenEffect,
+    themeFooterTextColor
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -2608,22 +2735,28 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
   config.theme.sectionSpacing = themeSectionSpacing || config.theme.sectionSpacing || 'normal';
-  config.theme.bannerVisible = themeBannerVisible === 'on';
+  config.theme.bannerVisible = readCheckbox(req.body, 'themeBannerVisible', config.theme.bannerVisible);
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
-  config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.cursorEffect = readCheckbox(req.body, 'themeCursorEffect', config.theme.cursorEffect);
   const rawCursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
-  config.theme.cursorImage = (/^(\/|https?:\/\/)/i.test(rawCursorImage) ? rawCursorImage : '');
+  config.theme.cursorImage = (/^\//.test(rawCursorImage) ? rawCursorImage : '');
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
   config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
   config.theme.logoPadding = Math.max(0, Math.min(24, Number(themeLogoPadding) || Number(config.theme.logoPadding) || 6));
   config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
-  config.theme.logoShadow = themeLogoShadow || config.theme.logoShadow || 'soft';
-  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
-  config.theme.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.theme.presetId || 'default');
-
+  const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
+  config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 72));
+  config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
+  config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
+  const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
+  config.theme.productThumbBg = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawThumbBg) ? rawThumbBg : '#111111';
+  config.theme.productCardHoverEffect = ['none', 'lift', 'glow'].includes(String(themeProductCardHoverEffect || '')) ? String(themeProductCardHoverEffect) : (config.theme.productCardHoverEffect || 'lift');
+  config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
+  const rawFooterTextColor = String(themeFooterTextColor || config.theme.footerTextColor || '#6b7280').trim();
+  config.theme.footerTextColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawFooterTextColor) ? rawFooterTextColor : '#6b7280';
   config.homepage = config.homepage || {};
-  config.homepage.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.homepage.presetId || 'default');
   config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
   const legacyFeaturedIds = String(homepageFeaturedIds || '')
     .split(',')
@@ -2643,7 +2776,16 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.secondaryCard.text = buildTranslatableFromBody(req.body, 'homepageSecondaryText', homepageSecondaryText || config.homepage.secondaryCard.text || '');
   config.homepage.secondaryCard.link = (homepageSecondaryLink || config.homepage.secondaryCard.link || '').trim();
   config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
-  config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
+  config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
+  config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
+  config.homepage.introVideoUrl = (homepageIntroVideoUrl || config.homepage.introVideoUrl || '').trim();
+  config.homepage.introPosterUrl = (homepageIntroPosterUrl || config.homepage.introPosterUrl || '').trim();
+  config.footer = config.footer || {};
+  config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
+  config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();
+  config.footer.facebookUrl = (footerFacebookUrl || config.footer.facebookUrl || '').trim();
+  config.footer.instagramUrl = (footerInstagramUrl || config.footer.instagramUrl || '').trim();
+  config.footer.tiktokUrl = (footerTiktokUrl || config.footer.tiktokUrl || '').trim();
 
   saveTenantConfig(req, config);
 
@@ -3152,10 +3294,9 @@ app.post(
     const auth = await verifyAdminAction(req, req.body.password);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No image uploaded.' });
-    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
+    const { productId, variantSku } = getVariantMediaMeta(req);
+    const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
+    return res.json({ ok: true, url });
   }
 );
 
@@ -3170,10 +3311,9 @@ app.post(
     const auth = await verifyAdminAction(req, req.body.password);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No video uploaded.' });
-    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
+    const { productId, variantSku } = getVariantMediaMeta(req);
+    const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
+    return res.json({ ok: true, url });
   }
 );
 
