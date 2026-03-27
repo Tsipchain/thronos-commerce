@@ -562,6 +562,7 @@ function loadTenantConfig(req) {
       instagramUrl: '',
       tiktokUrl: ''
     },
+<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
     assistant: {
       enabled: false,
       apiKey: '',
@@ -571,6 +572,8 @@ function loadTenantConfig(req) {
       notifyTrackingReminder: true,
       lowStockThreshold: 3
     },
+=======
+>>>>>>> main
     theme: {
       menuBg: '#111111',
       menuText: '#ffffff',
@@ -609,7 +612,10 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
+=======
+>>>>>>> main
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
 }
@@ -2613,6 +2619,7 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
 app.get('/admin/export/orders.csv', (req, res) => {
   const orders = loadTenantOrders(req);
   const esc = (v) => `"${String(v === undefined || v === null ? '' : v).replace(/"/g, '""')}"`;
@@ -2640,6 +2647,8 @@ app.get('/admin/export/orders.csv', (req, res) => {
   res.send(csv);
 });
 
+=======
+>>>>>>> main
 app.get('/admin/import/variants-template.csv', (req, res) => {
   const rows = [
     ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
