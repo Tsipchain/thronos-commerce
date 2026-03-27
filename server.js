@@ -1618,8 +1618,9 @@ app.get('/', (req, res) => {
     return res.redirect(buildTenantLink(req, '/admin'));
   }
   const config = loadTenantConfig(req);
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
   const cookieHeader = String(req.headers.cookie || '');
-  const introSeen = /(?:^|;\s*)intro_seen=1(?:;|$)/.test(cookieHeader);
+  const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
   const skipIntro = String(req.query.skipIntro || '') === '1';
   if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
     return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
@@ -1672,11 +1673,15 @@ app.get('/intro', (req, res) => {
     return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
   }
   const skipHref = buildTenantLink(req, '/', Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+  const introStorageKey = `${introCookieName}_ls`;
   return res.render('intro', {
     config: localizeConfigContent(config, req.lang),
     homepage: config.homepage || {},
     tenant: req.tenant,
-    skipHref
+    skipHref,
+    introCookieName,
+    introStorageKey
   });
 });
 

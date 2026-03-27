@@ -413,7 +413,7 @@
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <h3 style="margin:0 0 8px;"><%= product.name %></h3>
-                <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
+                <% if (product.description) { %><p style="margin:0 0 10px;color:#4b5563;"><%= product.description %></p><% } %>
                 <small style="color:#0f766e;font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
               </div>
             </article>

@@ -41,8 +41,10 @@
         function persistIntroSeen() {
           var days = 180;
           var expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-          document.cookie = 'intro_seen=1; expires=' + expires + '; path=/';
-          try { localStorage.setItem('intro_seen', '1'); } catch (_) {}
+          var cookieName = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
+          var storageKey = <%- JSON.stringify(introStorageKey || 'intro_seen') %>;
+          document.cookie = cookieName + '=1; expires=' + expires + '; path=/';
+          try { localStorage.setItem(storageKey, '1'); } catch (_) {}
         }
         if (soundBtn && videoEl) {
           soundBtn.addEventListener('click', function() {
