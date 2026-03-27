@@ -263,7 +263,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <form id="tab-theme" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+      <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Store identity & εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
 
@@ -572,6 +572,7 @@
           <input type="password" name="password"
                  <%= permissions.canEditSettings ? '' : 'disabled' %> />
         </label>
+        <p class="helper" style="margin-top:-4px;">Αν είσαι ήδη συνδεδεμένος, μπορείς να αφήσεις κενό τον κωδικό. Θα ζητηθεί ξανά μόνο μετά από 30 λεπτά αδράνειας.</p>
 
         <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
           <%= t('admin.saveSettings') %>
@@ -581,7 +582,7 @@
         <% } %>
       </form>
 
-      <form id="tab-homepage" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+      <form id="tab-homepage" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Homepage</h2>
         <p class="helper">Ρυθμίστε την αρχική σελίδα σαν branded landing-store για kits, ανταλλακτικά και εργαλεία.</p>
         <label><span>Hero title (EL/EN)</span>
@@ -675,6 +676,7 @@
           <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@..." />
         </label>
         <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
+        <p class="helper" style="margin-top:-4px;">Προαιρετικό όσο το admin session είναι ενεργό (30 λεπτά).</p>
         <button type="submit" class="button">Αποθήκευση homepage</button>
       </form>
 
@@ -2556,6 +2558,25 @@
       bindColorPair('txt-themeMenuText',      'cp-themeMenuText');
       bindColorPair('txt-themeMenuActiveBg',  'cp-themeMenuActiveBg');
       bindColorPair('txt-themeMenuActiveText','cp-themeMenuActiveText');
+      const adminActionTimeoutMs = Number(<%- JSON.stringify(Number(adminActionTimeoutMs || 0)) %>) || (30 * 60 * 1000);
+      let reauthDeadlineTs = Date.now() + (Number(<%- JSON.stringify(Number(adminReauthRemainingMs || 0)) %>) || 0);
+      document.querySelectorAll('form.js-settings-save-form').forEach((formEl) => {
+        formEl.addEventListener('submit', function(ev) {
+          const passInput = formEl.querySelector('input[name="password"]');
+          const hasTypedPassword = !!(passInput && String(passInput.value || '').trim());
+          if (hasTypedPassword) {
+            reauthDeadlineTs = Date.now() + adminActionTimeoutMs;
+            return;
+          }
+          if (Date.now() <= reauthDeadlineTs) return;
+          ev.preventDefault();
+          const pw = prompt('Έληξε το admin save session (30 λεπτά). Βάλε ξανά κωδικό για αποθήκευση:');
+          if (!pw) return alert('Δεν έγινε αποθήκευση χωρίς επαναπιστοποίηση.');
+          if (passInput) passInput.value = pw;
+          reauthDeadlineTs = Date.now() + adminActionTimeoutMs;
+          formEl.submit();
+        });
+      });
       function showSectionFromHash() {
         const hash = window.location.hash || '#tab-dashboard';
         document.querySelectorAll('.section-panel').forEach((el) => el.classList.remove('active'));

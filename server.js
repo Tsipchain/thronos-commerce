@@ -853,7 +853,7 @@ async function verifyAdminPassword(tenant, plainPassword) {
   return ok;
 }
 
-const ADMIN_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
+const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 async function verifyAdminAction(req, providedPassword) {
   const now = Date.now();
   const last = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
@@ -1548,6 +1548,11 @@ function buildAdminViewModel(req, extra) {
   });
 
   const tickets = loadJson(req.tenantPaths.tickets, []);
+  const now = Date.now();
+  const lastAdminActiveAt = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
+  const adminReauthRemainingMs = lastAdminActiveAt
+    ? Math.max(0, ADMIN_IDLE_TIMEOUT_MS - (now - lastAdminActiveAt))
+    : 0;
 
   return {
     tenant: req.tenant,
@@ -1572,6 +1577,8 @@ function buildAdminViewModel(req, extra) {
     exportAccess: hasExportAccess(req),
     backups: listRecentBackups(req, 30),
     tickets: tickets.slice().reverse(),
+    adminActionTimeoutMs: ADMIN_IDLE_TIMEOUT_MS,
+    adminReauthRemainingMs,
     message: null,
     error: null,
     ...(extra || {})
@@ -2715,7 +2722,11 @@ app.post('/admin/settings', async (req, res) => {
       .status(401)
       .render(
         'admin',
-        buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' })
+        buildAdminViewModel(req, {
+          error: auth.needsPassword
+            ? 'Έληξε το session αποθήκευσης. Βάλε ξανά κωδικό διαχειριστή για να συνεχίσεις.'
+            : 'Λάθος κωδικός διαχειριστή.'
+        })
       );
   }
 

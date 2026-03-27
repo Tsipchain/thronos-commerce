@@ -93,6 +93,7 @@
       .hero.strong { background:linear-gradient(130deg,#111827,#1f2937); color:#fff; border-radius:12px; padding:24px; }
       .category-card.only-image div { display:none; }
       body.cursor-tool { cursor: crosshair; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1700; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
       .hero .hero-title { margin: 0 0 8px; font-size: clamp(1.2rem, 2.2vw, 1.9rem); }
       .hero .hero-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
       .hero .hero-actions a { text-decoration:none; }
@@ -178,6 +179,7 @@
       body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
+        .quick-back-btn { left: 10px; bottom: 10px; padding:9px 12px; font-size:.84rem; }
         .logo-image-dynamic { max-height: var(--logo-max-height-mobile, 64px) !important; }
         .branding-mode-logo_only .store-name-wrap.logo-only-fallback { display:block; margin-top:6px; font-size:.92rem; color:#e2e8f0; font-weight:700; }
         .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
@@ -326,6 +328,7 @@
         <% }) %>
       </select>
     </div>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
 
     <main>
       <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary.slice(0,2) : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
@@ -447,7 +450,7 @@
       <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
         <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
-        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:72px;height:72px;object-fit:cover;border-radius:999px;margin-bottom:8px;" /><% } %>
+        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
         <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
         <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
       </section>
@@ -949,6 +952,33 @@
           });
         });
       }
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = <%- safeJson(withTenantLink('/', lang !== 'el' ? { lang } : {})) %>;
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try {
+          const prev = sessionStorage.getItem(key);
+          if (prev !== currentUrl) sessionStorage.setItem(key, currentUrl);
+        } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
     </script>
   </body>
 </html>

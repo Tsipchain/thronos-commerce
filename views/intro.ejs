@@ -15,9 +15,11 @@
       .intro-enter { border:none; background:#0ea5e9; color:#fff; border-radius:8px; padding:10px 16px; font-weight:700; cursor:pointer; }
       .intro-skip { color:#cbd5e1; text-decoration:none; padding:10px 12px; }
       .intro-sound { border:1px solid rgba(148,163,184,.45); background:#0b1220; color:#e2e8f0; border-radius:8px; padding:9px 12px; cursor:pointer; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
     </style>
   </head>
   <body>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
     <div class="intro-wrap">
       <div class="intro-card">
         <h2 style="margin:0 0 10px;"><%= config.storeName %></h2>
@@ -64,6 +66,13 @@
         if (skipEl) {
           skipEl.addEventListener('click', function() {
             persistIntroSeen();
+          });
+        }
+        var backBtn = document.getElementById('quick-back-btn');
+        if (backBtn) {
+          backBtn.addEventListener('click', function() {
+            if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.origin) === 0) return window.history.back();
+            window.location.href = nextHref;
           });
         }
       })();
