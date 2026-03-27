@@ -168,6 +168,9 @@ function readCheckbox(body, key, currentValue) {
   const normalized = String(raw || '').trim().toLowerCase();
   return ['1', 'true', 'on', 'yes'].includes(normalized);
 }
+function hasBodyField(body, key) {
+  return !!body && Object.prototype.hasOwnProperty.call(body, key);
+}
 
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
@@ -591,7 +594,12 @@ function loadTenantConfig(req) {
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
   cfg.homepage = Object.assign({}, fallback.homepage, cfg.homepage || {});
+  cfg.homepage.secondaryCard = Object.assign(
+    { title: '', text: '', link: '', image: '' },
+    (cfg.homepage && cfg.homepage.secondaryCard) || {}
+  );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+  cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
 }
 
@@ -2757,25 +2765,58 @@ app.post('/admin/settings', async (req, res) => {
   const rawFooterTextColor = String(themeFooterTextColor || config.theme.footerTextColor || '#6b7280').trim();
   config.theme.footerTextColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawFooterTextColor) ? rawFooterTextColor : '#6b7280';
   config.homepage = config.homepage || {};
-  config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
-  const legacyFeaturedIds = String(homepageFeaturedIds || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const featuredPrimaryCombined = [homepageFeaturedPrimary1, homepageFeaturedPrimary2].filter(Boolean).join(',') || homepageFeaturedPrimary || '';
-  const featuredPrimary = String(featuredPrimaryCombined || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 2);
-  config.homepage.featuredPrimary = featuredPrimary.length ? featuredPrimary : legacyFeaturedIds.slice(0, 2);
-  config.homepage.featuredSecondaryId = (homepageFeaturedSecondaryId || config.homepage.featuredSecondaryId || '').trim();
-  config.homepage.featuredIds = legacyFeaturedIds;
+  if (hasBodyField(req.body, 'homepageHeroImage')) {
+    config.homepage.heroImage = String(homepageHeroImage || '').trim();
+  }
+  const hasLegacyFeaturedIds = hasBodyField(req.body, 'homepageFeaturedIds');
+  const hasFeaturedPrimaryInputs =
+    hasBodyField(req.body, 'homepageFeaturedPrimary') ||
+    hasBodyField(req.body, 'homepageFeaturedPrimary1') ||
+    hasBodyField(req.body, 'homepageFeaturedPrimary2');
+  if (hasLegacyFeaturedIds || hasFeaturedPrimaryInputs) {
+    const legacyFeaturedIds = String(homepageFeaturedIds || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const featuredPrimaryCombined = [homepageFeaturedPrimary1, homepageFeaturedPrimary2].filter(Boolean).join(',') || homepageFeaturedPrimary || '';
+    const featuredPrimary = String(featuredPrimaryCombined || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 2);
+    config.homepage.featuredPrimary = featuredPrimary.length ? featuredPrimary : legacyFeaturedIds.slice(0, 2);
+    config.homepage.featuredIds = legacyFeaturedIds;
+  }
+  if (hasBodyField(req.body, 'homepageFeaturedSecondaryId')) {
+    config.homepage.featuredSecondaryId = String(homepageFeaturedSecondaryId || '').trim();
+  }
   config.homepage.secondaryCard = config.homepage.secondaryCard || {};
-  config.homepage.secondaryCard.title = buildTranslatableFromBody(req.body, 'homepageSecondaryTitle', homepageSecondaryTitle || config.homepage.secondaryCard.title || '');
-  config.homepage.secondaryCard.text = buildTranslatableFromBody(req.body, 'homepageSecondaryText', homepageSecondaryText || config.homepage.secondaryCard.text || '');
-  config.homepage.secondaryCard.link = (homepageSecondaryLink || config.homepage.secondaryCard.link || '').trim();
-  config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
+  if (
+    hasBodyField(req.body, 'homepageSecondaryTitle') ||
+    CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSecondaryTitle_${lang}`))
+  ) {
+    config.homepage.secondaryCard.title = buildTranslatableFromBody(
+      req.body,
+      'homepageSecondaryTitle',
+      config.homepage.secondaryCard.title || ''
+    );
+  }
+  if (
+    hasBodyField(req.body, 'homepageSecondaryText') ||
+    CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSecondaryText_${lang}`))
+  ) {
+    config.homepage.secondaryCard.text = buildTranslatableFromBody(
+      req.body,
+      'homepageSecondaryText',
+      config.homepage.secondaryCard.text || ''
+    );
+  }
+  if (hasBodyField(req.body, 'homepageSecondaryLink')) {
+    config.homepage.secondaryCard.link = String(homepageSecondaryLink || '').trim();
+  }
+  if (hasBodyField(req.body, 'homepageSecondaryImage')) {
+    config.homepage.secondaryCard.image = String(homepageSecondaryImage || '').trim();
+  }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   config.homepage.introVideoUrl = (homepageIntroVideoUrl || config.homepage.introVideoUrl || '').trim();

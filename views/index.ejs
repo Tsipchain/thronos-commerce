@@ -339,6 +339,8 @@
       <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
       <% const activeCategoryObj = categories.find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
       <% const spareCategory = categories.find(function(c){ return c.slug === 'spare-parts' || c.id === 'spare-parts'; }); %>
+      <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
+      <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
@@ -442,7 +444,7 @@
         <% } %>
       </section>
       <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
-      <a data-exposure-link href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>" style="display:block;text-decoration:none;color:inherit;">
+      <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
         <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
         <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:72px;height:72px;object-fit:cover;border-radius:999px;margin-bottom:8px;" /><% } %>
@@ -930,7 +932,7 @@
         const openWithExposure = function(href) {
           if (!href || !exposureOverlay) return window.location.href = href;
           exposureOverlay.classList.add('open');
-          setTimeout(function(){ window.location.href = href; }, 260);
+          setTimeout(function(){ window.location.href = href; }, 320);
         };
         document.querySelectorAll('.product-card[data-product-open-url]').forEach(function(card){
           card.addEventListener('click', function(e){
