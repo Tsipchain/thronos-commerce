@@ -161,6 +161,13 @@ function detectDeviceInfo(req) {
   else if (/mobile|iphone|ipod/.test(ua) || (/android/.test(ua) && /mobile/.test(ua))) device = 'mobile';
   return { device, os };
 }
+function readCheckbox(body, key, currentValue) {
+  if (!body || !Object.prototype.hasOwnProperty.call(body, key)) return currentValue;
+  let raw = body[key];
+  if (Array.isArray(raw)) raw = raw[raw.length - 1];
+  const normalized = String(raw || '').trim().toLowerCase();
+  return ['1', 'true', 'on', 'yes'].includes(normalized);
+}
 
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
@@ -578,7 +585,8 @@ function loadTenantConfig(req) {
       productThumbFit: 'cover',
       productThumbBg: '#111111',
       productCardHoverEffect: 'lift',
-      productPreOpenEffect: 'none'
+      productPreOpenEffect: 'none',
+      footerTextColor: '#6b7280'
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -2677,7 +2685,8 @@ app.post('/admin/settings', async (req, res) => {
     themeProductThumbFit,
     themeProductThumbBg,
     themeProductCardHoverEffect,
-    themeProductPreOpenEffect
+    themeProductPreOpenEffect,
+    themeFooterTextColor
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -2726,9 +2735,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
   config.theme.sectionSpacing = themeSectionSpacing || config.theme.sectionSpacing || 'normal';
-  config.theme.bannerVisible = themeBannerVisible === 'on';
+  config.theme.bannerVisible = readCheckbox(req.body, 'themeBannerVisible', config.theme.bannerVisible);
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
-  config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.cursorEffect = readCheckbox(req.body, 'themeCursorEffect', config.theme.cursorEffect);
   const rawCursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
   config.theme.cursorImage = (/^\//.test(rawCursorImage) ? rawCursorImage : '');
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
@@ -2745,6 +2754,8 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.productThumbBg = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawThumbBg) ? rawThumbBg : '#111111';
   config.theme.productCardHoverEffect = ['none', 'lift', 'glow'].includes(String(themeProductCardHoverEffect || '')) ? String(themeProductCardHoverEffect) : (config.theme.productCardHoverEffect || 'lift');
   config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
+  const rawFooterTextColor = String(themeFooterTextColor || config.theme.footerTextColor || '#6b7280').trim();
+  config.theme.footerTextColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawFooterTextColor) ? rawFooterTextColor : '#6b7280';
   config.homepage = config.homepage || {};
   config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
   const legacyFeaturedIds = String(homepageFeaturedIds || '')
@@ -2765,8 +2776,8 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.secondaryCard.text = buildTranslatableFromBody(req.body, 'homepageSecondaryText', homepageSecondaryText || config.homepage.secondaryCard.text || '');
   config.homepage.secondaryCard.link = (homepageSecondaryLink || config.homepage.secondaryCard.link || '').trim();
   config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
-  config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
-  config.homepage.introEnabled = homepageIntroEnabled === 'on';
+  config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
+  config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   config.homepage.introVideoUrl = (homepageIntroVideoUrl || config.homepage.introVideoUrl || '').trim();
   config.homepage.introPosterUrl = (homepageIntroPosterUrl || config.homepage.introPosterUrl || '').trim();
   config.footer = config.footer || {};

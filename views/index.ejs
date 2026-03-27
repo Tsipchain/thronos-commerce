@@ -122,9 +122,11 @@
       .pill-nav .pill-item { display:inline-flex; align-items:center; gap:6px; }
       .pill-nav .pill-item img { width:20px; height:20px; border-radius:999px; object-fit:cover; }
       .home-secondary { border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff; }
-      .store-footer { margin-top:26px; padding:18px 0; color:#6b7280; font-size:.85rem; border-top:1px solid #e5e7eb; }
+      .store-footer { margin-top:26px; padding:22px 0 28px; color: var(--footer-text-color, #6b7280); font-size:.9rem; border-top:1px solid #e5e7eb; text-align:center; position:relative; }
       .store-footer .social-links { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
       .store-footer .social-links a { text-decoration:none; font-size:1.05rem; }
+      .store-footer .meta-line { margin-top:6px; }
+      .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
       .featured-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
       .featured-kit-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
       .featured-kit-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,.12); }
@@ -157,7 +159,10 @@
       body.eukolakis-classic .store-header { padding: 14px 16px 10px; border-bottom:none !important; box-shadow:none !important; }
       body.eukolakis-classic .logo-title { align-items: center; gap: 16px; }
       body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
-      body.eukolakis-classic .header-nav-row { margin-top: 8px; padding-top: 0; }
+      body.eukolakis-classic .header-nav-row { margin-top: 6px; padding-top: 0; }
+      body.eukolakis-classic .pill-nav { margin-top: 6px; }
+      body.eukolakis-classic .pill-nav { display:none; }
+      body.eukolakis-classic .hero .hero-actions { display:none; }
       .branding-mode-logo_only .logo-title { width:100%; justify-content:center; text-align:center; }
       .branding-mode-logo_only .header-main-row { justify-content:center; }
       .branding-mode-logo_only .header-auth-actions { margin-left: 0; }
@@ -202,7 +207,10 @@
     <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
     <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
     <% const logoDefaultHeight = isEukolakisClassic ? 96 : 72; %>
-    <% const logoMaxHeight = Math.max(28, Math.min(160, Number(theme.logoMaxHeight || logoDefaultHeight))); %>
+    <% const logoRequestedHeight = Number(theme.logoMaxHeight || logoDefaultHeight); %>
+    <% const logoMaxHeight = (isEukolakisClassic && brandingMode === 'logo_only')
+      ? Math.max(96, Math.min(140, logoRequestedHeight || 96))
+      : Math.max(28, Math.min(140, logoRequestedHeight || logoDefaultHeight)); %>
     <% const logoMobileHeight = isEukolakisClassic ? Math.min(logoMaxHeight, 64) : Math.min(logoMaxHeight, 72); %>
     <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
     <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
@@ -329,6 +337,7 @@
       <% const secondaryCard = homepage.secondaryCard || {}; %>
       <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
       <% const activeCategoryObj = categories.find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+      <% const spareCategory = categories.find(function(c){ return c.slug === 'spare-parts' || c.id === 'spare-parts'; }); %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
@@ -378,11 +387,11 @@
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
-            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
+            <% if (isEukolakisClassic && topPrimaryKit1) { %>
             <a
               class="button"
               href="#"
-              data-kit-launch="<%= heroPrimaryProduct.id %>"
+              data-kit-launch="<%= topPrimaryKit1.id %>"
             ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
             <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
@@ -432,11 +441,14 @@
         <% } %>
       </section>
       <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
+      <a href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
         <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
+        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:38px;height:38px;object-fit:cover;border-radius:999px;margin-bottom:8px;" /><% } %>
         <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
-        <a class="button" href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></a>
+        <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
       </section>
+      </a>
       <% } %>
       <% if (subscriptionsEnabled) { %>
       <section class="home-secondary" style="margin-top:10px;">
@@ -529,17 +541,18 @@
       };
     })) %></script>
     <% } %>
-    <footer class="store-footer">
-      <strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026
-      <% if (config.footer && config.footer.contactEmail) { %><div>Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
-      <% if (config.footer && config.footer.pickupAddress) { %><div><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+    <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
       <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
-      <div class="social-links">
+      <div class="social-links" style="justify-content:center;">
         <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
         <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
         <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
       </div>
       <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <a class="thronos-sign" href="https://thronoscommerce.thronoschain.org" target="_blank" rel="noopener noreferrer">Powered by Thronos Commerce ↗</a>
     </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
@@ -599,6 +612,8 @@
           next: <%- safeJson(lang === 'el' ? 'Συνέχεια' : 'Continue') %>,
           optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
           addSelected: <%- safeJson(lang === 'el' ? 'Προσθήκη επιλεγμένων στο καλάθι' : 'Add selected to cart') %>,
+          multiSelect: <%- safeJson(lang === 'el' ? '• πολλαπλές επιλογές' : '• multi-select') %>,
+          singleSelect: <%- safeJson(lang === 'el' ? '• μία επιλογή' : '• single-select') %>,
           required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
           optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
           variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
@@ -716,6 +731,7 @@
           totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
           fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
           btnBack.disabled = state.step === 0;
+          btnNext.disabled = false;
           btnNext.textContent = summaryStep ? KIT_T.addSelected : KIT_T.next;
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
@@ -729,7 +745,9 @@
           }
           const group = groups[state.step];
           groupTitleEl.textContent = group.label || group.id;
-          groupReqEl.textContent = group.required ? KIT_T.required : KIT_T.optional;
+          const selectionModeLabel = group.inputType === 'checkbox' ? KIT_T.multiSelect : KIT_T.singleSelect;
+          groupReqEl.textContent = (group.required ? KIT_T.required : KIT_T.optional) + ' ' + selectionModeLabel;
+          btnNext.disabled = group.required && !groupDone(group);
           (group.choices || []).forEach(function(choice){
             const sel = getSelectionArray(group);
             const checked = sel.includes(choice.id);

@@ -323,15 +323,6 @@
                  placeholder="/logo.svg" readonly />
           <small class="helper">Το πεδίο ενημερώνεται αυτόματα από το upload λογότυπου.</small>
         </label>
-        <% if (config.logoPath) { %>
-          <% const logoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
-          <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
-          <div style="margin:-8px 0 10px;">
-            <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
-              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px;" />
-            </div>
-          </div>
-        <% } %>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
           <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
@@ -451,10 +442,16 @@
         <% if (config.logoPath) { %>
         <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
         <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
+        <% const liveBrandingMode = (config.theme && config.theme.brandingMode) || 'logo_name'; %>
+        <% const liveIsClassic = tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 72)); %>
+        <% const livePreviewLogoHeight = (liveIsClassic && liveBrandingMode === 'logo_only')
+          ? Math.max(96, Math.min(140, liveRawHeight || 96))
+          : Math.max(28, Math.min(140, liveRawHeight || 72)); %>
         <div class="branding-live-preview">
           <div class="title">Live preview (logo size + shadow)</div>
           <div class="logo-preview-frame <%= liveLogoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;box-shadow:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : '0 4px 12px rgba(15,23,42,.12)') %>;">
-            <img src="<%= config.logoPath %>" alt="Logo live preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px;filter:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : 'drop-shadow(0 6px 10px rgba(15,23,42,.22))') %>;" />
+            <img src="<%= config.logoPath %>" alt="Logo live preview" style="max-height:<%= livePreviewLogoHeight %>px;filter:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : 'drop-shadow(0 6px 10px rgba(15,23,42,.22))') %>;" />
           </div>
         </div>
         <% } %>
@@ -489,6 +486,9 @@
               <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>None</option>
               <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
             </select>
+          </label>
+          <label><span>Footer text color</span>
+            <input type="text" name="themeFooterTextColor" value="<%= ((config.theme && config.theme.footerTextColor) || '#6b7280') %>" placeholder="#6b7280" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           </label>
           <div style="margin-top:8px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;">
             <small style="display:block;margin-bottom:6px;color:#475569;">Live preview</small>
@@ -526,7 +526,8 @@
           </select>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="themeBannerVisible" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <input type="hidden" name="themeBannerVisible" value="0" />
+          <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>Εμφάνιση banner/hero</span>
         </label>
         <label><span>Preview Badge Style</span>
@@ -536,7 +537,8 @@
           </select>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <input type="hidden" name="themeCursorEffect" value="0" />
+          <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
         <small class="helper">Cursor applies only on desktop. Use root-relative path (e.g. /tenants/.../media/cursors/file.png).</small>
@@ -642,11 +644,13 @@
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="homepageShowSubscriptionsCard" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
+          <input type="hidden" name="homepageShowSubscriptionsCard" value="0" />
+          <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
           <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="homepageIntroEnabled" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
+          <input type="hidden" name="homepageIntroEnabled" value="0" />
+          <input type="checkbox" name="homepageIntroEnabled" value="1" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
           <span>Enable intro teaser page (/intro)</span>
         </label>
         <label><span>Intro video URL (.mp4)</span>
@@ -1987,7 +1991,7 @@
         if (!input) return;
         const refresh = function() {
           const url = (input.value || '').trim();
-          updateVariantImagePreview(row, url);
+          updateVariantImagePreview(row, url, { bustCache: true });
         };
         input.addEventListener('change', refresh);
         input.addEventListener('blur', refresh);
