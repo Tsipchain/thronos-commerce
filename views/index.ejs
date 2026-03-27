@@ -157,7 +157,8 @@
       body.eukolakis-classic .store-header { padding: 14px 16px 10px; border-bottom:none !important; box-shadow:none !important; }
       body.eukolakis-classic .logo-title { align-items: center; gap: 16px; }
       body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
-      body.eukolakis-classic .header-nav-row { margin-top: 8px; padding-top: 0; }
+      body.eukolakis-classic .header-nav-row { margin-top: 6px; padding-top: 0; }
+      body.eukolakis-classic .pill-nav { margin-top: 6px; }
       .branding-mode-logo_only .logo-title { width:100%; justify-content:center; text-align:center; }
       .branding-mode-logo_only .header-main-row { justify-content:center; }
       .branding-mode-logo_only .header-auth-actions { margin-left: 0; }
@@ -202,7 +203,10 @@
     <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
     <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
     <% const logoDefaultHeight = isEukolakisClassic ? 96 : 72; %>
-    <% const logoMaxHeight = Math.max(28, Math.min(160, Number(theme.logoMaxHeight || logoDefaultHeight))); %>
+    <% const logoRequestedHeight = Number(theme.logoMaxHeight || logoDefaultHeight); %>
+    <% const logoMaxHeight = (isEukolakisClassic && brandingMode === 'logo_only')
+      ? Math.max(96, Math.min(140, logoRequestedHeight || 96))
+      : Math.max(28, Math.min(140, logoRequestedHeight || logoDefaultHeight)); %>
     <% const logoMobileHeight = isEukolakisClassic ? Math.min(logoMaxHeight, 64) : Math.min(logoMaxHeight, 72); %>
     <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
     <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
@@ -378,11 +382,11 @@
         <% } %>
         <% if (tenant.id === 'eukolakis') { %>
           <div class="hero-actions">
-            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
+            <% if (isEukolakisClassic && topPrimaryKit1) { %>
             <a
               class="button"
               href="#"
-              data-kit-launch="<%= heroPrimaryProduct.id %>"
+              data-kit-launch="<%= topPrimaryKit1.id %>"
             ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
             <% } else { %>
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
@@ -599,6 +603,8 @@
           next: <%- safeJson(lang === 'el' ? 'Συνέχεια' : 'Continue') %>,
           optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
           addSelected: <%- safeJson(lang === 'el' ? 'Προσθήκη επιλεγμένων στο καλάθι' : 'Add selected to cart') %>,
+          multiSelect: <%- safeJson(lang === 'el' ? '• πολλαπλές επιλογές' : '• multi-select') %>,
+          singleSelect: <%- safeJson(lang === 'el' ? '• μία επιλογή' : '• single-select') %>,
           required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
           optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
           variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
@@ -716,6 +722,7 @@
           totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
           fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
           btnBack.disabled = state.step === 0;
+          btnNext.disabled = false;
           btnNext.textContent = summaryStep ? KIT_T.addSelected : KIT_T.next;
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
@@ -729,7 +736,9 @@
           }
           const group = groups[state.step];
           groupTitleEl.textContent = group.label || group.id;
-          groupReqEl.textContent = group.required ? KIT_T.required : KIT_T.optional;
+          const selectionModeLabel = group.inputType === 'checkbox' ? KIT_T.multiSelect : KIT_T.singleSelect;
+          groupReqEl.textContent = (group.required ? KIT_T.required : KIT_T.optional) + ' ' + selectionModeLabel;
+          btnNext.disabled = group.required && !groupDone(group);
           (group.choices || []).forEach(function(choice){
             const sel = getSelectionArray(group);
             const checked = sel.includes(choice.id);
