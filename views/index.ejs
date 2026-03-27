@@ -179,16 +179,17 @@
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
-    <% const transparentLogoLikely = !!(config.logoPath && /\.png(?:$|\?)/i.test(config.logoPath)); %>
-    <% const effectiveLogoFrameClass = (transparentLogoLikely ? 'logo-transparent-safe' : logoFrameClass); %>
+    <% const logoDisplayMode = theme.logoDisplayMode || 'contain'; %>
+    <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
+    <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
     <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
     <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (config.logoPath && brandingMode !== 'name_only') { %>
-          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image contain" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
+          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= transparentBlendMode ? '0 6px 18px rgba(15,23,42,.22)' : (theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)')) %>;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image <%= logoDisplayMode %>" style="max-height:<%= Number(theme.logoMaxHeight || 52) %>px;" />
           </span>
         <% } %>
         <% if (brandingMode !== 'logo_only') { %>
@@ -524,6 +525,8 @@
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
         const applyCrosshair = function() {
           document.body.classList.add('cursor-tool');
+          document.documentElement.style.cursor = 'crosshair';
+          document.body.style.cursor = 'crosshair';
           document.querySelectorAll('a,button,input,textarea,select,label,.button,.btn-cart').forEach(function(el){
             el.style.cursor = 'crosshair';
           });
@@ -533,6 +536,7 @@
           testImg.onload = function() {
             const safeCursor = cursorImage.replace(/"/g, '\\"');
             const cursorRule = 'url("' + safeCursor + '") 16 16, auto';
+            document.documentElement.style.cursor = cursorRule;
             document.body.style.cursor = cursorRule;
             document.querySelectorAll('a,button,input,textarea,select,label,.button,.btn-cart').forEach(function(el){
               el.style.cursor = cursorRule;
@@ -693,6 +697,9 @@
             const choicePrice = selectedVariant && selectedVariant.price !== undefined && !Number.isNaN(Number(selectedVariant.price))
               ? Number(selectedVariant.price)
               : (Number(choice.priceDelta)||0);
+            const checkboxHtml = group.inputType === 'checkbox'
+              ? '<input type="checkbox" ' + (checked ? 'checked' : '') + ' tabindex="-1" aria-hidden="true" style="margin-right:6px;pointer-events:none;" />'
+              : '';
             const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
               ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;">' + esc(KIT_T.variant) + '</label>' +
                   '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
@@ -703,7 +710,7 @@
                   '</select></div>')
               : '';
             card.innerHTML = (choiceImage ? ('<img src="' + esc(choiceImage) + '" alt="">') : '<div style="width:56px;height:56px;border-radius:8px;background:#e5e7eb;"></div>') +
-              '<div style="text-align:left;"><strong>' + esc(choice.label || choice.id) + '</strong>' +
+              '<div style="text-align:left;">' + checkboxHtml + '<strong>' + esc(choice.label || choice.id) + '</strong>' +
               '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
               (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
               variantSelectHtml + '</div>';
