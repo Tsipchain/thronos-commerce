@@ -262,7 +262,7 @@
             </a>
           <% }) %>
           <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
-          <% if (subscriptionCategory) { %>
+          <% if (subscriptionCategory && subscriptionsEnabled) { %>
             <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
           <% } else if (subscriptionsEnabled) { %>
             <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
