@@ -523,7 +523,8 @@
           </select>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="themeBannerVisible" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <input type="hidden" name="themeBannerVisible" value="0" />
+          <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>Εμφάνιση banner/hero</span>
         </label>
         <label><span>Preview Badge Style</span>
@@ -533,7 +534,8 @@
           </select>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <input type="hidden" name="themeCursorEffect" value="0" />
+          <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
         <small class="helper">Cursor applies only on desktop. Use root-relative path (e.g. /tenants/.../media/cursors/file.png).</small>
@@ -639,11 +641,13 @@
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="homepageShowSubscriptionsCard" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
+          <input type="hidden" name="homepageShowSubscriptionsCard" value="0" />
+          <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
           <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="homepageIntroEnabled" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
+          <input type="hidden" name="homepageIntroEnabled" value="0" />
+          <input type="checkbox" name="homepageIntroEnabled" value="1" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
           <span>Enable intro teaser page (/intro)</span>
         </label>
         <label><span>Intro video URL (.mp4)</span>
