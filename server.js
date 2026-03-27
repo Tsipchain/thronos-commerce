@@ -562,6 +562,18 @@ function loadTenantConfig(req) {
       instagramUrl: '',
       tiktokUrl: ''
     },
+<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
+    assistant: {
+      enabled: false,
+      apiKey: '',
+      webhookUrl: '',
+      notifyNewOrders: true,
+      notifyLowStock: true,
+      notifyTrackingReminder: true,
+      lowStockThreshold: 3
+    },
+=======
+>>>>>>> main
     theme: {
       menuBg: '#111111',
       menuText: '#ffffff',
@@ -600,6 +612,10 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
+  cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
+=======
+>>>>>>> main
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
 }
@@ -788,6 +804,33 @@ function calculateTotals(config, product, shippingMethodId, paymentMethodId) {
 
 // Multi-item cart totals
 function calculateCartTotals(config, cartItems, shippingMethodId, paymentMethodId) {
+  return calculateCartTotalsWithDiscounts(config, cartItems, shippingMethodId, paymentMethodId, '');
+}
+
+function normalizeCouponCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function resolveCouponDiscount(config, couponCode, subtotal) {
+  const code = normalizeCouponCode(couponCode);
+  if (!code) return { code: '', discount: 0 };
+  const coupons = Array.isArray(config && config.coupons) ? config.coupons : [];
+  if (!coupons.length && code === 'WELCOME10') {
+    return { code, discount: Math.max(0, Math.min(subtotal * 0.10, subtotal)) };
+  }
+  const coupon = coupons.find((c) => normalizeCouponCode(c.code) === code && c.active !== false);
+  if (!coupon) return { code: '', discount: 0 };
+  const minSubtotal = Number(coupon.minSubtotal) || 0;
+  if (subtotal < minSubtotal) return { code: '', discount: 0 };
+  const type = String(coupon.type || 'percent').toLowerCase();
+  const rawValue = Number(coupon.value) || 0;
+  const discount = type === 'fixed'
+    ? rawValue
+    : subtotal * Math.max(0, Math.min(0.95, rawValue / 100));
+  return { code, discount: Math.max(0, Math.min(discount, subtotal)) };
+}
+
+function calculateCartTotalsWithDiscounts(config, cartItems, shippingMethodId, paymentMethodId, couponCode) {
   const shippingMethod = (config.shippingOptions || []).find((s) => s.id === shippingMethodId);
   const paymentMethod  = (config.paymentOptions  || []).find((p) => p.id === paymentMethodId);
   if (!shippingMethod) throw new Error('Invalid shipping method');
@@ -797,12 +840,33 @@ function calculateCartTotals(config, cartItems, shippingMethodId, paymentMethodI
     !shippingMethod.allowedPaymentMethods.includes(paymentMethod.id)
   ) throw new Error('Ο συγκεκριμένος τρόπος πληρωμής δεν είναι διαθέσιμος για αυτή τη μέθοδο αποστολής.');
 
-  const subtotal     = cartItems.reduce((s, i) => s + (Number(i.price) || 0) * (i.qty || 1), 0);
+  const subtotalBeforeDiscount     = cartItems.reduce((s, i) => s + (Number(i.price) || 0) * (i.qty || 1), 0);
+  const quantityDiscount = cartItems.reduce((s, i) => {
+    const qty = Number(i.qty) || 1;
+    const lineSubtotal = (Number(i.price) || 0) * qty;
+    const rate = qty >= 10 ? 0.10 : (qty >= 5 ? 0.05 : 0);
+    return s + (lineSubtotal * rate);
+  }, 0);
+  const subtotalAfterQtyDiscount = Math.max(0, subtotalBeforeDiscount - quantityDiscount);
+  const coupon = resolveCouponDiscount(config, couponCode, subtotalAfterQtyDiscount);
+  const subtotal = Math.max(0, subtotalAfterQtyDiscount - coupon.discount);
   const shippingCost = Number(shippingMethod.base) || 0;
   const codFee       = paymentMethod.id === 'COD' ? Number(shippingMethod.codFee || 0) : 0;
   const gatewayFee   = subtotal * (Number(paymentMethod.gatewaySurchargePercent) || 0);
   const total        = subtotal + shippingCost + codFee + gatewayFee;
-  return { subtotal, shippingCost, codFee, gatewayFee, total, shippingMethod, paymentMethod };
+  return {
+    subtotalBeforeDiscount,
+    quantityDiscount,
+    couponCodeApplied: coupon.code,
+    couponDiscount: coupon.discount,
+    subtotal,
+    shippingCost,
+    codFee,
+    gatewayFee,
+    total,
+    shippingMethod,
+    paymentMethod
+  };
 }
 
 async function recordOrderOnChain(order, tenant) {
@@ -1070,6 +1134,28 @@ async function sendOrderWebhook({ tenant, config, order }) {
 
   await axios.post(url, payload, { timeout: 3000, headers });
   console.log(`[Thronos Commerce] Webhook sent for order ${order.id} → ${url}`);
+}
+
+async function dispatchAssistantEvent(req, eventType, payload) {
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  if (!assistant.enabled) return;
+  const webhookUrl = String(assistant.webhookUrl || '').trim();
+  if (!webhookUrl) return;
+  const apiKey = String(assistant.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['X-Thronos-Assistant-Key'] = apiKey;
+  const eventPayload = {
+    tenantId: req.tenant.id,
+    eventType,
+    timestamp: new Date().toISOString(),
+    payload
+  };
+  try {
+    await axios.post(webhookUrl, eventPayload, { timeout: 3500, headers });
+  } catch (err) {
+    console.warn('[assistant-event] failed:', err.message);
+  }
 }
 
 // ── Enhanced mailer (THRC_MAIL_* env vars) ───────────────────────────────────
@@ -1412,11 +1498,16 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self';");
   next();
 });
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain');
+  res.send('User-agent: *\nAllow: /\nDisallow: /admin\n');
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tenants', express.static(TENANTS_DIR));
@@ -1629,6 +1720,26 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+app.get('/sitemap.xml', (req, res) => {
+  const config = loadTenantConfig(req);
+  const categories = loadTenantCategories(req);
+  const products = loadTenantProducts(req);
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const urls = [
+    buildTenantLink(req, '/'),
+    buildTenantLink(req, '/checkout'),
+    buildTenantLink(req, '/login'),
+    buildTenantLink(req, '/signup')
+  ];
+  if (config.homepage && config.homepage.introEnabled) urls.push(buildTenantLink(req, '/intro'));
+  categories.forEach((cat) => urls.push(buildTenantLink(req, '/', { category: cat.slug || cat.id })));
+  products.forEach((p) => urls.push(buildTenantLink(req, `/product/${p.id}`)));
+  const uniqueUrls = Array.from(new Set(urls));
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${uniqueUrls.map((u) => `  <url><loc>${baseUrl}${u}</loc></url>`).join('\n')}\n</urlset>`;
+  res.type('application/xml');
+  res.send(xml);
+});
+
 // Storefront home
 app.get('/', (req, res) => {
   if (req.isPlatformRequest) {
@@ -1748,7 +1859,7 @@ app.post('/checkout', async (req, res) => {
   const products = loadTenantProducts(req);
   const {
     name, email, wallet, notes, shippingMethodId, paymentMethodId,
-    city, phone, address, doorbell, tk, cartJson
+    city, phone, address, doorbell, tk, cartJson, couponCode
   } = req.body;
   const sessionEmail = req.session.user ? normalizeEmail(req.session.user.email) : '';
   const checkoutEmail = sessionEmail || normalizeEmail(email);
@@ -1888,7 +1999,7 @@ app.post('/checkout', async (req, res) => {
 
   let totals;
   try {
-    totals = calculateCartTotals(config, enrichedItems, shippingMethodId, paymentMethodId);
+    totals = calculateCartTotalsWithDiscounts(config, enrichedItems, shippingMethodId, paymentMethodId, couponCode);
   } catch (err) {
     return res.status(400).send(err.message);
   }
@@ -1922,6 +2033,10 @@ app.post('/checkout', async (req, res) => {
     shippingMethodLabel: totals.shippingMethod.label,
     paymentMethodLabel:  totals.paymentMethod.label,
     subtotal:    totals.subtotal,
+    subtotalBeforeDiscount: totals.subtotalBeforeDiscount,
+    quantityDiscount: totals.quantityDiscount,
+    couponCode: totals.couponCodeApplied || '',
+    couponDiscount: totals.couponDiscount || 0,
     shippingCost: totals.shippingCost,
     codFee:      totals.codFee,
     gatewayFee:  totals.gatewayFee,
@@ -1983,6 +2098,8 @@ app.post('/checkout', async (req, res) => {
   // ── Stock deduction (per item) ────────────────────────────────────
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const lowStockAlerts = [];
+  const lowStockThreshold = Number((config.assistant && config.assistant.lowStockThreshold) || 3);
   enrichedItems.forEach((ci) => {
     if (ci.isKitSummary) return;
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
@@ -1992,6 +2109,15 @@ app.post('/checkout', async (req, res) => {
       const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
       if (vIdx >= 0) {
         prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        if (prod.variants[vIdx].stock <= lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: ci.id,
+            productName: ci.name,
+            variantId: ci.variantId,
+            variantLabel: ci.variantLabel,
+            remainingStock: prod.variants[vIdx].stock
+          });
+        }
         stockLog.push({
           id:           Date.now().toString(36) + '_' + ci.id,
           productId:    ci.id,
@@ -2006,6 +2132,13 @@ app.post('/checkout', async (req, res) => {
       }
     } else if ((prod.stock || 0) > 0) {
       prod.stock = Math.max(0, prod.stock - ci.qty);
+      if (prod.stock <= lowStockThreshold) {
+        lowStockAlerts.push({
+          productId: ci.id,
+          productName: ci.name,
+          remainingStock: prod.stock
+        });
+      }
       stockLog.push({
         id:          Date.now().toString(36) + '_' + ci.id,
         productId:   ci.id,
@@ -2039,6 +2172,15 @@ app.post('/checkout', async (req, res) => {
     await sendOrderWebhook({ tenant: req.tenant, config, order });
   } catch (err) {
     console.error('[Thronos Commerce] sendOrderWebhook failed:', err.message);
+  }
+  dispatchAssistantEvent(req, 'new_order', {
+    orderId: order.id,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    items: Array.isArray(order.items) ? order.items.length : 0
+  });
+  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
+    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId });
   }
 
   const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
@@ -2107,6 +2249,8 @@ app.get('/checkout/stripe-success', async (req, res) => {
   // Stock deduction
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const lowStockAlerts = [];
+  const lowStockThreshold = Number((config.assistant && config.assistant.lowStockThreshold) || 3);
   enrichedItems.forEach((ci) => {
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
     if (pIdx < 0) return;
@@ -2115,10 +2259,26 @@ app.get('/checkout/stripe-success', async (req, res) => {
       const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
       if (vIdx >= 0) {
         prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        if (prod.variants[vIdx].stock <= lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: ci.id,
+            productName: ci.name,
+            variantId: ci.variantId,
+            variantLabel: ci.variantLabel,
+            remainingStock: prod.variants[vIdx].stock
+          });
+        }
         stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, variantLabel: ci.variantLabel, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
       }
     } else if ((prod.stock || 0) > 0) {
       prod.stock = Math.max(0, prod.stock - ci.qty);
+      if (prod.stock <= lowStockThreshold) {
+        lowStockAlerts.push({
+          productId: ci.id,
+          productName: ci.name,
+          remainingStock: prod.stock
+        });
+      }
       stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
     }
   });
@@ -2136,6 +2296,15 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
+  dispatchAssistantEvent(req, 'new_order', {
+    orderId: order.id,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    items: Array.isArray(order.items) ? order.items.length : 0
+  });
+  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
+    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId: order.id });
+  }
 
   const allProductsForContent = loadTenantProducts(req);
   const hasDigital = enrichedItems.some((ci) => {
@@ -2150,6 +2319,68 @@ app.get('/checkout/stripe-success', async (req, res) => {
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
+app.get('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
+});
+
+app.post('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const orderId = String(req.body.orderId || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  const orders = loadTenantOrders(req);
+  const order = orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
+  if (!order) {
+    return res.status(404).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
+    });
+  }
+  return res.render('track-order', { config, tenant: req.tenant, order, error: null });
+});
+
+app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
+  const config = loadTenantConfig(req);
+  const assistantCfg = config.assistant || {};
+  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
+  if (expectedKey && providedKey !== expectedKey) {
+    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
+  }
+  const action = String((req.body && req.body.action) || '').trim();
+  if (action === 'set_setting') {
+    const section = String(req.body.section || '').trim();
+    const key = String(req.body.key || '').trim();
+    const value = req.body.value;
+    const allowList = {
+      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
+      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
+    };
+    if (!allowList[section] || !allowList[section].has(key)) {
+      return res.status(400).json({ ok: false, error: 'setting not allowed' });
+    }
+    config[section] = config[section] || {};
+    config[section][key] = value;
+    saveTenantConfig(req, config);
+    return res.json({ ok: true, action, section, key, value });
+  }
+  if (action === 'send_tracking_reminder') {
+    const orderId = String(req.body.orderId || '').trim();
+    const orders = loadTenantOrders(req);
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
+    await dispatchAssistantEvent(req, 'tracking_reminder', {
+      orderId: order.id,
+      email: order.email,
+      trackingNumber: order.trackingNumber || ''
+    });
+    return res.json({ ok: true, action, orderId });
+  }
+  return res.status(400).json({ ok: false, error: 'unknown action' });
+});
 
 app.get('/admin/login', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
@@ -2388,6 +2619,36 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+<<<<<<< codex/fix-storefront-500-and-improve-variant-preview-rsa9ua
+app.get('/admin/export/orders.csv', (req, res) => {
+  const orders = loadTenantOrders(req);
+  const esc = (v) => `"${String(v === undefined || v === null ? '' : v).replace(/"/g, '""')}"`;
+  const rows = [['id', 'createdAt', 'customerName', 'email', 'city', 'paymentStatus', 'subtotal', 'shippingCost', 'total', 'items']];
+  orders.forEach((o) => {
+    const items = Array.isArray(o.items)
+      ? o.items.map((it) => `${it.name || it.id} x${Number(it.qty) || 1}`).join(' | ')
+      : (o.productName || '');
+    rows.push([
+      o.id || '',
+      o.createdAt || '',
+      o.customerName || '',
+      o.email || '',
+      o.city || '',
+      o.paymentStatus || '',
+      Number(o.subtotal || 0).toFixed(2),
+      Number(o.shippingCost || 0).toFixed(2),
+      Number(o.total || 0).toFixed(2),
+      items
+    ]);
+  });
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-orders.csv\"`);
+  res.send(csv);
+});
+
+=======
+>>>>>>> main
 app.get('/admin/import/variants-template.csv', (req, res) => {
   const rows = [
     ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
@@ -2641,6 +2902,45 @@ app.get('/admin/orders', (req, res) => {
     config,
     orders,
     permissions: getSupportPermissions(req.tenant.supportTier)
+  });
+});
+
+app.post('/admin/orders/tracking', async (req, res) => {
+  const { password, orderId, trackingNumber } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: loadTenantOrders(req).slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Λάθος κωδικός διαχειριστή.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: orders.slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Η παραγγελία δεν βρέθηκε.'
+    });
+  }
+  orders[idx].trackingNumber = String(trackingNumber || '').trim();
+  saveJson(req.tenantPaths.orders, orders);
+  await dispatchAssistantEvent(req, 'tracking_updated', {
+    orderId: orders[idx].id,
+    trackingNumber: orders[idx].trackingNumber,
+    email: orders[idx].email
+  });
+  return res.render('admin-orders', {
+    tenant: req.tenant,
+    config: loadTenantConfig(req),
+    orders: orders.slice(-100).reverse(),
+    permissions: getSupportPermissions(req.tenant.supportTier),
+    message: 'Το tracking ενημερώθηκε.'
   });
 });
 

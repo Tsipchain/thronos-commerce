@@ -72,6 +72,7 @@
           <p style="margin:10px 0 0;font-size:.75rem;color:#6b7280;"><%= t('content.saveLink') %></p>
         </div>
         <% } %>
+        <p style="margin-top:12px;"><a href="<%= withTenantLink('/track') %>">🔎 <%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Track order' %></a></p>
       </section>
     </main>
     <button type="button" id="quick-back-btn" style="position:fixed;left:12px;bottom:18px;z-index:1200;border:none;border-radius:999px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(2,6,23,.28);"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>

@@ -208,6 +208,10 @@
                 <% }); %>
               </select>
             </label>
+            <label>
+              <%= lang === 'el' ? 'Κουπόνι' : 'Coupon' %>
+              <input type="text" name="couponCode" id="coupon-code" placeholder="WELCOME10" />
+            </label>
           </div>
 
           <%# Stripe badge (shown when stripe payment selected) %>
@@ -242,6 +246,14 @@
         <div class="summary-line">
           <span><%= t('checkout.subtotal') %></span>
           <span id="sum-subtotal">–</span>
+        </div>
+        <div class="summary-line" id="sum-qtydisc-row" style="display:none;">
+          <span><%= lang === 'el' ? 'Έκπτωση ποσότητας' : 'Quantity discount' %></span>
+          <span id="sum-qtydisc">–</span>
+        </div>
+        <div class="summary-line" id="sum-coupon-row" style="display:none;">
+          <span><%= lang === 'el' ? 'Έκπτωση κουπονιού' : 'Coupon discount' %></span>
+          <span id="sum-coupon">–</span>
         </div>
         <div class="summary-line">
           <span><%= t('checkout.shipping') %></span>
@@ -293,7 +305,14 @@
 
       // ── Live price calculation ────────────────────────────────────
       function recalc() {
-        const subtotal = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
+        const subtotalRaw = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
+        const qtyDiscount = cart.reduce(function(s, i) {
+          const qty = Number(i.qty) || 1;
+          const line = (Number(i.price) || 0) * qty;
+          const rate = qty >= 10 ? 0.10 : (qty >= 5 ? 0.05 : 0);
+          return s + line * rate;
+        }, 0);
+        const subtotal = Math.max(0, subtotalRaw - qtyDiscount);
 
         const shipSel  = document.getElementById('sel-shipping');
         const paySel   = document.getElementById('sel-payment');
@@ -304,10 +323,14 @@
         const codFee       = (payOpt && payOpt.dataset.iscod === '1')
                              ? parseFloat(shipOpt ? shipOpt.dataset.codfee || 0 : 0) : 0;
         const surcharge    = payOpt  ? parseFloat(payOpt.dataset.surcharge || 0) : 0;
-        const gatewayFee   = subtotal * surcharge;
-        const total        = subtotal + shippingCost + codFee + gatewayFee;
+        const couponEl = document.getElementById('coupon-code');
+        const couponCode = (couponEl && couponEl.value || '').trim().toUpperCase();
+        const couponDiscount = couponCode === 'WELCOME10' ? subtotal * 0.10 : 0;
+        const subtotalAfterCoupon = Math.max(0, subtotal - couponDiscount);
+        const gatewayFee   = subtotalAfterCoupon * surcharge;
+        const total        = subtotalAfterCoupon + shippingCost + codFee + gatewayFee;
 
-        document.getElementById('sum-subtotal').textContent = subtotal.toFixed(2)      + ' €';
+        document.getElementById('sum-subtotal').textContent = subtotalAfterCoupon.toFixed(2)      + ' €';
         document.getElementById('sum-shipping').textContent = shippingCost.toFixed(2)  + ' €';
         document.getElementById('sum-total').textContent    = total.toFixed(2)         + ' €';
 
@@ -317,6 +340,18 @@
         gwRow.style.display  = gatewayFee > 0 ? '' : 'none';
         document.getElementById('sum-cod').textContent     = codFee.toFixed(2)     + ' €';
         document.getElementById('sum-gateway').textContent = gatewayFee.toFixed(2) + ' €';
+        const qtyRow = document.getElementById('sum-qtydisc-row');
+        const qtyVal = document.getElementById('sum-qtydisc');
+        if (qtyRow && qtyVal) {
+          qtyRow.style.display = qtyDiscount > 0 ? '' : 'none';
+          qtyVal.textContent = '-' + qtyDiscount.toFixed(2) + ' €';
+        }
+        const couponRow = document.getElementById('sum-coupon-row');
+        const couponVal = document.getElementById('sum-coupon');
+        if (couponRow && couponVal) {
+          couponRow.style.display = couponDiscount > 0 ? '' : 'none';
+          couponVal.textContent = '-' + couponDiscount.toFixed(2) + ' €';
+        }
 
         // ── Stripe indicator ──────────────────────────────────────
         const isStripe  = payOpt && payOpt.dataset.type === 'stripe';
@@ -331,6 +366,8 @@
         if (!cart.length) { e.preventDefault(); return; }
         document.getElementById('cart-json-input').value = JSON.stringify(cart);
       });
+      const couponInput = document.getElementById('coupon-code');
+      if (couponInput) couponInput.addEventListener('input', recalc);
       (function() {
         const key = 'thrc_nav_last_url';
         const homeUrl = '<%= withTenantLink("/") %>';
