@@ -89,7 +89,7 @@
       .hero .hero-actions a { text-decoration:none; }
       .category-card.featured { border-color: var(--accent-color); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
       .category-card small { display:block; color:#6b7280; margin-top:3px; font-size:.74rem; }
-      .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
+      .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: none; }
       .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
       .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
       .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
@@ -114,6 +114,8 @@
       .pill-nav .pill-item img { width:20px; height:20px; border-radius:999px; object-fit:cover; }
       .home-secondary { border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff; }
       .store-footer { margin-top:26px; padding:18px 0; color:#6b7280; font-size:.85rem; border-top:1px solid #e5e7eb; }
+      .store-footer .social-links { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+      .store-footer .social-links a { text-decoration:none; font-size:1.05rem; }
       .featured-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
       .featured-kit-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
       .featured-kit-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,.12); }
@@ -370,17 +372,13 @@
         <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
-            <article class="featured-kit-card">
+            <article class="featured-kit-card kit-clickable" data-kit-product-id="<%= product.id %>">
               <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <h3 style="margin:0 0 8px;"><%= product.name %></h3>
                 <p style="margin:0 0 10px;color:#4b5563;"><%= product.description || '' %></p>
-                <a
-                  class="button"
-                  href="<%= tenant.id === 'eukolakis' && product.type === 'KIT' ? '#' : withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"
-                  <%= tenant.id === 'eukolakis' && product.type === 'KIT' ? ('data-kit-launch="' + product.id + '"') : '' %>
-                ><%= lang === 'el' ? 'Δες το kit' : 'View kit' %></a>
+                <small style="color:#0f766e;font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
               </div>
             </article>
           <% }) %>
@@ -496,10 +494,15 @@
     })) %></script>
     <% } %>
     <footer class="store-footer">
-      <% if (isEukolakisClassic) { %>
-      <strong><%= config.storeName %></strong>
-      <% } else { %>
-      <strong><%= config.storeName %></strong> · DIY Kits · Spare Parts · Tools
+      <strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026
+      <% if (config.footer && config.footer.contactEmail) { %><div>Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
+      <div class="social-links">
+        <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
+        <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
+        <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
+      </div>
       <% } %>
     </footer>
 
@@ -525,7 +528,7 @@
             el.style.cursor = 'crosshair';
           });
         };
-        if (cursorImage && (/^(\/|https?:\/\/)/i).test(cursorImage)) {
+        if (cursorImage && (/^\//).test(cursorImage)) {
           const testImg = new Image();
           testImg.onload = function() {
             const safeCursor = cursorImage.replace(/"/g, '\\"');

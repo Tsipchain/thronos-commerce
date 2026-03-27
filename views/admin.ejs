@@ -570,6 +570,31 @@
           <input type="checkbox" name="homepageShowSubscriptionsCard" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
           <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
         </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="homepageIntroEnabled" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
+          <span>Enable intro teaser page (/intro)</span>
+        </label>
+        <label><span>Intro video URL (.mp4)</span>
+          <input type="text" name="homepageIntroVideoUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/intro.mp4" />
+        </label>
+        <label><span>Intro poster URL</span>
+          <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
+        </label>
+        <label><span>Footer contact email</span>
+          <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@shop.com" />
+        </label>
+        <label><span>Footer pickup/store address</span>
+          <input type="text" name="footerPickupAddress" value="<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>" placeholder="Store address for pickups" />
+        </label>
+        <label><span>Footer Facebook URL</span>
+          <input type="text" name="footerFacebookUrl" value="<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>" placeholder="https://facebook.com/..." />
+        </label>
+        <label><span>Footer Instagram URL</span>
+          <input type="text" name="footerInstagramUrl" value="<%= (rawConfig.footer && rawConfig.footer.instagramUrl) || '' %>" placeholder="https://instagram.com/..." />
+        </label>
+        <label><span>Footer TikTok URL</span>
+          <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@..." />
+        </label>
         <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
         <button type="submit" class="button">Αποθήκευση homepage</button>
       </form>
