@@ -606,6 +606,7 @@ function loadTenantConfig(req) {
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
+  cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
 }
