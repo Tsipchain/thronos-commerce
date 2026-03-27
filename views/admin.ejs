@@ -60,6 +60,10 @@
       #kit-builder-modal #kit-choice-search-results,
       #kit-builder-modal #kit-builder-preview { background:rgba(255,255,255,.9); color:#0f172a; }
       #kit-builder-modal #kit-builder-preview { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
+      #kit-builder-modal input, #kit-builder-modal select, #kit-builder-modal textarea {
+        border:1px solid #cbd5e1; border-radius:8px; padding:7px 8px; font-size:.84rem;
+      }
+      #kit-builder-modal h4 { margin: 6px 0 8px; }
       body.device-mobile #kit-builder-modal .modal { width: 100%; max-height: 100vh; border-radius: 0; padding: 14px; }
       body.device-mobile .modal-actions { position: sticky; bottom: 0; background: #fff; padding-top: 10px; }
       .modal-box {
@@ -324,7 +328,7 @@
           <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
           <div style="margin:-8px 0 10px;">
             <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
-              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;" />
+              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px;" />
             </div>
           </div>
         <% } %>
@@ -441,7 +445,7 @@
           <small class="helper">Drop-shadow πάνω στο logo (ιδανικό για διαφανή PNG).</small>
         </label>
         <label><span>Logo max height (px)</span>
-          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <small class="helper">Μέγιστο ύψος logo στο header (το storefront το τηρεί 1:1).</small>
         </label>
         <% if (config.logoPath) { %>
@@ -450,7 +454,7 @@
         <div class="branding-live-preview">
           <div class="title">Live preview (logo size + shadow)</div>
           <div class="logo-preview-frame <%= liveLogoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;box-shadow:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : '0 4px 12px rgba(15,23,42,.12)') %>;">
-            <img src="<%= config.logoPath %>" alt="Logo live preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;filter:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : 'drop-shadow(0 6px 10px rgba(15,23,42,.22))') %>;" />
+            <img src="<%= config.logoPath %>" alt="Logo live preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px;filter:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : 'drop-shadow(0 6px 10px rgba(15,23,42,.22))') %>;" />
           </div>
         </div>
         <% } %>
@@ -513,7 +517,7 @@
           <strong>Applied to storefront:</strong>
           brandingMode=<%= (config.theme && config.theme.brandingMode) || 'logo_name' %>,
           logoDisplayMode=<%= (config.theme && config.theme.logoDisplayMode) || 'contain' %>,
-          logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px,
+          logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px,
           cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>.
           <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" target="_blank" rel="noopener noreferrer">Storefront preview</a>
         </div>
@@ -1230,7 +1234,10 @@
             <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
             <button class="button" type="submit" style="background:#0f766e;">Import variants CSV</button>
           </form>
-          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Columns: productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription.</p>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">
+            Columns: <strong>productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription</strong>.
+            <a href="<%= withTenantLink('/admin/import/variants-template.csv') %>">Download template</a>
+          </p>
         </div>
 
         <%# ── Ticket list ── %>
@@ -1674,6 +1681,7 @@
               '<small class="v-image-feedback" style="display:block;margin-top:5px;font-size:.76rem;color:#334155;">' + (v.imageUrl ? 'Image preview ready.' : 'Add/upload an image to preview it here.') + '</small>' +
               '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-top:6px;" />' +
               '<video class="v-video-preview" controls muted playsinline style="' + (v.videoUrl ? '' : 'display:none;') + 'margin-top:6px;max-width:220px;max-height:132px;border-radius:8px;border:1px solid #cbd5e1;background:#0f172a;"></video>' +
+              '<small class="v-video-feedback" style="display:block;margin-top:5px;font-size:.76rem;color:#334155;">' + (v.videoUrl ? 'Video preview ready.' : 'Add/upload a video URL to preview it here.') + '</small>' +
               '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">' +
                 '<input class="v-video-file" type="file" accept="video/mp4,video/webm" />' +
                 '<button type="button" class="btn-xs" onclick="uploadVariantVideo(this)">Upload video</button>' +
@@ -1841,8 +1849,7 @@
         } else {
           const urlEl = row.querySelector('.v-video');
           if (urlEl) urlEl.value = j.url || '';
-          const videoPreview = row.querySelector('.v-video-preview');
-          if (videoPreview && j.url) { videoPreview.src = j.url; videoPreview.style.display = 'block'; }
+          updateVariantVideoPreview(row, j.url || '', { bustCache: true, loadingMessage: 'Loading video preview…' });
           if (status) status.textContent = '✓ Uploaded (video)';
           return;
         }
@@ -1868,6 +1875,35 @@
           linkEl.removeAttribute('href');
           linkEl.style.display = 'none';
         }
+      }
+      function setVariantVideoFeedback(row, message, tone) {
+        const feedbackEl = row && row.querySelector('.v-video-feedback');
+        if (!feedbackEl) return;
+        feedbackEl.textContent = message || '';
+        feedbackEl.style.color = tone === 'error' ? '#b91c1c' : (tone === 'success' ? '#166534' : '#334155');
+      }
+      function updateVariantVideoPreview(row, rawUrl, options) {
+        const preview = row && row.querySelector('.v-video-preview');
+        if (!preview) return;
+        const opts = options || {};
+        const baseUrl = (rawUrl || '').trim();
+        if (!baseUrl) {
+          preview.style.display = 'none';
+          preview.removeAttribute('src');
+          setVariantVideoFeedback(row, 'Add/upload a video URL to preview it here.', 'neutral');
+          return;
+        }
+        const srcUrl = opts.bustCache ? (baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'v=' + Date.now()) : baseUrl;
+        if (opts.loadingMessage) setVariantVideoFeedback(row, opts.loadingMessage, 'neutral');
+        preview.onerror = function() {
+          preview.style.display = 'none';
+          setVariantVideoFeedback(row, 'Could not load video preview. URL was kept.', 'error');
+        };
+        preview.onloadeddata = function() {
+          preview.style.display = 'block';
+          setVariantVideoFeedback(row, 'Video preview ready.', 'success');
+        };
+        preview.src = srcUrl;
       }
 
       function updateVariantImagePreview(row, rawUrl, options) {
@@ -1916,9 +1952,7 @@
         const refreshVideo = function() {
           const vurl = (videoInput && videoInput.value || '').trim();
           if (!videoPreview) return;
-          if (!vurl) { videoPreview.style.display = 'none'; videoPreview.removeAttribute('src'); return; }
-          videoPreview.src = vurl;
-          videoPreview.style.display = 'block';
+          updateVariantVideoPreview(row, vurl);
         };
         if (videoInput) {
           videoInput.addEventListener('change', refreshVideo);

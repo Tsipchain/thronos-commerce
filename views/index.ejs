@@ -126,9 +126,9 @@
       .featured-kit-card .body { padding:12px 14px; }
       .kit-badge { display:inline-block; font-size:.72rem; font-weight:700; background:#0f766e; color:#fff; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
       .kit-clickable { cursor: pointer; }
-      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.58); z-index: 1200; display: none; padding: 24px; }
+      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(2,6,23,.74); z-index: 1200; display: none; padding: 24px; }
       .kit-wizard-backdrop.open { display: block; }
-      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: linear-gradient(180deg,#e0f2fe 0%,#f0f9ff 60%,#ffffff 100%); border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
+      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: #f8fafc; border:1px solid #bfdbfe; border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
       .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
       .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
       .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
@@ -188,7 +188,8 @@
     <% const logoDisplayMode = theme.logoDisplayMode || 'contain'; %>
     <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
     <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
-    <% const logoMaxHeight = Math.max(28, Math.min(140, Number(theme.logoMaxHeight || 52))); %>
+    <% const logoDefaultHeight = isEukolakisClassic ? 88 : 72; %>
+    <% const logoMaxHeight = Math.max(28, Math.min(140, Number(theme.logoMaxHeight || logoDefaultHeight))); %>
     <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
     <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
     <% const logoShadowMode = (theme.logoShadow === 'none' || theme.logoShadow === 'floating') ? theme.logoShadow : 'soft'; %>
@@ -416,10 +417,10 @@
         </div>
         <% } %>
       </section>
-      <% if (secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
+      <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
       <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
-        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : '') %></h3>
-        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : '') %></p>
+        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
         <a class="button" href="<%= secondaryCard.link || withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></a>
       </section>
       <% } %>
@@ -543,11 +544,13 @@
       const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
       if (isEukolakis && isDesktopDevice && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %>) {
         const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
+        const cursorTargets = 'a,button,input,select,textarea,label,[role="button"],.button,.btn-cart';
+        const isDevHost = /localhost|127\.0\.0\.1/.test(window.location.hostname);
         const applyCrosshair = function() {
           document.body.classList.add('cursor-tool');
           document.documentElement.style.cursor = 'crosshair';
           document.body.style.cursor = 'crosshair';
-          document.querySelectorAll('a,button,input,select,textarea,label,.button,.btn-cart').forEach(function(el){
+          document.querySelectorAll(cursorTargets).forEach(function(el){
             el.style.cursor = 'crosshair';
           });
         };
@@ -558,11 +561,14 @@
             const cursorRule = 'url("' + safeCursor + '") 16 16, auto';
             document.documentElement.style.cursor = cursorRule;
             document.body.style.cursor = cursorRule;
-            document.querySelectorAll('a,button,input,select,textarea,label,.button,.btn-cart').forEach(function(el){
+            document.querySelectorAll(cursorTargets).forEach(function(el){
               el.style.cursor = cursorRule;
             });
           };
-          testImg.onerror = applyCrosshair;
+          testImg.onerror = function() {
+            if (isDevHost) console.warn('[cursor] preload failed, falling back to crosshair:', cursorImage);
+            applyCrosshair();
+          };
           testImg.src = cursorImage;
         } else applyCrosshair();
       }
@@ -574,8 +580,9 @@
           summary: <%- safeJson(lang === 'el' ? 'Σύνοψη' : 'Summary') %>,
           total: <%- safeJson(lang === 'el' ? 'Σύνολο' : 'Total') %>,
           addToCart: <%- safeJson(lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart') %>,
-          next: <%- safeJson(lang === 'el' ? 'Επόμενο' : 'Next') %>,
+          next: <%- safeJson(lang === 'el' ? 'Συνέχεια' : 'Continue') %>,
           optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
+          addSelected: <%- safeJson(lang === 'el' ? 'Προσθήκη επιλεγμένων στο καλάθι' : 'Add selected to cart') %>,
           required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
           optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
           variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
@@ -693,7 +700,7 @@
           totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
           fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
           btnBack.disabled = state.step === 0;
-          btnNext.textContent = summaryStep ? KIT_T.addToCart : KIT_T.next;
+          btnNext.textContent = summaryStep ? KIT_T.addSelected : KIT_T.next;
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
           addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';

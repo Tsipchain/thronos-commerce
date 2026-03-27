@@ -573,7 +573,7 @@ function loadTenantConfig(req) {
       logoPadding: 6,
       logoRadius: 10,
       logoShadow: 'soft',
-      logoMaxHeight: 52
+      logoMaxHeight: 72
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -2354,6 +2354,22 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/import/variants-template.csv', (req, res) => {
+  const rows = [
+    ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
+    ['example-product-id', 'Variant name', 'example-sku', '19.90', '5', '/tenants/' + req.tenant.id + '/media/variants/example-product-id/example-sku/example.png', '', '']
+  ];
+  const esc = (value) => {
+    const v = String(value || '');
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-variants-template.csv\"`);
+  res.send(csv);
+});
+
 app.get('/admin/export/categories.json', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -2537,7 +2553,12 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
   const headers = rows[0].map((h) => String(h || '').trim());
   const idx = (name) => headers.indexOf(name);
   const missing = ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock'].filter((c) => idx(c) === -1);
-  if (missing.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missing.join(', ') }));
+  if (missing.length) {
+    const templateUrl = buildTenantLink(req, '/admin/import/variants-template.csv');
+    return res.status(400).render('admin', buildAdminViewModel(req, {
+      error: `Missing columns: ${missing.join(', ')}. Download template: ${templateUrl}`
+    }));
+  }
   const products = loadTenantProducts(req);
   let okRows = 0;
   const failRows = [];
@@ -2702,7 +2723,7 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
   const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
   config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
-  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 72));
   config.homepage = config.homepage || {};
   config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
   const legacyFeaturedIds = String(homepageFeaturedIds || '')
