@@ -1765,41 +1765,41 @@ app.get('/', (req, res) => {
   if (req.query.admin === 'true') {
     return res.redirect(buildTenantLink(req, '/admin'));
   }
-  const config = loadTenantConfig(req);
-  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
-  const cookieHeader = String(req.headers.cookie || '');
-  const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
-  const skipIntro = String(req.query.skipIntro || '') === '1';
-  if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
-    return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
-  }
-  const categories = loadTenantCategories(req);
-  const allProducts = loadTenantProducts(req);
-  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
-    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
-  }));
-
-  const rawCategory = String(req.query.category || '');
-  let catSlug = normalizeSlug(rawCategory);
-  if (req.tenant.id === 'eukolakis') {
-    const aliasMap = { spare: 'spare-parts' };
-    catSlug = aliasMap[catSlug] || catSlug;
-  }
-  let products = hydratedAllProducts;
-
-  if (catSlug) {
-    const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
-    if (cat) {
-      products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
-    } else {
-      products = [];
-    }
-  }
-
-  const viewLang = req.lang;
-  const localizedConfig = localizeConfigContent(config, viewLang);
-  const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
   try {
+    const config = loadTenantConfig(req);
+    const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+    const cookieHeader = String(req.headers.cookie || '');
+    const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
+    const skipIntro = String(req.query.skipIntro || '') === '1';
+    if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
+      return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
+    }
+    const categories = loadTenantCategories(req);
+    const allProducts = loadTenantProducts(req);
+    const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
+      defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+    }));
+
+    const rawCategory = String(req.query.category || '');
+    let catSlug = normalizeSlug(rawCategory);
+    if (req.tenant.id === 'eukolakis') {
+      const aliasMap = { spare: 'spare-parts' };
+      catSlug = aliasMap[catSlug] || catSlug;
+    }
+    let products = hydratedAllProducts;
+
+    if (catSlug) {
+      const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
+      if (cat) {
+        products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
+      } else {
+        products = [];
+      }
+    }
+
+    const viewLang = req.lang;
+    const localizedConfig = localizeConfigContent(config, viewLang);
+    const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
     res.render('index', {
       config: localizedConfig,
       categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -2015,7 +2015,7 @@ app.post('/checkout', async (req, res) => {
       }
       enrichedItems.push({
         id:           found.id,
-        name:         found.name,
+        name:         resolveTranslatable(found.name, req.lang) || found.id,
         variantId:    variantId || undefined,
         variantLabel: variantLabel || undefined,
         selectedOptions: selectedOptions.length ? selectedOptions : undefined,
