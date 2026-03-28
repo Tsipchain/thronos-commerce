@@ -13,6 +13,7 @@
     <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
   </div>
   <% } %>
+  <button type="button" id="quick-back-btn" style="position:fixed;left:12px;bottom:18px;z-index:1200;border:none;border-radius:999px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(2,6,23,.28);">← Back</button>
   <main style="max-width:460px;margin:30px auto;padding:0 16px;">
     <h2>Signup</h2>
     <% if (error) { %><p style="color:#b91c1c;"><%= error %></p><% } %>
@@ -24,5 +25,21 @@
     </form>
     <p style="margin-top:12px;font-size:.9rem;">Already have account? <a href="<%= withTenantLink('/login') %>">Login</a></p>
   </main>
+  <script>
+    (function() {
+      const key = 'thrc_nav_last_url';
+      const homeUrl = '<%= withTenantLink("/") %>';
+      const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+      try { sessionStorage.setItem(key, currentUrl); } catch (err) {}
+      document.getElementById('quick-back-btn').addEventListener('click', function() {
+        if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.origin) === 0) return window.history.back();
+        try {
+          const fallback = sessionStorage.getItem(key) || '';
+          if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+        } catch (err) {}
+        window.location.href = homeUrl;
+      });
+    })();
+  </script>
 </body>
 </html>
