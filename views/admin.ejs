@@ -737,6 +737,21 @@
           <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Spare parts card</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Subscriptions block</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockHero" value="0" /><input type="checkbox" name="homepageBlockHero" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.hero !== false) ? 'checked' : '' %> /><span>Show Hero block</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockKits" value="0" /><input type="checkbox" name="homepageBlockKits" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.kits !== false) ? 'checked' : '' %> /><span>Show Kits block</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSpare" value="0" /><input type="checkbox" name="homepageBlockSpare" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.spare !== false) ? 'checked' : '' %> /><span>Show Spare block</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSubscriptions" value="0" /><input type="checkbox" name="homepageBlockSubscriptions" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.subscriptions !== false) ? 'checked' : '' %> /><span>Show Subscriptions block</span></label>
+        </div>
+        <label><span>Override Kits block title</span>
+          <input type="text" name="homepageKitsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsTitle) || '' %>" placeholder="Κύρια DIY Kits" />
+        </label>
+        <label><span>Override Spare block title</span>
+          <input type="text" name="homepageSpareTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareTitle) || '' %>" placeholder="Ανταλλακτικά & Εργαλεία" />
+        </label>
+        <label><span>Override Subscriptions block title</span>
+          <input type="text" name="homepageSubscriptionsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsTitle) || '' %>" placeholder="Συνδρομές / Videos" />
+        </label>
         <label><span>Footer contact email</span>
           <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@shop.com" />
         </label>

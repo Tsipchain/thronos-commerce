@@ -246,6 +246,8 @@
   <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
+    <% const homeBlockVisibility = Object.assign({ hero: true, kits: true, spare: true, subscriptions: true }, (homepage && homepage.blockVisibility) || {}); %>
+    <% const homeBlockContent = Object.assign({ kitsTitle: '', spareTitle: '', subscriptionsTitle: '' }, (homepage && homepage.blockContent) || {}); %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
     <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
     <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
@@ -426,7 +428,7 @@
         'spare-parts': { el: { title: 'Ανταλλακτικά & Εργαλεία', subtitle: 'SKU αναζήτηση και φίλτρα για γρήγορο εντοπισμό τεχνικών εξαρτημάτων.' }, en: { title: 'Spare Parts & Tools', subtitle: 'Use SKU search and filters to quickly find technical parts.' } }
       }; %>
       <% const dynamicHeroEntry = activeCategory && dynamicHeroByCategory[activeCategory] ? dynamicHeroByCategory[activeCategory][lang] : null; %>
-      <% if (((!config.theme || config.theme.bannerVisible !== false) || (isEukolakisClassic && !activeCategory)) && !(isEukolakisClassic && activeCategory)) { %>
+      <% if (homeBlockVisibility.hero !== false && (((!config.theme || config.theme.bannerVisible !== false) || (isEukolakisClassic && !activeCategory)) && !(isEukolakisClassic && activeCategory))) { %>
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
         <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
           <div style="margin-bottom:14px;">
@@ -475,9 +477,9 @@
       </section>
       <% } %>
 
-      <% if (isEukolakisLanding) { %>
+      <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
       <section class="featured-section" data-home-block="kits">
-        <h2>🧰 <%= lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits' %></h2>
+        <h2>🧰 <%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
         <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
@@ -504,19 +506,19 @@
         </div>
         <% } %>
       </section>
-      <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
+      <% if (homeBlockVisibility.spare !== false && (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary)) { %>
       <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero spare-tools-card <%= spareToolsCardMode %>" data-home-block="spare" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
-        <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
+        <h3 style="margin-top:0;"><%= homeBlockContent.spareTitle || resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
         <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
         <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
         <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
       </section>
       </a>
       <% } %>
-      <% if (subscriptionsEnabled) { %>
+      <% if (subscriptionsEnabled && homeBlockVisibility.subscriptions !== false) { %>
       <section class="home-secondary" data-home-block="subscriptions" style="margin-top:10px;">
-        <h3 style="margin-top:0;"><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></h3>
+        <h3 style="margin-top:0;"><%= homeBlockContent.subscriptionsTitle || (lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos') %></h3>
         <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
         <a class="button" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες συνδρομές' : 'View subscriptions' %></a>
       </section>

@@ -550,7 +550,24 @@ function loadTenantConfig(req) {
       introEnabled: false,
       introVideoUrl: '',
       introPosterUrl: '',
-      blockOrder: ['hero', 'kits', 'spare', 'subscriptions']
+      blockOrder: ['hero', 'kits', 'spare', 'subscriptions'],
+      blockVisibility: {
+        hero: true,
+        kits: true,
+        spare: true,
+        subscriptions: true
+      },
+      blockContent: {
+        kitsTitle: '',
+        spareTitle: '',
+        subscriptionsTitle: '',
+        kitsCtaLabel: '',
+        kitsCtaHref: '',
+        spareCtaLabel: '',
+        spareCtaHref: '',
+        subscriptionsCtaLabel: '',
+        subscriptionsCtaHref: ''
+      }
     },
     footer: {
       contactEmail: '',
@@ -618,6 +635,14 @@ function loadTenantConfig(req) {
   cfg.homepage.secondaryCard = Object.assign(
     { title: '', text: '', link: '', image: '' },
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
+  );
+  cfg.homepage.blockVisibility = Object.assign(
+    { hero: true, kits: true, spare: true, subscriptions: true },
+    (cfg.homepage && cfg.homepage.blockVisibility) || {}
+  );
+  cfg.homepage.blockContent = Object.assign(
+    { kitsTitle: '', spareTitle: '', subscriptionsTitle: '' },
+    (cfg.homepage && cfg.homepage.blockContent) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
@@ -3003,6 +3028,19 @@ app.post('/admin/settings', async (req, res) => {
     homepageIntroVideoUrl,
     homepageIntroPosterUrl,
     homepageBlockOrder,
+    homepageBlockHero,
+    homepageBlockKits,
+    homepageBlockSpare,
+    homepageBlockSubscriptions,
+    homepageKitsTitle,
+    homepageSpareTitle,
+    homepageSubscriptionsTitle,
+    homepageKitsCtaLabel,
+    homepageKitsCtaHref,
+    homepageSpareCtaLabel,
+    homepageSpareCtaHref,
+    homepageSubscriptionsCtaLabel,
+    homepageSubscriptionsCtaHref,
     footerContactEmail,
     footerPickupAddress,
     footerFacebookUrl,
@@ -3201,6 +3239,21 @@ app.post('/admin/settings', async (req, res) => {
     const merged = normalized.concat(validKeys.filter((k) => !normalized.includes(k)));
     config.homepage.blockOrder = merged;
   }
+  config.homepage.blockVisibility = config.homepage.blockVisibility || {};
+  config.homepage.blockVisibility.hero = readCheckbox(req.body, 'homepageBlockHero', config.homepage.blockVisibility.hero !== false);
+  config.homepage.blockVisibility.kits = readCheckbox(req.body, 'homepageBlockKits', config.homepage.blockVisibility.kits !== false);
+  config.homepage.blockVisibility.spare = readCheckbox(req.body, 'homepageBlockSpare', config.homepage.blockVisibility.spare !== false);
+  config.homepage.blockVisibility.subscriptions = readCheckbox(req.body, 'homepageBlockSubscriptions', config.homepage.blockVisibility.subscriptions !== false);
+  config.homepage.blockContent = config.homepage.blockContent || {};
+  if (hasBodyField(req.body, 'homepageKitsTitle')) config.homepage.blockContent.kitsTitle = String(homepageKitsTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareTitle')) config.homepage.blockContent.spareTitle = String(homepageSpareTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsTitle')) config.homepage.blockContent.subscriptionsTitle = String(homepageSubscriptionsTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaLabel')) config.homepage.blockContent.kitsCtaLabel = String(homepageKitsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaHref')) config.homepage.blockContent.kitsCtaHref = String(homepageKitsCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaLabel')) config.homepage.blockContent.spareCtaLabel = String(homepageSpareCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaHref')) config.homepage.blockContent.spareCtaHref = String(homepageSpareCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaLabel')) config.homepage.blockContent.subscriptionsCtaLabel = String(homepageSubscriptionsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaHref')) config.homepage.blockContent.subscriptionsCtaHref = String(homepageSubscriptionsCtaHref || '').trim();
   config.footer = config.footer || {};
   config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
   config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();
