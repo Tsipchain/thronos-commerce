@@ -614,6 +614,15 @@ function loadTenantConfig(req) {
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
+  const paymentOptions = Array.isArray(cfg.paymentOptions) ? cfg.paymentOptions.slice() : [];
+  const hasCod = paymentOptions.some((opt) => {
+    const id = String((opt && (opt.id || opt.type)) || '').toLowerCase();
+    return id === 'cod' || id === 'cash_on_delivery';
+  });
+  if (!hasCod) {
+    paymentOptions.unshift({ id: 'COD', label: 'Αντικαταβολή', type: 'cod' });
+  }
+  cfg.paymentOptions = paymentOptions;
   if (!hasStoredKitWizardDisplay && req.tenant && req.tenant.id === 'eukolakis') {
     cfg.theme.kitWizardDisplay = 'cinematic';
   }
