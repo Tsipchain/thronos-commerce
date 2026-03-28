@@ -261,6 +261,7 @@
     <% const logoFilterShadow = logoShadowMode === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (logoShadowMode === 'soft' ? 'drop-shadow(0 6px 10px rgba(15,23,42,.22))' : 'none'); %>
     <% const logoBoxShadow = hasLogoBg ? (logoShadowMode === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (logoShadowMode === 'soft' ? '0 4px 12px rgba(15,23,42,.12)' : 'none')) : 'none'; %>
     <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
+    <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
     <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
@@ -270,7 +271,7 @@
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
           </span>
         <% } %>
-        <% if (brandingMode !== 'logo_only') { %>
+        <% if (brandingMode !== 'logo_only' && !hideStoreNameForClassicBanner) { %>
         <div class="store-name-wrap">
           <h1><%= config.storeName %></h1>
           <% if (config.web3Domain) { %>
