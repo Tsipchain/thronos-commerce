@@ -560,7 +560,13 @@ function loadTenantConfig(req) {
       blockContent: {
         kitsTitle: '',
         spareTitle: '',
-        subscriptionsTitle: ''
+        subscriptionsTitle: '',
+        kitsCtaLabel: '',
+        kitsCtaHref: '',
+        spareCtaLabel: '',
+        spareCtaHref: '',
+        subscriptionsCtaLabel: '',
+        subscriptionsCtaHref: ''
       }
     },
     footer: {
@@ -3029,6 +3035,12 @@ app.post('/admin/settings', async (req, res) => {
     homepageKitsTitle,
     homepageSpareTitle,
     homepageSubscriptionsTitle,
+    homepageKitsCtaLabel,
+    homepageKitsCtaHref,
+    homepageSpareCtaLabel,
+    homepageSpareCtaHref,
+    homepageSubscriptionsCtaLabel,
+    homepageSubscriptionsCtaHref,
     footerContactEmail,
     footerPickupAddress,
     footerFacebookUrl,
@@ -3236,6 +3248,12 @@ app.post('/admin/settings', async (req, res) => {
   if (hasBodyField(req.body, 'homepageKitsTitle')) config.homepage.blockContent.kitsTitle = String(homepageKitsTitle || '').trim();
   if (hasBodyField(req.body, 'homepageSpareTitle')) config.homepage.blockContent.spareTitle = String(homepageSpareTitle || '').trim();
   if (hasBodyField(req.body, 'homepageSubscriptionsTitle')) config.homepage.blockContent.subscriptionsTitle = String(homepageSubscriptionsTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaLabel')) config.homepage.blockContent.kitsCtaLabel = String(homepageKitsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaHref')) config.homepage.blockContent.kitsCtaHref = String(homepageKitsCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaLabel')) config.homepage.blockContent.spareCtaLabel = String(homepageSpareCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaHref')) config.homepage.blockContent.spareCtaHref = String(homepageSpareCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaLabel')) config.homepage.blockContent.subscriptionsCtaLabel = String(homepageSubscriptionsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaHref')) config.homepage.blockContent.subscriptionsCtaHref = String(homepageSubscriptionsCtaHref || '').trim();
   config.footer = config.footer || {};
   config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
   config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();
