@@ -600,6 +600,12 @@ function loadTenantConfig(req) {
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
+  const hasStoredKitWizardDisplay = !!(
+    cfg &&
+    cfg.theme &&
+    typeof cfg.theme.kitWizardDisplay === 'string' &&
+    String(cfg.theme.kitWizardDisplay).trim()
+  );
   cfg.homepage = Object.assign({}, fallback.homepage, cfg.homepage || {});
   cfg.homepage.secondaryCard = Object.assign(
     { title: '', text: '', link: '', image: '' },
@@ -608,6 +614,18 @@ function loadTenantConfig(req) {
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
+  const paymentOptions = Array.isArray(cfg.paymentOptions) ? cfg.paymentOptions.slice() : [];
+  const hasCod = paymentOptions.some((opt) => {
+    const id = String((opt && (opt.id || opt.type)) || '').toLowerCase();
+    return id === 'cod' || id === 'cash_on_delivery';
+  });
+  if (!hasCod) {
+    paymentOptions.unshift({ id: 'COD', label: 'Αντικαταβολή', type: 'cod' });
+  }
+  cfg.paymentOptions = paymentOptions;
+  if (!hasStoredKitWizardDisplay && req.tenant && req.tenant.id === 'eukolakis') {
+    cfg.theme.kitWizardDisplay = 'cinematic';
+  }
   return cfg;
 }
 
@@ -3140,6 +3158,40 @@ app.post('/admin/settings', async (req, res) => {
     'admin',
     buildAdminViewModel(req, { message: 'Οι ρυθμίσεις αποθηκεύτηκαν.' })
   );
+});
+
+app.post('/admin/coupons', async (req, res) => {
+  const { password, code, type, value, minSubtotal, active } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή κουπονιών.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const normalizedCode = normalizeCouponCode(code || '');
+  if (!normalizedCode) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Δώστε έγκυρο coupon code.' }));
+  }
+  const couponType = String(type || 'percent').toLowerCase() === 'fixed' ? 'fixed' : 'percent';
+  const couponValue = Math.max(0, Number(value) || 0);
+  const couponMinSubtotal = Math.max(0, Number(minSubtotal) || 0);
+  const config = loadTenantConfig(req);
+  const coupons = Array.isArray(config.coupons) ? config.coupons.slice() : [];
+  const idx = coupons.findIndex((c) => normalizeCouponCode(c.code) === normalizedCode);
+  const nextCoupon = {
+    code: normalizedCode,
+    type: couponType,
+    value: couponValue,
+    minSubtotal: couponMinSubtotal,
+    active: String(active || '1') !== '0'
+  };
+  if (idx >= 0) coupons[idx] = Object.assign({}, coupons[idx], nextCoupon);
+  else coupons.push(nextCoupon);
+  config.coupons = coupons;
+  saveTenantConfig(req, config);
+  return res.render('admin', buildAdminViewModel(req, { message: `Το κουπόνι ${normalizedCode} αποθηκεύτηκε.` }));
 });
 
 app.post('/admin/notifications', async (req, res) => {

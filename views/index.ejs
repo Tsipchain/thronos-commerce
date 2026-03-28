@@ -176,7 +176,7 @@
       .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
       .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
       .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-      .kit-choice-grid.transitioning { opacity: .14; transform: translateY(8px); transition: opacity .22s ease, transform .22s ease; }
+      .kit-choice-grid.transitioning { opacity: .08; transform: translateY(14px) scale(.985); filter: blur(1.2px); transition: opacity .24s ease, transform .24s ease, filter .24s ease; }
       .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
       .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
       .kit-choice .kit-choice-thumb { width:72px; aspect-ratio: var(--product-thumb-aspect, 4 / 3); object-fit: var(--product-thumb-fit, cover); border-radius:8px; background: var(--product-thumb-bg, #111111); }
@@ -261,6 +261,7 @@
     <% const logoFilterShadow = logoShadowMode === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (logoShadowMode === 'soft' ? 'drop-shadow(0 6px 10px rgba(15,23,42,.22))' : 'none'); %>
     <% const logoBoxShadow = hasLogoBg ? (logoShadowMode === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (logoShadowMode === 'soft' ? '0 4px 12px rgba(15,23,42,.12)' : 'none')) : 'none'; %>
     <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
+    <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
     <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
@@ -270,7 +271,7 @@
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
           </span>
         <% } %>
-        <% if (brandingMode !== 'logo_only') { %>
+        <% if (brandingMode !== 'logo_only' && !hideStoreNameForClassicBanner) { %>
         <div class="store-name-wrap">
           <h1><%= config.storeName %></h1>
           <% if (config.web3Domain) { %>

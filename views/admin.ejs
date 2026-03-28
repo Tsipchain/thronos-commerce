@@ -244,8 +244,41 @@
         <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
         <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
           <strong>Payments status</strong>
-          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong></p>
-          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments</a>
+          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong> · PayPal configured: <strong><%= config.paypalEmail ? 'yes' : 'no' %></strong></p>
+          <p class="helper" style="margin:6px 0;">COD available by default για να μην μπλοκάρει η ολοκλήρωση παραγγελίας.</p>
+          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments Settings</a>
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Coupons</strong>
+          <p class="helper" style="margin:6px 0;">Δημιούργησε / ενημέρωσε κουπόνια για το tenant.</p>
+          <form method="POST" action="<%= withTenantLink('/admin/coupons') %>" style="display:grid;grid-template-columns:1fr 120px 110px 120px;gap:8px;align-items:end;">
+            <label style="margin:0;"><span class="helper">Code</span><input type="text" name="code" placeholder="WELCOME10" required /></label>
+            <label style="margin:0;"><span class="helper">Type</span><select name="type"><option value="percent">Percent</option><option value="fixed">Fixed €</option></select></label>
+            <label style="margin:0;"><span class="helper">Value</span><input type="number" min="0" step="0.01" name="value" required /></label>
+            <label style="margin:0;"><span class="helper">Min subtotal</span><input type="number" min="0" step="0.01" name="minSubtotal" value="0" /></label>
+            <label class="checkbox-label" style="grid-column:1/3;margin:0;"><input type="checkbox" name="active" value="1" checked /><span>Active</span></label>
+            <label style="grid-column:3/5;margin:0;"><span class="helper">Admin password</span><input type="password" name="password" required /></label>
+            <button class="button" type="submit" style="grid-column:1/5;">Save coupon</button>
+          </form>
+          <div class="helper" style="margin-top:8px;">
+            <% if (Array.isArray(config.coupons) && config.coupons.length) { %>
+              <% config.coupons.forEach(function(c){ %>
+                <span style="display:inline-block;margin-right:8px;">• <strong><%= c.code %></strong> (<%= c.type === 'fixed' ? '€' : '%' %><%= c.value %>, min <%= Number(c.minSubtotal || 0).toFixed(2) %>, <%= c.active === false ? 'inactive' : 'active' %>)</span>
+              <% }) %>
+            <% } else { %>
+              No tenant coupons yet (fallback WELCOME10 remains available when coupon list is empty).
+            <% } %>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Referral</strong>
+          <% const ref = tenant.referral || null; %>
+          <% if (ref && ref.code) { %>
+            <p class="helper" style="margin:6px 0;">Code: <strong><%= ref.code %></strong> · Percent: <strong><%= Math.round(Number(ref.percent || 0) * 100) %>%</strong></p>
+            <p class="helper" style="margin:6px 0;">Referral link: <code><%= withTenantLink('/?ref=' + encodeURIComponent(ref.code)) %></code></p>
+          <% } else { %>
+            <p class="helper" style="margin:6px 0;">Δεν έχει οριστεί referral code για αυτό το tenant από το root admin.</p>
+          <% } %>
         </div>
       </section>
       <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
@@ -1497,6 +1530,11 @@
       <div class="modal">
         <h3 style="margin-top:0;">KIT Builder</h3>
         <p class="helper" id="kit-builder-title"></p>
+        <p class="helper" style="margin-top:-6px;">
+          Storefront wizard mode:
+          <strong><%= ((config.theme && config.theme.kitWizardDisplay) || (tenant.id === 'eukolakis' ? 'cinematic' : 'sequential')) %></strong>
+          · change from <strong>Branding → KIT wizard display</strong>.
+        </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <h4>Option Groups</h4>
