@@ -176,10 +176,13 @@
       .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
       .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
       .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .kit-choice-grid.transitioning { opacity: .14; transform: translateY(8px); transition: opacity .22s ease, transform .22s ease; }
       .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
       .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
       .kit-choice .kit-choice-thumb { width:72px; aspect-ratio: var(--product-thumb-aspect, 4 / 3); object-fit: var(--product-thumb-fit, cover); border-radius:8px; background: var(--product-thumb-bg, #111111); }
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
+      .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
+      .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
         backdrop-filter: blur(5px);
@@ -566,7 +569,7 @@
       <% } %>
     </main>
     <% if (tenant.id === 'eukolakis') { %>
-    <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" aria-hidden="true">
+    <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" data-wizard-display="<%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') %>" aria-hidden="true">
       <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Οδηγός kit' : 'Kit wizard' %>">
         <div class="kit-wizard-head">
           <div>
@@ -705,6 +708,8 @@
         const catalogById = Object.fromEntries(catalogProducts.map(function(p){ return [p.id, p]; }));
         const kitById = Object.fromEntries(kitProducts.map(function(p){ return [p.id, p]; }));
         const state = { product: null, step: 0, selections: {}, selectedVariants: {} };
+        const wizardDisplay = wizard.getAttribute('data-wizard-display') || 'sequential';
+        const stateStoragePrefix = 'thrc-kit-wizard-state::';
         const titleEl = document.getElementById('kit-wizard-title');
         const progressEl = document.getElementById('kit-wizard-progress');
         const groupTitleEl = document.getElementById('kit-group-title');
@@ -797,7 +802,40 @@
           const sel = getSelectionArray(group);
           return !group.required || sel.length > 0;
         }
+        function persistState() {
+          if (!state.product || !state.product.id) return;
+          const payload = {
+            step: state.step,
+            selections: state.selections,
+            selectedVariants: state.selectedVariants
+          };
+          try {
+            sessionStorage.setItem(stateStoragePrefix + state.product.id, JSON.stringify(payload));
+          } catch (_) {}
+        }
+        function restoreState(product) {
+          if (!product || !product.id) return false;
+          try {
+            const raw = sessionStorage.getItem(stateStoragePrefix + product.id);
+            if (!raw) return false;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return false;
+            const maxStep = Array.isArray(product.kitOptions) ? product.kitOptions.length : 0;
+            state.step = Math.max(0, Math.min(Number(parsed.step) || 0, maxStep));
+            state.selections = (parsed.selections && typeof parsed.selections === 'object') ? parsed.selections : {};
+            state.selectedVariants = (parsed.selectedVariants && typeof parsed.selectedVariants === 'object') ? parsed.selectedVariants : {};
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+        function animateStepTransition() {
+          if (wizardDisplay !== 'cinematic') return;
+          choiceGrid.classList.add('transitioning');
+          setTimeout(function(){ choiceGrid.classList.remove('transitioning'); }, 230);
+        }
         function renderStep() {
+          animateStepTransition();
           const groups = state.product.kitOptions || [];
           const summaryStep = state.step >= groups.length;
           titleEl.textContent = state.product.name || 'KIT';
@@ -815,6 +853,7 @@
             groupReqEl.textContent = '';
             previewEl.innerHTML = '';
             renderSummary();
+            persistState();
             return;
           }
           const group = groups[state.step];
@@ -882,6 +921,7 @@
             });
           });
           renderPreview(group);
+          persistState();
         }
         function openWizard(productId) {
           const p = kitById[productId];
@@ -890,6 +930,7 @@
           state.step = 0;
           state.selections = {};
           state.selectedVariants = {};
+          restoreState(p);
           wizard.classList.add('open');
           wizard.setAttribute('aria-hidden', 'false');
           renderStep();

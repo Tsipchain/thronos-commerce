@@ -495,6 +495,13 @@
               <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
             </select>
           </label>
+          <label><span>KIT wizard display</span>
+            <select name="themeKitWizardDisplay" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="sequential" <%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') === 'sequential' ? 'selected' : '' %>>Sequential</option>
+              <option value="cinematic" <%= ((config.theme && config.theme.kitWizardDisplay) || '') === 'cinematic' ? 'selected' : '' %>>Cinematic transitions</option>
+            </select>
+            <small class="helper">Sequential shows one step at a time. Cinematic adds transition effects and preserves step progress while browsing.</small>
+          </label>
           <label><span>Footer text color</span>
             <input type="text" name="themeFooterTextColor" value="<%= ((config.theme && config.theme.footerTextColor) || '#6b7280') %>" placeholder="#6b7280" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           </label>

@@ -595,7 +595,8 @@ function loadTenantConfig(req) {
       productCardHoverEffect: 'lift',
       cardDensity: 'normal',
       productPreOpenEffect: 'none',
-      footerTextColor: '#6b7280'
+      footerTextColor: '#6b7280',
+      kitWizardDisplay: 'sequential'
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -605,7 +606,6 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
-  cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   return cfg;
@@ -2991,7 +2991,8 @@ app.post('/admin/settings', async (req, res) => {
     themeProductCardHoverEffect,
     themeCardDensity,
     themeProductPreOpenEffect,
-    themeFooterTextColor
+    themeFooterTextColor,
+    themeKitWizardDisplay
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -3066,6 +3067,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
   const rawFooterTextColor = String(themeFooterTextColor || config.theme.footerTextColor || '#6b7280').trim();
   config.theme.footerTextColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawFooterTextColor) ? rawFooterTextColor : '#6b7280';
+  config.theme.kitWizardDisplay = ['sequential', 'cinematic'].includes(String(themeKitWizardDisplay || ''))
+    ? String(themeKitWizardDisplay)
+    : (config.theme.kitWizardDisplay || 'sequential');
   config.homepage = config.homepage || {};
   if (hasBodyField(req.body, 'homepageHeroImage')) {
     config.homepage.heroImage = String(homepageHeroImage || '').trim();
