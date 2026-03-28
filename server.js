@@ -1866,6 +1866,23 @@ app.get('/checkout', (req, res) => {
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
+app.post('/api/checkout/cart-snapshot', (req, res) => {
+  const raw = req.body && req.body.items;
+  if (!Array.isArray(raw)) return res.status(400).json({ ok: false });
+  const snapshot = raw
+    .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+    .map((item) => ({
+      id: String(item.id || '').trim(),
+      qty: Math.max(1, parseInt(item.qty, 10) || 1),
+      variantId: item.variantId ? String(item.variantId).trim() : '',
+      isKitSummary: !!item.isKitSummary,
+      selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+    }))
+    .slice(0, 120);
+  req.session.checkoutCartSnapshot = snapshot;
+  return res.json({ ok: true, count: snapshot.length });
+});
+
 // Checkout submit (multi-item cart)
 app.post('/checkout', async (req, res) => {
   const config = loadTenantConfig(req);
@@ -1880,6 +1897,9 @@ app.post('/checkout', async (req, res) => {
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
+  if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
+    cartItems = req.session.checkoutCartSnapshot.slice();
+  }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return res.status(400).send('Cart is empty');
   }

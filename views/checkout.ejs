@@ -292,10 +292,41 @@
       }
       let cart = readCartSnapshot();
       const cartJsonInput = document.getElementById('cart-json-input');
+      const cartSnapshotApi = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
+
+      function normalizeCartForCheckout(snapshot) {
+        if (!Array.isArray(snapshot)) return [];
+        return snapshot
+          .filter(function(item){ return item && item.id; })
+          .map(function(item){
+            return {
+              id: String(item.id || '').trim(),
+              qty: Math.max(1, Number(item.qty) || 1),
+              variantId: item.variantId ? String(item.variantId).trim() : '',
+              isKitSummary: !!item.isKitSummary,
+              selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+            };
+          })
+          .filter(function(item){ return item.id; });
+      }
 
       function syncCartPayload(snapshot) {
-        const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
+        const safeSnapshot = normalizeCartForCheckout(snapshot);
         if (cartJsonInput) cartJsonInput.value = JSON.stringify(safeSnapshot);
+      }
+
+      function syncCartSnapshotToServer(snapshot) {
+        const safeSnapshot = normalizeCartForCheckout(snapshot);
+        if (!safeSnapshot.length) return;
+        try {
+          fetch(cartSnapshotApi, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            keepalive: true,
+            body: JSON.stringify({ items: safeSnapshot })
+          }).catch(function(){});
+        } catch (_) {}
       }
 
       if (!cart.length) {
@@ -307,6 +338,7 @@
         recalc();
       }
       syncCartPayload(cart);
+      syncCartSnapshotToServer(cart);
 
       function renderSummaryItems() {
         const el = document.getElementById('summary-items');
@@ -388,12 +420,14 @@
         if (!submitSnapshot.length) { e.preventDefault(); return; }
         cart = submitSnapshot;
         syncCartPayload(submitSnapshot);
+        syncCartSnapshotToServer(submitSnapshot);
       });
       window.addEventListener('pageshow', function() {
         const refreshedCart = readCartSnapshot();
         if (Array.isArray(refreshedCart) && refreshedCart.length) {
           cart = refreshedCart;
           syncCartPayload(refreshedCart);
+          syncCartSnapshotToServer(refreshedCart);
         }
       });
       const couponInput = document.getElementById('coupon-code');
