@@ -1627,7 +1627,7 @@ app.use('/admin', (req, res, next) => {
 
 function buildAdminViewModel(req, extra) {
   const config = loadTenantConfig(req);
-  const products = loadTenantProducts(req);
+  const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
   const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
@@ -1736,7 +1736,7 @@ app.get('/favicon.ico', (req, res) => {
 app.get('/sitemap.xml', (req, res) => {
   const config = loadTenantConfig(req);
   const categories = loadTenantCategories(req);
-  const products = loadTenantProducts(req);
+  const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   const urls = [
     buildTenantLink(req, '/'),
@@ -1775,7 +1775,7 @@ app.get('/', (req, res) => {
       return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
     }
     const categories = loadTenantCategories(req);
-    const allProducts = loadTenantProducts(req);
+    const allProducts = loadTenantProducts(req).filter((p) => p && p.active !== false);
     const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
       defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
     }));
@@ -1836,7 +1836,7 @@ app.get('/intro', (req, res) => {
 // Product detail
 app.get('/product/:id', (req, res) => {
   const config = loadTenantConfig(req);
-  const products = loadTenantProducts(req);
+  const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const product = products.find((p) => p.id === req.params.id);
 
   if (!product) {
@@ -3616,6 +3616,7 @@ app.post('/admin/products', async (req, res) => {
         p.seoDescription = desc.length > 160 ? desc.slice(0, 157) + '…' : desc || p.seoTitle;
       }
       if (!Array.isArray(p.gallery)) p.gallery = [];
+      if (typeof p.active !== 'boolean') p.active = true;
     });
     saveTenantProducts(req, parsed);
     res.render(

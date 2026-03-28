@@ -1457,6 +1457,10 @@
             <input type="checkbox" id="f-featured" style="width:auto;margin:0;" />
             <span><%= t('admin.modalFeatured') %></span>
           </label>
+          <label style="flex-direction:row;align-items:center;gap:8px;">
+            <input type="checkbox" id="f-active" style="width:auto;margin:0;" checked />
+            <span>Visible on storefront</span>
+          </label>
           <label class="full"><span><%= t('admin.modalCategory') %></span>
             <select id="f-category">
               <option value=""><%= t('admin.modalNoCat') %></option>
@@ -1658,7 +1662,7 @@
             '<td>' + escHtml(pName) + '</td>' +
             '<td>' + (p.price !== undefined ? Number(p.price).toFixed(2) : '–') + '</td>' +
             '<td>' + escHtml(p.sku || '') + '</td>' +
-            '<td>' + escHtml(p.categoryId || '') + '</td>' +
+            '<td>' + escHtml(p.categoryId || '') + (p.active === false ? ' <small style="color:#b91c1c;">(hidden)</small>' : '') + '</td>' +
             (canEdit ? '<td>' + editBtn + '</td>' : '') +
             '</tr>';
         }).join('');
@@ -1684,6 +1688,7 @@
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
+      const fActive     = document.getElementById('f-active');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
       const fImgPreview = document.getElementById('f-image-preview');
@@ -2093,6 +2098,7 @@
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
         if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
+        if (fActive) fActive.checked = true;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
@@ -2116,6 +2122,7 @@
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
+        if (fActive) fActive.checked = p.active !== false;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
         if (fImgPreview) {
@@ -2160,6 +2167,7 @@
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
+          active:         fActive && !fActive.checked ? false : undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
