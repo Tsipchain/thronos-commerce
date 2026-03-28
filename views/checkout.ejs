@@ -276,10 +276,21 @@
 
     <script>
       const CART_KEY = 'thrc_cart';
+      const CART_SESSION_KEY = 'thrc_cart_session';
 
       // ── Load & validate cart ──────────────────────────────────────
-      let cart = [];
-      try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) {}
+      function readCartSnapshot() {
+        try {
+          const local = JSON.parse(localStorage.getItem(CART_KEY) || 'null');
+          if (Array.isArray(local)) return local;
+        } catch(e) {}
+        try {
+          const session = JSON.parse(sessionStorage.getItem(CART_SESSION_KEY) || 'null');
+          if (Array.isArray(session)) return session;
+        } catch(e) {}
+        return [];
+      }
+      let cart = readCartSnapshot();
 
       if (!cart.length) {
         document.getElementById('empty-cart-msg').style.display = '';
@@ -363,8 +374,10 @@
 
       // ── On submit: inject cart JSON ───────────────────────────────
       document.getElementById('checkout-form').addEventListener('submit', function(e) {
-        if (!cart.length) { e.preventDefault(); return; }
-        document.getElementById('cart-json-input').value = JSON.stringify(cart);
+        const latestCart = readCartSnapshot();
+        if (!latestCart.length) { e.preventDefault(); return; }
+        cart = latestCart;
+        document.getElementById('cart-json-input').value = JSON.stringify(latestCart);
       });
       const couponInput = document.getElementById('coupon-code');
       if (couponInput) couponInput.addEventListener('input', recalc);

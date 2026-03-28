@@ -430,7 +430,7 @@
             <% } %>
           </div>
         <% } %>
-        <% if (tenant.id === 'eukolakis') { %>
+        <% if (tenant.id === 'eukolakis' && !isEukolakisClassic) { %>
           <h2 class="hero-title"><%= (dynamicHeroEntry && dynamicHeroEntry.title) || resolveField(homepage.heroTitle, lang) || config.storeName %></h2>
           <% const resolvedHeroSubtitle = (dynamicHeroEntry && dynamicHeroEntry.subtitle) || resolveField(homepage.heroSubtitle, lang); %>
           <% if (resolvedHeroSubtitle) { %><p style="margin:0;color:inherit;opacity:.92;"><%= resolvedHeroSubtitle %></p><% } %>
@@ -473,7 +473,7 @@
               <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
-                <h3 style="margin:0 0 8px;"><%= product.name %></h3>
+                <% if (!isEukolakisClassic) { %><h3 style="margin:0 0 8px;"><%= product.name %></h3><% } %>
                 <% if (product.description) { %><p style="margin:0 0 10px;color:#4b5563;"><%= product.description %></p><% } %>
                 <small style="color:#0f766e;font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
               </div>
