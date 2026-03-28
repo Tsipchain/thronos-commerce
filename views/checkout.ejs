@@ -291,6 +291,12 @@
         return [];
       }
       let cart = readCartSnapshot();
+      const cartJsonInput = document.getElementById('cart-json-input');
+
+      function syncCartPayload(snapshot) {
+        const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
+        if (cartJsonInput) cartJsonInput.value = JSON.stringify(safeSnapshot);
+      }
 
       if (!cart.length) {
         document.getElementById('empty-cart-msg').style.display = '';
@@ -300,6 +306,7 @@
         renderSummaryItems();
         recalc();
       }
+      syncCartPayload(cart);
 
       function renderSummaryItems() {
         const el = document.getElementById('summary-items');
@@ -375,9 +382,19 @@
       // ── On submit: inject cart JSON ───────────────────────────────
       document.getElementById('checkout-form').addEventListener('submit', function(e) {
         const latestCart = readCartSnapshot();
-        if (!latestCart.length) { e.preventDefault(); return; }
-        cart = latestCart;
-        document.getElementById('cart-json-input').value = JSON.stringify(latestCart);
+        const submitSnapshot = Array.isArray(latestCart) && latestCart.length
+          ? latestCart
+          : (Array.isArray(cart) && cart.length ? cart : []);
+        if (!submitSnapshot.length) { e.preventDefault(); return; }
+        cart = submitSnapshot;
+        syncCartPayload(submitSnapshot);
+      });
+      window.addEventListener('pageshow', function() {
+        const refreshedCart = readCartSnapshot();
+        if (Array.isArray(refreshedCart) && refreshedCart.length) {
+          cart = refreshedCart;
+          syncCartPayload(refreshedCart);
+        }
       });
       const couponInput = document.getElementById('coupon-code');
       if (couponInput) couponInput.addEventListener('input', recalc);

@@ -199,8 +199,11 @@
       .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
       body.eukolakis-classic main { max-width: 1180px; margin: 0 auto; padding: 0 16px 30px; }
       body.eukolakis-classic .store-header { padding: 14px 16px 10px; border-bottom:none !important; box-shadow:none !important; }
-      body.eukolakis-classic .logo-title { align-items: center; gap: 16px; }
+      body.eukolakis-classic .header-main-row { justify-content: center; }
+      body.eukolakis-classic .logo-title { align-items: center; gap: 16px; width:100%; justify-content:center; text-align:center; }
       body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
+      body.eukolakis-classic .logo-image-dynamic { max-height: clamp(92px, 10vw, 124px) !important; }
+      body.eukolakis-classic .header-auth-actions { margin-left: 0; }
       body.eukolakis-classic .header-nav-row { margin-top: 6px; padding-top: 0; }
       body.eukolakis-classic .pill-nav { margin-top: 6px; }
       body.eukolakis-classic .pill-nav { display:none; }
@@ -217,6 +220,8 @@
       body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
       body.device-mobile .hero { padding: 18px; }
       body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
+      .spare-tools-card.prominent { border-width:2px !important; border-color:#cbd5e1 !important; border-radius:14px !important; }
+      .spare-tools-card.prominent img { height:128px !important; max-width:320px !important; margin: 0 auto 10px !important; display:block; }
       @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
       @media (max-width: 640px) {
         .store-header.is-scrolled .logo-image-dynamic { transform: scale(.92); transform-origin: center; }
@@ -232,6 +237,7 @@
         .kit-wizard-backdrop { padding: 0; }
         .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
         .kit-wizard-body { grid-template-columns: 1fr; }
+        body.eukolakis-classic .logo-image-dynamic { max-height: clamp(56px, 14vw, 74px) !important; }
       }
     </style>
   </head>
@@ -384,6 +390,7 @@
       <% const spareCategory = categories.find(function(c){ return c.slug === 'spare-parts' || c.id === 'spare-parts'; }); %>
       <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
       <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
+      <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
@@ -494,7 +501,7 @@
       </section>
       <% if (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary) { %>
       <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
-      <section class="hero" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
+      <section class="hero spare-tools-card <%= spareToolsCardMode %>" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
         <h3 style="margin-top:0;"><%= resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
         <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
         <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
@@ -604,6 +611,17 @@
         </div>
       </div>
     </div>
+    <div id="kit-full-image-modal" class="kit-wizard-backdrop" aria-hidden="true">
+      <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Πλήρης εικόνα προϊόντος' : 'Full product image' %>" style="max-width:1100px;background:#020617;color:#fff;">
+        <div class="kit-wizard-head" style="border-bottom-color:rgba(255,255,255,.15);">
+          <strong id="kit-full-image-title"><%= lang === 'el' ? 'Πλήρης εικόνα προϊόντος' : 'Full product image' %></strong>
+          <button type="button" id="kit-full-image-close" class="btn-cart" style="background:#1f2937;">✕</button>
+        </div>
+        <div style="padding:14px 16px;">
+          <img id="kit-full-image-el" src="" alt="" style="display:block;width:100%;max-height:78vh;object-fit:contain;border-radius:10px;background:#0f172a;" />
+        </div>
+      </div>
+    </div>
     <script id="kit-products-json" type="application/json"><%- safeJson((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })) %></script>
     <script id="catalog-products-json" type="application/json"><%- safeJson((allProducts || products).map(function(p){
       return {
@@ -625,6 +643,15 @@
         <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
         <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
       </div>
+      <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <% const poweredByEnabled = !config.footer || config.footer.poweredByEnabled !== false; %>
+      <% const poweredByText = (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗'; %>
+      <% const poweredByUrl = (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/'; %>
+      <% if (poweredByEnabled) { %>
+      <a class="thronos-sign" href="<%= poweredByUrl %>" target="_blank" rel="noopener noreferrer"><%= poweredByText %></a>
       <% } %>
       <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
       <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
@@ -722,6 +749,10 @@
         const addLinkedWrapEl = document.getElementById('kit-add-linked-wrap');
         const addLinkedEl = document.getElementById('kit-add-linked-parts');
         const fullLinkEl = document.getElementById('kit-full-link');
+        const fullImageModalEl = document.getElementById('kit-full-image-modal');
+        const fullImageEl = document.getElementById('kit-full-image-el');
+        const fullImageTitleEl = document.getElementById('kit-full-image-title');
+        const fullImageCloseBtn = document.getElementById('kit-full-image-close');
         const btnBack = document.getElementById('kit-back');
         const btnNext = document.getElementById('kit-next');
         function esc(v) {
@@ -894,7 +925,8 @@
               '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
               (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
               variantSelectHtml + '</div>';
-            card.addEventListener('click', function(){
+            card.addEventListener('click', function(event){
+              if (event && event.target && event.target.closest('select,option,label,input,textarea,a')) return;
               if (group.inputType === 'checkbox') {
                 state.selections[group.id] = Array.isArray(state.selections[group.id]) ? state.selections[group.id] : [];
                 if (state.selections[group.id].includes(choice.id)) state.selections[group.id] = state.selections[group.id].filter(function(v){ return v !== choice.id; });
@@ -915,6 +947,10 @@
             choiceGrid.appendChild(card);
           });
           choiceGrid.querySelectorAll('.kit-variant-select').forEach(function(selectEl){
+            selectEl.addEventListener('click', function(e){ e.stopPropagation(); });
+            selectEl.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+            selectEl.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+            selectEl.addEventListener('touchstart', function(e){ e.stopPropagation(); }, { passive: true });
             selectEl.addEventListener('change', function(e){
               const key = (e.target.getAttribute('data-group-id') || '') + '::' + (e.target.getAttribute('data-choice-id') || '');
               state.selectedVariants[key] = e.target.value || '';
@@ -955,7 +991,40 @@
         });
         document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
         wizard.addEventListener('click', function(e){ if (e.target === wizard) closeWizard(); });
-        document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && wizard.classList.contains('open')) closeWizard(); });
+        if (fullLinkEl) {
+          fullLinkEl.addEventListener('click', function(e){
+            e.preventDefault();
+            if (!state.product || !fullImageModalEl || !fullImageEl) return;
+            const heroImage = (state.product && state.product.imageUrl) || '';
+            if (!heroImage) return;
+            fullImageEl.src = heroImage;
+            fullImageEl.alt = state.product.name || 'product';
+            if (fullImageTitleEl) fullImageTitleEl.textContent = state.product.name || 'Product';
+            fullImageModalEl.classList.add('open');
+            fullImageModalEl.setAttribute('aria-hidden', 'false');
+          });
+        }
+        if (fullImageCloseBtn) {
+          fullImageCloseBtn.addEventListener('click', function(){
+            fullImageModalEl.classList.remove('open');
+            fullImageModalEl.setAttribute('aria-hidden', 'true');
+          });
+        }
+        if (fullImageModalEl) {
+          fullImageModalEl.addEventListener('click', function(e){
+            if (e.target === fullImageModalEl) {
+              fullImageModalEl.classList.remove('open');
+              fullImageModalEl.setAttribute('aria-hidden', 'true');
+            }
+          });
+        }
+        document.addEventListener('keydown', function(e){
+          if (e.key === 'Escape' && wizard.classList.contains('open')) closeWizard();
+          if (e.key === 'Escape' && fullImageModalEl && fullImageModalEl.classList.contains('open')) {
+            fullImageModalEl.classList.remove('open');
+            fullImageModalEl.setAttribute('aria-hidden', 'true');
+          }
+        });
         window.openKitWizard = openWizard;
         btnBack.addEventListener('click', function(){ if (state.step > 0) { state.step -= 1; renderStep(); } });
         btnNext.addEventListener('click', function(){

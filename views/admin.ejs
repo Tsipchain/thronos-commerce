@@ -723,6 +723,17 @@
         <label><span>Footer TikTok URL</span>
           <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@..." />
         </label>
+        <label class="checkbox-label">
+          <input type="hidden" name="footerPoweredByEnabled" value="0" />
+          <input type="checkbox" name="footerPoweredByEnabled" value="1" <%= (!rawConfig.footer || rawConfig.footer.poweredByEnabled !== false) ? 'checked' : '' %> />
+          <span>Show "Powered by" footer link</span>
+        </label>
+        <label><span>Footer Powered-by text</span>
+          <input type="text" name="footerPoweredByText" value="<%= (rawConfig.footer && rawConfig.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %>" placeholder="Powered by Thronos Commerce ↗" />
+        </label>
+        <label><span>Footer Powered-by URL</span>
+          <input type="text" name="footerPoweredByUrl" value="<%= (rawConfig.footer && rawConfig.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" placeholder="https://..." />
+        </label>
         <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
         <p class="helper" style="margin-top:-4px;">Προαιρετικό όσο το admin session είναι ενεργό (30 λεπτά).</p>
         <button type="submit" class="button">Αποθήκευση homepage</button>
@@ -735,6 +746,17 @@
       <section id="tab-categories" class="admin-block section-panel">
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
+        <form method="POST" action="<%= withTenantLink('/admin/settings') %>" class="admin-subform" style="margin-bottom:12px;">
+          <h3 style="margin:0 0 8px;">Category storefront display</h3>
+          <label><span>Spare parts / tools card emphasis</span>
+            <select name="themeSpareToolsCardMode">
+              <option value="prominent" <%= ((config.theme && config.theme.spareToolsCardMode) || 'prominent') === 'prominent' ? 'selected' : '' %>>Prominent (larger centered card)</option>
+              <option value="compact" <%= ((config.theme && config.theme.spareToolsCardMode) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+            </select>
+          </label>
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
+          <button type="submit" class="button">Save category display</button>
+        </form>
         <p class="cat-helper-row">Αντικατάσταση εικόνας: πατήστε «Ανέβασμα/Αλλαγή» και διαλέξτε αρχείο. Δεν χρειάζεται επικόλληση path.</p>
         <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:10px;">
           Κωδικός επαναπιστοποίησης (μόνο αν ζητηθεί):

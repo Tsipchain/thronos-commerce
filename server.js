@@ -556,7 +556,10 @@ function loadTenantConfig(req) {
       pickupAddress: '',
       facebookUrl: '',
       instagramUrl: '',
-      tiktokUrl: ''
+      tiktokUrl: '',
+      poweredByEnabled: true,
+      poweredByText: 'Powered by Thronos Commerce ↗',
+      poweredByUrl: 'https://thronoscommerce.thronoschain.org/'
     },
     assistant: {
       enabled: false,
@@ -596,7 +599,8 @@ function loadTenantConfig(req) {
       cardDensity: 'normal',
       productPreOpenEffect: 'none',
       footerTextColor: '#6b7280',
-      kitWizardDisplay: 'sequential'
+      kitWizardDisplay: 'sequential',
+      spareToolsCardMode: 'prominent'
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -2979,6 +2983,9 @@ app.post('/admin/settings', async (req, res) => {
     footerFacebookUrl,
     footerInstagramUrl,
     footerTiktokUrl,
+    footerPoweredByEnabled,
+    footerPoweredByText,
+    footerPoweredByUrl,
     web3Domain,
     logoPath,
     themeMenuBg,
@@ -3010,7 +3017,8 @@ app.post('/admin/settings', async (req, res) => {
     themeCardDensity,
     themeProductPreOpenEffect,
     themeFooterTextColor,
-    themeKitWizardDisplay
+    themeKitWizardDisplay,
+    themeSpareToolsCardMode
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -3088,6 +3096,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.kitWizardDisplay = ['sequential', 'cinematic'].includes(String(themeKitWizardDisplay || ''))
     ? String(themeKitWizardDisplay)
     : (config.theme.kitWizardDisplay || 'sequential');
+  config.theme.spareToolsCardMode = ['prominent', 'compact'].includes(String(themeSpareToolsCardMode || ''))
+    ? String(themeSpareToolsCardMode)
+    : (config.theme.spareToolsCardMode || 'prominent');
   config.homepage = config.homepage || {};
   if (hasBodyField(req.body, 'homepageHeroImage')) {
     config.homepage.heroImage = String(homepageHeroImage || '').trim();
@@ -3151,6 +3162,10 @@ app.post('/admin/settings', async (req, res) => {
   config.footer.facebookUrl = (footerFacebookUrl || config.footer.facebookUrl || '').trim();
   config.footer.instagramUrl = (footerInstagramUrl || config.footer.instagramUrl || '').trim();
   config.footer.tiktokUrl = (footerTiktokUrl || config.footer.tiktokUrl || '').trim();
+  config.footer.poweredByEnabled = readCheckbox(req.body, 'footerPoweredByEnabled', config.footer.poweredByEnabled !== false);
+  config.footer.poweredByText = String(footerPoweredByText || config.footer.poweredByText || 'Powered by Thronos Commerce ↗').trim() || 'Powered by Thronos Commerce ↗';
+  const rawPoweredByUrl = String(footerPoweredByUrl || config.footer.poweredByUrl || '').trim();
+  config.footer.poweredByUrl = /^(https?:)?\/\//i.test(rawPoweredByUrl) ? rawPoweredByUrl : 'https://thronoscommerce.thronoschain.org/';
 
   saveTenantConfig(req, config);
 
