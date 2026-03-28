@@ -600,7 +600,10 @@ function loadTenantConfig(req) {
       productPreOpenEffect: 'none',
       footerTextColor: '#6b7280',
       kitWizardDisplay: 'sequential',
-      spareToolsCardMode: 'prominent'
+      spareToolsCardMode: 'prominent',
+      enableDiyQuickScenario: false,
+      kitWizardSkipRule: 'none',
+      homeLayoutPreset: 'split'
     }
   };
   const cfg = loadJson(req.tenantPaths.config, fallback);
@@ -3038,7 +3041,10 @@ app.post('/admin/settings', async (req, res) => {
     themeProductPreOpenEffect,
     themeFooterTextColor,
     themeKitWizardDisplay,
-    themeSpareToolsCardMode
+    themeSpareToolsCardMode,
+    themeEnableDiyQuickScenario,
+    themeKitWizardSkipRule,
+    themeHomeLayoutPreset
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -3119,6 +3125,13 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.spareToolsCardMode = ['prominent', 'compact'].includes(String(themeSpareToolsCardMode || ''))
     ? String(themeSpareToolsCardMode)
     : (config.theme.spareToolsCardMode || 'prominent');
+  config.theme.enableDiyQuickScenario = readCheckbox(req.body, 'themeEnableDiyQuickScenario', !!config.theme.enableDiyQuickScenario);
+  config.theme.kitWizardSkipRule = ['none', 'optional', 'all'].includes(String(themeKitWizardSkipRule || ''))
+    ? String(themeKitWizardSkipRule)
+    : (config.theme.kitWizardSkipRule || 'none');
+  config.theme.homeLayoutPreset = ['split', 'stacked'].includes(String(themeHomeLayoutPreset || ''))
+    ? String(themeHomeLayoutPreset)
+    : (config.theme.homeLayoutPreset || 'split');
   config.homepage = config.homepage || {};
   if (hasBodyField(req.body, 'homepageHeroImage')) {
     config.homepage.heroImage = String(homepageHeroImage || '').trim();

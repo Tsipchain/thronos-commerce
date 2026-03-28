@@ -164,6 +164,7 @@
       .store-footer .meta-line { margin-top:6px; }
       .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
       .featured-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+      body.home-layout-stacked .featured-primary-grid { grid-template-columns:1fr; }
       .featured-kit-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
       .featured-kit-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,.12); }
       .featured-kit-card img { width:100%; height:220px; object-fit:cover; display:block; }
@@ -241,7 +242,7 @@
       }
     </style>
   </head>
-  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
@@ -428,8 +429,8 @@
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>">
         <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
           <div style="margin-bottom:14px;">
-            <% if (isEukolakisClassic && heroPrimaryProduct) { %>
-              <a href="#" class="kit-clickable" data-kit-launch="<%= heroPrimaryProduct.id %>" style="display:block;">
+            <% if (heroPrimaryProduct) { %>
+              <a href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>" data-exposure-link style="display:block;">
                 <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" />
               </a>
             <% } else { %>
@@ -456,6 +457,9 @@
             <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
             <% } %>
             <a class="button" style="background:#111827;" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools' %></a>
+            <% if (theme.enableDiyQuickScenario && topPrimaryKit1) { %>
+            <a class="button" href="#" data-kit-launch="<%= topPrimaryKit1.id %>" style="background:#0f766e;"><%= lang === 'el' ? 'DIY Εύκολο Σενάριο' : 'DIY Quick Scenario' %></a>
+            <% } %>
           </div>
         <% } %>
       </section>
@@ -606,6 +610,7 @@
           <div class="kit-total" id="kit-total"></div>
           <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" id="kit-back" class="btn-cart" style="background:#334155;"><%= lang === 'el' ? 'Πίσω' : 'Back' %></button>
+            <button type="button" id="kit-skip" class="btn-cart" style="background:#64748b;display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
             <button type="button" id="kit-next" class="btn-cart"><%= lang === 'el' ? 'Επόμενο' : 'Next' %></button>
           </div>
         </div>
@@ -649,15 +654,6 @@
       <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
       <% if (!config.footer || config.footer.poweredByEnabled !== false) { %>
       <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
-      <% } %>
-      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
-      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
-      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
-      <% const poweredByEnabled = !config.footer || config.footer.poweredByEnabled !== false; %>
-      <% const poweredByText = (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗'; %>
-      <% const poweredByUrl = (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/'; %>
-      <% if (poweredByEnabled) { %>
-      <a class="thronos-sign" href="<%= poweredByUrl %>" target="_blank" rel="noopener noreferrer"><%= poweredByText %></a>
       <% } %>
       <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
       <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
@@ -760,7 +756,9 @@
         const fullImageTitleEl = document.getElementById('kit-full-image-title');
         const fullImageCloseBtn = document.getElementById('kit-full-image-close');
         const btnBack = document.getElementById('kit-back');
+        const btnSkip = document.getElementById('kit-skip');
         const btnNext = document.getElementById('kit-next');
+        const kitWizardSkipRule = <%- safeJson((config.theme && config.theme.kitWizardSkipRule) || 'none') %>;
         function esc(v) {
           return String(v || '')
             .replace(/&/g, '&amp;')
@@ -883,6 +881,7 @@
           btnBack.disabled = state.step === 0;
           btnNext.disabled = false;
           btnNext.textContent = summaryStep ? KIT_T.addSelected : KIT_T.next;
+          if (btnSkip) btnSkip.style.display = 'none';
           choiceGrid.innerHTML = '';
           summaryEl.style.display = summaryStep ? 'block' : 'none';
           addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
@@ -899,6 +898,10 @@
           const selectionModeLabel = group.inputType === 'checkbox' ? KIT_T.multiSelect : KIT_T.singleSelect;
           groupReqEl.textContent = (group.required ? KIT_T.required : KIT_T.optional) + ' ' + selectionModeLabel;
           btnNext.disabled = group.required && !groupDone(group);
+          if (btnSkip) {
+            const allowSkip = kitWizardSkipRule === 'all' || (kitWizardSkipRule === 'optional' && !group.required);
+            btnSkip.style.display = allowSkip ? '' : 'none';
+          }
           (group.choices || []).forEach(function(choice){
             const sel = getSelectionArray(group);
             const checked = sel.includes(choice.id);
@@ -1106,8 +1109,25 @@
               });
             }
           }
+          if (state.product && state.product.id) {
+            try { sessionStorage.removeItem(stateStoragePrefix + state.product.id); } catch (_) {}
+          }
+          state.selections = {};
+          state.selectedVariants = {};
+          state.step = 0;
           closeWizard();
         });
+        if (btnSkip) {
+          btnSkip.addEventListener('click', function(){
+            const groups = state.product.kitOptions || [];
+            if (state.step >= groups.length) return;
+            const g = groups[state.step];
+            const allowSkip = kitWizardSkipRule === 'all' || (kitWizardSkipRule === 'optional' && !g.required);
+            if (!allowSkip) return;
+            state.step += 1;
+            renderStep();
+          });
+        }
         const wizardParam = new URLSearchParams(window.location.search).get('wizard');
         if (wizardParam && kitById[wizardParam]) {
           openWizard(wizardParam);

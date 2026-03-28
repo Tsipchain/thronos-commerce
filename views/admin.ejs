@@ -535,6 +535,24 @@
             </select>
             <small class="helper">Sequential shows one step at a time. Cinematic adds transition effects and preserves step progress while browsing.</small>
           </label>
+          <label><span>KIT wizard skip rule</span>
+            <select name="themeKitWizardSkipRule" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.kitWizardSkipRule) || 'none') === 'none' ? 'selected' : '' %>>Strict (no skip)</option>
+              <option value="optional" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'optional' ? 'selected' : '' %>>Skip only optional steps</option>
+              <option value="all" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'all' ? 'selected' : '' %>>Skip any step</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input type="hidden" name="themeEnableDiyQuickScenario" value="0" />
+            <input type="checkbox" name="themeEnableDiyQuickScenario" value="1" <%= (config.theme && config.theme.enableDiyQuickScenario) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+            <span>Enable 2nd "DIY εύκολο σενάριο" wizard entry</span>
+          </label>
+          <label><span>Homepage layout preset</span>
+            <select name="themeHomeLayoutPreset" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="split" <%= ((config.theme && config.theme.homeLayoutPreset) || 'split') === 'split' ? 'selected' : '' %>>Split (2-column desktop)</option>
+              <option value="stacked" <%= ((config.theme && config.theme.homeLayoutPreset) || '') === 'stacked' ? 'selected' : '' %>>Stacked (single column)</option>
+            </select>
+          </label>
           <label><span>Footer text color</span>
             <input type="text" name="themeFooterTextColor" value="<%= ((config.theme && config.theme.footerTextColor) || '#6b7280') %>" placeholder="#6b7280" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           </label>
