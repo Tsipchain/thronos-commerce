@@ -727,9 +727,16 @@
           <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
         </label>
         <label><span>Homepage blocks order (comma-separated)</span>
-          <input type="text" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
+          <input type="text" id="homepageBlockOrderInput" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
           <small class="helper">Keys: hero, kits, spare, subscriptions. This controls landing block order without code edits.</small>
         </label>
+        <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;">
+          <strong style="font-size:.85rem;display:block;margin-bottom:8px;">Visual block ordering</strong>
+          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Spare parts card</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Subscriptions block</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+        </div>
         <label><span>Footer contact email</span>
           <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@shop.com" />
         </label>
@@ -2767,6 +2774,44 @@
           }, 2500);
         });
       }
+
+      (function initHomepageBlockBuilder() {
+        const builder = document.getElementById('homepage-block-builder');
+        const input = document.getElementById('homepageBlockOrderInput');
+        if (!builder || !input) return;
+        const normalizeAndSync = () => {
+          const keys = Array.from(builder.querySelectorAll('.hb-row'))
+            .map((row) => String(row.getAttribute('data-key') || '').trim())
+            .filter(Boolean);
+          input.value = keys.join(',');
+        };
+        const currentOrder = String(input.value || '')
+          .split(',')
+          .map((v) => v.trim().toLowerCase())
+          .filter(Boolean);
+        if (currentOrder.length) {
+          const rowMap = {};
+          builder.querySelectorAll('.hb-row').forEach((row) => { rowMap[String(row.getAttribute('data-key') || '').toLowerCase()] = row; });
+          currentOrder.forEach((key) => {
+            if (rowMap[key]) builder.appendChild(rowMap[key]);
+          });
+        }
+        builder.addEventListener('click', (e) => {
+          const row = e.target.closest('.hb-row');
+          if (!row) return;
+          if (e.target.classList.contains('hb-up')) {
+            const prev = row.previousElementSibling;
+            if (prev) builder.insertBefore(row, prev);
+            normalizeAndSync();
+          }
+          if (e.target.classList.contains('hb-down')) {
+            const next = row.nextElementSibling;
+            if (next) builder.insertBefore(next, row);
+            normalizeAndSync();
+          }
+        });
+        normalizeAndSync();
+      })();
 
       // ── Favicon delete (prompt for password inline) ──
       function deleteFavicon(btn) {
