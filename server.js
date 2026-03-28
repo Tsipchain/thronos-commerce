@@ -549,7 +549,8 @@ function loadTenantConfig(req) {
       showSubscriptionsCard: false,
       introEnabled: false,
       introVideoUrl: '',
-      introPosterUrl: ''
+      introPosterUrl: '',
+      blockOrder: ['hero', 'kits', 'spare', 'subscriptions']
     },
     footer: {
       contactEmail: '',
@@ -3001,6 +3002,7 @@ app.post('/admin/settings', async (req, res) => {
     homepageIntroEnabled,
     homepageIntroVideoUrl,
     homepageIntroPosterUrl,
+    homepageBlockOrder,
     footerContactEmail,
     footerPickupAddress,
     footerFacebookUrl,
@@ -3189,6 +3191,16 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   config.homepage.introVideoUrl = (homepageIntroVideoUrl || config.homepage.introVideoUrl || '').trim();
   config.homepage.introPosterUrl = (homepageIntroPosterUrl || config.homepage.introPosterUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageBlockOrder')) {
+    const parsedOrder = String(homepageBlockOrder || '')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+    const validKeys = ['hero', 'kits', 'spare', 'subscriptions'];
+    const normalized = parsedOrder.filter((k) => validKeys.includes(k));
+    const merged = normalized.concat(validKeys.filter((k) => !normalized.includes(k)));
+    config.homepage.blockOrder = merged;
+  }
   config.footer = config.footer || {};
   config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
   config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();

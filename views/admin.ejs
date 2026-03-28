@@ -726,6 +726,10 @@
         <label><span>Intro poster URL</span>
           <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
         </label>
+        <label><span>Homepage blocks order (comma-separated)</span>
+          <input type="text" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
+          <small class="helper">Keys: hero, kits, spare, subscriptions. This controls landing block order without code edits.</small>
+        </label>
         <label><span>Footer contact email</span>
           <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@shop.com" />
         </label>
