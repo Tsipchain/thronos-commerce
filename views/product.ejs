@@ -117,6 +117,7 @@
       .kit-preview-item { background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;font-size:.78rem; }
       .kit-preview-item img { width:100%;height:80px;object-fit:cover;border-radius:6px; }
       .final-price-box { position: sticky; bottom: 10px; background:#111827;color:#fff;padding:12px;border-radius:10px;margin-top:12px;display:flex;justify-content:space-between;align-items:center; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
       @media (max-width: 900px) { .kit-layout { grid-template-columns: 1fr; } }
       .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
       .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
@@ -219,6 +220,7 @@
       <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="display:inline-flex;align-items:center;gap:6px;font-size:.86rem;color:var(--primary-color,#4f46e5);text-decoration:none;margin-bottom:14px;opacity:.85;">
         <%= t('checkout.backToStore') %>
       </a>
+      <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
       <article class="product-detail">
 
         <%# ── Hero image + lightbox trigger ── %>
@@ -252,6 +254,9 @@
         <% } %>
 
         <p class="price"><span id="product-price"><%= Number(product.price).toFixed(2) %></span> €</p>
+        <p style="margin:4px 0 10px;font-size:.82rem;color:#64748b;">
+          🚚 <%= product.deliveryEstimate || (lang === 'el' ? (product.stock === 0 ? 'Παράδοση 4-7 ημέρες' : 'Παράδοση 1-3 ημέρες') : (product.stock === 0 ? 'Delivery in 4-7 days' : 'Delivery in 1-3 days')) %>
+        </p>
 
         <%# ── Variant selector ── %>
         <% if (Array.isArray(product.variants) && product.variants.length) { %>
@@ -725,6 +730,32 @@
         })
         .catch(function() { msgEl.style.color='#721c24'; msgEl.textContent='<%= t("reviews.submitErr") %>'; });
       }
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = '<%= withTenantLink("/", lang !== "el" ? { lang } : {}) %>';
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try {
+          sessionStorage.setItem(key, currentUrl);
+        } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
     </script>
   </body>
 </html>
