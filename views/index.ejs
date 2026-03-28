@@ -653,6 +653,19 @@
       <% if (poweredByEnabled) { %>
       <a class="thronos-sign" href="<%= poweredByUrl %>" target="_blank" rel="noopener noreferrer"><%= poweredByText %></a>
       <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <% const poweredByEnabled = !config.footer || config.footer.poweredByEnabled !== false; %>
+      <% const poweredByText = (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗'; %>
+      <% const poweredByUrl = (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/'; %>
+      <% if (poweredByEnabled) { %>
+      <a class="thronos-sign" href="<%= poweredByUrl %>" target="_blank" rel="noopener noreferrer"><%= poweredByText %></a>
+      <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <a class="thronos-sign" href="https://thronoscommerce.thronoschain.org/" target="_blank" rel="noopener noreferrer">Powered by Thronos Commerce ↗</a>
     </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
