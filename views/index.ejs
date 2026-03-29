@@ -655,7 +655,7 @@
       <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
       <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
       <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
-      <% if (!config.footer || config.footer.poweredByEnabled !== false) { %>
+      <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
       <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
       <% } %>
       <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
@@ -675,6 +675,25 @@
     <div id="exposure-overlay" class="exposure-overlay" aria-hidden="true"></div>
 
     <script>
+      // Defensive footer de-duplication (in case upstream/theme injections replicate footer blocks).
+      (function ensureSingleFooterBlock() {
+        const footers = Array.from(document.querySelectorAll('footer.store-footer'));
+        if (footers.length > 1) {
+          footers.slice(1).forEach(function(footerEl){ footerEl.remove(); });
+        }
+        const firstFooter = footers[0];
+        if (!firstFooter) return;
+        const seenMetaLines = new Set();
+        Array.from(firstFooter.querySelectorAll('.meta-line')).forEach(function(lineEl){
+          const key = String(lineEl.textContent || '').trim().replace(/\s+/g, ' ');
+          if (!key) return;
+          if (seenMetaLines.has(key)) {
+            lineEl.remove();
+            return;
+          }
+          seenMetaLines.add(key);
+        });
+      })();
       // ── Menu toggle ────────────────────────────────────────────────
       const menuToggle = document.getElementById("menu-toggle");
       const mainNav = document.getElementById("main-nav");
@@ -1118,12 +1137,8 @@
               });
             }
           }
-          if (state.product && state.product.id) {
-            try { sessionStorage.removeItem(stateStoragePrefix + state.product.id); } catch (_) {}
-          }
-          state.selections = {};
-          state.selectedVariants = {};
           state.step = 0;
+          persistState();
           closeWizard();
         });
         if (btnSkip) {

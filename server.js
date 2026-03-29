@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const nodemailer = require('nodemailer');
 const StripeLib = require('stripe');
+const { normalizeHost, resolveTenantFromHost } = require('./utils/tenant-host-resolver');
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
 function stripeForTenant(config) {
@@ -521,16 +522,6 @@ function appendTenantOrder(req, order) {
   const orders = loadTenantOrders(req);
   orders.push(order);
   saveJson(req.tenantPaths.orders, orders);
-}
-
-function getTenantByHost(hostname) {
-  const tenants = loadTenantsRegistry();
-  const host = (hostname || '').toLowerCase();
-  return tenants.find(
-    (t) =>
-      t.domain &&
-      t.domain.toLowerCase() === host
-  );
 }
 
 // Tenant-scoped loaders
@@ -1589,10 +1580,11 @@ app.use((req, res, next) => {
 // Tenant resolution middleware (skips root operator panel)
 app.use((req, res, next) => {
   if (req.path.startsWith('/root')) return next();
-  const hostHeader = (req.headers.host || '').split(':')[0];
+  const hostHeader = normalizeHost(req.headers.host || '');
   const requestedTenant = (req.query.tenant || '').trim();
   let tenant = null;
   let mode = 'host';
+  let isPlatformRequest = false;
   if (req.pathTenantId) {
     tenant = findTenantById(req.pathTenantId);
     mode = 'path';
@@ -1603,17 +1595,32 @@ app.use((req, res, next) => {
     tenant = findTenantById(req.session.admin.tenantId);
     mode = 'admin-session';
   } else {
-    tenant = getTenantByHost(hostHeader);
-  }
-  if (!tenant) {
-    tenant = findTenantById('demo');
-    mode = mode === 'host' ? 'demo-fallback' : mode;
-  }
-  if (!tenant) {
-    const allTenants = loadTenantsRegistry();
-    if (Array.isArray(allTenants) && allTenants.length) {
-      tenant = allTenants[0];
-      mode = mode === 'host' ? 'registry-fallback' : mode;
+    const tenants = loadTenantsRegistry();
+    const hostResolution = resolveTenantFromHost(hostHeader, tenants);
+    console.log(
+      '[tenant-resolver]',
+      JSON.stringify({
+        host: hostHeader,
+        path: req.originalUrl || req.url,
+        type: hostResolution.type,
+        reason: hostResolution.reason,
+        matchedHost: hostResolution.matchedHost || null,
+        tenantId: hostResolution.tenant ? hostResolution.tenant.id : null
+      })
+    );
+    if (hostResolution.type === 'tenant') {
+      tenant = hostResolution.tenant;
+      mode = 'host';
+    } else if (hostResolution.type === 'platform') {
+      isPlatformRequest = true;
+      tenant = findTenantById('demo') || (Array.isArray(tenants) && tenants.length ? tenants[0] : null);
+      mode = 'platform-host';
+    } else {
+      mode = 'unknown-host';
+      return res.status(404).render('tenant-not-found', {
+        host: hostHeader,
+        supportEmail: process.env.SUPPORT_EMAIL || 'support@thronoschain.org'
+      });
     }
   }
   if (!tenant) {
@@ -1621,10 +1628,21 @@ app.use((req, res, next) => {
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
   }
+  if (
+    mode === 'host' &&
+    tenant.canonicalToWww === true &&
+    hostHeader &&
+    !hostHeader.startsWith('www.') &&
+    !hostHeader.endsWith('.up.railway.app')
+  ) {
+    const canonicalHost = `www.${hostHeader}`;
+    const target = `${req.protocol}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
+    return res.redirect(308, target);
+  }
   req.tenant = tenant;
   req.tenantId = tenant.id;
   req.tenantContext = { mode };
-  req.isPlatformRequest = mode === 'demo-fallback' && !req.pathTenantId && !requestedTenant;
+  req.isPlatformRequest = isPlatformRequest;
   req.tenantPaths = tenantPaths(tenant.id);
   res.locals.user = req.session ? req.session.user : null;
   res.locals.tenantId = tenant.id;
@@ -3034,9 +3052,6 @@ app.post('/admin/settings', async (req, res) => {
     footerFacebookUrl,
     footerInstagramUrl,
     footerTiktokUrl,
-    footerPoweredByEnabled,
-    footerPoweredByText,
-    footerPoweredByUrl,
     web3Domain,
     logoPath,
     themeMenuBg,
@@ -3242,10 +3257,6 @@ app.post('/admin/settings', async (req, res) => {
   config.footer.facebookUrl = (footerFacebookUrl || config.footer.facebookUrl || '').trim();
   config.footer.instagramUrl = (footerInstagramUrl || config.footer.instagramUrl || '').trim();
   config.footer.tiktokUrl = (footerTiktokUrl || config.footer.tiktokUrl || '').trim();
-  config.footer.poweredByEnabled = readCheckbox(req.body, 'footerPoweredByEnabled', config.footer.poweredByEnabled !== false);
-  config.footer.poweredByText = String(footerPoweredByText || config.footer.poweredByText || 'Powered by Thronos Commerce ↗').trim() || 'Powered by Thronos Commerce ↗';
-  const rawPoweredByUrl = String(footerPoweredByUrl || config.footer.poweredByUrl || '').trim();
-  config.footer.poweredByUrl = /^(https?:)?\/\//i.test(rawPoweredByUrl) ? rawPoweredByUrl : 'https://thronoscommerce.thronoschain.org/';
 
   saveTenantConfig(req, config);
 
@@ -4442,7 +4453,10 @@ app.get('/root/logout', (req, res) => {
 });
 
 app.post('/root/tenants/create', async (req, res) => {
-  const { rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent } = req.body;
+  const {
+    rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent,
+    primaryDomain, domains, previewSubdomain, domainStatus
+  } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
     return res.status(401).render('root-tenants',
@@ -4470,10 +4484,23 @@ app.post('/root/tenants/create', async (req, res) => {
   const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
 
   const cleanRefCode = (refCode || '').trim();
+  const primaryDomainClean = String(primaryDomain || domain || '').trim().toLowerCase();
+  const domainsArray = String(domains || '')
+    .split(',')
+    .map((d) => normalizeHost(d))
+    .filter(Boolean);
+  if (primaryDomainClean && !domainsArray.includes(primaryDomainClean)) domainsArray.unshift(primaryDomainClean);
+  const previewSubdomainClean = String(previewSubdomain || cleanId).trim().toLowerCase();
+  const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
   const newTenant = {
     id: cleanId,
     domain: (domain || '').trim(),
+    primaryDomain: primaryDomainClean || '',
+    domains: domainsArray,
+    previewSubdomain: previewSubdomainClean,
+    domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
     supportTier: resolvedTier,
+    allowPoweredBy: false,
     adminPasswordHash,
     createdAt: new Date().toISOString(),
     active: true,
@@ -4519,7 +4546,10 @@ app.post('/root/templates/create', (req, res) => {
 });
 
 app.post('/root/tenants/update', (req, res) => {
-  const { rootPassword, tenantId, domain, supportTier, active } = req.body;
+  const {
+    rootPassword, tenantId, domain, supportTier, active, allowPoweredBy,
+    primaryDomain, domains, previewSubdomain, domainStatus
+  } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
     return res.status(401).render('root-tenants',
@@ -4534,8 +4564,25 @@ app.post('/root/tenants/update', (req, res) => {
   }
 
   if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
+  if (primaryDomain !== undefined) tenants[idx].primaryDomain = normalizeHost(primaryDomain || '');
+  if (domains !== undefined) {
+    const parsedDomains = String(domains || '')
+      .split(',')
+      .map((d) => normalizeHost(d))
+      .filter(Boolean);
+    const normalizedPrimary = normalizeHost(tenants[idx].primaryDomain || tenants[idx].domain || '');
+    if (normalizedPrimary && !parsedDomains.includes(normalizedPrimary)) parsedDomains.unshift(normalizedPrimary);
+    tenants[idx].domains = parsedDomains;
+  }
+  if (previewSubdomain !== undefined) tenants[idx].previewSubdomain = String(previewSubdomain || '').trim().toLowerCase();
+  if (domainStatus !== undefined) {
+    const normalizedStatus = String(domainStatus || '').trim();
+    const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
+    tenants[idx].domainStatus = allowedDomainStatuses.includes(normalizedStatus) ? normalizedStatus : (tenants[idx].domainStatus || 'pending_dns');
+  }
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';
+  tenants[idx].allowPoweredBy = allowPoweredBy === 'true' || allowPoweredBy === '1' || allowPoweredBy === 'on';
 
   const { subscriptionExpiry } = req.body;
   if (subscriptionExpiry) {

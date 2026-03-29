@@ -767,17 +767,10 @@
         <label><span>Footer TikTok URL</span>
           <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@..." />
         </label>
-        <label class="checkbox-label">
-          <input type="hidden" name="footerPoweredByEnabled" value="0" />
-          <input type="checkbox" name="footerPoweredByEnabled" value="1" <%= (!rawConfig.footer || rawConfig.footer.poweredByEnabled !== false) ? 'checked' : '' %> />
-          <span>Show "Powered by" footer link</span>
-        </label>
-        <label><span>Footer Powered-by text</span>
-          <input type="text" name="footerPoweredByText" value="<%= (rawConfig.footer && rawConfig.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %>" placeholder="Powered by Thronos Commerce ↗" />
-        </label>
-        <label><span>Footer Powered-by URL</span>
-          <input type="text" name="footerPoweredByUrl" value="<%= (rawConfig.footer && rawConfig.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" placeholder="https://..." />
-        </label>
+        <p class="helper" style="margin-top:4px;">
+          Το “Powered by” του footer ρυθμίζεται μόνο από το Root Admin στο
+          <code>/root/tenants</code> (δικαιώματα tenant branding).
+        </p>
         <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
         <p class="helper" style="margin-top:-4px;">Προαιρετικό όσο το admin session είναι ενεργό (30 λεπτά).</p>
         <button type="submit" class="button">Αποθήκευση homepage</button>
