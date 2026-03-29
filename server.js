@@ -29,25 +29,41 @@ function platformStripe() {
 const PACKAGE_PRICES = { MANAGEMENT_START: 49, FULL_OPS_START: 149, DIGITAL_STARTER: 79, DIGITAL_PRO: 199 };
 
 function getSubscriptionInfo(tenant) {
-  if (!tenant) return null;
-  if (!tenant.subscriptionExpiry) {
-    return { plan: tenant.supportTier, status: 'manual', daysLeft: null, isExpired: false, isExpiringSoon: false, expiryStr: null };
+  const fallback = {
+    plan: (tenant && (tenant.subscriptionPlan || tenant.supportTier)) || 'SELF_SERVICE',
+    status: 'manual',
+    daysLeft: null,
+    isExpired: false,
+    isExpiringSoon: false,
+    expiryStr: null
+  };
+  if (!tenant || typeof tenant !== 'object') {
+    console.log('[root-admin] subscription-fallback', JSON.stringify({ reason: 'missing_tenant' }));
+    return fallback;
   }
-  const expiry   = new Date(tenant.subscriptionExpiry);
-  const daysLeft = Math.ceil((expiry - Date.now()) / 86400000);
-  const hasConfiguredFavicon = !!(
-    config &&
-    config.favicon &&
-    typeof config.favicon.path === 'string' &&
-    config.favicon.path.trim()
-  );
-
+  if (!tenant.subscriptionExpiry) {
+    console.log('[root-admin] subscription-fallback', JSON.stringify({
+      reason: 'missing_subscription_expiry',
+      tenantId: tenant.id || null
+    }));
+    return fallback;
+  }
+  const expiry = new Date(tenant.subscriptionExpiry);
+  if (Number.isNaN(expiry.getTime())) {
+    console.log('[root-admin] subscription-fallback', JSON.stringify({
+      reason: 'invalid_subscription_expiry',
+      tenantId: tenant.id || null,
+      rawValue: tenant.subscriptionExpiry
+    }));
+    return fallback;
+  }
+  const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / 86400000);
   return {
-    plan:          tenant.subscriptionPlan || tenant.supportTier,
-    status:        daysLeft <= 0 ? 'expired' : 'active',
-    expiryStr:     expiry.toLocaleDateString('el-GR'),
-    daysLeft:      Math.max(0, daysLeft),
-    isExpired:     daysLeft <= 0,
+    plan: tenant.subscriptionPlan || tenant.supportTier || 'SELF_SERVICE',
+    status: daysLeft <= 0 ? 'expired' : 'active',
+    expiryStr: expiry.toLocaleDateString('el-GR'),
+    daysLeft: Math.max(0, daysLeft),
+    isExpired: daysLeft <= 0,
     isExpiringSoon: daysLeft > 0 && daysLeft <= 7
   };
 }
@@ -1741,7 +1757,23 @@ app.use('/admin', (req, res, next) => {
 });
 
 function buildAdminViewModel(req, extra) {
+  console.log('[tenant-admin] build-view-model:start', JSON.stringify({
+    tenantId: req && req.tenant ? req.tenant.id : null,
+    path: req ? (req.originalUrl || req.url) : null
+  }));
   const config = loadTenantConfig(req);
+  const faviconPath = (
+    config &&
+    config.favicon &&
+    typeof config.favicon.path === 'string'
+      ? config.favicon.path.trim()
+      : ''
+  );
+  const hasConfiguredFavicon = Boolean(faviconPath);
+  console.log('[tenant-admin] favicon-config', JSON.stringify({
+    tenantId: req && req.tenant ? req.tenant.id : null,
+    hasConfiguredFavicon
+  }));
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
@@ -4674,6 +4706,10 @@ function buildRootViewModel(extra) {
 }
 
 app.get('/root/tenants', (req, res) => {
+  console.log('[root-admin] render-root-tenants:start', JSON.stringify({
+    path: req.originalUrl || req.url,
+    rootAuthenticated: !!(req.session && req.session.rootAdmin)
+  }));
   res.render('root-tenants', buildRootViewModel());
 });
 
