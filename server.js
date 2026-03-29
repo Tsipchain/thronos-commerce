@@ -934,37 +934,46 @@ function safeInlineScriptString(value) {
     .replace(/\u2029/g, '\\u2029');
 }
 
-function requestProtocol(req) {
-  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
-    .split(',')[0]
-    .trim()
-    .toLowerCase();
-  if (forwardedProto === 'https' || forwardedProto === 'http') return forwardedProto;
-  return req.protocol || 'http';
+function deriveTrackingUrl(carrier, trackingNumber) {
+  const number = String(trackingNumber || '').trim();
+  if (!number) return '';
+  const normalizedCarrier = String(carrier || '').trim().toLowerCase();
+  const encoded = encodeURIComponent(number);
+  if (normalizedCarrier === 'acs') return `https://www.acscourier.net/el/track-and-trace/?tracking=${encoded}`;
+  if (normalizedCarrier === 'elta') return `https://elta.gr/track?code=${encoded}`;
+  if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
+  if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
+  return '';
 }
 
-function tenantConfiguredHosts(tenant) {
-  const hosts = new Set();
-  const add = (value) => {
-    const host = normalizeHost(value);
-    if (host) hosts.add(host);
+function normalizeFulfillmentStatus(order) {
+  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
+  const allowed = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (allowed.has(raw)) return raw;
+  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
+  if (paymentStatus === 'PAID') return 'ready_to_ship';
+  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
+  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
+  if (paymentStatus === 'CANCELLED') return 'cancelled';
+  return 'ready_to_ship';
+}
+
+function normalizeOrderForFulfillment(order) {
+  const trackingCarrier = String(order && order.trackingCarrier ? order.trackingCarrier : '').trim().toLowerCase();
+  const trackingNumber = String(order && order.trackingNumber ? order.trackingNumber : '').trim();
+  const trackingUrl = String(order && order.trackingUrl ? order.trackingUrl : '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
+  const shippedAt = order && order.shippedAt ? order.shippedAt : null;
+  const deliveredAt = order && order.deliveredAt ? order.deliveredAt : null;
+  return {
+    ...order,
+    fulfillmentStatus: normalizeFulfillmentStatus(order),
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl,
+    shippedAt,
+    deliveredAt,
+    hasTracking: !!trackingNumber
   };
-  if (!tenant || typeof tenant !== 'object') return hosts;
-  add(tenant.primaryDomain);
-  add(tenant.domain);
-  if (Array.isArray(tenant.domains)) tenant.domains.forEach(add);
-  return hosts;
-}
-
-function shouldCanonicalizeToWwwHost(tenant, hostHeader) {
-  const host = normalizeHost(hostHeader);
-  if (!tenant || tenant.canonicalToWww !== true || !host || host.startsWith('www.')) return false;
-  if (host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return false;
-  if (host.includes('.thronoscommerce.thronoschain.org') || host.includes('.thonoscommerce.thronoschain.org')) return false;
-  const hosts = tenantConfiguredHosts(tenant);
-  if (!hosts.has(host)) return false;
-  const canonicalHost = `www.${host}`;
-  return hosts.has(canonicalHost);
 }
 
 function buildTenantLink(req, targetPath, extraQuery = {}) {
@@ -2854,34 +2863,6 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
-  dispatchAssistantEvent(req, 'new_order', {
-    orderId: order.id,
-    total: order.total,
-    paymentStatus: order.paymentStatus,
-    items: Array.isArray(order.items) ? order.items.length : 0
-  });
-  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
-    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId: order.id });
-  }
-
-  if (req.session) {
-    req.session.lastCompletedOrder = {
-      orderId: order.id,
-      tenantId: req.tenant.id,
-      at: Date.now()
-    };
-  }
-  const completionTarget = buildTenantLink(req, '/checkout/complete', { orderId: order.id });
-  console.log('[checkout] stripe-success:completed', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: order.id,
-    redirect: completionTarget,
-    clearCartAt: 'thank-you'
-  }));
-  return res.redirect(303, completionTarget);
-});
-
-app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
 
   if (req.session) {
     req.session.lastCompletedOrder = {
@@ -3052,6 +3033,36 @@ app.get('/my-orders', requireUser, (req, res) => {
     .slice()
     .reverse();
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
+});
+
+app.get('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  return res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
+});
+
+app.post('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const orderId = String(req.body.orderId || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  if (!orderId || !email) {
+    return res.status(400).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Συμπλήρωσε Order ID και email.' : 'Provide Order ID and email.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const order = orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
+  if (!order) {
+    return res.status(404).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
+    });
+  }
+  return res.render('track-order', { config, tenant: req.tenant, order: normalizeOrderForFulfillment(order), error: null });
 });
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
@@ -3472,83 +3483,21 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
 // Admin orders view
 function buildAdminOrdersViewModel(req, extra = {}) {
   const config = loadTenantConfig(req);
-  const allOrders = loadTenantOrders(req).map((order) => normalizeOrderForFulfillment(order));
-  const unresolvedOrders = allOrders.filter((o) => isOrderUnresolved(o));
-  const orders = allOrders.slice(-100).reverse();
-  const model = {
+  const allOrders = loadTenantOrders(req);
+  const orders = allOrders.slice(-100).reverse().map((order) => normalizeOrderForFulfillment(order));
+  const message = typeof req.query.message === 'string' ? String(req.query.message) : null;
+  const error = typeof req.query.error === 'string' ? String(req.query.error) : null;
+  console.log('[admin-orders] render', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    count: orders.length
+  }));
+  res.render('admin-orders', {
     tenant: req.tenant,
     config,
     orders,
-    unresolvedOrders,
-    unresolvedCount: unresolvedOrders.length,
     permissions: getSupportPermissions(req.tenant.supportTier),
-    message: null,
-    error: null,
-    ...extra
-  };
-  console.log('[tenant-admin] orders:render', JSON.stringify({
-    tenantId: req && req.tenant ? req.tenant.id : null,
-    ordersCount: Array.isArray(model.orders) ? model.orders.length : 0,
-    unresolvedCount: Number.isFinite(model.unresolvedCount) ? model.unresolvedCount : 0,
-    hasMessage: !!model.message,
-    hasError: !!model.error
-  }));
-  return model;
-}
-
-app.get('/admin/orders', (req, res) => {
-  res.render('admin-orders', buildAdminOrdersViewModel(req));
-});
-
-app.post('/admin/orders/tracking', async (req, res) => {
-  const { password, orderId, trackingNumber, trackingCarrier, trackingUrl, fulfillmentStatus } = req.body;
-  const auth = await verifyAdminAction(req, password);
-  if (!auth.ok) {
-    return res.status(401).render('admin-orders', buildAdminOrdersViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
-  }
-  const orders = loadTenantOrders(req);
-  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
-  if (idx < 0) {
-    return res.status(404).render('admin-orders', buildAdminOrdersViewModel(req, { error: 'Η παραγγελία δεν βρέθηκε.' }));
-  }
-  const current = orders[idx] || {};
-  const nextTrackingNumber = String(trackingNumber || '').trim();
-  const nextCarrier = String(trackingCarrier || '').trim();
-  const manualUrl = String(trackingUrl || '').trim();
-  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
-  const requestedStatus = String(fulfillmentStatus || '').trim().toLowerCase();
-  const currentStatus = normalizeFulfillmentStatus(current);
-  const autoStatus = nextTrackingNumber ? 'shipped' : currentStatus;
-  const nextStatus = allowedStatuses.has(requestedStatus) ? requestedStatus : autoStatus;
-  const nextTrackingUrl = manualUrl || deriveTrackingUrl(nextCarrier, nextTrackingNumber);
-  const nowIso = new Date().toISOString();
-  const shippedAt = (nextStatus === 'shipped' || nextStatus === 'delivered' || !!nextTrackingNumber)
-    ? (current.shippedAt || nowIso)
-    : null;
-  const deliveredAt = nextStatus === 'delivered'
-    ? (current.deliveredAt || nowIso)
-    : null;
-  orders[idx] = {
-    ...current,
-    trackingNumber: nextTrackingNumber,
-    trackingCarrier: nextCarrier,
-    trackingUrl: nextTrackingUrl,
-    shippedAt,
-    deliveredAt,
-    fulfillmentStatus: nextStatus
-  };
-  console.log('[fulfillment] tracking-save', JSON.stringify({
-    tenantId: req.tenant.id,
-    orderId: orders[idx].id,
-    trackingNumber: orders[idx].trackingNumber || null,
-    trackingCarrier: orders[idx].trackingCarrier || null,
-    fulfillmentStatus: orders[idx].fulfillmentStatus
-  }));
-  saveJson(req.tenantPaths.orders, orders);
-  await dispatchAssistantEvent(req, 'tracking_updated', {
-    orderId: orders[idx].id,
-    trackingNumber: orders[idx].trackingNumber,
-    email: orders[idx].email
+    message,
+    error
   });
   console.log('[fulfillment] status-update', JSON.stringify({
     tenantId: req.tenant.id,
@@ -3569,6 +3518,48 @@ app.post('/admin/orders/tracking', async (req, res) => {
     }));
   }
   return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
+});
+
+app.post('/admin/orders/tracking', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const orderId = String(req.body.orderId || '').trim();
+  const trackingNumber = String(req.body.trackingNumber || '').trim();
+  const trackingCarrier = String(req.body.trackingCarrier || '').trim().toLowerCase();
+  const fulfillmentStatus = String(req.body.fulfillmentStatus || '').trim().toLowerCase();
+  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (!orderId) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order ID is required.' }));
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === orderId);
+  if (idx < 0) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order not found.' }));
+  }
+  const now = new Date().toISOString();
+  const next = { ...orders[idx] };
+  next.trackingNumber = trackingNumber;
+  next.trackingCarrier = trackingCarrier;
+  next.trackingUrl = deriveTrackingUrl(trackingCarrier, trackingNumber);
+  if (allowedStatuses.has(fulfillmentStatus)) {
+    next.fulfillmentStatus = fulfillmentStatus;
+  } else {
+    next.fulfillmentStatus = normalizeFulfillmentStatus(next);
+  }
+  if (next.fulfillmentStatus === 'shipped' && !next.shippedAt) next.shippedAt = now;
+  if (next.fulfillmentStatus === 'delivered' && !next.deliveredAt) next.deliveredAt = now;
+  orders[idx] = next;
+  saveJson(req.tenantPaths.orders, orders);
+  console.log('[admin-orders] tracking-save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId,
+    trackingNumber: !!trackingNumber,
+    trackingCarrier,
+    fulfillmentStatus: next.fulfillmentStatus
+  }));
+  return res.redirect(buildTenantLink(req, '/admin/orders', { message: 'Tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/settings', async (req, res) => {

@@ -47,19 +47,129 @@
     </header>
 
     <main class="admin-layout">
-      <% 
-        const flashMessage = (typeof message !== 'undefined' && typeof message === 'string') ? message : '';
-        const flashError = (typeof error !== 'undefined' && typeof error === 'string') ? error : '';
-        const safeOrders = (typeof orders !== 'undefined' && Array.isArray(orders)) ? orders : [];
-        const safeUnresolvedCount = (typeof unresolvedCount !== 'undefined' && Number.isFinite(unresolvedCount)) ? unresolvedCount : 0;
-      %>
-      <% if (flashMessage) { %><div class="flash ok"><%= flashMessage %></div><% } %>
-      <% if (flashError) { %><div class="flash err"><%= flashError %></div><% } %>
+      <% const flashMessage = typeof message === 'string' ? message : null; %>
+      <% const flashError = typeof error === 'string' ? error : null; %>
+      <% const safeOrders = Array.isArray(orders) ? orders : []; %>
+      <% if (flashMessage) { %>
+        <div style="margin:0 0 12px;padding:10px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;border-radius:8px;"><%= flashMessage %></div>
+      <% } %>
+      <% if (flashError) { %>
+        <div style="margin:0 0 12px;padding:10px 12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:8px;"><%= flashError %></div>
+      <% } %>
+
+      <% if (tenant.supportTier === 'FULL_OPS_START') { %>
+      <div class="fullops-banner">
+        <strong><%= t('orders.fullOpsBanner') %></strong><br>
+        <%= t('orders.fullOpsText') %>
+      </div>
+      <% } %>
+
+      <nav class="admin-tabs">
+        <a href="<%= withTenantLink('/admin') %>"><%= t('orders.tabTheme') %></a>
+        <a href="<%= withTenantLink('/admin') %>#tab-categories"><%= t('admin.tabCategories') %></a>
+        <a href="<%= withTenantLink('/admin') %>#tab-products"><%= t('admin.tabProducts') %></a>
+        <a href="<%= withTenantLink('/admin') %>#tab-upload"><%= t('admin.tabImages') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" class="active"><%= t('orders.tabOrders') %></a>
+      </nav>
 
       <section class="admin-block">
-        <div class="kpi">
-          <div class="kpi-card">Unresolved orders: <strong><%= safeUnresolvedCount %></strong></div>
-          <div class="kpi-card">Latest listed: <strong><%= safeOrders.length %></strong></div>
+        <h2><%= t('orders.title') %></h2>
+        <p class="helper">
+          <%= t('orders.helperPrefix') %> <%= safeOrders.length %> <%= t('orders.helperSuffix') %>
+        </p>
+
+        <% if (safeOrders.length === 0) { %>
+          <p class="empty-msg"><%= t('orders.empty') %></p>
+        <% } else { %>
+        <div style="overflow-x:auto;">
+          <table class="orders-table">
+            <thead>
+              <tr>
+                <th><%= t('orders.colDate') %></th>
+                <th><%= t('orders.colId') %></th>
+                <th><%= t('orders.colProduct') %></th>
+                <th><%= t('orders.colTotal') %></th>
+                <th><%= t('orders.colShipping') %></th>
+                <th><%= t('orders.colPayment') %></th>
+                <th><%= t('orders.colStatus') %></th>
+                <th><%= lang === 'el' ? 'Fulfillment' : 'Fulfillment' %></th>
+                <th><%= lang === 'el' ? 'Tracking' : 'Tracking' %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% safeOrders.forEach(function(order) { %>
+                <tr>
+                  <td style="white-space:nowrap;">
+                    <% const d = new Date(order.createdAt); %>
+                    <%= d.toLocaleDateString(lang) %>
+                    <br><small style="color:#888;"><%= d.toLocaleTimeString(lang, {hour:'2-digit',minute:'2-digit'}) %></small>
+                  </td>
+                  <td><code style="font-size:0.78rem;"><%= order.id %></code></td>
+                  <td><%= order.productName || '–' %></td>
+                  <td><strong><%= typeof order.total === 'number' ? order.total.toFixed(2) : '–' %></strong></td>
+                  <td><%= order.shippingMethodLabel || order.shippingMethodId || '–' %></td>
+                  <td><%= order.paymentMethodLabel  || order.paymentMethodId  || '–' %></td>
+                  <td>
+                    <%
+                      const statusLabels = {
+                        PENDING_COD:    t('orders.statusPendingCod'),
+                        PENDING_STRIPE: t('orders.statusPendingStripe'),
+                        PAID:           t('orders.statusPaid'),
+                        CANCELLED:      t('orders.statusCancelled')
+                      };
+                    %>
+                    <span class="status-badge status-<%= order.paymentStatus || 'PENDING_COD' %>">
+                      <%= statusLabels[order.paymentStatus] || order.paymentStatus || '–' %>
+                    </span>
+                  </td>
+                  <td><%= order.fulfillmentStatus || 'ready_to_ship' %></td>
+                  <td>
+                    <% if (order.hasTracking && order.trackingUrl) { %>
+                      <a href="<%= order.trackingUrl %>" target="_blank" rel="noopener"><%= order.trackingNumber %></a>
+                    <% } else if (order.hasTracking) { %>
+                      <%= order.trackingNumber %>
+                    <% } else { %>
+                      –
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="9" style="background:#fafafa;">
+                    <form method="POST" action="<%= withTenantLink('/admin/orders/tracking') %>" style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:8px;align-items:end;">
+                      <input type="hidden" name="orderId" value="<%= order.id %>" />
+                      <label style="font-size:.8rem;">Tracking #
+                        <input type="text" name="trackingNumber" value="<%= order.trackingNumber || '' %>" />
+                      </label>
+                      <label style="font-size:.8rem;">Carrier
+                        <select name="trackingCarrier">
+                          <option value="" <%= !order.trackingCarrier ? 'selected' : '' %>>-</option>
+                          <option value="acs" <%= order.trackingCarrier === 'acs' ? 'selected' : '' %>>ACS</option>
+                          <option value="elta" <%= order.trackingCarrier === 'elta' ? 'selected' : '' %>>ELTA</option>
+                          <option value="geniki" <%= order.trackingCarrier === 'geniki' ? 'selected' : '' %>>Geniki</option>
+                          <option value="dhl" <%= order.trackingCarrier === 'dhl' ? 'selected' : '' %>>DHL</option>
+                        </select>
+                      </label>
+                      <label style="font-size:.8rem;">Status
+                        <select name="fulfillmentStatus">
+                          <option value="pending_payment" <%= order.fulfillmentStatus === 'pending_payment' ? 'selected' : '' %>>pending_payment</option>
+                          <option value="cod_pending" <%= order.fulfillmentStatus === 'cod_pending' ? 'selected' : '' %>>cod_pending</option>
+                          <option value="ready_to_ship" <%= order.fulfillmentStatus === 'ready_to_ship' ? 'selected' : '' %>>ready_to_ship</option>
+                          <option value="shipped" <%= order.fulfillmentStatus === 'shipped' ? 'selected' : '' %>>shipped</option>
+                          <option value="delivered" <%= order.fulfillmentStatus === 'delivered' ? 'selected' : '' %>>delivered</option>
+                          <option value="cancelled" <%= order.fulfillmentStatus === 'cancelled' ? 'selected' : '' %>>cancelled</option>
+                          <option value="issue" <%= order.fulfillmentStatus === 'issue' ? 'selected' : '' %>>issue</option>
+                        </select>
+                      </label>
+                      <label style="font-size:.8rem;">Admin password
+                        <input type="password" name="password" required />
+                      </label>
+                      <button type="submit" style="height:36px;">Save tracking</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
         </div>
         <p class="helper">Orders requiring action are highlighted until tracking/fulfillment is updated.</p>
 

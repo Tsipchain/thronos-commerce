@@ -49,18 +49,18 @@
         <p><%= t('thankyou.shipping') %>: <strong><%= safeOrder.shippingMethodLabel || '-' %></strong></p>
         <p><%= t('thankyou.payment') %>: <strong><%= safeOrder.paymentMethodLabel || '-' %></strong></p>
         <hr />
-        <p><%= t('thankyou.subtotal') %>: <strong><%= Number(safeOrder.subtotal || 0).toFixed(2) %> €</strong></p>
-        <p><%= t('thankyou.shippingCost') %>: <strong><%= Number(safeOrder.shippingCost || 0).toFixed(2) %> €</strong></p>
-        <p><%= t('thankyou.codFee') %>: <strong><%= Number(safeOrder.codFee || 0).toFixed(2) %> €</strong></p>
-        <p><%= t('thankyou.gatewayFee') %>: <strong><%= Number(safeOrder.gatewayFee || 0).toFixed(2) %> €</strong></p>
-        <p><%= t('thankyou.total') %>: <strong><%= Number(safeOrder.total || 0).toFixed(2) %> €</strong></p>
-        <p><%= lang === 'el' ? 'Κατάσταση αποστολής' : 'Fulfillment status' %>: <strong><%= safeOrder.fulfillmentStatus || 'ready_to_ship' %></strong></p>
-        <p><%= lang === 'el' ? 'Απεστάλη' : 'Shipped at' %>: <strong><%= safeOrder.shippedAt ? new Date(safeOrder.shippedAt).toLocaleString() : '-' %></strong></p>
-        <p><%= lang === 'el' ? 'Παραδόθηκε' : 'Delivered at' %>: <strong><%= safeOrder.deliveredAt ? new Date(safeOrder.deliveredAt).toLocaleString() : '-' %></strong></p>
-        <% if (safeOrder.trackingNumber) { %>
-          <p><%= lang === 'el' ? 'Tracking αριθμός' : 'Tracking number' %>: <strong><%= safeOrder.trackingNumber %></strong></p>
-          <% if (safeOrder.trackingCarrier) { %><p><%= lang === 'el' ? 'Courier' : 'Carrier' %>: <strong><%= safeOrder.trackingCarrier %></strong></p><% } %>
-          <% if (safeOrder.trackingUrl) { %><p><a href="<%= safeOrder.trackingUrl %>" target="_blank" rel="noopener"><%= lang === 'el' ? 'Άνοιγμα tracking link' : 'Open tracking link' %></a></p><% } %>
+        <p><%= t('thankyou.subtotal') %>: <strong><%= order.subtotal.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.shippingCost') %>: <strong><%= order.shippingCost.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.codFee') %>: <strong><%= order.codFee.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.gatewayFee') %>: <strong><%= order.gatewayFee.toFixed(2) %> €</strong></p>
+        <p><%= t('thankyou.total') %>: <strong><%= order.total.toFixed(2) %> €</strong></p>
+        <% if (order.trackingNumber) { %>
+          <p><%= lang === 'el' ? 'Tracking #' : 'Tracking #' %>: <strong><%= order.trackingNumber %></strong></p>
+          <% if (order.trackingUrl) { %>
+            <p><a href="<%= order.trackingUrl %>" target="_blank" rel="noopener"><%= lang === 'el' ? 'Άνοιγμα tracking link' : 'Open tracking link' %></a></p>
+          <% } %>
+        <% } else { %>
+          <p><a href="<%= withTenantLink('/track') %>"><%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Track your order' %></a></p>
         <% } %>
 
         <% if (safeOrder.wallet) { %>
