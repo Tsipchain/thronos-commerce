@@ -412,7 +412,9 @@
       }
 
       // ── On submit: inject cart JSON ───────────────────────────────
+      let checkoutSubmitting = false;
       document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        if (checkoutSubmitting) { e.preventDefault(); return; }
         const latestCart = readCartSnapshot();
         const submitSnapshot = Array.isArray(latestCart) && latestCart.length
           ? latestCart
@@ -421,6 +423,9 @@
         cart = submitSnapshot;
         syncCartPayload(submitSnapshot);
         syncCartSnapshotToServer(submitSnapshot);
+        checkoutSubmitting = true;
+        const submitBtn = document.getElementById('btn-submit');
+        if (submitBtn) submitBtn.disabled = true;
       });
       window.addEventListener('pageshow', function() {
         const refreshedCart = readCartSnapshot();

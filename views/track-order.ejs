@@ -9,9 +9,11 @@
 <body>
   <main style="max-width:720px;margin:30px auto;padding:0 16px;">
     <h2><%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Track your order' %></h2>
+    <p style="font-size:.85rem;color:#6b7280;"><%= lang === 'el' ? 'Βάλε Order ID + Email ή μόνο Tracking token.' : 'Use Order ID + Email or only Tracking token.' %></p>
     <form method="POST" action="<%= withTenantLink('/track') %>" style="display:grid;gap:10px;margin-bottom:16px;">
-      <label>Order ID <input type="text" name="orderId" required /></label>
-      <label>Email <input type="email" name="email" required /></label>
+      <label>Order ID <input type="text" name="orderId" /></label>
+      <label>Email <input type="email" name="email" /></label>
+      <label><%= lang === 'el' ? 'Tracking token (προαιρετικό)' : 'Tracking token (optional)' %> <input type="text" name="trackingToken" /></label>
       <button class="button" type="submit"><%= lang === 'el' ? 'Έλεγχος' : 'Track' %></button>
     </form>
     <% if (error) { %><p style="color:#b91c1c;"><%= error %></p><% } %>

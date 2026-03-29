@@ -1965,6 +1965,11 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
 
 // Checkout submit (multi-item cart)
 app.post('/checkout', async (req, res) => {
+  console.log('[checkout] submit:start', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    host: req.headers.host || '',
+    paymentMethodId: req.body && req.body.paymentMethodId
+  }));
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
   const {
@@ -1981,6 +1986,7 @@ app.post('/checkout', async (req, res) => {
     cartItems = req.session.checkoutCartSnapshot.slice();
   }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    console.warn('[checkout] submit:empty-cart', JSON.stringify({ tenantId: req.tenant && req.tenant.id }));
     return res.status(400).send('Cart is empty');
   }
 
@@ -2118,6 +2124,7 @@ app.post('/checkout', async (req, res) => {
   }
 
   const orderId = Date.now().toString() + '_' + crypto.randomBytes(6).toString('hex');
+  const trackingToken = crypto.randomBytes(8).toString('hex');
   const order = {
     id: orderId,
     tenantId: req.tenant.id,
@@ -2155,6 +2162,7 @@ app.post('/checkout', async (req, res) => {
     gatewayFee:  totals.gatewayFee,
     total:       totals.total,
     paymentStatus: totals.paymentMethod.type === 'stripe' ? 'PENDING_STRIPE' : 'PENDING_COD',
+    trackingToken,
     createdAt: new Date().toISOString()
   };
 
@@ -2204,7 +2212,12 @@ app.post('/checkout', async (req, res) => {
     }
   }
 
-  const proofHash = await recordOrderOnChain(order, req.tenant);
+  let proofHash = '';
+  try {
+    proofHash = await recordOrderOnChain(order, req.tenant);
+  } catch (chainErr) {
+    console.error('[checkout] chain:attest-failed', chainErr && chainErr.message ? chainErr.message : chainErr);
+  }
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
 
@@ -2305,21 +2318,22 @@ app.post('/checkout', async (req, res) => {
     (err) => console.error('[Thronos Commerce] attestMailToThronos failed:', err.message)
   );
 
-  // Compute content URL if any purchased product has digital content
-  const allProductsForContent = loadTenantProducts(req);
-  const hasDigital = enrichedItems.some((ci) => {
-    const p = allProductsForContent.find((pp) => pp.id === ci.id);
-    return p && p.hasDigitalContent;
-  });
-
-  res.render('thanks', {
-    config: localizeConfigContent(config, req.lang),
-    order,
-    proofHash,
-    tenant: req.tenant,
-    clearCart: true,
-    contentUrl: hasDigital ? `/content/${order.id}` : null
-  });
+  if (req.session) {
+    req.session.lastCompletedOrder = {
+      orderId: order.id,
+      tenantId: req.tenant.id,
+      at: Date.now()
+    };
+  }
+  const completionTarget = buildTenantLink(req, '/checkout/complete', { orderId: order.id });
+  console.log('[checkout] submit:success', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId: order.id,
+    paymentStatus: order.paymentStatus,
+    redirect: completionTarget,
+    clearCartAt: 'thank-you'
+  }));
+  return res.redirect(303, completionTarget);
 });
 
 // ── Stripe success / cancel ───────────────────────────────────────────────────
@@ -2355,7 +2369,12 @@ app.get('/checkout/stripe-success', async (req, res) => {
   delete pending[pending_id];
   saveJson(req.tenantPaths.pendingOrders, pending);
 
-  const proofHash = await recordOrderOnChain(order, req.tenant);
+  let proofHash = '';
+  try {
+    proofHash = await recordOrderOnChain(order, req.tenant);
+  } catch (chainErr) {
+    console.error('[checkout] stripe chain:attest-failed', chainErr && chainErr.message ? chainErr.message : chainErr);
+  }
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
 
@@ -2419,19 +2438,139 @@ app.get('/checkout/stripe-success', async (req, res) => {
     dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId: order.id });
   }
 
-  const allProductsForContent = loadTenantProducts(req);
-  const hasDigital = enrichedItems.some((ci) => {
-    const p = allProductsForContent.find((pp) => pp.id === ci.id);
-    return p && p.hasDigitalContent;
-  });
-
-  res.render('thanks', {
-    config: localizeConfigContent(config, req.lang), order, proofHash, tenant: req.tenant,
-    clearCart: true, contentUrl: hasDigital ? `/content/${order.id}` : null
-  });
+  if (req.session) {
+    req.session.lastCompletedOrder = {
+      orderId: order.id,
+      tenantId: req.tenant.id,
+      at: Date.now()
+    };
+  }
+  const completionTarget = buildTenantLink(req, '/checkout/complete', { orderId: order.id });
+  console.log('[checkout] stripe-success:completed', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId: order.id,
+    redirect: completionTarget,
+    clearCartAt: 'thank-you'
+  }));
+  return res.redirect(303, completionTarget);
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
+app.get('/checkout/complete', (req, res) => {
+  const config = loadTenantConfig(req);
+  const orders = loadTenantOrders(req);
+  const queryOrderId = String(req.query.orderId || '').trim();
+  const sessionOrderId = req.session && req.session.lastCompletedOrder && req.session.lastCompletedOrder.tenantId === req.tenant.id
+    ? String(req.session.lastCompletedOrder.orderId || '').trim()
+    : '';
+  const resolvedOrderId = queryOrderId || sessionOrderId;
+  if (!resolvedOrderId) {
+    console.warn('[checkout] complete:missing-order-id', JSON.stringify({ tenantId: req.tenant && req.tenant.id }));
+    return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
+  }
+  const order = orders.find((o) => o.id === resolvedOrderId);
+  if (!order) {
+    console.warn('[checkout] complete:order-not-found', JSON.stringify({ tenantId: req.tenant && req.tenant.id, orderId: resolvedOrderId }));
+    return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
+  }
+  const catalogForCompletion = loadTenantProducts(req);
+  const hasDigital = (Array.isArray(order.items) ? order.items : []).some((ci) => {
+    const p = catalogForCompletion.find((pp) => pp.id === ci.id);
+    return p && p.hasDigitalContent;
+  });
+  console.log('[checkout] complete:render-thanks', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId: order.id,
+    proofHash: order.proofHash || ''
+  }));
+  if (req.session) {
+    req.session.checkoutCartSnapshot = [];
+  }
+  return res.render('thanks', {
+    config: localizeConfigContent(config, req.lang),
+    order,
+    proofHash: order.proofHash || '',
+    tenant: req.tenant,
+    clearCart: true,
+    contentUrl: hasDigital ? buildTenantLink(req, `/content/${order.id}`) : null
+  });
+});
+
+app.get('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
+});
+
+app.post('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const orderId = String(req.body.orderId || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  const trackingToken = String(req.body.trackingToken || '').trim();
+  if (!trackingToken && (!orderId || !email)) {
+    return res.status(400).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el'
+        ? 'Δώστε είτε Tracking token είτε Order ID + Email.'
+        : 'Provide either a tracking token or Order ID + Email.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const order = trackingToken
+    ? orders.find((o) => String(o.trackingToken || '') === trackingToken)
+    : orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
+  if (!order) {
+    return res.status(404).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
+    });
+  }
+  return res.render('track-order', { config, tenant: req.tenant, order, error: null });
+});
+
+app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
+  const config = loadTenantConfig(req);
+  const assistantCfg = config.assistant || {};
+  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
+  if (expectedKey && providedKey !== expectedKey) {
+    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
+  }
+  const action = String((req.body && req.body.action) || '').trim();
+  if (action === 'set_setting') {
+    const section = String(req.body.section || '').trim();
+    const key = String(req.body.key || '').trim();
+    const value = req.body.value;
+    const allowList = {
+      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
+      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
+    };
+    if (!allowList[section] || !allowList[section].has(key)) {
+      return res.status(400).json({ ok: false, error: 'setting not allowed' });
+    }
+    config[section] = config[section] || {};
+    config[section][key] = value;
+    saveTenantConfig(req, config);
+    return res.json({ ok: true, action, section, key, value });
+  }
+  if (action === 'send_tracking_reminder') {
+    const orderId = String(req.body.orderId || '').trim();
+    const orders = loadTenantOrders(req);
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
+    await dispatchAssistantEvent(req, 'tracking_reminder', {
+      orderId: order.id,
+      email: order.email,
+      trackingNumber: order.trackingNumber || ''
+    });
+    return res.json({ ok: true, action, orderId });
+  }
+  return res.status(400).json({ ok: false, error: 'unknown action' });
+});
 
 app.get('/track', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
