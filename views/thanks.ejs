@@ -80,6 +80,14 @@
     <script>
       // Clear cart after successful order
       try { localStorage.removeItem('thrc_cart'); } catch(e) {}
+      try { sessionStorage.removeItem('thrc_cart_session'); } catch(e) {}
+      try {
+        const wizardPrefix = 'thrc-kit-wizard-state::<%= tenant.id %>::';
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i) || '';
+          if (k.indexOf(wizardPrefix) === 0) sessionStorage.removeItem(k);
+        }
+      } catch (e) {}
     </script>
     <% } %>
     <script>

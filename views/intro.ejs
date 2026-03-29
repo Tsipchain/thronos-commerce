@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><%= config.storeName %> · Intro</title>
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
       body { margin:0; background: radial-gradient(circle at 10% 10%, #111827, #020617 72%); color:#fff; font-family: var(--font-family, system-ui); }
@@ -46,7 +47,8 @@
           var expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
           var cookieName = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
           var storageKey = <%- JSON.stringify(introStorageKey || 'intro_seen') %>;
-          document.cookie = cookieName + '=1; expires=' + expires + '; path=/';
+          var secureAttr = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = cookieName + '=1; expires=' + expires + '; path=/; SameSite=Lax' + secureAttr;
           try { localStorage.setItem(storageKey, '1'); } catch (_) {}
         }
         if (soundBtn && videoEl) {

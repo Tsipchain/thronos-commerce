@@ -12,7 +12,7 @@
     <meta property="og:title" content="<%= seoTitle %>" />
     <meta property="og:description" content="<%= seoDescription %>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.ico" />
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
       :root {
@@ -612,6 +612,7 @@
         <div class="kit-wizard-foot">
           <div class="kit-total" id="kit-total"></div>
           <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" id="kit-new-flow" class="btn-cart" style="background:#475569;"><%= lang === 'el' ? 'Νέο kit' : 'New kit' %></button>
             <button type="button" id="kit-back" class="btn-cart" style="background:#334155;"><%= lang === 'el' ? 'Πίσω' : 'Back' %></button>
             <button type="button" id="kit-skip" class="btn-cart" style="background:#64748b;display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
             <button type="button" id="kit-next" class="btn-cart"><%= lang === 'el' ? 'Επόμενο' : 'Next' %></button>
@@ -765,9 +766,11 @@
         const catalogProducts = JSON.parse(catalogDataEl.textContent || '[]');
         const catalogById = Object.fromEntries(catalogProducts.map(function(p){ return [p.id, p]; }));
         const kitById = Object.fromEntries(kitProducts.map(function(p){ return [p.id, p]; }));
-        const state = { product: null, step: 0, selections: {}, selectedVariants: {} };
+        const state = { product: null, step: 0, selections: {}, selectedVariants: {}, flowId: '' };
         const wizardDisplay = wizard.getAttribute('data-wizard-display') || 'sequential';
-        const stateStoragePrefix = 'thrc-kit-wizard-state::';
+        const tenantIdForStorage = <%- safeJson(tenant.id || 'tenant') %>;
+        const stateStoragePrefix = 'thrc-kit-wizard-state::' + tenantIdForStorage + '::';
+        const MAX_FLOW_IDLE_MS = 2 * 60 * 60 * 1000;
         const titleEl = document.getElementById('kit-wizard-title');
         const progressEl = document.getElementById('kit-wizard-progress');
         const groupTitleEl = document.getElementById('kit-group-title');
@@ -786,7 +789,25 @@
         const btnBack = document.getElementById('kit-back');
         const btnSkip = document.getElementById('kit-skip');
         const btnNext = document.getElementById('kit-next');
+        const btnNewFlow = document.getElementById('kit-new-flow');
         const kitWizardSkipRule = <%- safeJson((config.theme && config.theme.kitWizardSkipRule) || 'none') %>;
+        function buildStateKey(productId) {
+          return stateStoragePrefix + String(productId || '');
+        }
+        function createFlowId(productId) {
+          return String(productId || 'kit') + '::' + Date.now().toString(36) + '::' + Math.random().toString(36).slice(2, 10);
+        }
+        function clearPersistedState(productId) {
+          if (!productId) return;
+          try { sessionStorage.removeItem(buildStateKey(productId)); } catch (_) {}
+        }
+        function resetFlow(product, options) {
+          state.step = 0;
+          state.selections = {};
+          state.selectedVariants = {};
+          state.flowId = createFlowId(product && product.id);
+          if (options && options.persist && product && product.id) persistState();
+        }
         function esc(v) {
           return String(v || '')
             .replace(/&/g, '&amp;')
@@ -869,25 +890,38 @@
         function persistState() {
           if (!state.product || !state.product.id) return;
           const payload = {
+            flowId: state.flowId || createFlowId(state.product.id),
+            active: true,
+            updatedAt: Date.now(),
             step: state.step,
             selections: state.selections,
             selectedVariants: state.selectedVariants
           };
           try {
-            sessionStorage.setItem(stateStoragePrefix + state.product.id, JSON.stringify(payload));
+            sessionStorage.setItem(buildStateKey(state.product.id), JSON.stringify(payload));
           } catch (_) {}
         }
         function restoreState(product) {
           if (!product || !product.id) return false;
           try {
-            const raw = sessionStorage.getItem(stateStoragePrefix + product.id);
+            const raw = sessionStorage.getItem(buildStateKey(product.id));
             if (!raw) return false;
             const parsed = JSON.parse(raw);
             if (!parsed || typeof parsed !== 'object') return false;
+            if (parsed.active === false) {
+              clearPersistedState(product.id);
+              return false;
+            }
+            const updatedAt = Number(parsed.updatedAt) || 0;
+            if (updatedAt && (Date.now() - updatedAt) > MAX_FLOW_IDLE_MS) {
+              clearPersistedState(product.id);
+              return false;
+            }
             const maxStep = Array.isArray(product.kitOptions) ? product.kitOptions.length : 0;
             state.step = Math.max(0, Math.min(Number(parsed.step) || 0, maxStep));
             state.selections = (parsed.selections && typeof parsed.selections === 'object') ? parsed.selections : {};
             state.selectedVariants = (parsed.selectedVariants && typeof parsed.selectedVariants === 'object') ? parsed.selectedVariants : {};
+            state.flowId = String(parsed.flowId || createFlowId(product.id));
             return true;
           } catch (_) {
             return false;
@@ -997,14 +1031,14 @@
           renderPreview(group);
           persistState();
         }
-        function openWizard(productId) {
+        function openWizard(productId, options) {
           const p = kitById[productId];
           if (!p || p.type !== 'KIT') return;
           state.product = p;
-          state.step = 0;
-          state.selections = {};
-          state.selectedVariants = {};
-          restoreState(p);
+          const wantsFreshFlow = !!(options && options.newFlow);
+          if (wantsFreshFlow || !restoreState(p)) {
+            resetFlow(p, { persist: false });
+          }
           wizard.classList.add('open');
           wizard.setAttribute('aria-hidden', 'false');
           renderStep();
@@ -1064,6 +1098,13 @@
         });
         window.openKitWizard = openWizard;
         btnBack.addEventListener('click', function(){ if (state.step > 0) { state.step -= 1; renderStep(); } });
+        if (btnNewFlow) {
+          btnNewFlow.addEventListener('click', function(){
+            if (!state.product) return;
+            resetFlow(state.product, { persist: true });
+            renderStep();
+          });
+        }
         btnNext.addEventListener('click', function(){
           const groups = state.product.kitOptions || [];
           if (state.step < groups.length) {
@@ -1137,8 +1178,8 @@
               });
             }
           }
-          state.step = 0;
-          persistState();
+          if (state.product && state.product.id) clearPersistedState(state.product.id);
+          resetFlow(state.product, { persist: false });
           closeWizard();
         });
         if (btnSkip) {

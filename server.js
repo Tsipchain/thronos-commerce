@@ -35,6 +35,13 @@ function getSubscriptionInfo(tenant) {
   }
   const expiry   = new Date(tenant.subscriptionExpiry);
   const daysLeft = Math.ceil((expiry - Date.now()) / 86400000);
+  const hasConfiguredFavicon = !!(
+    config &&
+    config.favicon &&
+    typeof config.favicon.path === 'string' &&
+    config.favicon.path.trim()
+  );
+
   return {
     plan:          tenant.subscriptionPlan || tenant.supportTier,
     status:        daysLeft <= 0 ? 'expired' : 'active',
@@ -551,7 +558,13 @@ function loadTenantConfig(req) {
       blockContent: {
         kitsTitle: '',
         spareTitle: '',
-        subscriptionsTitle: ''
+        subscriptionsTitle: '',
+        kitsCtaLabel: '',
+        kitsCtaHref: '',
+        spareCtaLabel: '',
+        spareCtaHref: '',
+        subscriptionsCtaLabel: '',
+        subscriptionsCtaHref: ''
       }
     },
     footer: {
@@ -563,6 +576,11 @@ function loadTenantConfig(req) {
       poweredByEnabled: true,
       poweredByText: 'Powered by Thronos Commerce ↗',
       poweredByUrl: 'https://thronoscommerce.thronoschain.org/'
+    },
+    favicon: {
+      path: '',
+      mime: '',
+      updatedAt: 0
     },
     assistant: {
       enabled: false,
@@ -630,6 +648,7 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.blockContent) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+  cfg.favicon = Object.assign({}, fallback.favicon, cfg.favicon || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   const paymentOptions = Array.isArray(cfg.paymentOptions) ? cfg.paymentOptions.slice() : [];
@@ -725,6 +744,12 @@ function buildTenantLink(req, targetPath, extraQuery = {}) {
     return `/t/${req.tenantId}${basePath}${qs ? `?${qs}` : ''}`;
   }
   return `${basePath}${qs ? `?${qs}` : ''}`;
+}
+
+function buildIntroSeenKey(req) {
+  const tenantPart = sanitizeMediaSegment(req && req.tenant && req.tenant.id ? req.tenant.id : 'tenant', 'tenant');
+  const hostPart = sanitizeMediaSegment(normalizeHost((req && req.headers && req.headers.host) || 'host'), 'host');
+  return `intro_seen_${tenantPart}_${hostPart}`;
 }
 
 function requireUser(req, res, next) {
@@ -1718,7 +1743,7 @@ function buildAdminViewModel(req, extra) {
     analytics,
     orderCounts,
     cityCounts,
-    hasFavicon: fs.existsSync(req.tenantPaths.favicon),
+    hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
     exportAccess: hasExportAccess(req),
     backups: listRecentBackups(req, 30),
@@ -1765,10 +1790,21 @@ function renderExportBlockedPage(req, res) {
 
 // Per-tenant favicon
 app.get('/favicon.ico', (req, res) => {
-  const faviconPath = req.tenantPaths && req.tenantPaths.favicon;
+  const config = loadTenantConfig(req);
+  const configuredPath = String(config && config.favicon && config.favicon.path || '').trim();
+  const configuredMime = String(config && config.favicon && config.favicon.mime || '').trim();
+  if (configuredPath && configuredPath.startsWith(`/tenants/${req.tenant.id}/`)) {
+    const resolved = path.join(TENANTS_DIR, configuredPath.replace(`/tenants/${req.tenant.id}/`, `${req.tenant.id}/`));
+    if (fs.existsSync(resolved)) {
+      if (configuredMime) res.type(configuredMime);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.sendFile(resolved);
+    }
+  }
+  const faviconPath = req.tenantPaths && req.tenantPaths.favicon; // legacy fallback
   if (faviconPath && fs.existsSync(faviconPath)) {
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.type('image/png');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
     return res.sendFile(faviconPath);
   }
   res.status(204).end();
@@ -1808,12 +1844,13 @@ app.get('/', (req, res) => {
   }
   try {
     const config = loadTenantConfig(req);
-    const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+    const introCookieName = buildIntroSeenKey(req);
     const cookieHeader = String(req.headers.cookie || '');
     const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
     const skipIntro = String(req.query.skipIntro || '') === '1';
     if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
-      return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
+      const nextTarget = String((req.originalUrl || req.url || '/')).trim() || '/';
+      return res.redirect(buildTenantLink(req, '/intro', Object.assign({ next: nextTarget }, req.lang !== 'el' ? { lang: req.lang } : {})));
     }
     const categories = loadTenantCategories(req);
     const allProducts = loadTenantProducts(req).filter((p) => p && p.active !== false);
@@ -1861,8 +1898,10 @@ app.get('/intro', (req, res) => {
   if (!config.homepage || !config.homepage.introEnabled) {
     return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
   }
-  const skipHref = buildTenantLink(req, '/', Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
-  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+  const rawNext = String(req.query.next || '').trim();
+  const safeNext = rawNext && rawNext.startsWith('/') ? rawNext : '/';
+  const skipHref = buildTenantLink(req, safeNext, Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
+  const introCookieName = buildIntroSeenKey(req);
   const introStorageKey = `${introCookieName}_ls`;
   return res.render('intro', {
     config: localizeConfigContent(config, req.lang),
@@ -3047,6 +3086,12 @@ app.post('/admin/settings', async (req, res) => {
     homepageKitsTitle,
     homepageSpareTitle,
     homepageSubscriptionsTitle,
+    homepageKitsCtaLabel,
+    homepageKitsCtaHref,
+    homepageSpareCtaLabel,
+    homepageSpareCtaHref,
+    homepageSubscriptionsCtaLabel,
+    homepageSubscriptionsCtaHref,
     footerContactEmail,
     footerPickupAddress,
     footerFacebookUrl,
@@ -3251,6 +3296,12 @@ app.post('/admin/settings', async (req, res) => {
   if (hasBodyField(req.body, 'homepageKitsTitle')) config.homepage.blockContent.kitsTitle = String(homepageKitsTitle || '').trim();
   if (hasBodyField(req.body, 'homepageSpareTitle')) config.homepage.blockContent.spareTitle = String(homepageSpareTitle || '').trim();
   if (hasBodyField(req.body, 'homepageSubscriptionsTitle')) config.homepage.blockContent.subscriptionsTitle = String(homepageSubscriptionsTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaLabel')) config.homepage.blockContent.kitsCtaLabel = String(homepageKitsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaHref')) config.homepage.blockContent.kitsCtaHref = String(homepageKitsCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaLabel')) config.homepage.blockContent.spareCtaLabel = String(homepageSpareCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaHref')) config.homepage.blockContent.spareCtaHref = String(homepageSpareCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaLabel')) config.homepage.blockContent.subscriptionsCtaLabel = String(homepageSubscriptionsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaHref')) config.homepage.blockContent.subscriptionsCtaHref = String(homepageSubscriptionsCtaHref || '').trim();
   config.footer = config.footer || {};
   config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
   config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();
@@ -3922,10 +3973,14 @@ app.post('/admin/categories/image-remove', async (req, res) => {
 });
 
 // Favicon upload
-app.post(
-  '/admin/favicon',
-  favUpload.single('favicon'),
-  async (req, res) => {
+app.post('/admin/favicon', async (req, res) => {
+  favUpload.single('favicon')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      const uploadMsg = uploadErr.code === 'LIMIT_FILE_SIZE'
+        ? 'Το favicon είναι πολύ μεγάλο (μέγιστο 512KB).'
+        : 'Μη έγκυρο favicon αρχείο. Επιτρέπονται PNG/JPG/ICO/SVG.';
+      return res.redirect(`${buildTenantLink(req, '/admin', { error: uploadMsg })}#tab-upload`);
+    }
     const password = req.body.password;
     const auth = await verifyAdminAction(req, password);
     if (!auth.ok) {
@@ -3934,10 +3989,40 @@ app.post(
     if (!req.file) {
       return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Δεν επιλέχθηκε αρχείο' })}#tab-upload`);
     }
-    fs.writeFileSync(req.tenantPaths.favicon, req.file.buffer);
+    const mime = String(req.file.mimetype || '').toLowerCase();
+    const extByMime = {
+      'image/png': '.png',
+      'image/jpeg': '.jpg',
+      'image/x-icon': '.ico',
+      'image/vnd.microsoft.icon': '.ico',
+      'image/svg+xml': '.svg'
+    };
+    const safeExt = extByMime[mime] || path.extname(String(req.file.originalname || '')).toLowerCase();
+    if (!['.png', '.jpg', '.jpeg', '.ico', '.svg'].includes(safeExt)) {
+      return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Μη υποστηριζόμενο favicon format. Επιτρέπονται PNG/JPG/ICO/SVG.' })}#tab-upload`);
+    }
+    const faviconDir = path.join(req.tenantPaths.media, 'favicon');
+    ensureDir(faviconDir);
+    const targetName = `favicon-${Date.now()}${safeExt === '.jpeg' ? '.jpg' : safeExt}`;
+    const targetPath = path.join(faviconDir, targetName);
+    fs.writeFileSync(targetPath, req.file.buffer);
+    const config = loadTenantConfig(req);
+    const oldPath = String(config && config.favicon && config.favicon.path || '').trim();
+    if (oldPath.startsWith(`/tenants/${req.tenant.id}/media/favicon/`)) {
+      const oldFile = path.join(req.tenantPaths.media, 'favicon', path.basename(oldPath));
+      if (fs.existsSync(oldFile) && oldFile !== targetPath) {
+        try { fs.unlinkSync(oldFile); } catch (_) {}
+      }
+    }
+    config.favicon = {
+      path: `/tenants/${req.tenant.id}/media/favicon/${targetName}`,
+      mime: mime || 'image/png',
+      updatedAt: Date.now()
+    };
+    saveTenantConfig(req, config);
     return res.redirect(`${buildTenantLink(req, '/admin', { message: 'Favicon αποθηκεύτηκε' })}#tab-upload`);
-  }
-);
+  });
+});
 
 // Favicon delete
 app.post('/admin/favicon/delete', async (req, res) => {
@@ -3945,9 +4030,17 @@ app.post('/admin/favicon/delete', async (req, res) => {
   if (!auth.ok) {
     return res.redirect(`${buildTenantLink(req, '/admin', { error: 'Λάθος κωδικός διαχειριστή' })}#tab-upload`);
   }
-  if (fs.existsSync(req.tenantPaths.favicon)) {
-    fs.unlinkSync(req.tenantPaths.favicon);
+  const config = loadTenantConfig(req);
+  const existingPath = String(config && config.favicon && config.favicon.path || '').trim();
+  if (existingPath.startsWith(`/tenants/${req.tenant.id}/media/favicon/`)) {
+    const fullPath = path.join(req.tenantPaths.media, 'favicon', path.basename(existingPath));
+    if (fs.existsSync(fullPath)) {
+      try { fs.unlinkSync(fullPath); } catch (_) {}
+    }
   }
+  if (fs.existsSync(req.tenantPaths.favicon)) fs.unlinkSync(req.tenantPaths.favicon); // legacy fallback cleanup
+  config.favicon = { path: '', mime: '', updatedAt: 0 };
+  saveTenantConfig(req, config);
   return res.redirect(`${buildTenantLink(req, '/admin', { message: 'Favicon διαγράφηκε' })}#tab-upload`);
 });
 
@@ -4455,7 +4548,7 @@ app.get('/root/logout', (req, res) => {
 app.post('/root/tenants/create', async (req, res) => {
   const {
     rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent,
-    primaryDomain, domains, previewSubdomain, domainStatus
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
@@ -4499,6 +4592,7 @@ app.post('/root/tenants/create', async (req, res) => {
     domains: domainsArray,
     previewSubdomain: previewSubdomainClean,
     domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
+    canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
     supportTier: resolvedTier,
     allowPoweredBy: false,
     adminPasswordHash,
@@ -4548,7 +4642,7 @@ app.post('/root/templates/create', (req, res) => {
 app.post('/root/tenants/update', (req, res) => {
   const {
     rootPassword, tenantId, domain, supportTier, active, allowPoweredBy,
-    primaryDomain, domains, previewSubdomain, domainStatus
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
@@ -4579,6 +4673,9 @@ app.post('/root/tenants/update', (req, res) => {
     const normalizedStatus = String(domainStatus || '').trim();
     const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
     tenants[idx].domainStatus = allowedDomainStatuses.includes(normalizedStatus) ? normalizedStatus : (tenants[idx].domainStatus || 'pending_dns');
+  }
+  if (canonicalToWww !== undefined) {
+    tenants[idx].canonicalToWww = canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on';
   }
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';
