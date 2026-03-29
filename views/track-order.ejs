@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Order Tracking' %> – <%= config.storeName %></title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main style="max-width:720px;margin:30px auto;padding:0 16px;">
+    <%
+      const safeError = (typeof error !== 'undefined' && typeof error === 'string') ? error : '';
+      const safeOrder = (typeof order !== 'undefined' && order) ? order : null;
+    %>
+    <h2><%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Track your order' %></h2>
+    <p style="font-size:.85rem;color:#6b7280;"><%= lang === 'el' ? 'Βάλε Order ID + Email ή μόνο Tracking token.' : 'Use Order ID + Email or only Tracking token.' %></p>
+    <form method="POST" action="<%= withTenantLink('/track') %>" style="display:grid;gap:10px;margin-bottom:16px;">
+      <label>Order ID <input type="text" name="orderId" /></label>
+      <label>Email <input type="email" name="email" /></label>
+      <label><%= lang === 'el' ? 'Tracking token (προαιρετικό)' : 'Tracking token (optional)' %> <input type="text" name="trackingToken" /></label>
+      <button class="button" type="submit"><%= lang === 'el' ? 'Έλεγχος' : 'Track' %></button>
+    </form>
+    <% if (safeError) { %><p style="color:#b91c1c;"><%= safeError %></p><% } %>
+    <% if (safeOrder) { %>
+      <section style="border:1px solid #e5e7eb;border-radius:10px;padding:14px;background:#fff;">
+        <p><strong>ID:</strong> <%= safeOrder.id %></p>
+        <p><strong><%= lang === 'el' ? 'Κατάσταση πληρωμής' : 'Payment status' %>:</strong> <%= safeOrder.paymentStatus || '-' %></p>
+        <p><strong><%= lang === 'el' ? 'Κατάσταση αποστολής' : 'Fulfillment status' %>:</strong> <%= safeOrder.fulfillmentStatus || '-' %></p>
+        <p><strong><%= lang === 'el' ? 'Ημερομηνία' : 'Created at' %>:</strong> <%= safeOrder.createdAt %></p>
+        <p><strong><%= lang === 'el' ? 'Απεστάλη' : 'Shipped at' %>:</strong> <%= safeOrder.shippedAt ? new Date(safeOrder.shippedAt).toLocaleString() : '-' %></p>
+        <p><strong><%= lang === 'el' ? 'Παραδόθηκε' : 'Delivered at' %>:</strong> <%= safeOrder.deliveredAt ? new Date(safeOrder.deliveredAt).toLocaleString() : '-' %></p>
+        <% if (safeOrder.trackingNumber) { %>
+          <p><strong>Tracking:</strong> <%= safeOrder.trackingNumber %></p>
+          <% if (safeOrder.trackingCarrier) { %><p><strong><%= lang === 'el' ? 'Courier' : 'Carrier' %>:</strong> <%= safeOrder.trackingCarrier %></p><% } %>
+          <% if (safeOrder.trackingUrl) { %><p><strong>Link:</strong> <a href="<%= safeOrder.trackingUrl %>" target="_blank" rel="noopener"><%= safeOrder.trackingUrl %></a></p><% } %>
+        <% } %>
+        <p><strong><%= lang === 'el' ? 'Σύνολο' : 'Total' %>:</strong> <%= Number(safeOrder.total || 0).toFixed(2) %> €</p>
+      </section>
+    <% } %>
+    <p style="margin-top:12px;"><a href="<%= withTenantLink('/') %>">← <%= lang === 'el' ? 'Επιστροφή στο κατάστημα' : 'Back to store' %></a></p>
+  </main>
+</body>
+</html>

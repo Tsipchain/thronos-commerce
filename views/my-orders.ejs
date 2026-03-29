@@ -13,6 +13,7 @@
     <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
   </div>
   <% } %>
+  <button type="button" id="quick-back-btn" style="position:fixed;left:12px;bottom:18px;z-index:1200;border:none;border-radius:999px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(2,6,23,.28);">← Back</button>
   <main style="max-width:900px;margin:30px auto;padding:0 16px;">
     <h2>My Orders</h2>
     <p><a href="<%= withTenantLink('/account') %>">My Account</a> · <a href="<%= withTenantLink('/logout') %>">Logout</a></p>
@@ -25,6 +26,8 @@
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Order</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Date</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Total</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Fulfillment</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Tracking</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Digital</th>
           </tr>
         </thead>
@@ -34,6 +37,16 @@
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= order.id %><br/><small><%= order.productName %></small></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= new Date(order.createdAt).toLocaleString() %></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= Number(order.total || 0).toFixed(2) %> €</td>
+              <td style="padding:8px;border-bottom:1px solid #eee;"><%= order.fulfillmentStatus || '-' %></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <% if (order.trackingNumber) { %>
+                  <div><code><%= order.trackingNumber %></code></div>
+                  <% if (order.trackingCarrier) { %><div><small><%= order.trackingCarrier %></small></div><% } %>
+                  <% if (order.trackingUrl) { %><div><a href="<%= order.trackingUrl %>" target="_blank" rel="noopener">Open</a></div><% } %>
+                  <% if (order.shippedAt) { %><div><small>Shipped: <%= new Date(order.shippedAt).toLocaleString() %></small></div><% } %>
+                  <% if (order.deliveredAt) { %><div><small>Delivered: <%= new Date(order.deliveredAt).toLocaleString() %></small></div><% } %>
+                <% } else { %>—<% } %>
+              </td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><a href="<%= withTenantLink('/content/' + order.id) %>">Open</a></td>
             </tr>
           <% }) %>
@@ -41,5 +54,21 @@
       </table>
     <% } %>
   </main>
+  <script>
+    (function() {
+      const key = 'thrc_nav_last_url';
+      const homeUrl = '<%= withTenantLink("/") %>';
+      const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+      try { sessionStorage.setItem(key, currentUrl); } catch (err) {}
+      document.getElementById('quick-back-btn').addEventListener('click', function() {
+        if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.origin) === 0) return window.history.back();
+        try {
+          const fallback = sessionStorage.getItem(key) || '';
+          if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+        } catch (err) {}
+        window.location.href = homeUrl;
+      });
+    })();
+  </script>
 </body>
 </html>

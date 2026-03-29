@@ -51,8 +51,21 @@
         align-items: center; justify-content: center;
       }
       .modal-overlay.open { display: flex; }
-      #kit-builder-modal.modal-overlay { background: rgba(2,6,23,.72); z-index: 1200; }
-      #kit-builder-modal .modal { background:#f8fbff; border:1px solid #bfdbfe; color:#0f172a; }
+      #kit-builder-modal.modal-overlay { background: rgba(2,6,23,.84); z-index: 1200; padding:16px; }
+      #kit-builder-modal .modal { background:#ffffff; border:1px solid #93c5fd; color:#0f172a; box-shadow:0 18px 44px rgba(2,6,23,.52); width:min(980px,95vw); max-height:90vh; overflow:auto; padding:18px 20px; border-radius:12px; }
+      #kit-builder-modal h3, #kit-builder-modal h4 { color:#0b1120; }
+      #kit-builder-modal .helper { color:#1e293b; }
+      #kit-builder-modal #kit-groups-list,
+      #kit-builder-modal #kit-choices-list,
+      #kit-builder-modal #kit-choice-search-results,
+      #kit-builder-modal #kit-builder-preview { background:rgba(255,255,255,.9); color:#0f172a; }
+      #kit-builder-modal #kit-builder-preview { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
+      #kit-builder-modal input, #kit-builder-modal select, #kit-builder-modal textarea {
+        border:1px solid #cbd5e1; border-radius:8px; padding:7px 8px; font-size:.84rem;
+      }
+      #kit-builder-modal h4 { margin: 6px 0 8px; }
+      body.device-mobile #kit-builder-modal .modal { width: 100%; max-height: 100vh; border-radius: 0; padding: 14px; }
+      body.device-mobile .modal-actions { position: sticky; bottom: 0; background: #fff; padding-top: 10px; }
       .modal-box {
         background: #fff; border-radius: 8px; padding: 28px 28px 20px;
         width: min(520px, 95vw); max-height: 90vh; overflow-y: auto;
@@ -113,6 +126,10 @@
       .logo-preview-frame.is-light { background:#f8fafc; border:1px solid #e5e7eb; }
       .logo-preview-frame.is-auto { background:linear-gradient(135deg,#0f172a,#1f2937); }
       .logo-preview-frame img { max-width: 220px; object-fit: contain; }
+      .branding-live-preview {
+        margin-top: 8px; padding: 10px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc;
+      }
+      .branding-live-preview .title { font-size:.78rem; color:#475569; margin-bottom:6px; font-weight:700; }
 
       /* ── Notifications section ── */
       .notif-section { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #ddd; }
@@ -143,7 +160,7 @@
       .cat-meta { font-size:.76rem; color:#6b7280; margin-top:4px; line-height:1.3; }
     </style>
   </head>
-  <body>
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %>">
     <header>
       <h1><%= t('admin.headerTitle') %></h1>
       <p class="subtitle">
@@ -153,7 +170,7 @@
         &nbsp;·&nbsp;
         <a href="<%= withTenantLink('/admin') %>" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %> <% if (typeof unresolvedOrdersCount === 'number' && unresolvedOrdersCount > 0) { %>(<%= unresolvedOrdersCount %> open)<% } %></a>
         &nbsp;|&nbsp;
         <a href="<%= withTenantLink('/') %>" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
       </p>
@@ -227,8 +244,41 @@
         <p class="helper">Καλώς ήρθατε! Επιλέξτε ενότητα από το sidebar για να κάνετε αλλαγές στο κατάστημά σας.</p>
         <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
           <strong>Payments status</strong>
-          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong></p>
-          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments</a>
+          <p class="helper" style="margin:6px 0;">Stripe configured: <strong><%= config.stripePublishableKey ? 'yes' : 'no' %></strong> · PayPal configured: <strong><%= config.paypalEmail ? 'yes' : 'no' %></strong></p>
+          <p class="helper" style="margin:6px 0;">COD available by default για να μην μπλοκάρει η ολοκλήρωση παραγγελίας.</p>
+          <a class="button" href="<%= withTenantLink('/admin/payments') %>" style="text-decoration:none;">Open Payments Settings</a>
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Coupons</strong>
+          <p class="helper" style="margin:6px 0;">Δημιούργησε / ενημέρωσε κουπόνια για το tenant.</p>
+          <form method="POST" action="<%= withTenantLink('/admin/coupons') %>" style="display:grid;grid-template-columns:1fr 120px 110px 120px;gap:8px;align-items:end;">
+            <label style="margin:0;"><span class="helper">Code</span><input type="text" name="code" placeholder="WELCOME10" required /></label>
+            <label style="margin:0;"><span class="helper">Type</span><select name="type"><option value="percent">Percent</option><option value="fixed">Fixed €</option></select></label>
+            <label style="margin:0;"><span class="helper">Value</span><input type="number" min="0" step="0.01" name="value" required /></label>
+            <label style="margin:0;"><span class="helper">Min subtotal</span><input type="number" min="0" step="0.01" name="minSubtotal" value="0" /></label>
+            <label class="checkbox-label" style="grid-column:1/3;margin:0;"><input type="checkbox" name="active" value="1" checked /><span>Active</span></label>
+            <label style="grid-column:3/5;margin:0;"><span class="helper">Admin password</span><input type="password" name="password" required /></label>
+            <button class="button" type="submit" style="grid-column:1/5;">Save coupon</button>
+          </form>
+          <div class="helper" style="margin-top:8px;">
+            <% if (Array.isArray(config.coupons) && config.coupons.length) { %>
+              <% config.coupons.forEach(function(c){ %>
+                <span style="display:inline-block;margin-right:8px;">• <strong><%= c.code %></strong> (<%= c.type === 'fixed' ? '€' : '%' %><%= c.value %>, min <%= Number(c.minSubtotal || 0).toFixed(2) %>, <%= c.active === false ? 'inactive' : 'active' %>)</span>
+              <% }) %>
+            <% } else { %>
+              No tenant coupons yet (fallback WELCOME10 remains available when coupon list is empty).
+            <% } %>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Referral</strong>
+          <% const ref = tenant.referral || null; %>
+          <% if (ref && ref.code) { %>
+            <p class="helper" style="margin:6px 0;">Code: <strong><%= ref.code %></strong> · Percent: <strong><%= Math.round(Number(ref.percent || 0) * 100) %>%</strong></p>
+            <p class="helper" style="margin:6px 0;">Referral link: <code><%= withTenantLink('/?ref=' + encodeURIComponent(ref.code)) %></code></p>
+          <% } else { %>
+            <p class="helper" style="margin:6px 0;">Δεν έχει οριστεί referral code για αυτό το tenant από το root admin.</p>
+          <% } %>
         </div>
       </section>
       <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
@@ -246,7 +296,7 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
-      <form id="tab-theme" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+      <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Store identity & εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
 
@@ -306,15 +356,6 @@
                  placeholder="/logo.svg" readonly />
           <small class="helper">Το πεδίο ενημερώνεται αυτόματα από το upload λογότυπου.</small>
         </label>
-        <% if (config.logoPath) { %>
-          <% const logoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
-          <% const logoPreviewBgClass = logoBgMode === 'dark_badge' ? 'is-dark' : (logoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
-          <div style="margin:-8px 0 10px;">
-            <div class="logo-preview-frame <%= logoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;">
-              <img src="<%= config.logoPath %>" alt="Logo preview" style="max-height:<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>px;" />
-            </div>
-          </div>
-        <% } %>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
           <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
@@ -413,9 +454,11 @@
         </label>
         <label><span>Logo padding (px)</span>
           <input type="number" min="0" max="24" name="themeLogoPadding" value="<%= Number((config.theme && config.theme.logoPadding) || 6) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Εσωτερικό κενό γύρω από το logo frame.</small>
         </label>
         <label><span>Logo radius (px)</span>
           <input type="number" min="0" max="36" name="themeLogoRadius" value="<%= Number((config.theme && config.theme.logoRadius) || 10) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Γωνίες του frame που περιβάλλει το logo.</small>
         </label>
         <label><span>Logo shadow</span>
           <select name="themeLogoShadow" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -423,10 +466,106 @@
             <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
             <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating</option>
           </select>
+          <small class="helper">Drop-shadow πάνω στο logo (ιδανικό για διαφανή PNG).</small>
         </label>
         <label><span>Logo max height (px)</span>
-          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 52) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Μέγιστο ύψος logo στο header (το storefront το τηρεί 1:1).</small>
         </label>
+        <% if (config.logoPath) { %>
+        <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
+        <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
+        <% const liveBrandingMode = (config.theme && config.theme.brandingMode) || 'logo_name'; %>
+        <% const liveIsClassic = tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 72)); %>
+        <% const livePreviewLogoHeight = (liveIsClassic && liveBrandingMode === 'logo_only')
+          ? Math.max(96, Math.min(140, liveRawHeight || 96))
+          : Math.max(28, Math.min(140, liveRawHeight || 72)); %>
+        <div class="branding-live-preview">
+          <div class="title">Live preview (logo size + shadow)</div>
+          <div class="logo-preview-frame <%= liveLogoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;box-shadow:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : '0 4px 12px rgba(15,23,42,.12)') %>;">
+            <img src="<%= config.logoPath %>" alt="Logo live preview" style="max-height:<%= livePreviewLogoHeight %>px;filter:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : 'drop-shadow(0 6px 10px rgba(15,23,42,.22))') %>;" />
+          </div>
+        </div>
+        <% } %>
+        <div style="margin-top:10px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;">
+          <h4 style="margin:0 0 8px;">Product Cards</h4>
+          <p class="helper" style="margin-bottom:8px;">Uniform thumbnail and hover behavior for storefront product cards.</p>
+          <label><span>Thumb aspect ratio</span>
+            <select name="themeProductThumbAspect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="4:3" <%= ((config.theme && config.theme.productThumbAspect) || '4:3') === '4:3' ? 'selected' : '' %>>4:3</option>
+              <option value="1:1" <%= ((config.theme && config.theme.productThumbAspect) || '') === '1:1' ? 'selected' : '' %>>1:1</option>
+              <option value="3:4" <%= ((config.theme && config.theme.productThumbAspect) || '') === '3:4' ? 'selected' : '' %>>3:4</option>
+            </select>
+          </label>
+          <label><span>Thumb fit</span>
+            <select name="themeProductThumbFit" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="cover" <%= ((config.theme && config.theme.productThumbFit) || 'cover') === 'cover' ? 'selected' : '' %>>Cover</option>
+              <option value="contain" <%= ((config.theme && config.theme.productThumbFit) || '') === 'contain' ? 'selected' : '' %>>Contain</option>
+            </select>
+          </label>
+          <label><span>Thumb background</span>
+            <input type="text" name="themeProductThumbBg" value="<%= ((config.theme && config.theme.productThumbBg) || '#111111') %>" placeholder="#111111" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+          <label><span>Card hover effect</span>
+            <select name="themeProductCardHoverEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="lift" <%= ((config.theme && config.theme.productCardHoverEffect) || 'lift') === 'lift' ? 'selected' : '' %>>Lift</option>
+              <option value="glow" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'glow' ? 'selected' : '' %>>Glow</option>
+            </select>
+          </label>
+          <label><span>Card density</span>
+            <select name="themeCardDensity" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="compact" <%= ((config.theme && config.theme.cardDensity) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+              <option value="normal" <%= ((config.theme && config.theme.cardDensity) || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
+              <option value="spacious" <%= ((config.theme && config.theme.cardDensity) || '') === 'spacious' ? 'selected' : '' %>>Spacious</option>
+            </select>
+            <small class="helper">Controls product-card spacing and visual density on storefront.</small>
+          </label>
+          <label><span>Pre-open effect</span>
+            <select name="themeProductPreOpenEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
+            </select>
+          </label>
+          <label><span>KIT wizard display</span>
+            <select name="themeKitWizardDisplay" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="sequential" <%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') === 'sequential' ? 'selected' : '' %>>Sequential</option>
+              <option value="cinematic" <%= ((config.theme && config.theme.kitWizardDisplay) || '') === 'cinematic' ? 'selected' : '' %>>Cinematic transitions</option>
+            </select>
+            <small class="helper">Sequential shows one step at a time. Cinematic adds transition effects and preserves step progress while browsing.</small>
+          </label>
+          <label><span>KIT wizard skip rule</span>
+            <select name="themeKitWizardSkipRule" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="none" <%= ((config.theme && config.theme.kitWizardSkipRule) || 'none') === 'none' ? 'selected' : '' %>>Strict (no skip)</option>
+              <option value="optional" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'optional' ? 'selected' : '' %>>Skip only optional steps</option>
+              <option value="all" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'all' ? 'selected' : '' %>>Skip any step</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input type="hidden" name="themeEnableDiyQuickScenario" value="0" />
+            <input type="checkbox" name="themeEnableDiyQuickScenario" value="1" <%= (config.theme && config.theme.enableDiyQuickScenario) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+            <span>Enable 2nd "DIY εύκολο σενάριο" wizard entry</span>
+          </label>
+          <label><span>Homepage layout preset</span>
+            <select name="themeHomeLayoutPreset" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="split" <%= ((config.theme && config.theme.homeLayoutPreset) || 'split') === 'split' ? 'selected' : '' %>>Split (2-column desktop)</option>
+              <option value="stacked" <%= ((config.theme && config.theme.homeLayoutPreset) || '') === 'stacked' ? 'selected' : '' %>>Stacked (single column)</option>
+            </select>
+          </label>
+          <label><span>Footer text color</span>
+            <input type="text" name="themeFooterTextColor" value="<%= ((config.theme && config.theme.footerTextColor) || '#6b7280') %>" placeholder="#6b7280" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+          <div style="margin-top:8px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;">
+            <small style="display:block;margin-bottom:6px;color:#475569;">Live preview</small>
+            <div style="width:160px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+              <div style="aspect-ratio:<%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;background:<%= (config.theme && config.theme.productThumbBg) || '#111111' %>;display:flex;align-items:center;justify-content:center;">
+                <span style="font-size:20px;">🖼️</span>
+              </div>
+              <div style="padding:8px;font-size:.78rem;">Sample card</div>
+            </div>
+          </div>
+        </div>
         <label><span>Hero Style</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
@@ -453,7 +592,8 @@
           </select>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="themeBannerVisible" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <input type="hidden" name="themeBannerVisible" value="0" />
+          <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>Εμφάνιση banner/hero</span>
         </label>
         <label><span>Preview Badge Style</span>
@@ -463,15 +603,18 @@
           </select>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="themeCursorEffect" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <input type="hidden" name="themeCursorEffect" value="0" />
+          <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>DIY cursor effect (μόνο desktop)</span>
         </label>
+        <small class="helper">Cursor applies only on desktop. Use root-relative path (e.g. /tenants/.../media/cursors/file.png).</small>
         <% if (tenant.id === 'eukolakis') { %>
         <label><span>Cursor image URL (desktop only)</span>
           <input type="text" id="themeCursorImage-input" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
             <input type="file" id="cursor-file" accept="image/png,image/webp,image/jpeg" <%= permissions.canEditSettings ? '' : 'disabled' %> />
             <button type="button" class="btn-xs" id="cursor-upload-btn" <%= permissions.canEditSettings ? '' : 'disabled' %>>Upload cursor</button>
+            <button type="button" class="btn-xs" id="cursor-preview-btn">Preview cursor</button>
           </div>
           <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
             <img id="cursor-preview" src="<%= (config.theme && config.theme.cursorImage) || '' %>" alt="" style="width:34px;height:34px;object-fit:contain;border:1px solid #d1d5db;border-radius:6px;<%= (config.theme && config.theme.cursorImage) ? '' : 'display:none;' %>" />
@@ -480,12 +623,22 @@
           <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
         </label>
         <% } %>
+        <div style="margin-top:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:.78rem;color:#334155;">
+          <strong>Applied to storefront:</strong>
+          brandingMode=<%= (config.theme && config.theme.brandingMode) || 'logo_name' %>,
+          logoDisplayMode=<%= (config.theme && config.theme.logoDisplayMode) || 'contain' %>,
+          logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px,
+          cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>,
+          thumb=<%= (config.theme && config.theme.productThumbAspect) || '4:3' %>/<%= (config.theme && config.theme.productThumbFit) || 'cover' %>.
+          <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" target="_blank" rel="noopener noreferrer">Storefront preview</a>
+        </div>
         </details>
 
         <label><span><%= t('admin.adminPass') %></span>
           <input type="password" name="password"
                  <%= permissions.canEditSettings ? '' : 'disabled' %> />
         </label>
+        <p class="helper" style="margin-top:-4px;">Αν είσαι ήδη συνδεδεμένος, μπορείς να αφήσεις κενό τον κωδικό. Θα ζητηθεί ξανά μόνο μετά από 30 λεπτά αδράνειας.</p>
 
         <button type="submit" class="button" <%= permissions.canEditSettings ? '' : 'disabled' %>>
           <%= t('admin.saveSettings') %>
@@ -495,7 +648,7 @@
         <% } %>
       </form>
 
-      <form id="tab-homepage" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/settings') %>">
+      <form id="tab-homepage" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Homepage</h2>
         <p class="helper">Ρυθμίστε την αρχική σελίδα σαν branded landing-store για kits, ανταλλακτικά και εργαλεία.</p>
         <label><span>Hero title (EL/EN)</span>
@@ -558,10 +711,68 @@
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" name="homepageShowSubscriptionsCard" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
+          <input type="hidden" name="homepageShowSubscriptionsCard" value="0" />
+          <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
           <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
         </label>
+        <label class="checkbox-label">
+          <input type="hidden" name="homepageIntroEnabled" value="0" />
+          <input type="checkbox" name="homepageIntroEnabled" value="1" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
+          <span>Enable intro teaser page (/intro)</span>
+        </label>
+        <label><span>Intro video URL (.mp4)</span>
+          <input type="text" name="homepageIntroVideoUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/intro.mp4" />
+        </label>
+        <label><span>Intro poster URL</span>
+          <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
+        </label>
+        <label><span>Homepage blocks order (comma-separated)</span>
+          <input type="text" id="homepageBlockOrderInput" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
+          <small class="helper">Keys: hero, kits, spare, subscriptions. This controls landing block order without code edits.</small>
+        </label>
+        <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;">
+          <strong style="font-size:.85rem;display:block;margin-bottom:8px;">Visual block ordering</strong>
+          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Spare parts card</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Subscriptions block</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockHero" value="0" /><input type="checkbox" name="homepageBlockHero" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.hero !== false) ? 'checked' : '' %> /><span>Show Hero block</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockKits" value="0" /><input type="checkbox" name="homepageBlockKits" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.kits !== false) ? 'checked' : '' %> /><span>Show Kits block</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSpare" value="0" /><input type="checkbox" name="homepageBlockSpare" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.spare !== false) ? 'checked' : '' %> /><span>Show Spare block</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSubscriptions" value="0" /><input type="checkbox" name="homepageBlockSubscriptions" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.subscriptions !== false) ? 'checked' : '' %> /><span>Show Subscriptions block</span></label>
+        </div>
+        <label><span>Override Kits block title</span>
+          <input type="text" name="homepageKitsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsTitle) || '' %>" placeholder="Κύρια DIY Kits" />
+        </label>
+        <label><span>Override Spare block title</span>
+          <input type="text" name="homepageSpareTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareTitle) || '' %>" placeholder="Ανταλλακτικά & Εργαλεία" />
+        </label>
+        <label><span>Override Subscriptions block title</span>
+          <input type="text" name="homepageSubscriptionsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsTitle) || '' %>" placeholder="Συνδρομές / Videos" />
+        </label>
+        <label><span>Footer contact email</span>
+          <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@shop.com" />
+        </label>
+        <label><span>Footer pickup/store address</span>
+          <input type="text" name="footerPickupAddress" value="<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>" placeholder="Store address for pickups" />
+        </label>
+        <label><span>Footer Facebook URL</span>
+          <input type="text" name="footerFacebookUrl" value="<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>" placeholder="https://facebook.com/..." />
+        </label>
+        <label><span>Footer Instagram URL</span>
+          <input type="text" name="footerInstagramUrl" value="<%= (rawConfig.footer && rawConfig.footer.instagramUrl) || '' %>" placeholder="https://instagram.com/..." />
+        </label>
+        <label><span>Footer TikTok URL</span>
+          <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@..." />
+        </label>
+        <p class="helper" style="margin-top:4px;">
+          Το “Powered by” του footer ρυθμίζεται μόνο από το Root Admin στο
+          <code>/root/tenants</code> (δικαιώματα tenant branding).
+        </p>
         <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
+        <p class="helper" style="margin-top:-4px;">Προαιρετικό όσο το admin session είναι ενεργό (30 λεπτά).</p>
         <button type="submit" class="button">Αποθήκευση homepage</button>
       </form>
 
@@ -572,6 +783,17 @@
       <section id="tab-categories" class="admin-block section-panel">
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
+        <form method="POST" action="<%= withTenantLink('/admin/settings') %>" class="admin-subform" style="margin-bottom:12px;">
+          <h3 style="margin:0 0 8px;">Category storefront display</h3>
+          <label><span>Spare parts / tools card emphasis</span>
+            <select name="themeSpareToolsCardMode">
+              <option value="prominent" <%= ((config.theme && config.theme.spareToolsCardMode) || 'prominent') === 'prominent' ? 'selected' : '' %>>Prominent (larger centered card)</option>
+              <option value="compact" <%= ((config.theme && config.theme.spareToolsCardMode) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+            </select>
+          </label>
+          <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
+          <button type="submit" class="button">Save category display</button>
+        </form>
         <p class="cat-helper-row">Αντικατάσταση εικόνας: πατήστε «Ανέβασμα/Αλλαγή» και διαλέξτε αρχείο. Δεν χρειάζεται επικόλληση path.</p>
         <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:10px;">
           Κωδικός επαναπιστοποίησης (μόνο αν ζητηθεί):
@@ -789,7 +1011,8 @@
 
         <% if (hasFavicon) { %>
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
-            <img src="/favicon.ico?v=<%= Date.now() %>" alt="favicon"
+            <% const faviconVersion = (rawConfig && rawConfig.favicon && rawConfig.favicon.updatedAt) || Date.now(); %>
+            <img src="<%= withTenantLink('/favicon.ico', { v: faviconVersion }) %>" alt="favicon"
                  style="width:48px;height:48px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#f9fafb;" />
             <div>
               <p style="margin:0 0 6px;font-size:0.85rem;color:#374151;font-weight:500;">Τρέχον favicon</p>
@@ -805,7 +1028,7 @@
         <% } %>
 
         <form method="POST" action="<%= withTenantLink('/admin/favicon') %>" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-          <input type="file" name="favicon" accept="image/png,image/jpeg,image/x-icon,image/svg+xml" required />
+          <input type="file" name="favicon" accept="image/png,image/jpeg,image/x-icon,image/vnd.microsoft.icon,image/svg+xml" required />
           <input type="password" name="password" placeholder="<%= t('admin.passwordPlaceholder') %>" required style="width:180px;" />
           <button class="button" type="submit"><%= t('admin.faviconUploadBtn') %></button>
         </form>
@@ -1121,6 +1344,7 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
               <a class="button" href="<%= withTenantLink('/admin/export/products.json') %>">Export products.json</a>
               <a class="button" href="<%= withTenantLink('/admin/export/products.csv') %>" style="background:#1f2937;">Export products.csv</a>
+              <a class="button" href="<%= withTenantLink('/admin/export/orders.csv') %>" style="background:#0f766e;">Export orders.csv</a>
               <a class="button" href="<%= withTenantLink('/admin/export/categories.json') %>" style="background:#334155;">Export categories.json</a>
               <a class="button" href="<%= withTenantLink('/admin/export/config.json') %>" style="background:#475569;">Export config.json</a>
             </div>
@@ -1168,7 +1392,10 @@
             <input type="password" name="password" placeholder="Admin password" style="padding:6px 8px;" />
             <button class="button" type="submit" style="background:#0f766e;">Import variants CSV</button>
           </form>
-          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">Columns: productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription.</p>
+          <p style="margin:6px 0 0;font-size:.78rem;color:#64748b;">
+            Columns: <strong>productId, variantName, variantSku, priceEUR, stock, imageUrl, videoUrl, videoDescription</strong>.
+            <a href="<%= withTenantLink('/admin/import/variants-template.csv') %>">Download template</a>
+          </p>
         </div>
 
         <%# ── Ticket list ── %>
@@ -1268,6 +1495,10 @@
             <input type="checkbox" id="f-featured" style="width:auto;margin:0;" />
             <span><%= t('admin.modalFeatured') %></span>
           </label>
+          <label style="flex-direction:row;align-items:center;gap:8px;">
+            <input type="checkbox" id="f-active" style="width:auto;margin:0;" checked />
+            <span>Visible on storefront</span>
+          </label>
           <label class="full"><span><%= t('admin.modalCategory') %></span>
             <select id="f-category">
               <option value=""><%= t('admin.modalNoCat') %></option>
@@ -1360,9 +1591,14 @@
       </div>
     </div>
     <div class="modal-overlay" id="kit-builder-modal">
-      <div class="modal" style="max-width:980px;max-height:90vh;overflow:auto;">
+      <div class="modal">
         <h3 style="margin-top:0;">KIT Builder</h3>
         <p class="helper" id="kit-builder-title"></p>
+        <p class="helper" style="margin-top:-6px;">
+          Storefront wizard mode:
+          <strong><%= ((config.theme && config.theme.kitWizardDisplay) || (tenant.id === 'eukolakis' ? 'cinematic' : 'sequential')) %></strong>
+          · change from <strong>Branding → KIT wizard display</strong>.
+        </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <h4>Option Groups</h4>
@@ -1464,7 +1700,7 @@
             '<td>' + escHtml(pName) + '</td>' +
             '<td>' + (p.price !== undefined ? Number(p.price).toFixed(2) : '–') + '</td>' +
             '<td>' + escHtml(p.sku || '') + '</td>' +
-            '<td>' + escHtml(p.categoryId || '') + '</td>' +
+            '<td>' + escHtml(p.categoryId || '') + (p.active === false ? ' <small style="color:#b91c1c;">(hidden)</small>' : '') + '</td>' +
             (canEdit ? '<td>' + editBtn + '</td>' : '') +
             '</tr>';
         }).join('');
@@ -1490,6 +1726,7 @@
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
+      const fActive     = document.getElementById('f-active');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
       const fImgPreview = document.getElementById('f-image-preview');
@@ -1601,13 +1838,18 @@
           '<div style="grid-column:1/5;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;">' +
             '<img class="v-image-preview" src="' + escHtml(v.imageUrl || '') + '" alt="" style="' + (v.imageUrl ? '' : 'display:none;') + 'width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid #d1d5db;" />' +
             '<div style="flex:1;min-width:240px;">' +
-              '<input class="v-image" type="text" placeholder="Variant image URL" value="' + escHtml(v.imageUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-bottom:6px;" />' +
+              '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">' +
+                '<input class="v-image" type="text" placeholder="Variant image URL" value="' + escHtml(v.imageUrl || '') + '" style="flex:1;min-width:220px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;" />' +
+                '<a class="v-image-open" href="' + escHtml(v.imageUrl || '') + '" target="_blank" rel="noopener noreferrer" style="font-size:.76rem;color:#0f766e;white-space:nowrap;' + (v.imageUrl ? '' : 'display:none;') + '">Open image in new tab</a>' +
+              '</div>' +
               '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
                 '<input class="v-image-file" type="file" accept="image/png,image/webp,image/jpeg" />' +
                 '<button type="button" class="btn-xs" onclick="uploadVariantImage(this)">Upload image</button>' +
               '</div>' +
+              '<small class="v-image-feedback" style="display:block;margin-top:5px;font-size:.76rem;color:#334155;">' + (v.imageUrl ? 'Image preview ready.' : 'Add/upload an image to preview it here.') + '</small>' +
               '<input class="v-video" type="text" placeholder="URL βίντεο" value="' + escHtml(v.videoUrl || '') + '" style="width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:.82rem;margin-top:6px;" />' +
-              '<video class="v-video-preview" controls style="' + (v.videoUrl ? '' : 'display:none;') + 'margin-top:6px;max-width:220px;border-radius:8px;border:1px solid #cbd5e1;"></video>' +
+              '<video class="v-video-preview" controls muted playsinline style="' + (v.videoUrl ? '' : 'display:none;') + 'margin-top:6px;max-width:220px;max-height:132px;border-radius:8px;border:1px solid #cbd5e1;background:#0f172a;"></video>' +
+              '<small class="v-video-feedback" style="display:block;margin-top:5px;font-size:.76rem;color:#334155;">' + (v.videoUrl ? 'Video preview ready.' : 'Add/upload a video URL to preview it here.') + '</small>' +
               '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">' +
                 '<input class="v-video-file" type="file" accept="video/mp4,video/webm" />' +
                 '<button type="button" class="btn-xs" onclick="uploadVariantVideo(this)">Upload video</button>' +
@@ -1737,7 +1979,8 @@
         const row = buttonEl && buttonEl.closest('.variant-row');
         if (!row) return;
         const variantId = ensureVariantRowId(row);
-        const variantSku = ((row.querySelector('.v-sku') && row.querySelector('.v-sku').value) || '').trim();
+        const variantSkuInput = ((row.querySelector('.v-sku') && row.querySelector('.v-sku').value) || '').trim();
+        const variantSku = variantSkuInput || variantId;
         const productId = (fId && fId.value || '').trim();
         if (!productId) return alert('Συμπλήρωσε πρώτα Product ID.');
         const fileInput = row.querySelector(type === 'image' ? '.v-image-file' : '.v-video-file');
@@ -1746,18 +1989,20 @@
         const status = row.querySelector('.v-upload-status');
         if (status) status.textContent = 'Uploading...';
         const fd = new FormData();
-        fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
         fd.append('productId', productId);
-        fd.append('variantId', variantId);
         fd.append('variantSku', variantSku);
+        fd.append('variantId', variantId);
+        fd.append(type === 'image' ? 'variantImage' : 'variantVideo', file);
         fd.append('password', '');
-        let r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
+        const endpointBase = type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>';
+        const endpoint = endpointBase + '?productId=' + encodeURIComponent(productId) + '&variantSku=' + encodeURIComponent(variantSku);
+        let r = await fetch(endpoint, { method: 'POST', body: fd });
         let j = await r.json();
         if (r.status === 401) {
           const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
           if (!pw) return;
           fd.set('password', pw);
-          r = await fetch(type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>', { method: 'POST', body: fd });
+          r = await fetch(endpoint, { method: 'POST', body: fd });
           j = await r.json();
         }
         if (!j.ok) {
@@ -1766,25 +2011,13 @@
         }
         if (type === 'image') {
           const urlEl = row.querySelector('.v-image');
-          const previewEl = row.querySelector('.v-image-preview');
           if (urlEl) urlEl.value = j.url || '';
-          if (previewEl && j.url) {
-            previewEl.onload = function() {
-              previewEl.style.display = 'block';
-              if (status) status.textContent = '✓ Uploaded';
-            };
-            previewEl.onerror = function() {
-              previewEl.style.display = 'none';
-              if (status) status.textContent = 'Η εικόνα δεν φορτώνει (404/invalid path).';
-            };
-            previewEl.src = j.url;
-            previewEl.style.display = 'block';
-          }
+          updateVariantImagePreview(row, j.url || '', { bustCache: true, loadingMessage: 'Loading preview…' });
+          if (status) status.textContent = '✓ Uploaded';
         } else {
           const urlEl = row.querySelector('.v-video');
           if (urlEl) urlEl.value = j.url || '';
-          const videoPreview = row.querySelector('.v-video-preview');
-          if (videoPreview && j.url) { videoPreview.src = j.url; videoPreview.style.display = 'block'; }
+          updateVariantVideoPreview(row, j.url || '', { bustCache: true, loadingMessage: 'Loading video preview…' });
           if (status) status.textContent = '✓ Uploaded (video)';
           return;
         }
@@ -1793,34 +2026,109 @@
       window.uploadVariantImage = function(buttonEl) { uploadVariantAsset(buttonEl, 'image'); };
       window.uploadVariantVideo = function(buttonEl) { uploadVariantAsset(buttonEl, 'video'); };
 
+      function setVariantImageFeedback(row, message, tone) {
+        const feedbackEl = row && row.querySelector('.v-image-feedback');
+        if (!feedbackEl) return;
+        feedbackEl.textContent = message || '';
+        feedbackEl.style.color = tone === 'error' ? '#b91c1c' : (tone === 'success' ? '#166534' : '#334155');
+      }
+
+      function syncVariantImageLink(row, url) {
+        const linkEl = row && row.querySelector('.v-image-open');
+        if (!linkEl) return;
+        if (url) {
+          linkEl.href = url;
+          linkEl.style.display = '';
+        } else {
+          linkEl.removeAttribute('href');
+          linkEl.style.display = 'none';
+        }
+      }
+      function setVariantVideoFeedback(row, message, tone) {
+        const feedbackEl = row && row.querySelector('.v-video-feedback');
+        if (!feedbackEl) return;
+        feedbackEl.textContent = message || '';
+        feedbackEl.style.color = tone === 'error' ? '#b91c1c' : (tone === 'success' ? '#166534' : '#334155');
+      }
+      function updateVariantVideoPreview(row, rawUrl, options) {
+        const preview = row && row.querySelector('.v-video-preview');
+        if (!preview) return;
+        const opts = options || {};
+        const baseUrl = (rawUrl || '').trim();
+        if (!baseUrl) {
+          preview.style.display = 'none';
+          preview.removeAttribute('src');
+          setVariantVideoFeedback(row, 'Add/upload a video URL to preview it here.', 'neutral');
+          return;
+        }
+        const srcUrl = opts.bustCache ? (baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'v=' + Date.now()) : baseUrl;
+        if (opts.loadingMessage) setVariantVideoFeedback(row, opts.loadingMessage, 'neutral');
+        preview.onerror = function() {
+          preview.style.display = 'none';
+          setVariantVideoFeedback(row, 'Could not load video preview. URL was kept.', 'error');
+        };
+        preview.onloadeddata = function() {
+          preview.style.display = 'block';
+          setVariantVideoFeedback(row, 'Video preview ready.', 'success');
+        };
+        preview.src = srcUrl;
+      }
+
+      function updateVariantImagePreview(row, rawUrl, options) {
+        const preview = row && row.querySelector('.v-image-preview');
+        const status = row && row.querySelector('.v-upload-status');
+        const opts = options || {};
+        if (!preview) return;
+        const baseUrl = (rawUrl || '').trim();
+        syncVariantImageLink(row, baseUrl);
+        if (!baseUrl) {
+          preview.style.display = 'none';
+          preview.removeAttribute('src');
+          setVariantImageFeedback(row, 'Add/upload an image to preview it here.', 'neutral');
+          return;
+        }
+        const srcUrl = opts.bustCache ? (baseUrl + (baseUrl.includes('?') ? '&' : '?') + 't=' + Date.now()) : baseUrl;
+        if (opts.loadingMessage) setVariantImageFeedback(row, opts.loadingMessage, 'neutral');
+        preview.onload = function() {
+          preview.style.display = 'block';
+          setVariantImageFeedback(row, 'Image preview ready.', 'success');
+          if (status && status.textContent && status.textContent.includes('δεν φορτώνει')) status.textContent = '';
+        };
+        preview.onerror = function() {
+          preview.style.display = 'block';
+          preview.onload = null;
+          preview.onerror = null;
+          preview.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><rect width="100%" height="100%" fill="#fee2e2"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="10" fill="#991b1b">404</text></svg>');
+          setVariantImageFeedback(row, '404/invalid path', 'error');
+          if (status) status.textContent = 'Η εικόνα δεν φορτώνει (404/invalid path).';
+        };
+        preview.src = srcUrl;
+      }
+
       function bindVariantUrlPreview(row) {
         const input = row && row.querySelector('.v-image');
-        const preview = row && row.querySelector('.v-image-preview');
         const videoInput = row && row.querySelector('.v-video');
         const videoPreview = row && row.querySelector('.v-video-preview');
-        const status = row && row.querySelector('.v-upload-status');
-        if (!input || !preview) return;
+        if (!input) return;
         const refresh = function() {
           const url = (input.value || '').trim();
-          if (!url) { preview.style.display = 'none'; preview.removeAttribute('src'); return; }
-          preview.onload = function() { preview.style.display = 'block'; if (status) status.textContent = ''; };
-          preview.onerror = function() { preview.style.display = 'none'; if (status) status.textContent = 'Η εικόνα δεν φορτώνει (404/invalid path).'; };
-          preview.src = url;
+          updateVariantImagePreview(row, url, { bustCache: true });
         };
         input.addEventListener('change', refresh);
         input.addEventListener('blur', refresh);
+        refresh();
         const refreshVideo = function() {
           const vurl = (videoInput && videoInput.value || '').trim();
           if (!videoPreview) return;
-          if (!vurl) { videoPreview.style.display = 'none'; videoPreview.removeAttribute('src'); return; }
-          videoPreview.src = vurl;
-          videoPreview.style.display = 'block';
+          updateVariantVideoPreview(row, vurl);
         };
         if (videoInput) {
           videoInput.addEventListener('change', refreshVideo);
           videoInput.addEventListener('blur', refreshVideo);
+          refreshVideo();
         }
       }
+
 
       function openAdd() {
         editingIdx = -1;
@@ -1828,6 +2136,7 @@
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
         if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
+        if (fActive) fActive.checked = true;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
@@ -1851,6 +2160,7 @@
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
+        if (fActive) fActive.checked = p.active !== false;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
         if (fImgPreview) {
@@ -1895,6 +2205,7 @@
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
+          active:         fActive && !fActive.checked ? false : undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
@@ -2013,7 +2324,7 @@
             kitBuilderIdx = pendingKitCreate.productIdx;
             kitBuilderGroupIdx = pendingKitCreate.groupIdx;
             pendingKitCreate = null;
-            kitBuilderModal.classList.add('open');
+            openKitBuilderModal();
             renderKitBuilder();
           }
         }
@@ -2031,6 +2342,14 @@
       let kitBuilderIdx = -1;
       let kitBuilderGroupIdx = -1;
       const kitBuilderModal = document.getElementById('kit-builder-modal');
+      function openKitBuilderModal() {
+        kitBuilderModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeKitBuilderModal() {
+        kitBuilderModal.classList.remove('open');
+        document.body.style.overflow = '';
+      }
       function renderKitBuilder() {
         if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
         const product = products[kitBuilderIdx];
@@ -2046,7 +2365,12 @@
         }).join('');
         const preview = document.getElementById('kit-builder-preview');
         preview.innerHTML = product.kitOptions.map(function(g){
-          return '<p style="margin:0 0 6px;"><strong>' + escHtml(g.label || g.id) + '</strong>: ' + (Array.isArray(g.choices) ? g.choices.map(function(c){ return escHtml(c.label || c.id); }).join(', ') : '—') + '</p>';
+          const labels = Array.isArray(g.choices) ? g.choices.map(function(c){ return escHtml(c.label || c.id); }) : [];
+          return '<div style="margin:0 0 6px;padding:7px 9px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;min-width:240px;max-width:100%;word-break:break-word;">' +
+            '<strong>' + escHtml(g.label || g.id) + '</strong>' +
+            '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">' +
+            (labels.length ? labels.map(function(lbl){ return '<span style="display:inline-flex;padding:2px 7px;border-radius:999px;background:#e0f2fe;color:#0c4a6e;font-size:.74rem;">' + lbl + '</span>'; }).join('') : '<span style="font-size:.78rem;color:#64748b;">—</span>') +
+            '</div></div>';
         }).join('') || '<em>No groups yet.</em>';
         renderKitChoices();
       }
@@ -2074,7 +2398,7 @@
                 }).join('') +
                 '</select></div>')
             : '';
-          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;">' +
+          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:6px;background:#fff;word-break:break-word;">' +
             (thumb ? '<img src="' + escHtml(thumb) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;" />' : '<span style="display:inline-flex;width:44px;height:44px;border-radius:6px;background:#f1f5f9;align-items:center;justify-content:center;margin-right:6px;">🧩</span>') +
             '<strong>' + escHtml(c.label || c.id) + '</strong> <small>' + escHtml(c.linkedProductId || '') + '</small>' +
             (linked ? '<div style="font-size:.78rem;color:#334155;">' + escHtml(linkedName) + ' · ' + linkedPrice + '€</div>' : '') +
@@ -2097,9 +2421,31 @@
         if (!products[i] || products[i].type !== 'KIT') return;
         kitBuilderIdx = i;
         kitBuilderGroupIdx = -1;
-        kitBuilderModal.classList.add('open');
+        openKitBuilderModal();
         renderKitBuilder();
       };
+      window.makeProductKit = function(i) {
+        const existing = products[i];
+        if (!existing) return;
+        const next = { ...existing, type: 'KIT', price: 0 };
+        if (!next.kitOptions) next.kitOptions = [];
+        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
+        products[i] = next;
+        renderTable();
+      };
+      function suggestGroupTypeById(groupId) {
+        const normalized = String(groupId || '').toLowerCase();
+        if (!isEukolakisClassicPreset) return 'radio';
+        if (normalized.includes('spare') || normalized.includes('part') || normalized.includes('tool') || normalized.includes('ανταλλακ')) return 'checkbox';
+        return 'radio';
+      }
+      const kgIdInput = document.getElementById('kg-id');
+      const kgTypeInput = document.getElementById('kg-type');
+      if (kgIdInput && kgTypeInput) {
+        kgIdInput.addEventListener('input', function() {
+          kgTypeInput.value = suggestGroupTypeById(kgIdInput.value);
+        });
+      }
       const kgAddBtn = document.getElementById('kg-add');
       if (kgAddBtn) kgAddBtn.addEventListener('click', function() {
         const product = products[kitBuilderIdx];
@@ -2111,7 +2457,7 @@
           id: gid,
           label: (document.getElementById('kg-label').value || gid).trim(),
           required: document.getElementById('kg-required').checked,
-          inputType: document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : 'radio',
+          inputType: (document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : suggestGroupTypeById(gid)),
           order: parseInt(document.getElementById('kg-order').value, 10) || 0,
           choices: document.getElementById('kg-required').checked ? [] : [{
             id: 'skip',
@@ -2125,7 +2471,8 @@
         kitBuilderGroupIdx = product.kitOptions.length - 1;
         renderKitBuilder();
       });
-      document.getElementById('kit-builder-close').addEventListener('click', function() { kitBuilderModal.classList.remove('open'); renderTable(); });
+      document.getElementById('kit-builder-close').addEventListener('click', function() { closeKitBuilderModal(); renderTable(); });
+      kitBuilderModal.addEventListener('click', function(e) { if (e.target === kitBuilderModal) closeKitBuilderModal(); });
       document.getElementById('kit-choice-search-btn').addEventListener('click', async function() {
         if (kitBuilderIdx < 0 || kitBuilderGroupIdx < 0) return alert('Select group first');
         const q = (document.getElementById('kit-choice-search-q').value || '').trim();
@@ -2333,6 +2680,25 @@
       bindColorPair('txt-themeMenuText',      'cp-themeMenuText');
       bindColorPair('txt-themeMenuActiveBg',  'cp-themeMenuActiveBg');
       bindColorPair('txt-themeMenuActiveText','cp-themeMenuActiveText');
+      const adminActionTimeoutMs = Number(<%- JSON.stringify(Number(adminActionTimeoutMs || 0)) %>) || (30 * 60 * 1000);
+      let reauthDeadlineTs = Date.now() + (Number(<%- JSON.stringify(Number(adminReauthRemainingMs || 0)) %>) || 0);
+      document.querySelectorAll('form.js-settings-save-form').forEach((formEl) => {
+        formEl.addEventListener('submit', function(ev) {
+          const passInput = formEl.querySelector('input[name="password"]');
+          const hasTypedPassword = !!(passInput && String(passInput.value || '').trim());
+          if (hasTypedPassword) {
+            reauthDeadlineTs = Date.now() + adminActionTimeoutMs;
+            return;
+          }
+          if (Date.now() <= reauthDeadlineTs) return;
+          ev.preventDefault();
+          const pw = prompt('Έληξε το admin save session (30 λεπτά). Βάλε ξανά κωδικό για αποθήκευση:');
+          if (!pw) return alert('Δεν έγινε αποθήκευση χωρίς επαναπιστοποίηση.');
+          if (passInput) passInput.value = pw;
+          reauthDeadlineTs = Date.now() + adminActionTimeoutMs;
+          formEl.submit();
+        });
+      });
       function showSectionFromHash() {
         const hash = window.location.hash || '#tab-dashboard';
         document.querySelectorAll('.section-panel').forEach((el) => el.classList.remove('active'));
@@ -2400,6 +2766,61 @@
           if (statusEl) statusEl.textContent = '✓ Ανέβηκε: ' + j.url;
         });
       }
+      const cursorPreviewBtn = document.getElementById('cursor-preview-btn');
+      if (cursorPreviewBtn) {
+        cursorPreviewBtn.addEventListener('click', () => {
+          const urlInput = document.getElementById('themeCursorImage-input');
+          const url = (urlInput && urlInput.value || '').trim();
+          if (!url || !/^\//.test(url)) return alert('Cursor preview requires a root-relative URL (starts with /).');
+          const cursorRule = 'url("' + url.replace(/"/g, '\\"') + '") 16 16, auto';
+          document.documentElement.style.cursor = cursorRule;
+          document.body.style.cursor = cursorRule;
+          document.querySelectorAll('a,button,input,textarea,select,label,.button,.btn-xs').forEach((el) => { el.style.cursor = cursorRule; });
+          setTimeout(() => {
+            document.documentElement.style.cursor = '';
+            document.body.style.cursor = '';
+            document.querySelectorAll('a,button,input,textarea,select,label,.button,.btn-xs').forEach((el) => { el.style.cursor = ''; });
+          }, 2500);
+        });
+      }
+
+      (function initHomepageBlockBuilder() {
+        const builder = document.getElementById('homepage-block-builder');
+        const input = document.getElementById('homepageBlockOrderInput');
+        if (!builder || !input) return;
+        const normalizeAndSync = () => {
+          const keys = Array.from(builder.querySelectorAll('.hb-row'))
+            .map((row) => String(row.getAttribute('data-key') || '').trim())
+            .filter(Boolean);
+          input.value = keys.join(',');
+        };
+        const currentOrder = String(input.value || '')
+          .split(',')
+          .map((v) => v.trim().toLowerCase())
+          .filter(Boolean);
+        if (currentOrder.length) {
+          const rowMap = {};
+          builder.querySelectorAll('.hb-row').forEach((row) => { rowMap[String(row.getAttribute('data-key') || '').toLowerCase()] = row; });
+          currentOrder.forEach((key) => {
+            if (rowMap[key]) builder.appendChild(rowMap[key]);
+          });
+        }
+        builder.addEventListener('click', (e) => {
+          const row = e.target.closest('.hb-row');
+          if (!row) return;
+          if (e.target.classList.contains('hb-up')) {
+            const prev = row.previousElementSibling;
+            if (prev) builder.insertBefore(row, prev);
+            normalizeAndSync();
+          }
+          if (e.target.classList.contains('hb-down')) {
+            const next = row.nextElementSibling;
+            if (next) builder.insertBefore(next, row);
+            normalizeAndSync();
+          }
+        });
+        normalizeAndSync();
+      })();
 
       // ── Favicon delete (prompt for password inline) ──
       function deleteFavicon(btn) {
@@ -2412,12 +2833,3 @@
     </script>
   </body>
 </html>
-      window.makeProductKit = function(i) {
-        const existing = products[i];
-        if (!existing) return;
-        const next = { ...existing, type: 'KIT', price: 0 };
-        if (!next.kitOptions) next.kitOptions = [];
-        if (!next.kitPayMode && isEukolakisClassicPreset) next.kitPayMode = 'parts_only';
-        products[i] = next;
-        renderTable();
-      };
