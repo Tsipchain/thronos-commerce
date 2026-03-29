@@ -378,7 +378,26 @@ function saveJson(filePath, data) {
 
 function loadTenantsRegistry() {
   const tenants = loadJson(TENANTS_REGISTRY, []);
-  return Array.isArray(tenants) ? tenants : [];
+  if (!Array.isArray(tenants)) return [];
+  return tenants.map((tenant) => {
+    const hosting = tenant && tenant.hosting && typeof tenant.hosting === 'object' ? tenant.hosting : {};
+    return {
+      ...tenant,
+      hosting: {
+        domainStatus: hosting.domainStatus || tenant.domainStatus || 'pending_dns',
+        sslStatus: hosting.sslStatus || 'pending',
+        sslProvider: hosting.sslProvider || '',
+        sslValidUntil: hosting.sslValidUntil || '',
+        dnsVerifiedAt: hosting.dnsVerifiedAt || '',
+        lastCheckedAt: hosting.lastCheckedAt || '',
+        issueFlag: hosting.issueFlag === true,
+        internalNotes: hosting.internalNotes || '',
+        tenantNotes: hosting.tenantNotes || '',
+        storageUsageMb: Number.isFinite(Number(hosting.storageUsageMb)) ? Number(hosting.storageUsageMb) : null,
+        backupStatus: hosting.backupStatus || 'unknown'
+      }
+    };
+  });
 }
 
 function saveTenantsRegistry(tenants) {
@@ -387,6 +406,38 @@ function saveTenantsRegistry(tenants) {
 
 function findTenantById(tenantId) {
   return loadTenantsRegistry().find((t) => t.id === tenantId) || null;
+}
+
+function getTenantHostingSnapshot(tenant, req) {
+  const t = tenant || {};
+  const hosting = t.hosting || {};
+  const aliases = Array.isArray(t.domains) ? t.domains : [];
+  const primaryDomain = String(t.primaryDomain || t.domain || '').trim();
+  const previewSubdomain = String(t.previewSubdomain || t.id || '').trim();
+  const previewHost = previewSubdomain ? `${previewSubdomain}.thonoscommerce.thronoschain.org` : '';
+  const config = req ? loadTenantConfig(req) : {};
+  return {
+    primaryDomain,
+    aliases,
+    previewSubdomain,
+    previewHost,
+    canonicalToWww: t.canonicalToWww === true,
+    domainStatus: hosting.domainStatus || 'pending_dns',
+    sslStatus: hosting.sslStatus || 'pending',
+    sslProvider: hosting.sslProvider || 'unknown',
+    sslValidUntil: hosting.sslValidUntil || '',
+    dnsVerifiedAt: hosting.dnsVerifiedAt || '',
+    lastCheckedAt: hosting.lastCheckedAt || '',
+    issueFlag: hosting.issueFlag === true,
+    internalNotes: hosting.internalNotes || '',
+    tenantNotes: hosting.tenantNotes || '',
+    storageUsageMb: Number.isFinite(Number(hosting.storageUsageMb)) ? Number(hosting.storageUsageMb) : null,
+    backupStatus: hosting.backupStatus || 'unknown',
+    logoConfigured: !!(config && config.logoPath),
+    faviconConfigured: !!(config && config.favicon && config.favicon.path),
+    introConfigured: !!(config && config.homepage && config.homepage.introEnabled),
+    introAssetConfigured: !!(config && config.homepage && (config.homepage.introVideoUrl || config.homepage.introPosterUrl))
+  };
 }
 
 // ── Referral helpers ──────────────────────────────────────────────────────────
@@ -3520,46 +3571,101 @@ function buildAdminOrdersViewModel(req, extra = {}) {
   return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
-app.post('/admin/orders/tracking', async (req, res) => {
-  const auth = await verifyAdminAction(req, req.body.password);
-  if (!auth.ok) {
-    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Λάθος κωδικός διαχειριστή.' }));
-  }
-  const orderId = String(req.body.orderId || '').trim();
-  const trackingNumber = String(req.body.trackingNumber || '').trim();
-  const trackingCarrier = String(req.body.trackingCarrier || '').trim().toLowerCase();
-  const fulfillmentStatus = String(req.body.fulfillmentStatus || '').trim().toLowerCase();
-  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
-  if (!orderId) {
-    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order ID is required.' }));
-  }
-  const orders = loadTenantOrders(req);
-  const idx = orders.findIndex((o) => o.id === orderId);
-  if (idx < 0) {
-    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order not found.' }));
-  }
-  const now = new Date().toISOString();
-  const next = { ...orders[idx] };
-  next.trackingNumber = trackingNumber;
-  next.trackingCarrier = trackingCarrier;
-  next.trackingUrl = deriveTrackingUrl(trackingCarrier, trackingNumber);
-  if (allowedStatuses.has(fulfillmentStatus)) {
-    next.fulfillmentStatus = fulfillmentStatus;
-  } else {
-    next.fulfillmentStatus = normalizeFulfillmentStatus(next);
-  }
-  if (next.fulfillmentStatus === 'shipped' && !next.shippedAt) next.shippedAt = now;
-  if (next.fulfillmentStatus === 'delivered' && !next.deliveredAt) next.deliveredAt = now;
-  orders[idx] = next;
-  saveJson(req.tenantPaths.orders, orders);
-  console.log('[admin-orders] tracking-save', JSON.stringify({
+app.get('/admin/hosting', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const hosting = getTenantHostingSnapshot(req.tenant, req);
+  console.log('[tenant-hosting] render', JSON.stringify({
     tenantId: req.tenant && req.tenant.id,
-    orderId,
-    trackingNumber: !!trackingNumber,
-    trackingCarrier,
-    fulfillmentStatus: next.fulfillmentStatus
+    domainStatus: hosting.domainStatus,
+    sslStatus: hosting.sslStatus,
+    issueFlag: hosting.issueFlag
   }));
-  return res.redirect(buildTenantLink(req, '/admin/orders', { message: 'Tracking ενημερώθηκε.' }));
+  res.render('admin-hosting', {
+    tenant: req.tenant,
+    config,
+    hosting,
+    message: null,
+    error: null
+  });
+});
+
+app.post('/admin/hosting/ssl-recheck', async (req, res) => {
+  const { password } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-hosting', {
+      tenant: req.tenant,
+      config: localizeConfigContent(loadTenantConfig(req), req.lang),
+      hosting: getTenantHostingSnapshot(req.tenant, req),
+      message: null,
+      error: 'Λάθος κωδικός διαχειριστή.'
+    });
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex((t) => t.id === req.tenant.id);
+  if (idx >= 0) {
+    tenants[idx].hosting = tenants[idx].hosting || {};
+    tenants[idx].hosting.lastCheckedAt = new Date().toISOString();
+    saveTenantsRegistry(tenants);
+  }
+  console.log('[tenant-hosting] ssl-recheck-requested', JSON.stringify({ tenantId: req.tenant.id }));
+  return res.render('admin-hosting', {
+    tenant: req.tenant,
+    config: localizeConfigContent(loadTenantConfig(req), req.lang),
+    hosting: getTenantHostingSnapshot(findTenantById(req.tenant.id) || req.tenant, req),
+    message: 'Το αίτημα SSL recheck καταγράφηκε.',
+    error: null
+  });
+});
+
+app.post('/admin/hosting/report-issue', async (req, res) => {
+  const { password, note } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-hosting', {
+      tenant: req.tenant,
+      config: localizeConfigContent(loadTenantConfig(req), req.lang),
+      hosting: getTenantHostingSnapshot(req.tenant, req),
+      message: null,
+      error: 'Λάθος κωδικός διαχειριστή.'
+    });
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex((t) => t.id === req.tenant.id);
+  if (idx >= 0) {
+    tenants[idx].hosting = tenants[idx].hosting || {};
+    tenants[idx].hosting.issueFlag = true;
+    tenants[idx].hosting.tenantNotes = String(note || '').trim();
+    tenants[idx].hosting.lastCheckedAt = new Date().toISOString();
+    saveTenantsRegistry(tenants);
+  }
+  console.log('[tenant-hosting] issue-report', JSON.stringify({ tenantId: req.tenant.id }));
+  return res.render('admin-hosting', {
+    tenant: req.tenant,
+    config: localizeConfigContent(loadTenantConfig(req), req.lang),
+    hosting: getTenantHostingSnapshot(findTenantById(req.tenant.id) || req.tenant, req),
+    message: 'Το hosting issue σημειώθηκε και ενημερώθηκε η υποστήριξη.',
+    error: null
+  });
+  console.log('[fulfillment] status-update', JSON.stringify({
+    tenantId: req.tenant.id,
+    orderId: orders[idx].id,
+    fulfillmentStatus: orders[idx].fulfillmentStatus
+  }));
+  if (orders[idx].trackingNumber) {
+    await sendTrackingUpdateEmail({
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      order: orders[idx]
+    });
+  } else {
+    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({
+      tenantId: req.tenant.id,
+      orderId: orders[idx].id,
+      reason: 'tracking_number_missing'
+    }));
+  }
+  return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/settings', async (req, res) => {
@@ -5103,6 +5209,27 @@ app.get('/root/tenants', (req, res) => {
   res.render('root-tenants', buildRootViewModel({}, req));
 });
 
+app.get('/root/hosting', (req, res) => {
+  const tenants = loadTenantsRegistry();
+  const hostingRows = tenants.map((tenant) => ({
+    tenantId: tenant.id,
+    supportTier: tenant.supportTier,
+    active: tenant.active !== false,
+    ...getTenantHostingSnapshot(tenant, { tenant, tenantPaths: tenantPaths(tenant.id) })
+  }));
+  const unresolvedCount = hostingRows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
+  console.log('[root-hosting] render', JSON.stringify({
+    rows: hostingRows.length,
+    unresolvedCount
+  }));
+  res.render('root-hosting', {
+    rows: hostingRows,
+    unresolvedCount,
+    message: null,
+    error: null
+  });
+});
+
 app.get('/root/login', (req, res) => {
   if (req.session.rootAdmin) return res.redirect('/root/tenants');
   res.render('root-login', { error: null });
@@ -5599,6 +5726,66 @@ app.post('/root/finance/settlements/update', (req, res) => {
     status: nextStatus
   }));
   return res.render('root-tenants', buildRootViewModel({ message: 'Settlement ledger ενημερώθηκε.' }, req));
+});
+
+app.post('/root/hosting/update', (req, res) => {
+  const {
+    rootPassword,
+    tenantId,
+    domainStatus,
+    sslStatus,
+    sslProvider,
+    sslValidUntil,
+    dnsVerifiedAt,
+    issueFlag,
+    internalNotes,
+    tenantNotes,
+    backupStatus
+  } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-hosting', { rows: [], unresolvedCount: 0, message: null, error: 'Λάθος root κωδικός.' });
+  }
+  const allowedDomain = new Set(['pending_dns', 'ssl_validating', 'active', 'failed']);
+  const allowedSsl = new Set(['pending', 'validating', 'active', 'failed']);
+  const allowedBackup = new Set(['unknown', 'healthy', 'warning', 'failed']);
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex((t) => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('root-hosting', { rows: [], unresolvedCount: 0, message: null, error: 'Tenant δεν βρέθηκε.' });
+  }
+  const now = new Date().toISOString();
+  const nextDomainStatus = allowedDomain.has(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns';
+  const nextSslStatus = allowedSsl.has(String(sslStatus || '').trim()) ? String(sslStatus).trim() : 'pending';
+  const nextBackupStatus = allowedBackup.has(String(backupStatus || '').trim()) ? String(backupStatus).trim() : 'unknown';
+  tenants[idx].hosting = {
+    ...(tenants[idx].hosting || {}),
+    domainStatus: nextDomainStatus,
+    sslStatus: nextSslStatus,
+    sslProvider: String(sslProvider || '').trim(),
+    sslValidUntil: String(sslValidUntil || '').trim(),
+    dnsVerifiedAt: String(dnsVerifiedAt || '').trim(),
+    issueFlag: String(issueFlag || '') === '1',
+    internalNotes: String(internalNotes || '').trim(),
+    tenantNotes: String(tenantNotes || '').trim(),
+    backupStatus: nextBackupStatus,
+    lastCheckedAt: now
+  };
+  saveTenantsRegistry(tenants);
+  console.log('[root-hosting] status-update', JSON.stringify({
+    tenantId: tenants[idx].id,
+    domainStatus: nextDomainStatus,
+    sslStatus: nextSslStatus,
+    issueFlag: tenants[idx].hosting.issueFlag
+  }));
+  const refreshed = loadTenantsRegistry();
+  const rows = refreshed.map((tenant) => ({
+    tenantId: tenant.id,
+    supportTier: tenant.supportTier,
+    active: tenant.active !== false,
+    ...getTenantHostingSnapshot(tenant, { tenant, tenantPaths: tenantPaths(tenant.id) })
+  }));
+  const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
+  return res.render('root-hosting', { rows, unresolvedCount, message: `Hosting status ενημερώθηκε για ${tenantId}.`, error: null });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
