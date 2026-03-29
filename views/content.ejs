@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title><%= t('content.pageTitle') %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.ico" />
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
       :root {
@@ -95,6 +95,7 @@
         color: var(--primary-color, #4f46e5); font-size: .86rem; text-decoration: none;
       }
       .back-link:hover { text-decoration: underline; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
 
       /* ── Security note ── */
       .security-note {
@@ -122,6 +123,7 @@
         <a href="<%= withTenantLink('/logout') %>">Logout</a>
       </div>
     </header>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
 
     <div class="content-hero">
       <h1>🔐 <%= t('content.pageTitle') %></h1>
@@ -235,5 +237,31 @@
       <% } %>
 
     </div>
+    <script>
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = '<%= withTenantLink("/") %>';
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try { sessionStorage.setItem(key, currentUrl); } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
+    </script>
   </body>
 </html>
