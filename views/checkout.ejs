@@ -277,6 +277,8 @@
     <script>
       const CART_KEY = 'thrc_cart';
       const CART_SESSION_KEY = 'thrc_cart_session';
+      const cartJsonInput = document.getElementById('cart-json-input');
+      const cartSnapshotApi = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
 
       // ── Load & validate cart ──────────────────────────────────────
       function readCartSnapshot() {
@@ -290,10 +292,6 @@
         } catch(e) {}
         return [];
       }
-      let cart = readCartSnapshot();
-      const cartJsonInput = document.getElementById('cart-json-input');
-      const cartSnapshotApi = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
-
       function normalizeCartForCheckout(snapshot) {
         if (!Array.isArray(snapshot)) return [];
         return snapshot
@@ -309,12 +307,10 @@
           })
           .filter(function(item){ return item.id; });
       }
-
       function syncCartPayload(snapshot) {
         const safeSnapshot = normalizeCartForCheckout(snapshot);
         if (cartJsonInput) cartJsonInput.value = JSON.stringify(safeSnapshot);
       }
-
       function syncCartSnapshotToServer(snapshot) {
         const safeSnapshot = normalizeCartForCheckout(snapshot);
         if (!safeSnapshot.length) return;
@@ -328,6 +324,7 @@
           }).catch(function(){});
         } catch (_) {}
       }
+      let cart = readCartSnapshot();
 
       if (!cart.length) {
         document.getElementById('empty-cart-msg').style.display = '';

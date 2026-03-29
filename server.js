@@ -985,37 +985,46 @@ function safeInlineScriptString(value) {
     .replace(/\u2029/g, '\\u2029');
 }
 
-function requestProtocol(req) {
-  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
-    .split(',')[0]
-    .trim()
-    .toLowerCase();
-  if (forwardedProto === 'https' || forwardedProto === 'http') return forwardedProto;
-  return req.protocol || 'http';
+function deriveTrackingUrl(carrier, trackingNumber) {
+  const number = String(trackingNumber || '').trim();
+  if (!number) return '';
+  const normalizedCarrier = String(carrier || '').trim().toLowerCase();
+  const encoded = encodeURIComponent(number);
+  if (normalizedCarrier === 'acs') return `https://www.acscourier.net/el/track-and-trace/?tracking=${encoded}`;
+  if (normalizedCarrier === 'elta') return `https://elta.gr/track?code=${encoded}`;
+  if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
+  if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
+  return '';
 }
 
-function tenantConfiguredHosts(tenant) {
-  const hosts = new Set();
-  const add = (value) => {
-    const host = normalizeHost(value);
-    if (host) hosts.add(host);
+function normalizeFulfillmentStatus(order) {
+  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
+  const allowed = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (allowed.has(raw)) return raw;
+  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
+  if (paymentStatus === 'PAID') return 'ready_to_ship';
+  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
+  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
+  if (paymentStatus === 'CANCELLED') return 'cancelled';
+  return 'ready_to_ship';
+}
+
+function normalizeOrderForFulfillment(order) {
+  const trackingCarrier = String(order && order.trackingCarrier ? order.trackingCarrier : '').trim().toLowerCase();
+  const trackingNumber = String(order && order.trackingNumber ? order.trackingNumber : '').trim();
+  const trackingUrl = String(order && order.trackingUrl ? order.trackingUrl : '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
+  const shippedAt = order && order.shippedAt ? order.shippedAt : null;
+  const deliveredAt = order && order.deliveredAt ? order.deliveredAt : null;
+  return {
+    ...order,
+    fulfillmentStatus: normalizeFulfillmentStatus(order),
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl,
+    shippedAt,
+    deliveredAt,
+    hasTracking: !!trackingNumber
   };
-  if (!tenant || typeof tenant !== 'object') return hosts;
-  add(tenant.primaryDomain);
-  add(tenant.domain);
-  if (Array.isArray(tenant.domains)) tenant.domains.forEach(add);
-  return hosts;
-}
-
-function shouldCanonicalizeToWwwHost(tenant, hostHeader) {
-  const host = normalizeHost(hostHeader);
-  if (!tenant || tenant.canonicalToWww !== true || !host || host.startsWith('www.')) return false;
-  if (host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return false;
-  if (host.includes('.thronoscommerce.thronoschain.org') || host.includes('.thonoscommerce.thronoschain.org')) return false;
-  const hosts = tenantConfiguredHosts(tenant);
-  if (!hosts.has(host)) return false;
-  const canonicalHost = `www.${host}`;
-  return hosts.has(canonicalHost);
 }
 
 function buildTenantLink(req, targetPath, extraQuery = {}) {
@@ -2398,7 +2407,9 @@ app.get('/checkout', (req, res) => {
 
 app.post('/api/checkout/cart-snapshot', (req, res) => {
   const raw = req.body && req.body.items;
-  if (!Array.isArray(raw)) return res.status(400).json({ ok: false });
+  if (!Array.isArray(raw)) {
+    return res.status(400).json({ ok: false });
+  }
   const snapshot = raw
     .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
     .map((item) => ({
@@ -2410,6 +2421,10 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
     }))
     .slice(0, 120);
   req.session.checkoutCartSnapshot = snapshot;
+  console.log('[checkout] cart-snapshot:save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    count: snapshot.length
+  }));
   return res.json({ ok: true, count: snapshot.length });
 });
 
@@ -2434,9 +2449,27 @@ app.post('/checkout', async (req, res) => {
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
   if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
     cartItems = req.session.checkoutCartSnapshot.slice();
+    console.log('[checkout] submit:session-fallback', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      count: cartItems.length
+    }));
+  }
+  if (Array.isArray(cartItems)) {
+    cartItems = cartItems
+      .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+      .map((item) => ({
+        id: String(item.id || '').trim(),
+        qty: Math.max(1, parseInt(item.qty, 10) || 1),
+        variantId: item.variantId ? String(item.variantId).trim() : '',
+        isKitSummary: !!item.isKitSummary,
+        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+      }))
+      .slice(0, 120);
   }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
-    console.warn('[checkout] submit:empty-cart', JSON.stringify({ tenantId: req.tenant && req.tenant.id }));
+    console.warn('[checkout] submit:empty-cart', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id
+    }));
     return res.status(400).send('Cart is empty');
   }
 
@@ -2784,15 +2817,7 @@ app.post('/checkout', async (req, res) => {
       at: Date.now()
     };
   }
-  const completionTarget = buildTenantLink(req, '/checkout/complete', { orderId: order.id });
-  console.log('[checkout] submit:success', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: order.id,
-    paymentStatus: order.paymentStatus,
-    redirect: completionTarget,
-    clearCartAt: 'thank-you'
-  }));
-  return res.redirect(303, completionTarget);
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
 });
 
 // ── Stripe success / cancel ───────────────────────────────────────────────────
@@ -2889,15 +2914,6 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
-  dispatchAssistantEvent(req, 'new_order', {
-    orderId: order.id,
-    total: order.total,
-    paymentStatus: order.paymentStatus,
-    items: Array.isArray(order.items) ? order.items.length : 0
-  });
-  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
-    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId: order.id });
-  }
 
   if (req.session) {
     req.session.lastCompletedOrder = {
@@ -2906,14 +2922,7 @@ app.get('/checkout/stripe-success', async (req, res) => {
       at: Date.now()
     };
   }
-  const completionTarget = buildTenantLink(req, '/checkout/complete', { orderId: order.id });
-  console.log('[checkout] stripe-success:completed', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: order.id,
-    redirect: completionTarget,
-    clearCartAt: 'thank-you'
-  }));
-  return res.redirect(303, completionTarget);
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
@@ -2927,124 +2936,33 @@ app.get('/checkout/complete', (req, res) => {
     : '';
   const resolvedOrderId = queryOrderId || sessionOrderId;
   if (!resolvedOrderId) {
-    console.warn('[checkout] complete:missing-order-id', JSON.stringify({ tenantId: req.tenant && req.tenant.id }));
     return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
   const order = orders.find((o) => o.id === resolvedOrderId);
   if (!order) {
-    console.warn('[checkout] complete:order-not-found', JSON.stringify({ tenantId: req.tenant && req.tenant.id, orderId: resolvedOrderId }));
     return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
+  // Compute content URL if any purchased product has digital content
   const catalogForCompletion = loadTenantProducts(req);
-  const normalizedOrder = normalizeOrderForFulfillment(order);
   const hasDigital = (Array.isArray(order.items) ? order.items : []).some((ci) => {
     const p = catalogForCompletion.find((pp) => pp.id === ci.id);
     return p && p.hasDigitalContent;
   });
-  console.log('[checkout] complete:render-thanks', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: order.id,
-    proofHash: order.proofHash || '',
-    fulfillmentStatus: normalizedOrder.fulfillmentStatus,
-    hasTracking: normalizedOrder.hasTracking
-  }));
   if (req.session) {
     req.session.checkoutCartSnapshot = [];
+    console.log('[checkout] complete:cart-clear', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      orderId: order.id
+    }));
   }
   return res.render('thanks', {
     config: localizeConfigContent(config, req.lang),
-    order: normalizedOrder,
+    order,
     proofHash: order.proofHash || '',
     tenant: req.tenant,
     clearCart: true,
     contentUrl: hasDigital ? buildTenantLink(req, `/content/${order.id}`) : null
   });
-});
-
-app.get('/track', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  console.log('[storefront] track:render', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    hasOrder: false
-  }));
-  res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
-});
-
-app.post('/track', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  const orderId = String(req.body.orderId || '').trim();
-  const email = normalizeEmail(req.body.email || '');
-  const trackingToken = String(req.body.trackingToken || '').trim();
-  if (!trackingToken && (!orderId || !email)) {
-    return res.status(400).render('track-order', {
-      config,
-      tenant: req.tenant,
-      order: null,
-      error: req.lang === 'el'
-        ? 'Δώστε είτε Tracking token είτε Order ID + Email.'
-        : 'Provide either a tracking token or Order ID + Email.'
-    });
-  }
-  const orders = loadTenantOrders(req);
-  const order = trackingToken
-    ? orders.find((o) => String(o.trackingToken || '') === trackingToken)
-    : orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
-  if (!order) {
-    return res.status(404).render('track-order', {
-      config,
-      tenant: req.tenant,
-      order: null,
-      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
-    });
-  }
-  const normalizedOrder = normalizeOrderForFulfillment(order);
-  console.log('[storefront] track:render', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: normalizedOrder.id,
-    fulfillmentStatus: normalizedOrder.fulfillmentStatus,
-    hasTracking: normalizedOrder.hasTracking
-  }));
-  return res.render('track-order', { config, tenant: req.tenant, order: normalizedOrder, error: null });
-});
-
-app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
-  const config = loadTenantConfig(req);
-  const assistantCfg = config.assistant || {};
-  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
-  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
-  if (expectedKey && providedKey !== expectedKey) {
-    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
-  }
-  const action = String((req.body && req.body.action) || '').trim();
-  if (action === 'set_setting') {
-    const section = String(req.body.section || '').trim();
-    const key = String(req.body.key || '').trim();
-    const value = req.body.value;
-    const allowList = {
-      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
-      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
-    };
-    if (!allowList[section] || !allowList[section].has(key)) {
-      return res.status(400).json({ ok: false, error: 'setting not allowed' });
-    }
-    config[section] = config[section] || {};
-    config[section][key] = value;
-    saveTenantConfig(req, config);
-    return res.json({ ok: true, action, section, key, value });
-  }
-  if (action === 'send_tracking_reminder') {
-    const orderId = String(req.body.orderId || '').trim();
-    const orders = loadTenantOrders(req);
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
-    await dispatchAssistantEvent(req, 'tracking_reminder', {
-      orderId: order.id,
-      email: order.email,
-      trackingNumber: order.trackingNumber || ''
-    });
-    return res.json({ ok: true, action, orderId });
-  }
-  return res.status(400).json({ ok: false, error: 'unknown action' });
 });
 
 app.get('/admin/login', (req, res) => {
@@ -3166,6 +3084,36 @@ app.get('/my-orders', requireUser, (req, res) => {
     .slice()
     .reverse();
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
+});
+
+app.get('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  return res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
+});
+
+app.post('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const orderId = String(req.body.orderId || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  if (!orderId || !email) {
+    return res.status(400).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Συμπλήρωσε Order ID και email.' : 'Provide Order ID and email.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const order = orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
+  if (!order) {
+    return res.status(404).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
+    });
+  }
+  return res.render('track-order', { config, tenant: req.tenant, order: normalizeOrderForFulfillment(order), error: null });
 });
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
@@ -3586,83 +3534,21 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
 // Admin orders view
 function buildAdminOrdersViewModel(req, extra = {}) {
   const config = loadTenantConfig(req);
-  const allOrders = loadTenantOrders(req).map((order) => normalizeOrderForFulfillment(order));
-  const unresolvedOrders = allOrders.filter((o) => isOrderUnresolved(o));
-  const orders = allOrders.slice(-100).reverse();
-  const model = {
+  const allOrders = loadTenantOrders(req);
+  const orders = allOrders.slice(-100).reverse().map((order) => normalizeOrderForFulfillment(order));
+  const message = typeof req.query.message === 'string' ? String(req.query.message) : null;
+  const error = typeof req.query.error === 'string' ? String(req.query.error) : null;
+  console.log('[admin-orders] render', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    count: orders.length
+  }));
+  res.render('admin-orders', {
     tenant: req.tenant,
     config,
     orders,
-    unresolvedOrders,
-    unresolvedCount: unresolvedOrders.length,
     permissions: getSupportPermissions(req.tenant.supportTier),
-    message: null,
-    error: null,
-    ...extra
-  };
-  console.log('[tenant-admin] orders:render', JSON.stringify({
-    tenantId: req && req.tenant ? req.tenant.id : null,
-    ordersCount: Array.isArray(model.orders) ? model.orders.length : 0,
-    unresolvedCount: Number.isFinite(model.unresolvedCount) ? model.unresolvedCount : 0,
-    hasMessage: !!model.message,
-    hasError: !!model.error
-  }));
-  return model;
-}
-
-app.get('/admin/orders', (req, res) => {
-  res.render('admin-orders', buildAdminOrdersViewModel(req));
-});
-
-app.post('/admin/orders/tracking', async (req, res) => {
-  const { password, orderId, trackingNumber, trackingCarrier, trackingUrl, fulfillmentStatus } = req.body;
-  const auth = await verifyAdminAction(req, password);
-  if (!auth.ok) {
-    return res.status(401).render('admin-orders', buildAdminOrdersViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
-  }
-  const orders = loadTenantOrders(req);
-  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
-  if (idx < 0) {
-    return res.status(404).render('admin-orders', buildAdminOrdersViewModel(req, { error: 'Η παραγγελία δεν βρέθηκε.' }));
-  }
-  const current = orders[idx] || {};
-  const nextTrackingNumber = String(trackingNumber || '').trim();
-  const nextCarrier = String(trackingCarrier || '').trim();
-  const manualUrl = String(trackingUrl || '').trim();
-  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
-  const requestedStatus = String(fulfillmentStatus || '').trim().toLowerCase();
-  const currentStatus = normalizeFulfillmentStatus(current);
-  const autoStatus = nextTrackingNumber ? 'shipped' : currentStatus;
-  const nextStatus = allowedStatuses.has(requestedStatus) ? requestedStatus : autoStatus;
-  const nextTrackingUrl = manualUrl || deriveTrackingUrl(nextCarrier, nextTrackingNumber);
-  const nowIso = new Date().toISOString();
-  const shippedAt = (nextStatus === 'shipped' || nextStatus === 'delivered' || !!nextTrackingNumber)
-    ? (current.shippedAt || nowIso)
-    : null;
-  const deliveredAt = nextStatus === 'delivered'
-    ? (current.deliveredAt || nowIso)
-    : null;
-  orders[idx] = {
-    ...current,
-    trackingNumber: nextTrackingNumber,
-    trackingCarrier: nextCarrier,
-    trackingUrl: nextTrackingUrl,
-    shippedAt,
-    deliveredAt,
-    fulfillmentStatus: nextStatus
-  };
-  console.log('[fulfillment] tracking-save', JSON.stringify({
-    tenantId: req.tenant.id,
-    orderId: orders[idx].id,
-    trackingNumber: orders[idx].trackingNumber || null,
-    trackingCarrier: orders[idx].trackingCarrier || null,
-    fulfillmentStatus: orders[idx].fulfillmentStatus
-  }));
-  saveJson(req.tenantPaths.orders, orders);
-  await dispatchAssistantEvent(req, 'tracking_updated', {
-    orderId: orders[idx].id,
-    trackingNumber: orders[idx].trackingNumber,
-    email: orders[idx].email
+    message,
+    error
   });
   console.log('[fulfillment] status-update', JSON.stringify({
     tenantId: req.tenant.id,
