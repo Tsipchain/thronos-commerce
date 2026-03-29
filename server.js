@@ -717,6 +717,15 @@ function safeInlineScriptString(value) {
     .replace(/\u2029/g, '\\u2029');
 }
 
+function requestProtocol(req) {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  if (forwardedProto === 'https' || forwardedProto === 'http') return forwardedProto;
+  return req.protocol || 'http';
+}
+
 function buildTenantLink(req, targetPath, extraQuery = {}) {
   const basePath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
   const query = new URLSearchParams();
@@ -761,11 +770,30 @@ function requireUser(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (!req.session.admin) {
+    console.log('[tenant-admin] auth-check', JSON.stringify({
+      ok: false,
+      reason: 'missing_admin_session',
+      path: req.originalUrl || req.url,
+      tenantId: req.tenant ? req.tenant.id : null
+    }));
     return res.redirect(buildTenantLink(req, '/admin/login'));
   }
   if (!req.tenant || req.session.admin.tenantId !== req.tenant.id) {
+    console.log('[tenant-admin] auth-check', JSON.stringify({
+      ok: false,
+      reason: 'tenant_mismatch',
+      path: req.originalUrl || req.url,
+      tenantId: req.tenant ? req.tenant.id : null,
+      adminTenantId: req.session.admin.tenantId
+    }));
     return res.redirect(buildTenantLink(req, '/admin/login'));
   }
+  console.log('[tenant-admin] auth-check', JSON.stringify({
+    ok: true,
+    path: req.originalUrl || req.url,
+    tenantId: req.tenant ? req.tenant.id : null,
+    adminTenantId: req.session.admin.tenantId
+  }));
   next();
 }
 
@@ -1567,10 +1595,16 @@ app.use('/tenants', express.static(TENANTS_DIR));
 app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.set('trust proxy', 1);
 app.use(session({
   secret: 'thronos-secret',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: 'auto'
+  }
 }));
 
 // i18n middleware – sets req.lang, res.locals.lang, res.locals.t
@@ -1661,7 +1695,13 @@ app.use((req, res, next) => {
     !hostHeader.endsWith('.up.railway.app')
   ) {
     const canonicalHost = `www.${hostHeader}`;
-    const target = `${req.protocol}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
+    const target = `${requestProtocol(req)}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
+    console.log('[tenant-admin] canonical-redirect', JSON.stringify({
+      host: hostHeader,
+      canonicalHost,
+      from: req.originalUrl || req.url,
+      to: target
+    }));
     return res.redirect(308, target);
   }
   req.tenant = tenant;
@@ -1686,6 +1726,15 @@ app.use('/root', (req, res, next) => {
 
 // Tenant admin auth guard
 app.use('/admin', (req, res, next) => {
+  console.log('[tenant-admin] route-entry', JSON.stringify({
+    host: normalizeHost(req.headers.host || ''),
+    path: req.originalUrl || req.url,
+    tenantId: req.tenant ? req.tenant.id : null,
+    mode: req.tenantContext ? req.tenantContext.mode : null,
+    isPlatformRequest: !!req.isPlatformRequest,
+    hasAdminSession: !!(req.session && req.session.admin),
+    adminTenantId: req.session && req.session.admin ? req.session.admin.tenantId : null
+  }));
   if (req.isPlatformRequest) return res.redirect('/');
   if (req.path === '/login' || req.path === '/logout') return next();
   return requireAdmin(req, res, next);
@@ -2575,15 +2624,34 @@ app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req,
 app.get('/admin/login', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect(buildTenantLink(req, '/admin'));
+  console.log('[tenant-admin] render-login', JSON.stringify({
+    host: normalizeHost(req.headers.host || ''),
+    path: req.originalUrl || req.url,
+    tenantId: req.tenant ? req.tenant.id : null
+  }));
   res.render('admin-login', { config, tenant: req.tenant, error: null });
 });
 
 app.post('/admin/login', async (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const ok = await verifyAdminPassword(req.tenant, req.body.password);
-  if (!ok) return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
+  if (!ok) {
+    console.log('[tenant-admin] login-attempt', JSON.stringify({
+      ok: false,
+      host: normalizeHost(req.headers.host || ''),
+      path: req.originalUrl || req.url,
+      tenantId: req.tenant ? req.tenant.id : null
+    }));
+    return res.status(401).render('admin-login', { config, tenant: req.tenant, error: 'Invalid admin password.' });
+  }
   req.session.admin = { tenantId: req.tenant.id, authenticatedAt: new Date().toISOString() };
   req.session.adminLastActiveAt = Date.now();
+  console.log('[tenant-admin] login-attempt', JSON.stringify({
+    ok: true,
+    host: normalizeHost(req.headers.host || ''),
+    path: req.originalUrl || req.url,
+    tenantId: req.tenant ? req.tenant.id : null
+  }));
   res.redirect(buildTenantLink(req, '/admin'));
 });
 
@@ -2732,6 +2800,12 @@ app.post('/api/products/:productId/reviews', (req, res) => {
 
 // Admin panel
 app.get('/admin', (req, res) => {
+  console.log('[tenant-admin] render-dashboard', JSON.stringify({
+    host: normalizeHost(req.headers.host || ''),
+    path: req.originalUrl || req.url,
+    tenantId: req.tenant ? req.tenant.id : null,
+    mode: req.tenantContext ? req.tenantContext.mode : null
+  }));
   res.render('admin', buildAdminViewModel(req));
 });
 
