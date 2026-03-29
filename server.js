@@ -3415,6 +3415,45 @@ app.post('/admin/orders/tracking', async (req, res) => {
   return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
+app.post('/admin/orders/tracking', async (req, res) => {
+  const { password, orderId, trackingNumber } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: loadTenantOrders(req).slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Λάθος κωδικός διαχειριστή.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: orders.slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Η παραγγελία δεν βρέθηκε.'
+    });
+  }
+  orders[idx].trackingNumber = String(trackingNumber || '').trim();
+  saveJson(req.tenantPaths.orders, orders);
+  await dispatchAssistantEvent(req, 'tracking_updated', {
+    orderId: orders[idx].id,
+    trackingNumber: orders[idx].trackingNumber,
+    email: orders[idx].email
+  });
+  return res.render('admin-orders', {
+    tenant: req.tenant,
+    config: loadTenantConfig(req),
+    orders: orders.slice(-100).reverse(),
+    permissions: getSupportPermissions(req.tenant.supportTier),
+    message: 'Το tracking ενημερώθηκε.'
+  });
+});
+
 app.post('/admin/settings', async (req, res) => {
   const {
     password,
