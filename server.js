@@ -718,6 +718,33 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+function normalizeFulfillmentStatus(order) {
+  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
+  if (raw) return raw;
+  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
+  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
+  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
+  if (paymentStatus === 'PAID') return 'ready_to_ship';
+  if (paymentStatus === 'CANCELLED') return 'cancelled';
+  return 'ready_to_ship';
+}
+
+function orderHasTracking(order) {
+  return !!String(order && order.trackingNumber ? order.trackingNumber : '').trim();
+}
+
+function deriveTrackingUrl(carrier, trackingNumber) {
+  const number = String(trackingNumber || '').trim();
+  if (!number) return '';
+  const normalizedCarrier = String(carrier || '').trim().toLowerCase();
+  const encoded = encodeURIComponent(number);
+  if (normalizedCarrier === 'acs') return `https://www.acscourier.net/el/track-and-trace/?tracking=${encoded}`;
+  if (normalizedCarrier === 'elta') return `https://elta.gr/track?code=${encoded}`;
+  if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
+  if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
+  return '';
+}
+
 function safeJsonForScript(value) {
   return JSON.stringify(value)
     .replace(/<\//g, '<\\/')
@@ -1200,6 +1227,80 @@ async function sendOrderEmail({ tenant, config, order }) {
     text: lines.join('\n')
   });
   console.log(`[Thronos Commerce] Order email sent for ${order.id} → ${recipients}`);
+}
+
+async function sendTrackingUpdateEmail({ tenant, config, order }) {
+  const transport = buildTransport();
+  if (!transport) {
+    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({ orderId: order.id, reason: 'mailer_not_configured' }));
+    return { sent: false, reason: 'mailer_not_configured' };
+  }
+  const to = normalizeEmail(order.email || '');
+  if (!to) {
+    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({ orderId: order.id, reason: 'missing_customer_email' }));
+    return { sent: false, reason: 'missing_customer_email' };
+  }
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG) || tenant.id;
+  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
+  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const carrier = String(order.trackingCarrier || '').trim() || 'N/A';
+  const trackingUrl = String(order.trackingUrl || '').trim();
+  const subject = `[${storeName}] Tracking update για την παραγγελία #${order.id}`;
+  const lines = [
+    `Κατάστημα: ${storeName}`,
+    `Order ID: ${order.id}`,
+    `Πελάτης: ${order.customerName || '-'}`,
+    `Tracking number: ${order.trackingNumber || '-'}`,
+    `Carrier: ${carrier}`,
+    `Status: ${normalizeFulfillmentStatus(order)}`,
+    trackingUrl ? `Tracking link: ${trackingUrl}` : 'Tracking link: -'
+  ];
+
+  try {
+    await transport.sendMail({
+      from,
+      to,
+      subject,
+      text: lines.join('\n')
+    });
+    console.log('[fulfillment] tracking-email:sent', JSON.stringify({ orderId: order.id, to }));
+  } catch (err) {
+    console.error('[fulfillment] tracking-email:failed', JSON.stringify({
+      orderId: order.id,
+      to,
+      error: err && err.message ? err.message : String(err)
+    }));
+    return { sent: false, reason: 'send_failed' };
+  }
+
+  const merchantRecipients = (Array.isArray(config.notificationEmails) ? config.notificationEmails : [])
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  if (merchantRecipients.length && config.notificationCcCustomer) {
+    try {
+      await transport.sendMail({
+        from,
+        to: merchantRecipients.join(','),
+        subject: `[${tenant.id}] Tracking ενημερώθηκε #${order.id}`,
+        text: lines.join('\n')
+      });
+      console.log('[fulfillment] tracking-email:merchant-confirmation', JSON.stringify({
+        orderId: order.id,
+        to: merchantRecipients
+      }));
+    } catch (err) {
+      console.error('[fulfillment] tracking-email:merchant-failed', JSON.stringify({
+        orderId: order.id,
+        error: err && err.message ? err.message : String(err)
+      }));
+    }
+  } else {
+    console.log('[fulfillment] tracking-email:merchant-skipped', JSON.stringify({
+      orderId: order.id,
+      reason: merchantRecipients.length ? 'notificationCcCustomer_disabled' : 'no_notification_emails'
+    }));
+  }
+  return { sent: true };
 }
 
 // ── Generic webhook (mobile / Viber bridge) ───────────────────────────────────
@@ -1784,6 +1885,11 @@ function buildAdminViewModel(req, extra) {
   if (req.session) req.session.contentLang = contentLang;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   const orders = loadTenantOrders(req);
+  const unresolvedOrdersCount = orders.filter((o) => {
+    const status = normalizeFulfillmentStatus(o);
+    const hasTracking = orderHasTracking(o);
+    return !hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(status);
+  }).length;
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
 
@@ -1824,6 +1930,7 @@ function buildAdminViewModel(req, extra) {
     analytics,
     orderCounts,
     cityCounts,
+    unresolvedOrdersCount,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
     exportAccess: hasExportAccess(req),
@@ -2243,6 +2350,11 @@ app.post('/checkout', async (req, res) => {
     gatewayFee:  totals.gatewayFee,
     total:       totals.total,
     paymentStatus: totals.paymentMethod.type === 'stripe' ? 'PENDING_STRIPE' : 'PENDING_COD',
+    fulfillmentStatus: totals.paymentMethod.type === 'stripe' ? 'pending_payment' : 'cod_pending',
+    shippedAt: null,
+    trackingNumber: '',
+    trackingCarrier: '',
+    trackingUrl: '',
     trackingToken,
     createdAt: new Date().toISOString()
   };
@@ -2442,6 +2554,7 @@ app.get('/checkout/stripe-success', async (req, res) => {
 
   const { order, enrichedItems } = entry;
   order.paymentStatus   = 'PAID';
+  order.fulfillmentStatus = order.fulfillmentStatus === 'cancelled' ? 'cancelled' : 'ready_to_ship';
   order.stripeSessionId = session_id;
   if (req.session.user) {
     order.userEmail = normalizeEmail(req.session.user.email);
@@ -2556,6 +2669,10 @@ app.get('/checkout/complete', (req, res) => {
     return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
   const catalogForCompletion = loadTenantProducts(req);
+  order.fulfillmentStatus = normalizeFulfillmentStatus(order);
+  order.trackingCarrier = String(order.trackingCarrier || '').trim();
+  order.trackingNumber = String(order.trackingNumber || '').trim();
+  order.trackingUrl = String(order.trackingUrl || '').trim() || deriveTrackingUrl(order.trackingCarrier, order.trackingNumber);
   const hasDigital = (Array.isArray(order.items) ? order.items : []).some((ci) => {
     const p = catalogForCompletion.find((pp) => pp.id === ci.id);
     return p && p.hasDigitalContent;
@@ -2610,6 +2727,10 @@ app.post('/track', (req, res) => {
       error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
     });
   }
+  order.fulfillmentStatus = normalizeFulfillmentStatus(order);
+  order.trackingCarrier = String(order.trackingCarrier || '').trim();
+  order.trackingNumber = String(order.trackingNumber || '').trim();
+  order.trackingUrl = String(order.trackingUrl || '').trim() || deriveTrackingUrl(order.trackingCarrier, order.trackingNumber);
   return res.render('track-order', { config, tenant: req.tenant, order, error: null });
 });
 
@@ -2766,7 +2887,17 @@ app.get('/logout', (req, res) => {
 app.get('/my-orders', requireUser, (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const email = normalizeEmail(req.session.user.email);
-  const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
+  const orders = loadTenantOrders(req)
+    .filter((o) => normalizeEmail(o.userEmail) === email)
+    .map((o) => ({
+      ...o,
+      fulfillmentStatus: normalizeFulfillmentStatus(o),
+      trackingCarrier: String(o.trackingCarrier || '').trim(),
+      trackingNumber: String(o.trackingNumber || '').trim(),
+      trackingUrl: String(o.trackingUrl || '').trim() || deriveTrackingUrl(o.trackingCarrier, o.trackingNumber)
+    }))
+    .slice()
+    .reverse();
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
 });
 
@@ -3186,16 +3317,102 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
 });
 
 // Admin orders view
-app.get('/admin/orders', (req, res) => {
+function buildAdminOrdersViewModel(req, extra = {}) {
   const config = loadTenantConfig(req);
-  const allOrders = loadTenantOrders(req);
+  const allOrders = loadTenantOrders(req).map((order) => {
+    const trackingNumber = String(order.trackingNumber || '').trim();
+    const trackingCarrier = String(order.trackingCarrier || '').trim();
+    const derivedTrackingUrl = String(order.trackingUrl || '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
+    const fulfillmentStatus = normalizeFulfillmentStatus(order);
+    return {
+      ...order,
+      trackingNumber,
+      trackingCarrier,
+      trackingUrl: derivedTrackingUrl,
+      fulfillmentStatus,
+      hasTracking: !!trackingNumber
+    };
+  });
+  const unresolvedOrders = allOrders.filter((o) => !o.hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(o.fulfillmentStatus));
   const orders = allOrders.slice(-100).reverse();
-  res.render('admin-orders', {
+  return {
     tenant: req.tenant,
     config,
     orders,
-    permissions: getSupportPermissions(req.tenant.supportTier)
+    unresolvedOrders,
+    unresolvedCount: unresolvedOrders.length,
+    permissions: getSupportPermissions(req.tenant.supportTier),
+    ...extra
+  };
+}
+
+app.get('/admin/orders', (req, res) => {
+  res.render('admin-orders', buildAdminOrdersViewModel(req));
+});
+
+app.post('/admin/orders/tracking', async (req, res) => {
+  const { password, orderId, trackingNumber, trackingCarrier, trackingUrl, fulfillmentStatus } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-orders', buildAdminOrdersViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('admin-orders', buildAdminOrdersViewModel(req, { error: 'Η παραγγελία δεν βρέθηκε.' }));
+  }
+  const current = orders[idx] || {};
+  const nextTrackingNumber = String(trackingNumber || '').trim();
+  const nextCarrier = String(trackingCarrier || '').trim();
+  const manualUrl = String(trackingUrl || '').trim();
+  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled']);
+  const requestedStatus = String(fulfillmentStatus || '').trim().toLowerCase();
+  const autoStatus = nextTrackingNumber ? 'shipped' : normalizeFulfillmentStatus(current);
+  const nextStatus = allowedStatuses.has(requestedStatus) ? requestedStatus : autoStatus;
+  const nextTrackingUrl = manualUrl || deriveTrackingUrl(nextCarrier, nextTrackingNumber);
+  const shippedAt = nextTrackingNumber
+    ? (current.shippedAt || new Date().toISOString())
+    : null;
+  orders[idx] = {
+    ...current,
+    trackingNumber: nextTrackingNumber,
+    trackingCarrier: nextCarrier,
+    trackingUrl: nextTrackingUrl,
+    shippedAt,
+    fulfillmentStatus: nextStatus
+  };
+  console.log('[fulfillment] tracking-save', JSON.stringify({
+    tenantId: req.tenant.id,
+    orderId: orders[idx].id,
+    trackingNumber: orders[idx].trackingNumber || null,
+    trackingCarrier: orders[idx].trackingCarrier || null,
+    fulfillmentStatus: orders[idx].fulfillmentStatus
+  }));
+  saveJson(req.tenantPaths.orders, orders);
+  await dispatchAssistantEvent(req, 'tracking_updated', {
+    orderId: orders[idx].id,
+    trackingNumber: orders[idx].trackingNumber,
+    email: orders[idx].email
   });
+  console.log('[fulfillment] status-update', JSON.stringify({
+    tenantId: req.tenant.id,
+    orderId: orders[idx].id,
+    fulfillmentStatus: orders[idx].fulfillmentStatus
+  }));
+  if (orders[idx].trackingNumber) {
+    await sendTrackingUpdateEmail({
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      order: orders[idx]
+    });
+  } else {
+    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({
+      tenantId: req.tenant.id,
+      orderId: orders[idx].id,
+      reason: 'tracking_number_missing'
+    }));
+  }
+  return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/orders/tracking', async (req, res) => {

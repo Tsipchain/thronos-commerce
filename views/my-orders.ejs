@@ -26,6 +26,8 @@
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Order</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Date</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Total</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Fulfillment</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Tracking</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Digital</th>
           </tr>
         </thead>
@@ -35,6 +37,13 @@
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= order.id %><br/><small><%= order.productName %></small></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= new Date(order.createdAt).toLocaleString() %></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= Number(order.total || 0).toFixed(2) %> €</td>
+              <td style="padding:8px;border-bottom:1px solid #eee;"><%= order.fulfillmentStatus || '-' %></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <% if (order.trackingNumber) { %>
+                  <div><code><%= order.trackingNumber %></code></div>
+                  <% if (order.trackingUrl) { %><div><a href="<%= order.trackingUrl %>" target="_blank" rel="noopener">Open</a></div><% } %>
+                <% } else { %>—<% } %>
+              </td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><a href="<%= withTenantLink('/content/' + order.id) %>">Open</a></td>
             </tr>
           <% }) %>

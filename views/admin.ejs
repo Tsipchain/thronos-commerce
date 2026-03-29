@@ -170,7 +170,7 @@
         &nbsp;·&nbsp;
         <a href="<%= withTenantLink('/admin') %>" style="font-size:0.85rem"><%= t('admin.settingsLink') %></a>
         &nbsp;|&nbsp;
-        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %></a>
+        <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %> <% if (typeof unresolvedOrdersCount === 'number' && unresolvedOrdersCount > 0) { %>(<%= unresolvedOrdersCount %> open)<% } %></a>
         &nbsp;|&nbsp;
         <a href="<%= withTenantLink('/') %>" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
       </p>
