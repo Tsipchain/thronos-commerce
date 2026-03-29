@@ -608,6 +608,48 @@ function safeInlineScriptString(value) {
     .replace(/\u2029/g, '\\u2029');
 }
 
+function deriveTrackingUrl(carrier, trackingNumber) {
+  const number = String(trackingNumber || '').trim();
+  if (!number) return '';
+  const normalizedCarrier = String(carrier || '').trim().toLowerCase();
+  const encoded = encodeURIComponent(number);
+  if (normalizedCarrier === 'acs') return `https://www.acscourier.net/el/track-and-trace/?tracking=${encoded}`;
+  if (normalizedCarrier === 'elta') return `https://elta.gr/track?code=${encoded}`;
+  if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
+  if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
+  return '';
+}
+
+function normalizeFulfillmentStatus(order) {
+  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
+  const allowed = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (allowed.has(raw)) return raw;
+  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
+  if (paymentStatus === 'PAID') return 'ready_to_ship';
+  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
+  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
+  if (paymentStatus === 'CANCELLED') return 'cancelled';
+  return 'ready_to_ship';
+}
+
+function normalizeOrderForFulfillment(order) {
+  const trackingCarrier = String(order && order.trackingCarrier ? order.trackingCarrier : '').trim().toLowerCase();
+  const trackingNumber = String(order && order.trackingNumber ? order.trackingNumber : '').trim();
+  const trackingUrl = String(order && order.trackingUrl ? order.trackingUrl : '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
+  const shippedAt = order && order.shippedAt ? order.shippedAt : null;
+  const deliveredAt = order && order.deliveredAt ? order.deliveredAt : null;
+  return {
+    ...order,
+    fulfillmentStatus: normalizeFulfillmentStatus(order),
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl,
+    shippedAt,
+    deliveredAt,
+    hasTracking: !!trackingNumber
+  };
+}
+
 function buildTenantLink(req, targetPath, extraQuery = {}) {
   const basePath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
   const query = new URLSearchParams();
@@ -1634,6 +1676,29 @@ app.get('/checkout', (req, res) => {
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
+app.post('/api/checkout/cart-snapshot', (req, res) => {
+  const raw = req.body && req.body.items;
+  if (!Array.isArray(raw)) {
+    return res.status(400).json({ ok: false });
+  }
+  const snapshot = raw
+    .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+    .map((item) => ({
+      id: String(item.id || '').trim(),
+      qty: Math.max(1, parseInt(item.qty, 10) || 1),
+      variantId: item.variantId ? String(item.variantId).trim() : '',
+      isKitSummary: !!item.isKitSummary,
+      selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+    }))
+    .slice(0, 120);
+  req.session.checkoutCartSnapshot = snapshot;
+  console.log('[checkout] cart-snapshot:save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    count: snapshot.length
+  }));
+  return res.json({ ok: true, count: snapshot.length });
+});
+
 // Checkout submit (multi-item cart)
 app.post('/checkout', async (req, res) => {
   const config = loadTenantConfig(req);
@@ -1648,7 +1713,29 @@ app.post('/checkout', async (req, res) => {
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
+  if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
+    cartItems = req.session.checkoutCartSnapshot.slice();
+    console.log('[checkout] submit:session-fallback', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      count: cartItems.length
+    }));
+  }
+  if (Array.isArray(cartItems)) {
+    cartItems = cartItems
+      .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+      .map((item) => ({
+        id: String(item.id || '').trim(),
+        qty: Math.max(1, parseInt(item.qty, 10) || 1),
+        variantId: item.variantId ? String(item.variantId).trim() : '',
+        isKitSummary: !!item.isKitSummary,
+        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+      }))
+      .slice(0, 120);
+  }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    console.warn('[checkout] submit:empty-cart', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id
+    }));
     return res.status(400).send('Cart is empty');
   }
 
@@ -1942,21 +2029,14 @@ app.post('/checkout', async (req, res) => {
     (err) => console.error('[Thronos Commerce] attestMailToThronos failed:', err.message)
   );
 
-  // Compute content URL if any purchased product has digital content
-  const allProductsForContent = loadTenantProducts(req);
-  const hasDigital = enrichedItems.some((ci) => {
-    const p = allProductsForContent.find((pp) => pp.id === ci.id);
-    return p && p.hasDigitalContent;
-  });
-
-  res.render('thanks', {
-    config: localizeConfigContent(config, req.lang),
-    order,
-    proofHash,
-    tenant: req.tenant,
-    clearCart: true,
-    contentUrl: hasDigital ? `/content/${order.id}` : null
-  });
+  if (req.session) {
+    req.session.lastCompletedOrder = {
+      orderId: order.id,
+      tenantId: req.tenant.id,
+      at: Date.now()
+    };
+  }
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
 });
 
 // ── Stripe success / cancel ───────────────────────────────────────────────────
@@ -2029,19 +2109,55 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
 
-  const allProductsForContent = loadTenantProducts(req);
-  const hasDigital = enrichedItems.some((ci) => {
-    const p = allProductsForContent.find((pp) => pp.id === ci.id);
-    return p && p.hasDigitalContent;
-  });
-
-  res.render('thanks', {
-    config: localizeConfigContent(config, req.lang), order, proofHash, tenant: req.tenant,
-    clearCart: true, contentUrl: hasDigital ? `/content/${order.id}` : null
-  });
+  if (req.session) {
+    req.session.lastCompletedOrder = {
+      orderId: order.id,
+      tenantId: req.tenant.id,
+      at: Date.now()
+    };
+  }
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
+app.get('/checkout/complete', (req, res) => {
+  const config = loadTenantConfig(req);
+  const orders = loadTenantOrders(req);
+  const queryOrderId = String(req.query.orderId || '').trim();
+  const sessionOrderId = req.session && req.session.lastCompletedOrder && req.session.lastCompletedOrder.tenantId === req.tenant.id
+    ? String(req.session.lastCompletedOrder.orderId || '').trim()
+    : '';
+  const resolvedOrderId = queryOrderId || sessionOrderId;
+  if (!resolvedOrderId) {
+    return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
+  }
+  const order = orders.find((o) => o.id === resolvedOrderId);
+  if (!order) {
+    return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
+  }
+  // Compute content URL if any purchased product has digital content
+  const catalogForCompletion = loadTenantProducts(req);
+  const hasDigital = (Array.isArray(order.items) ? order.items : []).some((ci) => {
+    const p = catalogForCompletion.find((pp) => pp.id === ci.id);
+    return p && p.hasDigitalContent;
+  });
+  if (req.session) {
+    req.session.checkoutCartSnapshot = [];
+    console.log('[checkout] complete:cart-clear', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      orderId: order.id
+    }));
+  }
+  return res.render('thanks', {
+    config: localizeConfigContent(config, req.lang),
+    order,
+    proofHash: order.proofHash || '',
+    tenant: req.tenant,
+    clearCart: true,
+    contentUrl: hasDigital ? buildTenantLink(req, `/content/${order.id}`) : null
+  });
+});
 
 app.get('/admin/login', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
@@ -2137,8 +2253,42 @@ app.get('/logout', (req, res) => {
 app.get('/my-orders', requireUser, (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   const email = normalizeEmail(req.session.user.email);
-  const orders = loadTenantOrders(req).filter((o) => normalizeEmail(o.userEmail) === email).slice().reverse();
+  const orders = loadTenantOrders(req)
+    .filter((o) => normalizeEmail(o.userEmail) === email)
+    .map((o) => normalizeOrderForFulfillment(o))
+    .slice()
+    .reverse();
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
+});
+
+app.get('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  return res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
+});
+
+app.post('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const orderId = String(req.body.orderId || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  if (!orderId || !email) {
+    return res.status(400).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Συμπλήρωσε Order ID και email.' : 'Provide Order ID and email.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const order = orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
+  if (!order) {
+    return res.status(404).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
+    });
+  }
+  return res.render('track-order', { config, tenant: req.tenant, order: normalizeOrderForFulfillment(order), error: null });
 });
 
 // ── Reviews API ──────────────────────────────────────────────────────────────
@@ -2506,13 +2656,63 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
 app.get('/admin/orders', (req, res) => {
   const config = loadTenantConfig(req);
   const allOrders = loadTenantOrders(req);
-  const orders = allOrders.slice(-100).reverse();
+  const orders = allOrders.slice(-100).reverse().map((order) => normalizeOrderForFulfillment(order));
+  const message = typeof req.query.message === 'string' ? String(req.query.message) : null;
+  const error = typeof req.query.error === 'string' ? String(req.query.error) : null;
+  console.log('[admin-orders] render', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    count: orders.length
+  }));
   res.render('admin-orders', {
     tenant: req.tenant,
     config,
     orders,
-    permissions: getSupportPermissions(req.tenant.supportTier)
+    permissions: getSupportPermissions(req.tenant.supportTier),
+    message,
+    error
   });
+});
+
+app.post('/admin/orders/tracking', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const orderId = String(req.body.orderId || '').trim();
+  const trackingNumber = String(req.body.trackingNumber || '').trim();
+  const trackingCarrier = String(req.body.trackingCarrier || '').trim().toLowerCase();
+  const fulfillmentStatus = String(req.body.fulfillmentStatus || '').trim().toLowerCase();
+  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (!orderId) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order ID is required.' }));
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === orderId);
+  if (idx < 0) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order not found.' }));
+  }
+  const now = new Date().toISOString();
+  const next = { ...orders[idx] };
+  next.trackingNumber = trackingNumber;
+  next.trackingCarrier = trackingCarrier;
+  next.trackingUrl = deriveTrackingUrl(trackingCarrier, trackingNumber);
+  if (allowedStatuses.has(fulfillmentStatus)) {
+    next.fulfillmentStatus = fulfillmentStatus;
+  } else {
+    next.fulfillmentStatus = normalizeFulfillmentStatus(next);
+  }
+  if (next.fulfillmentStatus === 'shipped' && !next.shippedAt) next.shippedAt = now;
+  if (next.fulfillmentStatus === 'delivered' && !next.deliveredAt) next.deliveredAt = now;
+  orders[idx] = next;
+  saveJson(req.tenantPaths.orders, orders);
+  console.log('[admin-orders] tracking-save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId,
+    trackingNumber: !!trackingNumber,
+    trackingCarrier,
+    fulfillmentStatus: next.fulfillmentStatus
+  }));
+  return res.redirect(buildTenantLink(req, '/admin/orders', { message: 'Tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/settings', async (req, res) => {
