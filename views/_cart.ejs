@@ -133,12 +133,6 @@
       } catch(e) {}
       return [];
     }
-    function saveCart(cart) {
-      const payload = JSON.stringify(cart || []);
-      localStorage.setItem(CART_KEY, payload);
-      try { sessionStorage.setItem(CART_SESSION_KEY, payload); } catch (_) {}
-      syncCartSnapshotToServer(cart || []);
-    }
     function syncCartSnapshotToServer(snapshot) {
       try {
         fetch(CART_SNAPSHOT_API, {
@@ -149,6 +143,12 @@
           body: JSON.stringify({ items: Array.isArray(snapshot) ? snapshot : [] })
         }).catch(function(){});
       } catch (_) {}
+    }
+    function saveCart(cart) {
+      const payload = JSON.stringify(cart || []);
+      localStorage.setItem(CART_KEY, payload);
+      try { sessionStorage.setItem(CART_SESSION_KEY, payload); } catch (_) {}
+      syncCartSnapshotToServer(cart || []);
     }
 
     function removeItem(id) {

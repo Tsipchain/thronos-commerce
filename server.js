@@ -2347,7 +2347,9 @@ app.get('/checkout', (req, res) => {
 
 app.post('/api/checkout/cart-snapshot', (req, res) => {
   const raw = req.body && req.body.items;
-  if (!Array.isArray(raw)) return res.status(400).json({ ok: false });
+  if (!Array.isArray(raw)) {
+    return res.status(400).json({ ok: false });
+  }
   const snapshot = raw
     .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
     .map((item) => ({
@@ -2359,6 +2361,10 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
     }))
     .slice(0, 120);
   req.session.checkoutCartSnapshot = snapshot;
+  console.log('[checkout] cart-snapshot:save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    count: snapshot.length
+  }));
   return res.json({ ok: true, count: snapshot.length });
 });
 
@@ -2383,9 +2389,27 @@ app.post('/checkout', async (req, res) => {
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
   if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
     cartItems = req.session.checkoutCartSnapshot.slice();
+    console.log('[checkout] submit:session-fallback', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      count: cartItems.length
+    }));
+  }
+  if (Array.isArray(cartItems)) {
+    cartItems = cartItems
+      .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+      .map((item) => ({
+        id: String(item.id || '').trim(),
+        qty: Math.max(1, parseInt(item.qty, 10) || 1),
+        variantId: item.variantId ? String(item.variantId).trim() : '',
+        isKitSummary: !!item.isKitSummary,
+        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+      }))
+      .slice(0, 120);
   }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
-    console.warn('[checkout] submit:empty-cart', JSON.stringify({ tenantId: req.tenant && req.tenant.id }));
+    console.warn('[checkout] submit:empty-cart', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id
+    }));
     return res.status(400).send('Cart is empty');
   }
 
@@ -2733,15 +2757,7 @@ app.post('/checkout', async (req, res) => {
       at: Date.now()
     };
   }
-  const completionTarget = buildTenantLink(req, '/checkout/complete', { orderId: order.id });
-  console.log('[checkout] submit:success', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: order.id,
-    paymentStatus: order.paymentStatus,
-    redirect: completionTarget,
-    clearCartAt: 'thank-you'
-  }));
-  return res.redirect(303, completionTarget);
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
 });
 
 // ── Stripe success / cancel ───────────────────────────────────────────────────
@@ -2867,6 +2883,18 @@ app.get('/checkout/stripe-success', async (req, res) => {
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
 
+  if (req.session) {
+    req.session.lastCompletedOrder = {
+      orderId: order.id,
+      tenantId: req.tenant.id,
+      at: Date.now()
+    };
+  }
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
+});
+
+app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
 app.get('/checkout/complete', (req, res) => {
   const config = loadTenantConfig(req);
   const orders = loadTenantOrders(req);
@@ -2876,124 +2904,33 @@ app.get('/checkout/complete', (req, res) => {
     : '';
   const resolvedOrderId = queryOrderId || sessionOrderId;
   if (!resolvedOrderId) {
-    console.warn('[checkout] complete:missing-order-id', JSON.stringify({ tenantId: req.tenant && req.tenant.id }));
     return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
   const order = orders.find((o) => o.id === resolvedOrderId);
   if (!order) {
-    console.warn('[checkout] complete:order-not-found', JSON.stringify({ tenantId: req.tenant && req.tenant.id, orderId: resolvedOrderId }));
     return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
+  // Compute content URL if any purchased product has digital content
   const catalogForCompletion = loadTenantProducts(req);
-  const normalizedOrder = normalizeOrderForFulfillment(order);
   const hasDigital = (Array.isArray(order.items) ? order.items : []).some((ci) => {
     const p = catalogForCompletion.find((pp) => pp.id === ci.id);
     return p && p.hasDigitalContent;
   });
-  console.log('[checkout] complete:render-thanks', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: order.id,
-    proofHash: order.proofHash || '',
-    fulfillmentStatus: normalizedOrder.fulfillmentStatus,
-    hasTracking: normalizedOrder.hasTracking
-  }));
   if (req.session) {
     req.session.checkoutCartSnapshot = [];
+    console.log('[checkout] complete:cart-clear', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      orderId: order.id
+    }));
   }
   return res.render('thanks', {
     config: localizeConfigContent(config, req.lang),
-    order: normalizedOrder,
+    order,
     proofHash: order.proofHash || '',
     tenant: req.tenant,
     clearCart: true,
     contentUrl: hasDigital ? buildTenantLink(req, `/content/${order.id}`) : null
   });
-});
-
-app.get('/track', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  console.log('[storefront] track:render', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    hasOrder: false
-  }));
-  res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
-});
-
-app.post('/track', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  const orderId = String(req.body.orderId || '').trim();
-  const email = normalizeEmail(req.body.email || '');
-  const trackingToken = String(req.body.trackingToken || '').trim();
-  if (!trackingToken && (!orderId || !email)) {
-    return res.status(400).render('track-order', {
-      config,
-      tenant: req.tenant,
-      order: null,
-      error: req.lang === 'el'
-        ? 'Δώστε είτε Tracking token είτε Order ID + Email.'
-        : 'Provide either a tracking token or Order ID + Email.'
-    });
-  }
-  const orders = loadTenantOrders(req);
-  const order = trackingToken
-    ? orders.find((o) => String(o.trackingToken || '') === trackingToken)
-    : orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
-  if (!order) {
-    return res.status(404).render('track-order', {
-      config,
-      tenant: req.tenant,
-      order: null,
-      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
-    });
-  }
-  const normalizedOrder = normalizeOrderForFulfillment(order);
-  console.log('[storefront] track:render', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    orderId: normalizedOrder.id,
-    fulfillmentStatus: normalizedOrder.fulfillmentStatus,
-    hasTracking: normalizedOrder.hasTracking
-  }));
-  return res.render('track-order', { config, tenant: req.tenant, order: normalizedOrder, error: null });
-});
-
-app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
-  const config = loadTenantConfig(req);
-  const assistantCfg = config.assistant || {};
-  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
-  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
-  if (expectedKey && providedKey !== expectedKey) {
-    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
-  }
-  const action = String((req.body && req.body.action) || '').trim();
-  if (action === 'set_setting') {
-    const section = String(req.body.section || '').trim();
-    const key = String(req.body.key || '').trim();
-    const value = req.body.value;
-    const allowList = {
-      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
-      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
-    };
-    if (!allowList[section] || !allowList[section].has(key)) {
-      return res.status(400).json({ ok: false, error: 'setting not allowed' });
-    }
-    config[section] = config[section] || {};
-    config[section][key] = value;
-    saveTenantConfig(req, config);
-    return res.json({ ok: true, action, section, key, value });
-  }
-  if (action === 'send_tracking_reminder') {
-    const orderId = String(req.body.orderId || '').trim();
-    const orders = loadTenantOrders(req);
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
-    await dispatchAssistantEvent(req, 'tracking_reminder', {
-      orderId: order.id,
-      email: order.email,
-      trackingNumber: order.trackingNumber || ''
-    });
-    return res.json({ ok: true, action, orderId });
-  }
-  return res.status(400).json({ ok: false, error: 'unknown action' });
 });
 
 app.get('/admin/login', (req, res) => {
