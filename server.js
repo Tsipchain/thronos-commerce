@@ -3359,15 +3359,25 @@ function buildAdminOrdersViewModel(req, extra = {}) {
   });
   const unresolvedOrders = allOrders.filter((o) => !o.hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(o.fulfillmentStatus));
   const orders = allOrders.slice(-100).reverse();
-  return {
+  const model = {
     tenant: req.tenant,
     config,
     orders,
     unresolvedOrders,
     unresolvedCount: unresolvedOrders.length,
     permissions: getSupportPermissions(req.tenant.supportTier),
+    message: null,
+    error: null,
     ...extra
   };
+  console.log('[tenant-admin] orders:render', JSON.stringify({
+    tenantId: req && req.tenant ? req.tenant.id : null,
+    ordersCount: Array.isArray(model.orders) ? model.orders.length : 0,
+    unresolvedCount: Number.isFinite(model.unresolvedCount) ? model.unresolvedCount : 0,
+    hasMessage: !!model.message,
+    hasError: !!model.error
+  }));
+  return model;
 }
 
 app.get('/admin/orders', (req, res) => {

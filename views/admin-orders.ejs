@@ -46,21 +46,27 @@
     </header>
 
     <main class="admin-layout">
-      <% if (message) { %><div class="flash ok"><%= message %></div><% } %>
-      <% if (error) { %><div class="flash err"><%= error %></div><% } %>
+      <% 
+        const flashMessage = (typeof message !== 'undefined' && typeof message === 'string') ? message : '';
+        const flashError = (typeof error !== 'undefined' && typeof error === 'string') ? error : '';
+        const safeOrders = (typeof orders !== 'undefined' && Array.isArray(orders)) ? orders : [];
+        const safeUnresolvedCount = (typeof unresolvedCount !== 'undefined' && Number.isFinite(unresolvedCount)) ? unresolvedCount : 0;
+      %>
+      <% if (flashMessage) { %><div class="flash ok"><%= flashMessage %></div><% } %>
+      <% if (flashError) { %><div class="flash err"><%= flashError %></div><% } %>
 
       <section class="admin-block">
         <div class="kpi">
-          <div class="kpi-card">Unresolved orders: <strong><%= unresolvedCount || 0 %></strong></div>
-          <div class="kpi-card">Latest listed: <strong><%= orders.length %></strong></div>
+          <div class="kpi-card">Unresolved orders: <strong><%= safeUnresolvedCount %></strong></div>
+          <div class="kpi-card">Latest listed: <strong><%= safeOrders.length %></strong></div>
         </div>
         <p class="helper">Orders requiring action are highlighted until tracking/fulfillment is updated.</p>
 
-        <% if (!orders.length) { %>
+        <% if (!safeOrders.length) { %>
           <p class="muted">No orders yet.</p>
         <% } %>
 
-        <% orders.forEach(function(order) { 
+        <% safeOrders.forEach(function(order) { 
              const needsAction = !order.hasTracking || ['cod_pending','pending_payment','ready_to_ship'].includes(order.fulfillmentStatus);
         %>
           <details class="order-row <%= needsAction ? 'needs-action' : '' %>">
