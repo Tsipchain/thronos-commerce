@@ -41,7 +41,10 @@
               <td style="padding:8px;border-bottom:1px solid #eee;">
                 <% if (order.trackingNumber) { %>
                   <div><code><%= order.trackingNumber %></code></div>
+                  <% if (order.trackingCarrier) { %><div><small><%= order.trackingCarrier %></small></div><% } %>
                   <% if (order.trackingUrl) { %><div><a href="<%= order.trackingUrl %>" target="_blank" rel="noopener">Open</a></div><% } %>
+                  <% if (order.shippedAt) { %><div><small>Shipped: <%= new Date(order.shippedAt).toLocaleString() %></small></div><% } %>
+                  <% if (order.deliveredAt) { %><div><small>Delivered: <%= new Date(order.deliveredAt).toLocaleString() %></small></div><% } %>
                 <% } else { %>—<% } %>
               </td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><a href="<%= withTenantLink('/content/' + order.id) %>">Open</a></td>

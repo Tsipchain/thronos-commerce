@@ -20,6 +20,7 @@
       .fulfillment-shipped{background:#eff6ff;color:#1d4ed8}
       .fulfillment-delivered{background:#ecfdf5;color:#047857}
       .fulfillment-cancelled{background:#fef2f2;color:#b91c1c}
+      .fulfillment-issue{background:#fef2f2;color:#b91c1c}
       details.order-row { border:1px solid #e5e7eb;border-radius:10px;background:#fff; margin-bottom:12px; }
       details.order-row summary { cursor:pointer; list-style:none; padding:12px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
       details.order-row summary::-webkit-details-marker { display:none; }
@@ -81,7 +82,9 @@
               <div class="muted">
                 Payment: <strong><%= order.paymentMethodLabel || order.paymentMethodId || '-' %></strong> ·
                 Shipping: <strong><%= order.shippingMethodLabel || order.shippingMethodId || '-' %></strong> ·
-                Tracking: <strong><%= order.trackingNumber || 'not set' %></strong>
+                Tracking: <strong><%= order.trackingNumber || 'not set' %></strong> ·
+                Shipped: <strong><%= order.shippedAt ? new Date(order.shippedAt).toLocaleString() : '-' %></strong> ·
+                Delivered: <strong><%= order.deliveredAt ? new Date(order.deliveredAt).toLocaleString() : '-' %></strong>
               </div>
 
               <form method="POST" action="<%= withTenantLink('/admin/orders/tracking') %>" class="order-form">
@@ -106,7 +109,7 @@
                 </label>
                 <label>Fulfillment status
                   <select name="fulfillmentStatus">
-                    <% ['pending_payment','cod_pending','ready_to_ship','shipped','delivered','cancelled'].forEach(function(st){ %>
+                    <% ['pending_payment','cod_pending','ready_to_ship','shipped','delivered','issue','cancelled'].forEach(function(st){ %>
                       <option value="<%= st %>" <%= order.fulfillmentStatus === st ? 'selected' : '' %>><%= st %></option>
                     <% }) %>
                   </select>

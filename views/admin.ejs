@@ -280,6 +280,14 @@
             <p class="helper" style="margin:6px 0;">Δεν έχει οριστεί referral code για αυτό το tenant από το root admin.</p>
           <% } %>
         </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+          <strong>Finance summary (read-only)</strong>
+          <% const fsum = financeSummary || { pendingSettlementEstimate: 0, pendingPlatformDues: 0, pendingReferralImpact: 0 }; %>
+          <p class="helper" style="margin:6px 0;">Pending tenant payout estimate: <strong><%= Number(fsum.pendingSettlementEstimate || 0).toFixed(2) %> €</strong></p>
+          <p class="helper" style="margin:6px 0;">Pending platform dues (COD): <strong><%= Number(fsum.pendingPlatformDues || 0).toFixed(2) %> €</strong></p>
+          <p class="helper" style="margin:6px 0;">Pending referral impact: <strong><%= Number(fsum.pendingReferralImpact || 0).toFixed(2) %> €</strong></p>
+          <p class="helper" style="margin:6px 0;">Root admin controls approvals/settlements from the root panel.</p>
+        </div>
       </section>
       <div style="display:flex;justify-content:flex-end;margin:8px 0 14px;">
         <label style="font-size:.84rem;display:flex;align-items:center;gap:8px;">

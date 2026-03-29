@@ -805,6 +805,125 @@
         <% } %>
       </div>
 
+      <div class="card">
+        <h2>Finance Backoffice (Ledger Phase)</h2>
+        <p class="helper">Ledger-only workflow: review, approve, and mark paid/settled manually. No direct payout execution yet.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;">
+          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">Pending referral payouts: <strong><%= Number(pendingReferralPayouts || 0).toFixed(2) %> €</strong></div>
+          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">Pending tenant payables: <strong><%= Number(pendingTenantPayables || 0).toFixed(2) %> €</strong></div>
+          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">Pending tenant receivables: <strong><%= Number(pendingTenantReceivables || 0).toFixed(2) %> €</strong></div>
+          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff7ed;">Unresolved finance items: <strong><%= Number(unresolvedFinanceCount || 0) %></strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Referral Ledger</h2>
+        <form method="GET" action="/root/tenants" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px;">
+          <label style="margin:0;">Tenant
+            <input type="text" name="tenantId" value="<%= financeFilters && financeFilters.tenantFilter ? financeFilters.tenantFilter : '' %>" />
+          </label>
+          <label style="margin:0;">Referral code
+            <input type="text" name="referralCode" value="<%= financeFilters && financeFilters.referralCodeFilter ? financeFilters.referralCodeFilter : '' %>" />
+          </label>
+          <label style="margin:0;">Status
+            <select name="refStatus">
+              <option value="">All</option>
+              <% ['pending','approved','paid','cancelled','disputed'].forEach(function(st){ %>
+                <option value="<%= st %>" <%= financeFilters && financeFilters.referralStatusFilter === st ? 'selected' : '' %>><%= st %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="btn btn-sm" type="submit">Filter</button>
+        </form>
+        <div class="helper" style="margin-bottom:8px;">
+          <% Object.keys(referralTotalsByCode || {}).forEach(function(code){ %>
+            <span style="display:inline-block;margin-right:10px;">[<strong><%= code %></strong>] pending <%= Number(referralTotalsByCode[code].pending || 0).toFixed(2) %> € / approved <%= Number(referralTotalsByCode[code].approved || 0).toFixed(2) %> € / paid <%= Number(referralTotalsByCode[code].paid || 0).toFixed(2) %> € / orders <%= referralTotalsByCode[code].orders %></span>
+          <% }) %>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+          <thead><tr style="background:#f0f2fa;"><th style="padding:6px 8px;text-align:left;">ID</th><th style="padding:6px 8px;text-align:left;">Tenant</th><th style="padding:6px 8px;text-align:left;">Order</th><th style="padding:6px 8px;text-align:left;">Code</th><th style="padding:6px 8px;text-align:right;">Amount €</th><th style="padding:6px 8px;text-align:left;">Status</th><th style="padding:6px 8px;text-align:left;">Action</th></tr></thead>
+          <tbody>
+            <% (referralLedger || []).forEach(function(row){ %>
+              <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:6px 8px;"><code><%= row.id %></code></td>
+                <td style="padding:6px 8px;"><code><%= row.tenantId %></code></td>
+                <td style="padding:6px 8px;"><code><%= row.orderId %></code></td>
+                <td style="padding:6px 8px;"><%= row.referralCode %></td>
+                <td style="padding:6px 8px;text-align:right;"><%= Number(row.commissionAmount || 0).toFixed(2) %></td>
+                <td style="padding:6px 8px;"><strong><%= row.status %></strong></td>
+                <td style="padding:6px 8px;">
+                  <form method="POST" action="/root/finance/referrals/update" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <input type="hidden" name="ledgerId" value="<%= row.id %>" />
+                    <select name="status">
+                      <% ['pending','approved','paid','cancelled','disputed'].forEach(function(st){ %>
+                        <option value="<%= st %>" <%= row.status === st ? 'selected' : '' %>><%= st %></option>
+                      <% }) %>
+                    </select>
+                    <input type="text" name="notes" value="<%= row.notes || '' %>" placeholder="notes" style="min-width:120px;" />
+                    <input type="password" name="rootPassword" required placeholder="root pw" style="width:120px;" />
+                    <button class="btn btn-sm" type="submit">Save</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Tenant Settlement Ledger</h2>
+        <form method="GET" action="/root/tenants" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px;">
+          <label style="margin:0;">Tenant
+            <input type="text" name="tenantId" value="<%= financeFilters && financeFilters.tenantFilter ? financeFilters.tenantFilter : '' %>" />
+          </label>
+          <label style="margin:0;">Payment method
+            <input type="text" name="paymentMethod" value="<%= financeFilters && financeFilters.paymentMethodFilter ? financeFilters.paymentMethodFilter : '' %>" />
+          </label>
+          <label style="margin:0;">Status
+            <select name="stStatus">
+              <option value="">All</option>
+              <% ['pending','approved','partially_settled','settled','cancelled','disputed'].forEach(function(st){ %>
+                <option value="<%= st %>" <%= financeFilters && financeFilters.settlementStatusFilter === st ? 'selected' : '' %>><%= st %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="btn btn-sm" type="submit">Filter</button>
+        </form>
+        <div class="helper" style="margin-bottom:8px;">
+          <% Object.keys(settlementTotalsByTenant || {}).forEach(function(tid){ %>
+            <span style="display:inline-block;margin-right:10px;">[<strong><%= tid %></strong>] pending payable <%= Number(settlementTotalsByTenant[tid].pendingPayable || 0).toFixed(2) %> € / pending receivable <%= Number(settlementTotalsByTenant[tid].pendingReceivable || 0).toFixed(2) %> € / settled <%= Number(settlementTotalsByTenant[tid].settled || 0).toFixed(2) %> €</span>
+          <% }) %>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+          <thead><tr style="background:#f0f2fa;"><th style="padding:6px 8px;text-align:left;">ID</th><th style="padding:6px 8px;text-align:left;">Tenant</th><th style="padding:6px 8px;text-align:left;">Order</th><th style="padding:6px 8px;text-align:left;">Direction</th><th style="padding:6px 8px;text-align:right;">Net €</th><th style="padding:6px 8px;text-align:left;">Status</th><th style="padding:6px 8px;text-align:left;">Action</th></tr></thead>
+          <tbody>
+            <% (settlementLedger || []).forEach(function(row){ %>
+              <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:6px 8px;"><code><%= row.id %></code></td>
+                <td style="padding:6px 8px;"><code><%= row.tenantId %></code></td>
+                <td style="padding:6px 8px;"><code><%= row.orderId %></code></td>
+                <td style="padding:6px 8px;"><%= row.settlementDirection %></td>
+                <td style="padding:6px 8px;text-align:right;"><%= Number(row.netSettlementAmount || 0).toFixed(2) %></td>
+                <td style="padding:6px 8px;"><strong><%= row.status %></strong></td>
+                <td style="padding:6px 8px;">
+                  <form method="POST" action="/root/finance/settlements/update" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <input type="hidden" name="ledgerId" value="<%= row.id %>" />
+                    <select name="status">
+                      <% ['pending','approved','partially_settled','settled','cancelled','disputed'].forEach(function(st){ %>
+                        <option value="<%= st %>" <%= row.status === st ? 'selected' : '' %>><%= st %></option>
+                      <% }) %>
+                    </select>
+                    <input type="text" name="notes" value="<%= row.notes || '' %>" placeholder="notes" style="min-width:120px;" />
+                    <input type="password" name="rootPassword" required placeholder="root pw" style="width:120px;" />
+                    <button class="btn btn-sm" type="submit">Save</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
 
       <div class="root-pass-note">
         <strong>Σημείωση ασφαλείας:</strong> Το root password ορίζεται μέσω της env μεταβλητής

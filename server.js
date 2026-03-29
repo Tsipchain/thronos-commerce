@@ -358,6 +358,8 @@ ensureDir(TEMPLATES_DIR);
 const TENANTS_REGISTRY       = path.join(DATA_ROOT, 'tenants.json');
 const REFERRAL_ACCOUNTS_FILE = path.join(DATA_ROOT, 'referral_accounts.json');
 const REFERRAL_EARNINGS_FILE = path.join(DATA_ROOT, 'referral_earnings.json');
+const REFERRAL_LEDGER_FILE   = path.join(DATA_ROOT, 'referral_ledger.json');
+const SETTLEMENT_LEDGER_FILE = path.join(DATA_ROOT, 'settlement_ledger.json');
 
 function loadJson(filePath, fallback) {
   try {
@@ -399,6 +401,142 @@ function loadReferralEarnings() {
   return Array.isArray(arr) ? arr : [];
 }
 function saveReferralEarnings(earnings) { saveJson(REFERRAL_EARNINGS_FILE, earnings); }
+
+function loadReferralLedger() {
+  const rows = loadJson(REFERRAL_LEDGER_FILE, []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function saveReferralLedger(rows) { saveJson(REFERRAL_LEDGER_FILE, rows); }
+
+function loadSettlementLedger() {
+  const rows = loadJson(SETTLEMENT_LEDGER_FILE, []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function saveSettlementLedger(rows) { saveJson(SETTLEMENT_LEDGER_FILE, rows); }
+
+function getTenantReferralConfig(tenant) {
+  if (!tenant || typeof tenant !== 'object') return { code: '', percent: 0 };
+  const ref = tenant.referral || {};
+  const code = String(ref.code || tenant.refCode || '').trim();
+  const rawPercent = Number(ref.percent != null ? ref.percent : tenant.refPercent);
+  const percent = Number.isFinite(rawPercent) ? Math.max(0, Math.min(0.5, rawPercent)) : 0;
+  return { code, percent };
+}
+
+function buildOrderFinancialBreakdown(req, order) {
+  const tenant = req.tenant || {};
+  const paymentOptions = Array.isArray(order && order.paymentOptionsSnapshot) ? order.paymentOptionsSnapshot : [];
+  const paymentOpt = paymentOptions.find((p) => p && (p.id === order.paymentMethodId || p.type === order.paymentMethodId)) || {};
+  const gatewaySurchargeAmount = Number(order.gatewayFee || 0);
+  const subtotal = Number(order.subtotalBeforeDiscount || order.subtotal || 0);
+  const discount = Number(order.quantityDiscount || 0) + Number(order.couponDiscount || 0);
+  const shipping = Number(order.shippingCost || 0);
+  const totalCharged = Number(order.total || 0);
+  const platformFeePercent = Number(tenant.platformFeePercent || 0);
+  const platformFeeAmount = +(subtotal * platformFeePercent).toFixed(2);
+  const referralCfg = getTenantReferralConfig(tenant);
+  const commissionBase = subtotal;
+  const referralCommissionAmount = referralCfg.code
+    ? +(commissionBase * referralCfg.percent).toFixed(2)
+    : 0;
+  const tenantGrossAmount = totalCharged;
+  const paymentMethod = String(order.paymentMethodId || '').toLowerCase();
+  const isCOD = paymentMethod === 'cod' || String(order.paymentStatus || '').toUpperCase() === 'PENDING_COD';
+  const settlementDirection = isCOD ? 'receivable_from_tenant' : 'payable_to_tenant';
+  const estimatedTenantNetSettlement = isCOD
+    ? +(platformFeeAmount + referralCommissionAmount).toFixed(2)
+    : +(tenantGrossAmount - platformFeeAmount - referralCommissionAmount).toFixed(2);
+  return {
+    subtotal,
+    shipping,
+    discount,
+    gatewaySurchargeAmount,
+    totalCharged,
+    paymentMethod: order.paymentMethodId || '',
+    tenantGrossAmount,
+    platformFeeAmount,
+    referralCommissionAmount,
+    estimatedTenantNetSettlement,
+    settlementDirection,
+    currency: String(order.currency || 'EUR').toUpperCase(),
+    paymentMethodType: paymentOpt.type || paymentMethod || ''
+  };
+}
+
+function createFinancialLedgerEntries(req, order) {
+  if (!order || !order.id || !req || !req.tenant) return;
+  const now = new Date().toISOString();
+  const tenantId = req.tenant.id;
+  const breakdown = buildOrderFinancialBreakdown(req, order);
+  order.finance = {
+    ...(order.finance || {}),
+    ...breakdown,
+    createdAt: order.createdAt || now,
+    updatedAt: now
+  };
+  console.log('[finance] order-breakdown', JSON.stringify({
+    tenantId,
+    orderId: order.id,
+    totalCharged: breakdown.totalCharged,
+    settlementDirection: breakdown.settlementDirection
+  }));
+
+  const settlementLedger = loadSettlementLedger();
+  const settlementExists = settlementLedger.some((r) => r && r.tenantId === tenantId && r.orderId === order.id);
+  if (!settlementExists) {
+    settlementLedger.push({
+      id: `stl_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`,
+      tenantId,
+      orderId: order.id,
+      paymentMethod: breakdown.paymentMethod,
+      grossAmount: breakdown.tenantGrossAmount,
+      platformFeeAmount: breakdown.platformFeeAmount,
+      gatewaySurchargeAmount: breakdown.gatewaySurchargeAmount,
+      referralCommissionAmount: breakdown.referralCommissionAmount,
+      netSettlementAmount: breakdown.estimatedTenantNetSettlement,
+      settlementDirection: breakdown.settlementDirection,
+      status: 'pending',
+      currency: breakdown.currency,
+      notes: '',
+      createdAt: now,
+      updatedAt: now
+    });
+    saveSettlementLedger(settlementLedger);
+    console.log('[finance] settlement-ledger:create', JSON.stringify({ tenantId, orderId: order.id }));
+  } else {
+    console.log('[finance] settlement-ledger:skip', JSON.stringify({ tenantId, orderId: order.id, reason: 'already_exists' }));
+  }
+
+  const referralCfg = getTenantReferralConfig(req.tenant);
+  const referralLedger = loadReferralLedger();
+  const referralExists = referralLedger.some((r) => r && r.tenantId === tenantId && r.orderId === order.id);
+  if (referralCfg.code && !referralExists) {
+    referralLedger.push({
+      id: `rfl_${Date.now().toString(36)}_${crypto.randomBytes(3).toString('hex')}`,
+      tenantId,
+      orderId: order.id,
+      referralCode: referralCfg.code,
+      referralPercent: referralCfg.percent,
+      commissionBase: breakdown.subtotal,
+      commissionAmount: breakdown.referralCommissionAmount,
+      paymentMethod: breakdown.paymentMethod,
+      status: 'pending',
+      notes: '',
+      createdAt: now,
+      updatedAt: now
+    });
+    saveReferralLedger(referralLedger);
+    console.log('[finance] referral-ledger:create', JSON.stringify({ tenantId, orderId: order.id, referralCode: referralCfg.code }));
+  } else {
+    console.log('[finance] referral-ledger:skip', JSON.stringify({
+      tenantId,
+      orderId: order.id,
+      reason: referralCfg.code ? 'already_exists' : 'missing_referral_config'
+    }));
+  }
+}
 
 /** Ensure a referral account record exists for a code */
 function ensureReferralAccount(code, percent = 0.1) {
@@ -731,6 +869,42 @@ function normalizeFulfillmentStatus(order) {
 
 function orderHasTracking(order) {
   return !!String(order && order.trackingNumber ? order.trackingNumber : '').trim();
+}
+
+function normalizeFulfillmentTimestamps(order) {
+  const rawShippedAt = String(order && order.shippedAt ? order.shippedAt : '').trim();
+  const rawDeliveredAt = String(order && order.deliveredAt ? order.deliveredAt : '').trim();
+  return {
+    shippedAt: rawShippedAt || null,
+    deliveredAt: rawDeliveredAt || null
+  };
+}
+
+function normalizeOrderForFulfillment(order) {
+  const fulfillmentStatus = normalizeFulfillmentStatus(order);
+  const trackingCarrier = String(order && order.trackingCarrier ? order.trackingCarrier : '').trim();
+  const trackingNumber = String(order && order.trackingNumber ? order.trackingNumber : '').trim();
+  const trackingUrl = String(order && order.trackingUrl ? order.trackingUrl : '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
+  const ts = normalizeFulfillmentTimestamps(order);
+  return {
+    ...order,
+    fulfillmentStatus,
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl,
+    shippedAt: ts.shippedAt,
+    deliveredAt: ts.deliveredAt,
+    hasTracking: !!trackingNumber
+  };
+}
+
+function isOrderUnresolved(order) {
+  const fulfillmentStatus = normalizeFulfillmentStatus(order);
+  const hasTracking = orderHasTracking(order);
+  if (fulfillmentStatus === 'cancelled' || fulfillmentStatus === 'delivered') return false;
+  if (fulfillmentStatus === 'issue') return true;
+  if (fulfillmentStatus === 'shipped') return !hasTracking;
+  return !hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(fulfillmentStatus);
 }
 
 function deriveTrackingUrl(carrier, trackingNumber) {
@@ -1300,7 +1474,8 @@ async function sendTrackingUpdateEmail({ tenant, config, order }) {
   const merchantRecipients = (Array.isArray(config.notificationEmails) ? config.notificationEmails : [])
     .map((v) => String(v || '').trim())
     .filter(Boolean);
-  if (merchantRecipients.length && config.notificationCcCustomer) {
+  const merchantConfirmationEnabled = config.notificationCcCustomer || (config.notifications && config.notifications.merchantTrackingConfirmation === true);
+  if (merchantRecipients.length && merchantConfirmationEnabled) {
     try {
       await transport.sendMail({
         from,
@@ -1321,7 +1496,7 @@ async function sendTrackingUpdateEmail({ tenant, config, order }) {
   } else {
     console.log('[fulfillment] tracking-email:merchant-skipped', JSON.stringify({
       orderId: order.id,
-      reason: merchantRecipients.length ? 'notificationCcCustomer_disabled' : 'no_notification_emails'
+      reason: merchantRecipients.length ? 'merchant_tracking_confirmation_disabled' : 'no_notification_emails'
     }));
   }
   return { sent: true };
@@ -1909,11 +2084,7 @@ function buildAdminViewModel(req, extra) {
   if (req.session) req.session.contentLang = contentLang;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   const orders = loadTenantOrders(req);
-  const unresolvedOrdersCount = orders.filter((o) => {
-    const status = normalizeFulfillmentStatus(o);
-    const hasTracking = orderHasTracking(o);
-    return !hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(status);
-  }).length;
+  const unresolvedOrdersCount = orders.filter((o) => isOrderUnresolved(o)).length;
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
   const analytics = loadJson(req.tenantPaths.analytics, { pageViews: {}, cities: {} });
 
@@ -1930,6 +2101,17 @@ function buildAdminViewModel(req, extra) {
   });
 
   const tickets = loadJson(req.tenantPaths.tickets, []);
+  const settlementLedger = loadSettlementLedger().filter((row) => row.tenantId === req.tenant.id);
+  const referralLedger = loadReferralLedger().filter((row) => row.tenantId === req.tenant.id);
+  const pendingSettlementEstimate = settlementLedger
+    .filter((row) => row.settlementDirection === 'payable_to_tenant' && ['pending', 'approved', 'partially_settled'].includes(row.status))
+    .reduce((sum, row) => sum + Number(row.netSettlementAmount || 0), 0);
+  const pendingPlatformDues = settlementLedger
+    .filter((row) => row.settlementDirection === 'receivable_from_tenant' && ['pending', 'approved', 'partially_settled'].includes(row.status))
+    .reduce((sum, row) => sum + Number(row.netSettlementAmount || 0), 0);
+  const pendingReferralImpact = referralLedger
+    .filter((row) => ['pending', 'approved'].includes(row.status))
+    .reduce((sum, row) => sum + Number(row.commissionAmount || 0), 0);
   const now = Date.now();
   const lastAdminActiveAt = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
   const adminReauthRemainingMs = lastAdminActiveAt
@@ -1962,6 +2144,11 @@ function buildAdminViewModel(req, extra) {
     tickets: tickets.slice().reverse(),
     adminActionTimeoutMs: ADMIN_IDLE_TIMEOUT_MS,
     adminReauthRemainingMs,
+    financeSummary: {
+      pendingSettlementEstimate: +pendingSettlementEstimate.toFixed(2),
+      pendingPlatformDues: +pendingPlatformDues.toFixed(2),
+      pendingReferralImpact: +pendingReferralImpact.toFixed(2)
+    },
     message: null,
     error: null,
     ...(extra || {})
@@ -2362,6 +2549,7 @@ app.post('/checkout', async (req, res) => {
     notes:    notes  || '',
     shippingMethodId,
     paymentMethodId,
+    paymentOptionsSnapshot: Array.isArray(config.paymentOptions) ? config.paymentOptions : [],
     shippingMethodLabel: totals.shippingMethod.label,
     paymentMethodLabel:  totals.paymentMethod.label,
     subtotal:    totals.subtotal,
@@ -2376,10 +2564,12 @@ app.post('/checkout', async (req, res) => {
     paymentStatus: totals.paymentMethod.type === 'stripe' ? 'PENDING_STRIPE' : 'PENDING_COD',
     fulfillmentStatus: totals.paymentMethod.type === 'stripe' ? 'pending_payment' : 'cod_pending',
     shippedAt: null,
+    deliveredAt: null,
     trackingNumber: '',
     trackingCarrier: '',
     trackingUrl: '',
     trackingToken,
+    currency: 'EUR',
     createdAt: new Date().toISOString()
   };
 
@@ -2437,6 +2627,7 @@ app.post('/checkout', async (req, res) => {
   }
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
+  createFinancialLedgerEntries(req, order);
 
   // ── Stock deduction (per item) ────────────────────────────────────
   const allProductsMut = loadTenantProducts(req);
@@ -2595,6 +2786,7 @@ app.get('/checkout/stripe-success', async (req, res) => {
   }
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
+  createFinancialLedgerEntries(req, order);
 
   // Stock deduction
   const allProductsMut = loadTenantProducts(req);
@@ -2693,10 +2885,7 @@ app.get('/checkout/complete', (req, res) => {
     return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
   }
   const catalogForCompletion = loadTenantProducts(req);
-  order.fulfillmentStatus = normalizeFulfillmentStatus(order);
-  order.trackingCarrier = String(order.trackingCarrier || '').trim();
-  order.trackingNumber = String(order.trackingNumber || '').trim();
-  order.trackingUrl = String(order.trackingUrl || '').trim() || deriveTrackingUrl(order.trackingCarrier, order.trackingNumber);
+  const normalizedOrder = normalizeOrderForFulfillment(order);
   const hasDigital = (Array.isArray(order.items) ? order.items : []).some((ci) => {
     const p = catalogForCompletion.find((pp) => pp.id === ci.id);
     return p && p.hasDigitalContent;
@@ -2704,14 +2893,16 @@ app.get('/checkout/complete', (req, res) => {
   console.log('[checkout] complete:render-thanks', JSON.stringify({
     tenantId: req.tenant && req.tenant.id,
     orderId: order.id,
-    proofHash: order.proofHash || ''
+    proofHash: order.proofHash || '',
+    fulfillmentStatus: normalizedOrder.fulfillmentStatus,
+    hasTracking: normalizedOrder.hasTracking
   }));
   if (req.session) {
     req.session.checkoutCartSnapshot = [];
   }
   return res.render('thanks', {
     config: localizeConfigContent(config, req.lang),
-    order,
+    order: normalizedOrder,
     proofHash: order.proofHash || '',
     tenant: req.tenant,
     clearCart: true,
@@ -2721,6 +2912,10 @@ app.get('/checkout/complete', (req, res) => {
 
 app.get('/track', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  console.log('[storefront] track:render', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    hasOrder: false
+  }));
   res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
 });
 
@@ -2751,11 +2946,14 @@ app.post('/track', (req, res) => {
       error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
     });
   }
-  order.fulfillmentStatus = normalizeFulfillmentStatus(order);
-  order.trackingCarrier = String(order.trackingCarrier || '').trim();
-  order.trackingNumber = String(order.trackingNumber || '').trim();
-  order.trackingUrl = String(order.trackingUrl || '').trim() || deriveTrackingUrl(order.trackingCarrier, order.trackingNumber);
-  return res.render('track-order', { config, tenant: req.tenant, order, error: null });
+  const normalizedOrder = normalizeOrderForFulfillment(order);
+  console.log('[storefront] track:render', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId: normalizedOrder.id,
+    fulfillmentStatus: normalizedOrder.fulfillmentStatus,
+    hasTracking: normalizedOrder.hasTracking
+  }));
+  return res.render('track-order', { config, tenant: req.tenant, order: normalizedOrder, error: null });
 });
 
 app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
@@ -2913,13 +3111,7 @@ app.get('/my-orders', requireUser, (req, res) => {
   const email = normalizeEmail(req.session.user.email);
   const orders = loadTenantOrders(req)
     .filter((o) => normalizeEmail(o.userEmail) === email)
-    .map((o) => ({
-      ...o,
-      fulfillmentStatus: normalizeFulfillmentStatus(o),
-      trackingCarrier: String(o.trackingCarrier || '').trim(),
-      trackingNumber: String(o.trackingNumber || '').trim(),
-      trackingUrl: String(o.trackingUrl || '').trim() || deriveTrackingUrl(o.trackingCarrier, o.trackingNumber)
-    }))
+    .map((o) => normalizeOrderForFulfillment(o))
     .slice()
     .reverse();
   res.render('my-orders', { config, tenant: req.tenant, user: req.session.user, orders });
@@ -3343,21 +3535,8 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
 // Admin orders view
 function buildAdminOrdersViewModel(req, extra = {}) {
   const config = loadTenantConfig(req);
-  const allOrders = loadTenantOrders(req).map((order) => {
-    const trackingNumber = String(order.trackingNumber || '').trim();
-    const trackingCarrier = String(order.trackingCarrier || '').trim();
-    const derivedTrackingUrl = String(order.trackingUrl || '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
-    const fulfillmentStatus = normalizeFulfillmentStatus(order);
-    return {
-      ...order,
-      trackingNumber,
-      trackingCarrier,
-      trackingUrl: derivedTrackingUrl,
-      fulfillmentStatus,
-      hasTracking: !!trackingNumber
-    };
-  });
-  const unresolvedOrders = allOrders.filter((o) => !o.hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(o.fulfillmentStatus));
+  const allOrders = loadTenantOrders(req).map((order) => normalizeOrderForFulfillment(order));
+  const unresolvedOrders = allOrders.filter((o) => isOrderUnresolved(o));
   const orders = allOrders.slice(-100).reverse();
   const model = {
     tenant: req.tenant,
@@ -3399,13 +3578,18 @@ app.post('/admin/orders/tracking', async (req, res) => {
   const nextTrackingNumber = String(trackingNumber || '').trim();
   const nextCarrier = String(trackingCarrier || '').trim();
   const manualUrl = String(trackingUrl || '').trim();
-  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled']);
+  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
   const requestedStatus = String(fulfillmentStatus || '').trim().toLowerCase();
-  const autoStatus = nextTrackingNumber ? 'shipped' : normalizeFulfillmentStatus(current);
+  const currentStatus = normalizeFulfillmentStatus(current);
+  const autoStatus = nextTrackingNumber ? 'shipped' : currentStatus;
   const nextStatus = allowedStatuses.has(requestedStatus) ? requestedStatus : autoStatus;
   const nextTrackingUrl = manualUrl || deriveTrackingUrl(nextCarrier, nextTrackingNumber);
-  const shippedAt = nextTrackingNumber
-    ? (current.shippedAt || new Date().toISOString())
+  const nowIso = new Date().toISOString();
+  const shippedAt = (nextStatus === 'shipped' || nextStatus === 'delivered' || !!nextTrackingNumber)
+    ? (current.shippedAt || nowIso)
+    : null;
+  const deliveredAt = nextStatus === 'delivered'
+    ? (current.deliveredAt || nowIso)
     : null;
   orders[idx] = {
     ...current,
@@ -3413,6 +3597,7 @@ app.post('/admin/orders/tracking', async (req, res) => {
     trackingCarrier: nextCarrier,
     trackingUrl: nextTrackingUrl,
     shippedAt,
+    deliveredAt,
     fulfillmentStatus: nextStatus
   };
   console.log('[fulfillment] tracking-save', JSON.stringify({
@@ -4866,7 +5051,7 @@ app.post('/root/tickets/close', async (req, res) => {
 
 const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START', 'DIGITAL_STARTER', 'DIGITAL_PRO'];
 
-function buildRootViewModel(extra) {
+function buildRootViewModel(extra, req) {
   const tenants = loadTenantsRegistry();
   const tenantPaymentConfigs = {};
   tenants.forEach((t) => {
@@ -4881,6 +5066,58 @@ function buildRootViewModel(extra) {
 
   const refAccounts = loadReferralAccounts();
   const refEarnings = loadReferralEarnings();
+  const referralLedgerRaw = loadReferralLedger();
+  const settlementLedgerRaw = loadSettlementLedger();
+  const q = (req && req.query) ? req.query : {};
+  const tenantFilter = String(q.tenantId || '').trim();
+  const referralCodeFilter = String(q.referralCode || '').trim();
+  const referralStatusFilter = String(q.refStatus || '').trim();
+  const settlementStatusFilter = String(q.stStatus || '').trim();
+  const paymentMethodFilter = String(q.paymentMethod || '').trim();
+
+  const referralLedger = referralLedgerRaw.filter((row) => {
+    if (tenantFilter && row.tenantId !== tenantFilter) return false;
+    if (referralCodeFilter && row.referralCode !== referralCodeFilter) return false;
+    if (referralStatusFilter && row.status !== referralStatusFilter) return false;
+    return true;
+  });
+  const settlementLedger = settlementLedgerRaw.filter((row) => {
+    if (tenantFilter && row.tenantId !== tenantFilter) return false;
+    if (paymentMethodFilter && row.paymentMethod !== paymentMethodFilter) return false;
+    if (settlementStatusFilter && row.status !== settlementStatusFilter) return false;
+    return true;
+  });
+  const referralTotalsByCode = referralLedger.reduce((acc, row) => {
+    const key = row.referralCode || 'unknown';
+    if (!acc[key]) acc[key] = { pending: 0, approved: 0, paid: 0, orders: 0 };
+    acc[key].orders += 1;
+    if (row.status === 'paid') acc[key].paid += Number(row.commissionAmount || 0);
+    else if (row.status === 'approved') acc[key].approved += Number(row.commissionAmount || 0);
+    else if (row.status === 'pending') acc[key].pending += Number(row.commissionAmount || 0);
+    return acc;
+  }, {});
+  const settlementTotalsByTenant = settlementLedger.reduce((acc, row) => {
+    const key = row.tenantId || 'unknown';
+    if (!acc[key]) acc[key] = { pendingPayable: 0, pendingReceivable: 0, settled: 0 };
+    if (row.status === 'settled') {
+      acc[key].settled += Number(row.netSettlementAmount || 0);
+    } else if (row.status === 'pending' || row.status === 'approved' || row.status === 'partially_settled') {
+      if (row.settlementDirection === 'payable_to_tenant') acc[key].pendingPayable += Number(row.netSettlementAmount || 0);
+      if (row.settlementDirection === 'receivable_from_tenant') acc[key].pendingReceivable += Number(row.netSettlementAmount || 0);
+    }
+    return acc;
+  }, {});
+  const pendingReferralPayouts = referralLedger
+    .filter((row) => row.status === 'pending' || row.status === 'approved')
+    .reduce((sum, row) => sum + Number(row.commissionAmount || 0), 0);
+  const pendingTenantPayables = settlementLedger
+    .filter((row) => (row.status === 'pending' || row.status === 'approved' || row.status === 'partially_settled') && row.settlementDirection === 'payable_to_tenant')
+    .reduce((sum, row) => sum + Number(row.netSettlementAmount || 0), 0);
+  const pendingTenantReceivables = settlementLedger
+    .filter((row) => (row.status === 'pending' || row.status === 'approved' || row.status === 'partially_settled') && row.settlementDirection === 'receivable_from_tenant')
+    .reduce((sum, row) => sum + Number(row.netSettlementAmount || 0), 0);
+  const unresolvedFinanceCount = referralLedger.filter((r) => ['pending', 'approved', 'disputed'].includes(r.status)).length
+    + settlementLedger.filter((r) => ['pending', 'approved', 'partially_settled', 'disputed'].includes(r.status)).length;
 
   // Group pending earnings by refCode for the payouts UI
   const pendingByCode = {};
@@ -4907,8 +5144,17 @@ function buildRootViewModel(extra) {
     tenantPaymentConfigs,
     refAccounts,
     refEarnings: refEarnings.slice(-200).reverse(),
+    referralLedger: referralLedger.slice().reverse().slice(0, 400),
+    settlementLedger: settlementLedger.slice().reverse().slice(0, 400),
+    referralTotalsByCode,
+    settlementTotalsByTenant,
+    pendingReferralPayouts: +pendingReferralPayouts.toFixed(2),
+    pendingTenantPayables: +pendingTenantPayables.toFixed(2),
+    pendingTenantReceivables: +pendingTenantReceivables.toFixed(2),
+    unresolvedFinanceCount,
     pendingByCode,
     allTickets: allTickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    financeFilters: { tenantFilter, referralCodeFilter, referralStatusFilter, settlementStatusFilter, paymentMethodFilter },
     getSubscriptionInfo,
     PACKAGE_PRICES,
     message: null,
@@ -4922,7 +5168,11 @@ app.get('/root/tenants', (req, res) => {
     path: req.originalUrl || req.url,
     rootAuthenticated: !!(req.session && req.session.rootAdmin)
   }));
-  res.render('root-tenants', buildRootViewModel());
+  console.log('[root-admin] finance:render', JSON.stringify({
+    referralRows: loadReferralLedger().length,
+    settlementRows: loadSettlementLedger().length
+  }));
+  res.render('root-tenants', buildRootViewModel({}, req));
 });
 
 app.get('/root/login', (req, res) => {
@@ -5359,6 +5609,68 @@ app.post('/root/referral/mark-paid', (req, res) => {
   }
 
   res.render('root-tenants', buildRootViewModel({ message: `Πληρωμή ${totalPaid.toFixed(2)} € καταγράφηκε.` }));
+});
+
+app.post('/root/finance/referrals/update', (req, res) => {
+  const { rootPassword, ledgerId, status, notes } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }, req));
+  }
+  const allowed = new Set(['pending', 'approved', 'paid', 'cancelled', 'disputed']);
+  const nextStatus = String(status || '').trim().toLowerCase();
+  if (!allowed.has(nextStatus)) {
+    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Μη έγκυρο referral status.' }, req));
+  }
+  const ledger = loadReferralLedger();
+  const idx = ledger.findIndex((row) => row.id === String(ledgerId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('root-tenants', buildRootViewModel({ error: 'Referral ledger entry δεν βρέθηκε.' }, req));
+  }
+  ledger[idx] = {
+    ...ledger[idx],
+    status: nextStatus,
+    notes: String(notes || '').trim(),
+    updatedAt: new Date().toISOString()
+  };
+  saveReferralLedger(ledger);
+  console.log('[finance] referral-ledger:update', JSON.stringify({
+    ledgerId: ledger[idx].id,
+    tenantId: ledger[idx].tenantId,
+    orderId: ledger[idx].orderId,
+    status: nextStatus
+  }));
+  return res.render('root-tenants', buildRootViewModel({ message: 'Referral ledger ενημερώθηκε.' }, req));
+});
+
+app.post('/root/finance/settlements/update', (req, res) => {
+  const { rootPassword, ledgerId, status, notes } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }, req));
+  }
+  const allowed = new Set(['pending', 'approved', 'partially_settled', 'settled', 'cancelled', 'disputed']);
+  const nextStatus = String(status || '').trim().toLowerCase();
+  if (!allowed.has(nextStatus)) {
+    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Μη έγκυρο settlement status.' }, req));
+  }
+  const ledger = loadSettlementLedger();
+  const idx = ledger.findIndex((row) => row.id === String(ledgerId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('root-tenants', buildRootViewModel({ error: 'Settlement entry δεν βρέθηκε.' }, req));
+  }
+  ledger[idx] = {
+    ...ledger[idx],
+    status: nextStatus,
+    notes: String(notes || '').trim(),
+    updatedAt: new Date().toISOString()
+  };
+  saveSettlementLedger(ledger);
+  console.log('[finance] settlement-ledger:update', JSON.stringify({
+    ledgerId: ledger[idx].id,
+    tenantId: ledger[idx].tenantId,
+    orderId: ledger[idx].orderId,
+    status: nextStatus
+  }));
+  return res.render('root-tenants', buildRootViewModel({ message: 'Settlement ledger ενημερώθηκε.' }, req));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
