@@ -17,7 +17,15 @@
   },
   {
     "id": "eukolakis",
-    "domain": "eukolakis.local",
+    "domain": "www.eukolaki.gr",
+    "primaryDomain": "www.eukolaki.gr",
+    "domains": [
+      "eukolaki.gr",
+      "www.eukolaki.gr"
+    ],
+    "previewSubdomain": "eukolakis",
+    "domainStatus": "active",
+    "canonicalToWww": true,
     "supportTier": "MANAGEMENT_START",
     "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
     "createdAt": "2026-03-25T00:00:00Z",
