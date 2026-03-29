@@ -59,6 +59,8 @@
 <script>
   (function() {
     const CART_KEY   = 'thrc_cart';
+    const CART_SESSION_KEY = 'thrc_cart_session';
+    const CART_SNAPSHOT_API = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
     const POS_KEY    = 'thrc_cart_position';
     const widget     = document.getElementById('floating-cart');
     const panel      = document.getElementById('cart-panel');
@@ -121,9 +123,33 @@
 
     // ── Cart state ────────────────────────────────────────────────────
     function loadCart() {
-      try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) { return []; }
+      try {
+        const local = JSON.parse(localStorage.getItem(CART_KEY) || 'null');
+        if (Array.isArray(local)) return local;
+      } catch(e) {}
+      try {
+        const session = JSON.parse(sessionStorage.getItem(CART_SESSION_KEY) || 'null');
+        if (Array.isArray(session)) return session;
+      } catch(e) {}
+      return [];
     }
-    function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); }
+    function saveCart(cart) {
+      const payload = JSON.stringify(cart || []);
+      localStorage.setItem(CART_KEY, payload);
+      try { sessionStorage.setItem(CART_SESSION_KEY, payload); } catch (_) {}
+      syncCartSnapshotToServer(cart || []);
+    }
+    function syncCartSnapshotToServer(snapshot) {
+      try {
+        fetch(CART_SNAPSHOT_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          keepalive: true,
+          body: JSON.stringify({ items: Array.isArray(snapshot) ? snapshot : [] })
+        }).catch(function(){});
+      } catch (_) {}
+    }
 
     function removeItem(id) {
       const cart = loadCart();

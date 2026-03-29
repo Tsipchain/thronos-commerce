@@ -51,6 +51,12 @@
         <p><%= t('thankyou.codFee') %>: <strong><%= order.codFee.toFixed(2) %> €</strong></p>
         <p><%= t('thankyou.gatewayFee') %>: <strong><%= order.gatewayFee.toFixed(2) %> €</strong></p>
         <p><%= t('thankyou.total') %>: <strong><%= order.total.toFixed(2) %> €</strong></p>
+        <p><%= lang === 'el' ? 'Κατάσταση αποστολής' : 'Fulfillment status' %>: <strong><%= order.fulfillmentStatus || 'ready_to_ship' %></strong></p>
+        <% if (order.trackingNumber) { %>
+          <p><%= lang === 'el' ? 'Tracking αριθμός' : 'Tracking number' %>: <strong><%= order.trackingNumber %></strong></p>
+          <% if (order.trackingCarrier) { %><p><%= lang === 'el' ? 'Courier' : 'Carrier' %>: <strong><%= order.trackingCarrier %></strong></p><% } %>
+          <% if (order.trackingUrl) { %><p><a href="<%= order.trackingUrl %>" target="_blank" rel="noopener"><%= lang === 'el' ? 'Άνοιγμα tracking link' : 'Open tracking link' %></a></p><% } %>
+        <% } %>
 
         <% if (order.wallet) { %>
           <p><%= t('thankyou.wallet') %>: <code><%= order.wallet %></code></p>
@@ -72,13 +78,56 @@
           <p style="margin:10px 0 0;font-size:.75rem;color:#6b7280;"><%= t('content.saveLink') %></p>
         </div>
         <% } %>
+        <% const trackHref = withTenantLink('/track'); %>
+        <p style="margin-top:12px;">
+          <a href="<%= trackHref %>">🔎 <%= lang === 'el' ? 'Παρακολούθηση παραγγελίας' : 'Track order' %></a>
+          <% if (order.trackingToken) { %>
+            <br /><small style="color:#6b7280;"><%= lang === 'el' ? 'Tracking token' : 'Tracking token' %>: <code><%= order.trackingToken %></code></small>
+          <% } %>
+        </p>
+        <% if (!user) { %>
+          <div style="margin-top:16px;padding:12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;">
+            <strong><%= lang === 'el' ? 'Θέλεις καλύτερη παρακολούθηση παραγγελιών;' : 'Want easier future tracking?' %></strong>
+            <p style="margin:6px 0 0;font-size:.9rem;">
+              <%= lang === 'el' ? 'Κάνε εγγραφή για να βλέπεις μελλοντικά όλες τις παραγγελίες/tracking σε ένα σημείο και για μελλοντική πρόσβαση σε συνδρομές ή videos αν ενεργοποιηθούν.' : 'Create an account so future orders/tracking are in one place and to be ready for future subscription/video access.' %>
+            </p>
+            <p style="margin:8px 0 0;"><a href="<%= withTenantLink('/signup') %>">✅ <%= lang === 'el' ? 'Δημιουργία λογαριασμού' : 'Create account' %></a></p>
+          </div>
+        <% } %>
       </section>
     </main>
+    <button type="button" id="quick-back-btn" style="position:fixed;left:12px;bottom:18px;z-index:1200;border:none;border-radius:999px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(2,6,23,.28);"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
     <% if (locals.clearCart) { %>
     <script>
       // Clear cart after successful order
       try { localStorage.removeItem('thrc_cart'); } catch(e) {}
+      try { sessionStorage.removeItem('thrc_cart_session'); } catch(e) {}
+      try {
+        const wizardPrefix = 'thrc-kit-wizard-state::<%= tenant.id %>::';
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i) || '';
+          if (k.indexOf(wizardPrefix) === 0) sessionStorage.removeItem(k);
+        }
+      } catch (e) {}
     </script>
     <% } %>
+    <script>
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = '<%= withTenantLink("/") %>';
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try { sessionStorage.setItem(key, currentUrl); } catch (err) {}
+        const btn = document.getElementById('quick-back-btn');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+          if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.origin) === 0) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
+    </script>
   </body>
 </html>
