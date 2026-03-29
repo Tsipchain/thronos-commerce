@@ -3761,6 +3761,25 @@ app.post('/admin/hosting/report-issue', async (req, res) => {
     message: 'Το hosting issue σημειώθηκε και ενημερώθηκε η υποστήριξη.',
     error: null
   });
+  console.log('[fulfillment] status-update', JSON.stringify({
+    tenantId: req.tenant.id,
+    orderId: orders[idx].id,
+    fulfillmentStatus: orders[idx].fulfillmentStatus
+  }));
+  if (orders[idx].trackingNumber) {
+    await sendTrackingUpdateEmail({
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      order: orders[idx]
+    });
+  } else {
+    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({
+      tenantId: req.tenant.id,
+      orderId: orders[idx].id,
+      reason: 'tracking_number_missing'
+    }));
+  }
+  return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/settings', async (req, res) => {
