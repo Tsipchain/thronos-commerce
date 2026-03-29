@@ -33,3 +33,16 @@ test('platform host resolves platform', () => {
   const result = resolveTenantFromHost('thronoscommerce.thronoschain.org', tenants);
   assert.equal(result.type, 'platform');
 });
+
+test('apex host resolves tenant when only www is configured', () => {
+  const onlyWwwTenant = [{ id: 'shop', domains: ['www.shop.gr'] }];
+  const result = resolveTenantFromHost('shop.gr', onlyWwwTenant);
+  assert.equal(result.type, 'tenant');
+  assert.equal(result.tenant.id, 'shop');
+});
+
+test('preview host is not mistaken for platform host', () => {
+  const result = resolveTenantFromHost('eukolakis.thonoscommerce.thronoschain.org', tenants);
+  assert.equal(result.type, 'tenant');
+  assert.equal(result.tenant.id, 'eukolakis');
+});

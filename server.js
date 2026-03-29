@@ -769,6 +769,30 @@ function requestProtocol(req) {
   return req.protocol || 'http';
 }
 
+function tenantConfiguredHosts(tenant) {
+  const hosts = new Set();
+  const add = (value) => {
+    const host = normalizeHost(value);
+    if (host) hosts.add(host);
+  };
+  if (!tenant || typeof tenant !== 'object') return hosts;
+  add(tenant.primaryDomain);
+  add(tenant.domain);
+  if (Array.isArray(tenant.domains)) tenant.domains.forEach(add);
+  return hosts;
+}
+
+function shouldCanonicalizeToWwwHost(tenant, hostHeader) {
+  const host = normalizeHost(hostHeader);
+  if (!tenant || tenant.canonicalToWww !== true || !host || host.startsWith('www.')) return false;
+  if (host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return false;
+  if (host.includes('.thronoscommerce.thronoschain.org') || host.includes('.thonoscommerce.thronoschain.org')) return false;
+  const hosts = tenantConfiguredHosts(tenant);
+  if (!hosts.has(host)) return false;
+  const canonicalHost = `www.${host}`;
+  return hosts.has(canonicalHost);
+}
+
 function buildTenantLink(req, targetPath, extraQuery = {}) {
   const basePath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
   const query = new URLSearchParams();
@@ -1804,13 +1828,7 @@ app.use((req, res, next) => {
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
   }
-  if (
-    mode === 'host' &&
-    tenant.canonicalToWww === true &&
-    hostHeader &&
-    !hostHeader.startsWith('www.') &&
-    !hostHeader.endsWith('.up.railway.app')
-  ) {
+  if (mode === 'host' && shouldCanonicalizeToWwwHost(tenant, hostHeader)) {
     const canonicalHost = `www.${hostHeader}`;
     const target = `${requestProtocol(req)}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
     console.log('[tenant-admin] canonical-redirect', JSON.stringify({
@@ -1820,6 +1838,12 @@ app.use((req, res, next) => {
       to: target
     }));
     return res.redirect(308, target);
+  } else if (mode === 'host' && tenant.canonicalToWww === true && hostHeader && !hostHeader.startsWith('www.')) {
+    console.log('[tenant-admin] canonical-skip', JSON.stringify({
+      host: hostHeader,
+      tenantId: tenant.id,
+      reason: 'host_not_eligible_for_www_redirect'
+    }));
   }
   req.tenant = tenant;
   req.tenantId = tenant.id;
@@ -3335,15 +3359,25 @@ function buildAdminOrdersViewModel(req, extra = {}) {
   });
   const unresolvedOrders = allOrders.filter((o) => !o.hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(o.fulfillmentStatus));
   const orders = allOrders.slice(-100).reverse();
-  return {
+  const model = {
     tenant: req.tenant,
     config,
     orders,
     unresolvedOrders,
     unresolvedCount: unresolvedOrders.length,
     permissions: getSupportPermissions(req.tenant.supportTier),
+    message: null,
+    error: null,
     ...extra
   };
+  console.log('[tenant-admin] orders:render', JSON.stringify({
+    tenantId: req && req.tenant ? req.tenant.id : null,
+    ordersCount: Array.isArray(model.orders) ? model.orders.length : 0,
+    unresolvedCount: Number.isFinite(model.unresolvedCount) ? model.unresolvedCount : 0,
+    hasMessage: !!model.message,
+    hasError: !!model.error
+  }));
+  return model;
 }
 
 app.get('/admin/orders', (req, res) => {
@@ -3413,45 +3447,6 @@ app.post('/admin/orders/tracking', async (req, res) => {
     }));
   }
   return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
-});
-
-app.post('/admin/orders/tracking', async (req, res) => {
-  const { password, orderId, trackingNumber } = req.body;
-  const auth = await verifyAdminAction(req, password);
-  if (!auth.ok) {
-    return res.status(401).render('admin-orders', {
-      tenant: req.tenant,
-      config: loadTenantConfig(req),
-      orders: loadTenantOrders(req).slice(-100).reverse(),
-      permissions: getSupportPermissions(req.tenant.supportTier),
-      error: 'Λάθος κωδικός διαχειριστή.'
-    });
-  }
-  const orders = loadTenantOrders(req);
-  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
-  if (idx < 0) {
-    return res.status(404).render('admin-orders', {
-      tenant: req.tenant,
-      config: loadTenantConfig(req),
-      orders: orders.slice(-100).reverse(),
-      permissions: getSupportPermissions(req.tenant.supportTier),
-      error: 'Η παραγγελία δεν βρέθηκε.'
-    });
-  }
-  orders[idx].trackingNumber = String(trackingNumber || '').trim();
-  saveJson(req.tenantPaths.orders, orders);
-  await dispatchAssistantEvent(req, 'tracking_updated', {
-    orderId: orders[idx].id,
-    trackingNumber: orders[idx].trackingNumber,
-    email: orders[idx].email
-  });
-  return res.render('admin-orders', {
-    tenant: req.tenant,
-    config: loadTenantConfig(req),
-    orders: orders.slice(-100).reverse(),
-    permissions: getSupportPermissions(req.tenant.supportTier),
-    message: 'Το tracking ενημερώθηκε.'
-  });
 });
 
 app.post('/admin/settings', async (req, res) => {
