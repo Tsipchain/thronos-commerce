@@ -3668,6 +3668,48 @@ app.post('/admin/hosting/report-issue', async (req, res) => {
   return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
+app.post('/admin/orders/tracking', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const orderId = String(req.body.orderId || '').trim();
+  const trackingNumber = String(req.body.trackingNumber || '').trim();
+  const trackingCarrier = String(req.body.trackingCarrier || '').trim().toLowerCase();
+  const fulfillmentStatus = String(req.body.fulfillmentStatus || '').trim().toLowerCase();
+  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (!orderId) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order ID is required.' }));
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === orderId);
+  if (idx < 0) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order not found.' }));
+  }
+  const now = new Date().toISOString();
+  const next = { ...orders[idx] };
+  next.trackingNumber = trackingNumber;
+  next.trackingCarrier = trackingCarrier;
+  next.trackingUrl = deriveTrackingUrl(trackingCarrier, trackingNumber);
+  if (allowedStatuses.has(fulfillmentStatus)) {
+    next.fulfillmentStatus = fulfillmentStatus;
+  } else {
+    next.fulfillmentStatus = normalizeFulfillmentStatus(next);
+  }
+  if (next.fulfillmentStatus === 'shipped' && !next.shippedAt) next.shippedAt = now;
+  if (next.fulfillmentStatus === 'delivered' && !next.deliveredAt) next.deliveredAt = now;
+  orders[idx] = next;
+  saveJson(req.tenantPaths.orders, orders);
+  console.log('[admin-orders] tracking-save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId,
+    trackingNumber: !!trackingNumber,
+    trackingCarrier,
+    fulfillmentStatus: next.fulfillmentStatus
+  }));
+  return res.redirect(buildTenantLink(req, '/admin/orders', { message: 'Tracking ενημερώθηκε.' }));
+});
+
 app.post('/admin/settings', async (req, res) => {
   const {
     password,
