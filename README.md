@@ -64,6 +64,29 @@ npm start
 
 Για production, βάλε το σωστό domain κάθε πελάτη στο `tenants.json` και κάνε point το DNS στο Railway app.
 
+### Domain routing (migration notes)
+
+Ο tenant resolver πλέον υποστηρίζει:
+- `primaryDomain`
+- `domains[]` (aliases, π.χ. apex + www)
+- `previewSubdomain`
+- `domainStatus` (`pending_dns`, `ssl_validating`, `active`, `failed`)
+
+Παράδειγμα tenant record:
+
+```json
+{
+  "id": "eukolakis",
+  "domain": "eukolaki.gr",
+  "primaryDomain": "eukolaki.gr",
+  "domains": ["eukolaki.gr", "www.eukolaki.gr"],
+  "previewSubdomain": "eukolakis",
+  "domainStatus": "active"
+}
+```
+
+Σημαντικό: για μη αναγνωρισμένο custom host, το app επιστρέφει tenant-specific 404 (δεν γίνεται fallback στο marketing landing).
+
 ## Περιβάλλον / μεταβλητές
 
 Προαιρετικά:
