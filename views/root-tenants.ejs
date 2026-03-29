@@ -139,6 +139,8 @@
               <tr>
                 <th>ID</th>
                 <th>Domain</th>
+                <th>Domain status</th>
+                <th>Canonical</th>
                 <th>Πακέτο</th>
                 <th>Referral</th>
                 <th>Ενεργό</th>
@@ -153,6 +155,8 @@
               <tr>
                 <td><code><%= t.id %></code></td>
                 <td><%= t.domain || '–' %></td>
+                <td><code><%= t.domainStatus || 'pending_dns' %></code></td>
+                <td><code><%= t.canonicalToWww ? 'www' : 'off' %></code></td>
                 <td><span class="tier-badge tier-<%= t.supportTier %>"><%= t.supportTier %></span></td>
                 <td style="font-size:0.8rem;">
                   <% if (t.referral && t.referral.code) { %>
@@ -270,6 +274,37 @@
             </label>
 
             <label>
+              Primary domain
+              <input type="text" name="primaryDomain" placeholder="π.χ. myshop.gr" />
+            </label>
+
+            <label>
+              Domain aliases
+              <input type="text" name="domains" placeholder="myshop.gr,www.myshop.gr" />
+            </label>
+
+            <label>
+              Preview subdomain
+              <input type="text" name="previewSubdomain" placeholder="π.χ. myshop" />
+            </label>
+
+            <label>
+              Domain status
+              <select name="domainStatus">
+                <option value="pending_dns">pending_dns</option>
+                <option value="ssl_validating">ssl_validating</option>
+                <option value="active">active</option>
+                <option value="failed">failed</option>
+              </select>
+            </label>
+
+            <label class="checkbox-row" style="align-self:end;">
+              <input type="hidden" name="canonicalToWww" value="0" />
+              <input type="checkbox" name="canonicalToWww" value="1" />
+              Canonical redirect to www
+            </label>
+
+            <label>
               Πακέτο υποστήριξης
               <select name="supportTier">
                 <option value="SELF_SERVICE">SELF_SERVICE</option>
@@ -381,8 +416,14 @@
                 <% tenants.forEach(function(t) { %>
                   <option value="<%= t.id %>"
                     data-domain="<%= t.domain || '' %>"
+                    data-primary-domain="<%= t.primaryDomain || '' %>"
+                    data-domains="<%= Array.isArray(t.domains) ? t.domains.join(',') : '' %>"
+                    data-preview-subdomain="<%= t.previewSubdomain || t.id || '' %>"
+                    data-domain-status="<%= t.domainStatus || 'pending_dns' %>"
+                    data-canonical-to-www="<%= t.canonicalToWww ? 'true' : 'false' %>"
                     data-tier="<%= t.supportTier %>"
-                    data-active="<%= t.active ? 'true' : 'false' %>">
+                    data-active="<%= t.active ? 'true' : 'false' %>"
+                    data-allow-powered-by="<%= t.allowPoweredBy ? 'true' : 'false' %>">
                     <%= t.id %>
                   </option>
                 <% }) %>
@@ -392,6 +433,37 @@
             <label>
               Domain
               <input type="text" name="domain" id="update-domain" placeholder="π.χ. myshop.gr" />
+            </label>
+
+            <label>
+              Primary domain
+              <input type="text" name="primaryDomain" id="update-primary-domain" placeholder="π.χ. eukolaki.gr" />
+            </label>
+
+            <label>
+              Domain aliases (comma separated)
+              <input type="text" name="domains" id="update-domains" placeholder="eukolaki.gr,www.eukolaki.gr" />
+            </label>
+
+            <label>
+              Preview subdomain
+              <input type="text" name="previewSubdomain" id="update-preview-subdomain" placeholder="eukolakis" />
+            </label>
+
+            <label>
+              Domain status
+              <select name="domainStatus" id="update-domain-status">
+                <option value="pending_dns">pending_dns</option>
+                <option value="ssl_validating">ssl_validating</option>
+                <option value="active">active</option>
+                <option value="failed">failed</option>
+              </select>
+            </label>
+
+            <label class="checkbox-row" style="align-self:end;">
+              <input type="hidden" name="canonicalToWww" value="0" />
+              <input type="checkbox" id="update-canonical-to-www" name="canonicalToWww" value="1" />
+              Canonical redirect to www
             </label>
 
             <label>
@@ -411,6 +483,12 @@
                 <option value="true">Ενεργό</option>
                 <option value="false">Ανενεργό</option>
               </select>
+            </label>
+
+            <label class="checkbox-row" style="align-self:end;">
+              <input type="hidden" name="allowPoweredBy" value="0" />
+              <input type="checkbox" id="update-allow-powered-by" name="allowPoweredBy" value="1" />
+              Επιτρέπεται “Powered by” στο footer
             </label>
 
             <label>
@@ -771,8 +849,14 @@
         <% tenants.forEach(function(t, i) { %>
           "<%= t.id %>": {
             domain: "<%- (t.domain || '').replace(/"/g, '\\"') %>",
+            primaryDomain: "<%- (t.primaryDomain || '').replace(/"/g, '\\"') %>",
+            domains: "<%- (Array.isArray(t.domains) ? t.domains.join(',') : '').replace(/"/g, '\\"') %>",
+            previewSubdomain: "<%- (t.previewSubdomain || t.id || '').replace(/"/g, '\\"') %>",
+            domainStatus: "<%- (t.domainStatus || 'pending_dns').replace(/"/g, '\\"') %>",
+            canonicalToWww: <%= t.canonicalToWww ? 'true' : 'false' %>,
             tier: "<%= t.supportTier %>",
-            active: <%= t.active ? 'true' : 'false' %>
+            active: <%= t.active ? 'true' : 'false' %>,
+            allowPoweredBy: <%= t.allowPoweredBy ? 'true' : 'false' %>
           }<%= i < tenants.length - 1 ? ',' : '' %>
         <% }) %>
       };
@@ -781,6 +865,20 @@
         const d = tenantData[select.value];
         if (!d) return;
         document.getElementById('update-domain').value = d.domain;
+        const primaryDomainEl = document.getElementById('update-primary-domain');
+        if (primaryDomainEl) primaryDomainEl.value = d.primaryDomain || '';
+        const domainsEl = document.getElementById('update-domains');
+        if (domainsEl) domainsEl.value = d.domains || '';
+        const previewEl = document.getElementById('update-preview-subdomain');
+        if (previewEl) previewEl.value = d.previewSubdomain || '';
+        const domainStatusEl = document.getElementById('update-domain-status');
+        if (domainStatusEl) {
+          for (let i = 0; i < domainStatusEl.options.length; i++) {
+            if (domainStatusEl.options[i].value === (d.domainStatus || 'pending_dns')) { domainStatusEl.selectedIndex = i; break; }
+          }
+        }
+        const canonicalToWwwEl = document.getElementById('update-canonical-to-www');
+        if (canonicalToWwwEl) canonicalToWwwEl.checked = !!d.canonicalToWww;
         const tierSel = document.getElementById('update-tier');
         for (let i = 0; i < tierSel.options.length; i++) {
           if (tierSel.options[i].value === d.tier) { tierSel.selectedIndex = i; break; }
@@ -789,6 +887,8 @@
         for (let i = 0; i < activeSel.options.length; i++) {
           if ((activeSel.options[i].value === 'true') === d.active) { activeSel.selectedIndex = i; break; }
         }
+        const allowPoweredByEl = document.getElementById('update-allow-powered-by');
+        if (allowPoweredByEl) allowPoweredByEl.checked = !!d.allowPoweredBy;
       }
 
       // Pre-fill on page load
