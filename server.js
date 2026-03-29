@@ -7,12 +7,9 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
-
-function safeRequire(mod) {
-  try { return require(mod); } catch (e) { return null; }
-}
-const nodemailer = safeRequire('nodemailer');
-const StripeLib  = safeRequire('stripe');
+const nodemailer = require('nodemailer');
+const StripeLib = require('stripe');
+const { normalizeHost, resolveTenantFromHost } = require('./utils/tenant-host-resolver');
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
 function stripeForTenant(config) {
@@ -151,6 +148,25 @@ function isEukolakisClassicPreset(req) {
   const config = loadTenantConfig(req);
   const presetId = config && config.theme && config.theme.presetId;
   return presetId === 'eukolakis_classic_diy';
+}
+
+function detectDeviceInfo(req) {
+  const ua = String((req && req.headers && req.headers['user-agent']) || '').toLowerCase();
+  const os = /iphone|ipad|ipod/.test(ua) ? 'ios' : (/android/.test(ua) ? 'android' : 'other');
+  let device = 'desktop';
+  if (/ipad|tablet/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua))) device = 'tablet';
+  else if (/mobile|iphone|ipod/.test(ua) || (/android/.test(ua) && /mobile/.test(ua))) device = 'mobile';
+  return { device, os };
+}
+function readCheckbox(body, key, currentValue) {
+  if (!body || !Object.prototype.hasOwnProperty.call(body, key)) return currentValue;
+  let raw = body[key];
+  if (Array.isArray(raw)) raw = raw[raw.length - 1];
+  const normalized = String(raw || '').trim().toLowerCase();
+  return ['1', 'true', 'on', 'yes'].includes(normalized);
+}
+function hasBodyField(body, key) {
+  return !!body && Object.prototype.hasOwnProperty.call(body, key);
 }
 
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
@@ -508,16 +524,6 @@ function appendTenantOrder(req, order) {
   saveJson(req.tenantPaths.orders, orders);
 }
 
-function getTenantByHost(hostname) {
-  const tenants = loadTenantsRegistry();
-  const host = (hostname || '').toLowerCase();
-  return tenants.find(
-    (t) =>
-      t.domain &&
-      t.domain.toLowerCase() === host
-  );
-}
-
 // Tenant-scoped loaders
 function loadTenantConfig(req) {
   const fallback = {
@@ -530,6 +536,49 @@ function loadTenantConfig(req) {
     logoPath: '/logo.svg',
     shippingOptions: [],
     paymentOptions: [],
+    homepage: {
+      showSubscriptionsCard: false,
+      introEnabled: false,
+      introVideoUrl: '',
+      introPosterUrl: '',
+      blockOrder: ['hero', 'kits', 'spare', 'subscriptions'],
+      blockVisibility: {
+        hero: true,
+        kits: true,
+        spare: true,
+        subscriptions: true
+      },
+      blockContent: {
+        kitsTitle: '',
+        spareTitle: '',
+        subscriptionsTitle: '',
+        kitsCtaLabel: '',
+        kitsCtaHref: '',
+        spareCtaLabel: '',
+        spareCtaHref: '',
+        subscriptionsCtaLabel: '',
+        subscriptionsCtaHref: ''
+      }
+    },
+    footer: {
+      contactEmail: '',
+      pickupAddress: '',
+      facebookUrl: '',
+      instagramUrl: '',
+      tiktokUrl: '',
+      poweredByEnabled: true,
+      poweredByText: 'Powered by Thronos Commerce ↗',
+      poweredByUrl: 'https://thronoscommerce.thronoschain.org/'
+    },
+    assistant: {
+      enabled: false,
+      apiKey: '',
+      webhookUrl: '',
+      notifyNewOrders: true,
+      notifyLowStock: true,
+      notifyTrackingReminder: true,
+      lowStockThreshold: 3
+    },
     theme: {
       menuBg: '#111111',
       menuText: '#ffffff',
@@ -551,10 +600,57 @@ function loadTenantConfig(req) {
       logoPadding: 6,
       logoRadius: 10,
       logoShadow: 'soft',
-      logoMaxHeight: 52
+      logoMaxHeight: 72,
+      productThumbAspect: '4:3',
+      productThumbFit: 'cover',
+      productThumbBg: '#111111',
+      productCardHoverEffect: 'lift',
+      cardDensity: 'normal',
+      productPreOpenEffect: 'none',
+      footerTextColor: '#6b7280',
+      kitWizardDisplay: 'sequential',
+      spareToolsCardMode: 'prominent',
+      enableDiyQuickScenario: false,
+      kitWizardSkipRule: 'none',
+      homeLayoutPreset: 'split'
     }
   };
-  return loadJson(req.tenantPaths.config, fallback);
+  const cfg = loadJson(req.tenantPaths.config, fallback);
+  const hasStoredKitWizardDisplay = !!(
+    cfg &&
+    cfg.theme &&
+    typeof cfg.theme.kitWizardDisplay === 'string' &&
+    String(cfg.theme.kitWizardDisplay).trim()
+  );
+  cfg.homepage = Object.assign({}, fallback.homepage, cfg.homepage || {});
+  cfg.homepage.secondaryCard = Object.assign(
+    { title: '', text: '', link: '', image: '' },
+    (cfg.homepage && cfg.homepage.secondaryCard) || {}
+  );
+  cfg.homepage.blockVisibility = Object.assign(
+    { hero: true, kits: true, spare: true, subscriptions: true },
+    (cfg.homepage && cfg.homepage.blockVisibility) || {}
+  );
+  cfg.homepage.blockContent = Object.assign(
+    { kitsTitle: '', spareTitle: '', subscriptionsTitle: '' },
+    (cfg.homepage && cfg.homepage.blockContent) || {}
+  );
+  cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
+  cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
+  cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
+  const paymentOptions = Array.isArray(cfg.paymentOptions) ? cfg.paymentOptions.slice() : [];
+  const hasCod = paymentOptions.some((opt) => {
+    const id = String((opt && (opt.id || opt.type)) || '').toLowerCase();
+    return id === 'cod' || id === 'cash_on_delivery';
+  });
+  if (!hasCod) {
+    paymentOptions.unshift({ id: 'COD', label: 'Αντικαταβολή', type: 'cod' });
+  }
+  cfg.paymentOptions = paymentOptions;
+  if (!hasStoredKitWizardDisplay && req.tenant && req.tenant.id === 'eukolakis') {
+    cfg.theme.kitWizardDisplay = 'cinematic';
+  }
+  return cfg;
 }
 
 function loadTenantProducts(req) {
@@ -741,6 +837,33 @@ function calculateTotals(config, product, shippingMethodId, paymentMethodId) {
 
 // Multi-item cart totals
 function calculateCartTotals(config, cartItems, shippingMethodId, paymentMethodId) {
+  return calculateCartTotalsWithDiscounts(config, cartItems, shippingMethodId, paymentMethodId, '');
+}
+
+function normalizeCouponCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function resolveCouponDiscount(config, couponCode, subtotal) {
+  const code = normalizeCouponCode(couponCode);
+  if (!code) return { code: '', discount: 0 };
+  const coupons = Array.isArray(config && config.coupons) ? config.coupons : [];
+  if (!coupons.length && code === 'WELCOME10') {
+    return { code, discount: Math.max(0, Math.min(subtotal * 0.10, subtotal)) };
+  }
+  const coupon = coupons.find((c) => normalizeCouponCode(c.code) === code && c.active !== false);
+  if (!coupon) return { code: '', discount: 0 };
+  const minSubtotal = Number(coupon.minSubtotal) || 0;
+  if (subtotal < minSubtotal) return { code: '', discount: 0 };
+  const type = String(coupon.type || 'percent').toLowerCase();
+  const rawValue = Number(coupon.value) || 0;
+  const discount = type === 'fixed'
+    ? rawValue
+    : subtotal * Math.max(0, Math.min(0.95, rawValue / 100));
+  return { code, discount: Math.max(0, Math.min(discount, subtotal)) };
+}
+
+function calculateCartTotalsWithDiscounts(config, cartItems, shippingMethodId, paymentMethodId, couponCode) {
   const shippingMethod = (config.shippingOptions || []).find((s) => s.id === shippingMethodId);
   const paymentMethod  = (config.paymentOptions  || []).find((p) => p.id === paymentMethodId);
   if (!shippingMethod) throw new Error('Invalid shipping method');
@@ -750,12 +873,33 @@ function calculateCartTotals(config, cartItems, shippingMethodId, paymentMethodI
     !shippingMethod.allowedPaymentMethods.includes(paymentMethod.id)
   ) throw new Error('Ο συγκεκριμένος τρόπος πληρωμής δεν είναι διαθέσιμος για αυτή τη μέθοδο αποστολής.');
 
-  const subtotal     = cartItems.reduce((s, i) => s + (Number(i.price) || 0) * (i.qty || 1), 0);
+  const subtotalBeforeDiscount     = cartItems.reduce((s, i) => s + (Number(i.price) || 0) * (i.qty || 1), 0);
+  const quantityDiscount = cartItems.reduce((s, i) => {
+    const qty = Number(i.qty) || 1;
+    const lineSubtotal = (Number(i.price) || 0) * qty;
+    const rate = qty >= 10 ? 0.10 : (qty >= 5 ? 0.05 : 0);
+    return s + (lineSubtotal * rate);
+  }, 0);
+  const subtotalAfterQtyDiscount = Math.max(0, subtotalBeforeDiscount - quantityDiscount);
+  const coupon = resolveCouponDiscount(config, couponCode, subtotalAfterQtyDiscount);
+  const subtotal = Math.max(0, subtotalAfterQtyDiscount - coupon.discount);
   const shippingCost = Number(shippingMethod.base) || 0;
   const codFee       = paymentMethod.id === 'COD' ? Number(shippingMethod.codFee || 0) : 0;
   const gatewayFee   = subtotal * (Number(paymentMethod.gatewaySurchargePercent) || 0);
   const total        = subtotal + shippingCost + codFee + gatewayFee;
-  return { subtotal, shippingCost, codFee, gatewayFee, total, shippingMethod, paymentMethod };
+  return {
+    subtotalBeforeDiscount,
+    quantityDiscount,
+    couponCodeApplied: coupon.code,
+    couponDiscount: coupon.discount,
+    subtotal,
+    shippingCost,
+    codFee,
+    gatewayFee,
+    total,
+    shippingMethod,
+    paymentMethod
+  };
 }
 
 async function recordOrderOnChain(order, tenant) {
@@ -807,7 +951,7 @@ async function verifyAdminPassword(tenant, plainPassword) {
   return ok;
 }
 
-const ADMIN_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
+const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 async function verifyAdminAction(req, providedPassword) {
   const now = Date.now();
   const last = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
@@ -1025,6 +1169,28 @@ async function sendOrderWebhook({ tenant, config, order }) {
   console.log(`[Thronos Commerce] Webhook sent for order ${order.id} → ${url}`);
 }
 
+async function dispatchAssistantEvent(req, eventType, payload) {
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  if (!assistant.enabled) return;
+  const webhookUrl = String(assistant.webhookUrl || '').trim();
+  if (!webhookUrl) return;
+  const apiKey = String(assistant.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['X-Thronos-Assistant-Key'] = apiKey;
+  const eventPayload = {
+    tenantId: req.tenant.id,
+    eventType,
+    timestamp: new Date().toISOString(),
+    payload
+  };
+  try {
+    await axios.post(webhookUrl, eventPayload, { timeout: 3500, headers });
+  } catch (err) {
+    console.warn('[assistant-event] failed:', err.message);
+  }
+}
+
 // ── Enhanced mailer (THRC_MAIL_* env vars) ───────────────────────────────────
 
 function getMailerTransport() {
@@ -1206,21 +1372,42 @@ const bannerUpload = multer({
     }
   })
 });
+function sanitizeMediaSegment(value, fallback) {
+  const clean = String(value || '')
+    .trim()
+    .replace(/[^a-z0-9-]/gi, '-')
+    .toLowerCase()
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return clean || fallback;
+}
+
+function getVariantMediaMeta(req) {
+  const productId = sanitizeMediaSegment(
+    (req && req.query && req.query.productId) || (req && req.body && req.body.productId),
+    'unknown-product'
+  );
+  const variantSku = sanitizeMediaSegment(
+    (req && req.query && req.query.variantSku) || (req && req.body && req.body.variantSku),
+    'unknown-variant'
+  );
+  return { productId, variantSku };
+}
+
 const variantImageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
+      const { productId, variantSku } = getVariantMediaMeta(req);
+      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
-      const base = path.basename(file.originalname || 'variant-image', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.jpg';
+      const base = sanitizeMediaSegment(path.basename(file.originalname || 'variant-image', ext), 'variant-image');
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
@@ -1230,16 +1417,15 @@ const variantVideoUpload = multer({
   fileFilter: (_req, file, cb) => cb(null, /^video\/(mp4|webm)$/.test(String(file.mimetype || ''))),
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-product';
-      const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'unknown-variant';
-      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'variants', productId, variantKey);
+      const { productId, variantSku } = getVariantMediaMeta(req);
+      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname || '').toLowerCase();
       const safeExt = ['.mp4', '.webm'].includes(ext) ? ext : '.mp4';
-      const base = path.basename(file.originalname || 'variant-video', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const base = sanitizeMediaSegment(path.basename(file.originalname || 'variant-video', ext), 'variant-video');
       cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
@@ -1345,11 +1531,16 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self';");
   next();
 });
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain');
+  res.send('User-agent: *\nAllow: /\nDisallow: /admin\n');
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/tenants', express.static(TENANTS_DIR));
@@ -1384,13 +1575,22 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  const info = detectDeviceInfo(req);
+  req.deviceInfo = info;
+  res.locals.device = info.device;
+  res.locals.os = info.os;
+  next();
+});
+
 // Tenant resolution middleware (skips root operator panel)
 app.use((req, res, next) => {
   if (req.path.startsWith('/root')) return next();
-  const hostHeader = (req.headers.host || '').split(':')[0];
+  const hostHeader = normalizeHost(req.headers.host || '');
   const requestedTenant = (req.query.tenant || '').trim();
   let tenant = null;
   let mode = 'host';
+  let isPlatformRequest = false;
   if (req.pathTenantId) {
     tenant = findTenantById(req.pathTenantId);
     mode = 'path';
@@ -1401,17 +1601,32 @@ app.use((req, res, next) => {
     tenant = findTenantById(req.session.admin.tenantId);
     mode = 'admin-session';
   } else {
-    tenant = getTenantByHost(hostHeader);
-  }
-  if (!tenant) {
-    tenant = findTenantById('demo');
-    mode = mode === 'host' ? 'demo-fallback' : mode;
-  }
-  if (!tenant) {
-    const allTenants = loadTenantsRegistry();
-    if (Array.isArray(allTenants) && allTenants.length) {
-      tenant = allTenants[0];
-      mode = mode === 'host' ? 'registry-fallback' : mode;
+    const tenants = loadTenantsRegistry();
+    const hostResolution = resolveTenantFromHost(hostHeader, tenants);
+    console.log(
+      '[tenant-resolver]',
+      JSON.stringify({
+        host: hostHeader,
+        path: req.originalUrl || req.url,
+        type: hostResolution.type,
+        reason: hostResolution.reason,
+        matchedHost: hostResolution.matchedHost || null,
+        tenantId: hostResolution.tenant ? hostResolution.tenant.id : null
+      })
+    );
+    if (hostResolution.type === 'tenant') {
+      tenant = hostResolution.tenant;
+      mode = 'host';
+    } else if (hostResolution.type === 'platform') {
+      isPlatformRequest = true;
+      tenant = findTenantById('demo') || (Array.isArray(tenants) && tenants.length ? tenants[0] : null);
+      mode = 'platform-host';
+    } else {
+      mode = 'unknown-host';
+      return res.status(404).render('tenant-not-found', {
+        host: hostHeader,
+        supportEmail: process.env.SUPPORT_EMAIL || 'support@thronoschain.org'
+      });
     }
   }
   if (!tenant) {
@@ -1419,10 +1634,21 @@ app.use((req, res, next) => {
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
   }
+  if (
+    mode === 'host' &&
+    tenant.canonicalToWww === true &&
+    hostHeader &&
+    !hostHeader.startsWith('www.') &&
+    !hostHeader.endsWith('.up.railway.app')
+  ) {
+    const canonicalHost = `www.${hostHeader}`;
+    const target = `${req.protocol}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
+    return res.redirect(308, target);
+  }
   req.tenant = tenant;
   req.tenantId = tenant.id;
   req.tenantContext = { mode };
-  req.isPlatformRequest = mode === 'demo-fallback' && !req.pathTenantId && !requestedTenant;
+  req.isPlatformRequest = isPlatformRequest;
   req.tenantPaths = tenantPaths(tenant.id);
   res.locals.user = req.session ? req.session.user : null;
   res.locals.tenantId = tenant.id;
@@ -1448,7 +1674,7 @@ app.use('/admin', (req, res, next) => {
 
 function buildAdminViewModel(req, extra) {
   const config = loadTenantConfig(req);
-  const products = loadTenantProducts(req);
+  const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
   const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
@@ -1474,6 +1700,11 @@ function buildAdminViewModel(req, extra) {
   });
 
   const tickets = loadJson(req.tenantPaths.tickets, []);
+  const now = Date.now();
+  const lastAdminActiveAt = Number(req.session && req.session.adminLastActiveAt ? req.session.adminLastActiveAt : 0);
+  const adminReauthRemainingMs = lastAdminActiveAt
+    ? Math.max(0, ADMIN_IDLE_TIMEOUT_MS - (now - lastAdminActiveAt))
+    : 0;
 
   return {
     tenant: req.tenant,
@@ -1498,6 +1729,8 @@ function buildAdminViewModel(req, extra) {
     exportAccess: hasExportAccess(req),
     backups: listRecentBackups(req, 30),
     tickets: tickets.slice().reverse(),
+    adminActionTimeoutMs: ADMIN_IDLE_TIMEOUT_MS,
+    adminReauthRemainingMs,
     message: null,
     error: null,
     ...(extra || {})
@@ -1547,6 +1780,26 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+app.get('/sitemap.xml', (req, res) => {
+  const config = loadTenantConfig(req);
+  const categories = loadTenantCategories(req);
+  const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const urls = [
+    buildTenantLink(req, '/'),
+    buildTenantLink(req, '/checkout'),
+    buildTenantLink(req, '/login'),
+    buildTenantLink(req, '/signup')
+  ];
+  if (config.homepage && config.homepage.introEnabled) urls.push(buildTenantLink(req, '/intro'));
+  categories.forEach((cat) => urls.push(buildTenantLink(req, '/', { category: cat.slug || cat.id })));
+  products.forEach((p) => urls.push(buildTenantLink(req, `/product/${p.id}`)));
+  const uniqueUrls = Array.from(new Set(urls));
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${uniqueUrls.map((u) => `  <url><loc>${baseUrl}${u}</loc></url>`).join('\n')}\n</urlset>`;
+  res.type('application/xml');
+  res.send(xml);
+});
+
 // Storefront home
 app.get('/', (req, res) => {
   if (req.isPlatformRequest) {
@@ -1559,34 +1812,41 @@ app.get('/', (req, res) => {
   if (req.query.admin === 'true') {
     return res.redirect(buildTenantLink(req, '/admin'));
   }
-  const config = loadTenantConfig(req);
-  const categories = loadTenantCategories(req);
-  const allProducts = loadTenantProducts(req);
-  const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
-    defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
-  }));
-
-  const rawCategory = String(req.query.category || '');
-  let catSlug = normalizeSlug(rawCategory);
-  if (req.tenant.id === 'eukolakis') {
-    const aliasMap = { spare: 'spare-parts' };
-    catSlug = aliasMap[catSlug] || catSlug;
-  }
-  let products = hydratedAllProducts;
-
-  if (catSlug) {
-    const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
-    if (cat) {
-      products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
-    } else {
-      products = [];
-    }
-  }
-
-  const viewLang = req.lang;
-  const localizedConfig = localizeConfigContent(config, viewLang);
-  const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
   try {
+    const config = loadTenantConfig(req);
+    const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+    const cookieHeader = String(req.headers.cookie || '');
+    const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
+    const skipIntro = String(req.query.skipIntro || '') === '1';
+    if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
+      return res.redirect(buildTenantLink(req, '/intro', req.lang !== 'el' ? { lang: req.lang } : {}));
+    }
+    const categories = loadTenantCategories(req);
+    const allProducts = loadTenantProducts(req).filter((p) => p && p.active !== false);
+    const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
+      defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
+    }));
+
+    const rawCategory = String(req.query.category || '');
+    let catSlug = normalizeSlug(rawCategory);
+    if (req.tenant.id === 'eukolakis') {
+      const aliasMap = { spare: 'spare-parts' };
+      catSlug = aliasMap[catSlug] || catSlug;
+    }
+    let products = hydratedAllProducts;
+
+    if (catSlug) {
+      const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
+      if (cat) {
+        products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
+      } else {
+        products = [];
+      }
+    }
+
+    const viewLang = req.lang;
+    const localizedConfig = localizeConfigContent(config, viewLang);
+    const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
     res.render('index', {
       config: localizedConfig,
       categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -1601,10 +1861,29 @@ app.get('/', (req, res) => {
   }
 });
 
+app.get('/intro', (req, res) => {
+  if (req.isPlatformRequest) return res.redirect('/');
+  const config = loadTenantConfig(req);
+  if (!config.homepage || !config.homepage.introEnabled) {
+    return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
+  }
+  const skipHref = buildTenantLink(req, '/', Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
+  const introCookieName = `intro_seen_${sanitizeMediaSegment(req.tenant.id, 'tenant')}`;
+  const introStorageKey = `${introCookieName}_ls`;
+  return res.render('intro', {
+    config: localizeConfigContent(config, req.lang),
+    homepage: config.homepage || {},
+    tenant: req.tenant,
+    skipHref,
+    introCookieName,
+    introStorageKey
+  });
+});
+
 // Product detail
 app.get('/product/:id', (req, res) => {
   const config = loadTenantConfig(req);
-  const products = loadTenantProducts(req);
+  const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const product = products.find((p) => p.id === req.params.id);
 
   if (!product) {
@@ -1634,13 +1913,30 @@ app.get('/checkout', (req, res) => {
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
+app.post('/api/checkout/cart-snapshot', (req, res) => {
+  const raw = req.body && req.body.items;
+  if (!Array.isArray(raw)) return res.status(400).json({ ok: false });
+  const snapshot = raw
+    .filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+    .map((item) => ({
+      id: String(item.id || '').trim(),
+      qty: Math.max(1, parseInt(item.qty, 10) || 1),
+      variantId: item.variantId ? String(item.variantId).trim() : '',
+      isKitSummary: !!item.isKitSummary,
+      selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+    }))
+    .slice(0, 120);
+  req.session.checkoutCartSnapshot = snapshot;
+  return res.json({ ok: true, count: snapshot.length });
+});
+
 // Checkout submit (multi-item cart)
 app.post('/checkout', async (req, res) => {
   const config = loadTenantConfig(req);
   const products = loadTenantProducts(req);
   const {
     name, email, wallet, notes, shippingMethodId, paymentMethodId,
-    city, phone, address, doorbell, tk, cartJson
+    city, phone, address, doorbell, tk, cartJson, couponCode
   } = req.body;
   const sessionEmail = req.session.user ? normalizeEmail(req.session.user.email) : '';
   const checkoutEmail = sessionEmail || normalizeEmail(email);
@@ -1648,6 +1944,9 @@ app.post('/checkout', async (req, res) => {
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
+  if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
+    cartItems = req.session.checkoutCartSnapshot.slice();
+  }
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return res.status(400).send('Cart is empty');
   }
@@ -1763,7 +2062,7 @@ app.post('/checkout', async (req, res) => {
       }
       enrichedItems.push({
         id:           found.id,
-        name:         found.name,
+        name:         resolveTranslatable(found.name, req.lang) || found.id,
         variantId:    variantId || undefined,
         variantLabel: variantLabel || undefined,
         selectedOptions: selectedOptions.length ? selectedOptions : undefined,
@@ -1780,7 +2079,7 @@ app.post('/checkout', async (req, res) => {
 
   let totals;
   try {
-    totals = calculateCartTotals(config, enrichedItems, shippingMethodId, paymentMethodId);
+    totals = calculateCartTotalsWithDiscounts(config, enrichedItems, shippingMethodId, paymentMethodId, couponCode);
   } catch (err) {
     return res.status(400).send(err.message);
   }
@@ -1814,6 +2113,10 @@ app.post('/checkout', async (req, res) => {
     shippingMethodLabel: totals.shippingMethod.label,
     paymentMethodLabel:  totals.paymentMethod.label,
     subtotal:    totals.subtotal,
+    subtotalBeforeDiscount: totals.subtotalBeforeDiscount,
+    quantityDiscount: totals.quantityDiscount,
+    couponCode: totals.couponCodeApplied || '',
+    couponDiscount: totals.couponDiscount || 0,
     shippingCost: totals.shippingCost,
     codFee:      totals.codFee,
     gatewayFee:  totals.gatewayFee,
@@ -1875,6 +2178,8 @@ app.post('/checkout', async (req, res) => {
   // ── Stock deduction (per item) ────────────────────────────────────
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const lowStockAlerts = [];
+  const lowStockThreshold = Number((config.assistant && config.assistant.lowStockThreshold) || 3);
   enrichedItems.forEach((ci) => {
     if (ci.isKitSummary) return;
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
@@ -1884,6 +2189,15 @@ app.post('/checkout', async (req, res) => {
       const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
       if (vIdx >= 0) {
         prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        if (prod.variants[vIdx].stock <= lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: ci.id,
+            productName: ci.name,
+            variantId: ci.variantId,
+            variantLabel: ci.variantLabel,
+            remainingStock: prod.variants[vIdx].stock
+          });
+        }
         stockLog.push({
           id:           Date.now().toString(36) + '_' + ci.id,
           productId:    ci.id,
@@ -1898,6 +2212,13 @@ app.post('/checkout', async (req, res) => {
       }
     } else if ((prod.stock || 0) > 0) {
       prod.stock = Math.max(0, prod.stock - ci.qty);
+      if (prod.stock <= lowStockThreshold) {
+        lowStockAlerts.push({
+          productId: ci.id,
+          productName: ci.name,
+          remainingStock: prod.stock
+        });
+      }
       stockLog.push({
         id:          Date.now().toString(36) + '_' + ci.id,
         productId:   ci.id,
@@ -1931,6 +2252,15 @@ app.post('/checkout', async (req, res) => {
     await sendOrderWebhook({ tenant: req.tenant, config, order });
   } catch (err) {
     console.error('[Thronos Commerce] sendOrderWebhook failed:', err.message);
+  }
+  dispatchAssistantEvent(req, 'new_order', {
+    orderId: order.id,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    items: Array.isArray(order.items) ? order.items.length : 0
+  });
+  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
+    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId });
   }
 
   const mailFrom = (process.env.THRC_MAIL_FROM || process.env.THRC_MAIL_SMTP_USER || '').trim();
@@ -1999,6 +2329,8 @@ app.get('/checkout/stripe-success', async (req, res) => {
   // Stock deduction
   const allProductsMut = loadTenantProducts(req);
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  const lowStockAlerts = [];
+  const lowStockThreshold = Number((config.assistant && config.assistant.lowStockThreshold) || 3);
   enrichedItems.forEach((ci) => {
     const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
     if (pIdx < 0) return;
@@ -2007,10 +2339,26 @@ app.get('/checkout/stripe-success', async (req, res) => {
       const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
       if (vIdx >= 0) {
         prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        if (prod.variants[vIdx].stock <= lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: ci.id,
+            productName: ci.name,
+            variantId: ci.variantId,
+            variantLabel: ci.variantLabel,
+            remainingStock: prod.variants[vIdx].stock
+          });
+        }
         stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, variantLabel: ci.variantLabel, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
       }
     } else if ((prod.stock || 0) > 0) {
       prod.stock = Math.max(0, prod.stock - ci.qty);
+      if (prod.stock <= lowStockThreshold) {
+        lowStockAlerts.push({
+          productId: ci.id,
+          productName: ci.name,
+          remainingStock: prod.stock
+        });
+      }
       stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'stripe_order', orderId: order.id, createdAt: order.createdAt });
     }
   });
@@ -2028,6 +2376,15 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
+  dispatchAssistantEvent(req, 'new_order', {
+    orderId: order.id,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    items: Array.isArray(order.items) ? order.items.length : 0
+  });
+  if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
+    dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId: order.id });
+  }
 
   const allProductsForContent = loadTenantProducts(req);
   const hasDigital = enrichedItems.some((ci) => {
@@ -2042,6 +2399,68 @@ app.get('/checkout/stripe-success', async (req, res) => {
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
+app.get('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
+});
+
+app.post('/track', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const orderId = String(req.body.orderId || '').trim();
+  const email = normalizeEmail(req.body.email || '');
+  const orders = loadTenantOrders(req);
+  const order = orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
+  if (!order) {
+    return res.status(404).render('track-order', {
+      config,
+      tenant: req.tenant,
+      order: null,
+      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
+    });
+  }
+  return res.render('track-order', { config, tenant: req.tenant, order, error: null });
+});
+
+app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
+  const config = loadTenantConfig(req);
+  const assistantCfg = config.assistant || {};
+  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
+  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
+  if (expectedKey && providedKey !== expectedKey) {
+    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
+  }
+  const action = String((req.body && req.body.action) || '').trim();
+  if (action === 'set_setting') {
+    const section = String(req.body.section || '').trim();
+    const key = String(req.body.key || '').trim();
+    const value = req.body.value;
+    const allowList = {
+      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
+      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
+    };
+    if (!allowList[section] || !allowList[section].has(key)) {
+      return res.status(400).json({ ok: false, error: 'setting not allowed' });
+    }
+    config[section] = config[section] || {};
+    config[section][key] = value;
+    saveTenantConfig(req, config);
+    return res.json({ ok: true, action, section, key, value });
+  }
+  if (action === 'send_tracking_reminder') {
+    const orderId = String(req.body.orderId || '').trim();
+    const orders = loadTenantOrders(req);
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
+    await dispatchAssistantEvent(req, 'tracking_reminder', {
+      orderId: order.id,
+      email: order.email,
+      trackingNumber: order.trackingNumber || ''
+    });
+    return res.json({ ok: true, action, orderId });
+  }
+  return res.status(400).json({ ok: false, error: 'unknown action' });
+});
 
 app.get('/admin/login', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
@@ -2280,6 +2699,49 @@ app.get('/admin/export/products.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/export/orders.csv', (req, res) => {
+  const orders = loadTenantOrders(req);
+  const esc = (v) => `"${String(v === undefined || v === null ? '' : v).replace(/"/g, '""')}"`;
+  const rows = [['id', 'createdAt', 'customerName', 'email', 'city', 'paymentStatus', 'subtotal', 'shippingCost', 'total', 'items']];
+  orders.forEach((o) => {
+    const items = Array.isArray(o.items)
+      ? o.items.map((it) => `${it.name || it.id} x${Number(it.qty) || 1}`).join(' | ')
+      : (o.productName || '');
+    rows.push([
+      o.id || '',
+      o.createdAt || '',
+      o.customerName || '',
+      o.email || '',
+      o.city || '',
+      o.paymentStatus || '',
+      Number(o.subtotal || 0).toFixed(2),
+      Number(o.shippingCost || 0).toFixed(2),
+      Number(o.total || 0).toFixed(2),
+      items
+    ]);
+  });
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-orders.csv\"`);
+  res.send(csv);
+});
+
+app.get('/admin/import/variants-template.csv', (req, res) => {
+  const rows = [
+    ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock', 'imageUrl', 'videoUrl', 'videoDescription'],
+    ['example-product-id', 'Variant name', 'example-sku', '19.90', '5', '/tenants/' + req.tenant.id + '/media/variants/example-product-id/example-sku/example.png', '', '']
+  ];
+  const esc = (value) => {
+    const v = String(value || '');
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-variants-template.csv\"`);
+  res.send(csv);
+});
+
 app.get('/admin/export/categories.json', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -2463,7 +2925,12 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
   const headers = rows[0].map((h) => String(h || '').trim());
   const idx = (name) => headers.indexOf(name);
   const missing = ['productId', 'variantName', 'variantSku', 'priceEUR', 'stock'].filter((c) => idx(c) === -1);
-  if (missing.length) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Missing columns: ' + missing.join(', ') }));
+  if (missing.length) {
+    const templateUrl = buildTenantLink(req, '/admin/import/variants-template.csv');
+    return res.status(400).render('admin', buildAdminViewModel(req, {
+      error: `Missing columns: ${missing.join(', ')}. Download template: ${templateUrl}`
+    }));
+  }
   const products = loadTenantProducts(req);
   let okRows = 0;
   const failRows = [];
@@ -2515,6 +2982,45 @@ app.get('/admin/orders', (req, res) => {
   });
 });
 
+app.post('/admin/orders/tracking', async (req, res) => {
+  const { password, orderId, trackingNumber } = req.body;
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: loadTenantOrders(req).slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Λάθος κωδικός διαχειριστή.'
+    });
+  }
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === String(orderId || '').trim());
+  if (idx < 0) {
+    return res.status(404).render('admin-orders', {
+      tenant: req.tenant,
+      config: loadTenantConfig(req),
+      orders: orders.slice(-100).reverse(),
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      error: 'Η παραγγελία δεν βρέθηκε.'
+    });
+  }
+  orders[idx].trackingNumber = String(trackingNumber || '').trim();
+  saveJson(req.tenantPaths.orders, orders);
+  await dispatchAssistantEvent(req, 'tracking_updated', {
+    orderId: orders[idx].id,
+    trackingNumber: orders[idx].trackingNumber,
+    email: orders[idx].email
+  });
+  return res.render('admin-orders', {
+    tenant: req.tenant,
+    config: loadTenantConfig(req),
+    orders: orders.slice(-100).reverse(),
+    permissions: getSupportPermissions(req.tenant.supportTier),
+    message: 'Το tracking ενημερώθηκε.'
+  });
+});
+
 app.post('/admin/settings', async (req, res) => {
   const {
     password,
@@ -2536,6 +3042,28 @@ app.post('/admin/settings', async (req, res) => {
     homepageSecondaryLink,
     homepageSecondaryImage,
     homepageShowSubscriptionsCard,
+    homepageIntroEnabled,
+    homepageIntroVideoUrl,
+    homepageIntroPosterUrl,
+    homepageBlockOrder,
+    homepageBlockHero,
+    homepageBlockKits,
+    homepageBlockSpare,
+    homepageBlockSubscriptions,
+    homepageKitsTitle,
+    homepageSpareTitle,
+    homepageSubscriptionsTitle,
+    homepageKitsCtaLabel,
+    homepageKitsCtaHref,
+    homepageSpareCtaLabel,
+    homepageSpareCtaHref,
+    homepageSubscriptionsCtaLabel,
+    homepageSubscriptionsCtaHref,
+    footerContactEmail,
+    footerPickupAddress,
+    footerFacebookUrl,
+    footerInstagramUrl,
+    footerTiktokUrl,
     web3Domain,
     logoPath,
     themeMenuBg,
@@ -2559,7 +3087,19 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
-    themeCursorImage
+    themeCursorImage,
+    themeProductThumbAspect,
+    themeProductThumbFit,
+    themeProductThumbBg,
+    themeProductCardHoverEffect,
+    themeCardDensity,
+    themeProductPreOpenEffect,
+    themeFooterTextColor,
+    themeKitWizardDisplay,
+    themeSpareToolsCardMode,
+    themeEnableDiyQuickScenario,
+    themeKitWizardSkipRule,
+    themeHomeLayoutPreset
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -2580,7 +3120,11 @@ app.post('/admin/settings', async (req, res) => {
       .status(401)
       .render(
         'admin',
-        buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' })
+        buildAdminViewModel(req, {
+          error: auth.needsPassword
+            ? 'Έληξε το session αποθήκευσης. Βάλε ξανά κωδικό διαχειριστή για να συνεχίσεις.'
+            : 'Λάθος κωδικός διαχειριστή.'
+        })
       );
   }
 
@@ -2608,42 +3152,129 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
   config.theme.sectionSpacing = themeSectionSpacing || config.theme.sectionSpacing || 'normal';
-  config.theme.bannerVisible = themeBannerVisible === 'on';
+  config.theme.bannerVisible = readCheckbox(req.body, 'themeBannerVisible', config.theme.bannerVisible);
   config.theme.previewBadgeStyle = themePreviewBadgeStyle || config.theme.previewBadgeStyle || 'soft';
-  config.theme.cursorEffect = themeCursorEffect === 'on';
+  config.theme.cursorEffect = readCheckbox(req.body, 'themeCursorEffect', config.theme.cursorEffect);
   const rawCursorImage = (themeCursorImage || config.theme.cursorImage || '').trim();
-  config.theme.cursorImage = (/^(\/|https?:\/\/)/i.test(rawCursorImage) ? rawCursorImage : '');
+  config.theme.cursorImage = (/^\//.test(rawCursorImage) ? rawCursorImage : '');
   config.theme.brandingMode = themeBrandingMode || config.theme.brandingMode || 'logo_name';
   config.theme.logoDisplayMode = themeLogoDisplayMode || config.theme.logoDisplayMode || 'contain';
   config.theme.logoBgMode = themeLogoBgMode || config.theme.logoBgMode || 'auto';
   config.theme.logoPadding = Math.max(0, Math.min(24, Number(themeLogoPadding) || Number(config.theme.logoPadding) || 6));
   config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
-  config.theme.logoShadow = themeLogoShadow || config.theme.logoShadow || 'soft';
-  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 52));
-  config.theme.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.theme.presetId || 'default');
-
+  const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
+  config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 72));
+  config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
+  config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
+  const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
+  config.theme.productThumbBg = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawThumbBg) ? rawThumbBg : '#111111';
+  config.theme.productCardHoverEffect = ['none', 'lift', 'glow'].includes(String(themeProductCardHoverEffect || '')) ? String(themeProductCardHoverEffect) : (config.theme.productCardHoverEffect || 'lift');
+  config.theme.cardDensity = ['compact', 'normal', 'spacious'].includes(String(themeCardDensity || '')) ? String(themeCardDensity) : (config.theme.cardDensity || 'normal');
+  config.theme.productPreOpenEffect = ['none', 'exposure'].includes(String(themeProductPreOpenEffect || '')) ? String(themeProductPreOpenEffect) : (config.theme.productPreOpenEffect || 'none');
+  const rawFooterTextColor = String(themeFooterTextColor || config.theme.footerTextColor || '#6b7280').trim();
+  config.theme.footerTextColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rawFooterTextColor) ? rawFooterTextColor : '#6b7280';
+  config.theme.kitWizardDisplay = ['sequential', 'cinematic'].includes(String(themeKitWizardDisplay || ''))
+    ? String(themeKitWizardDisplay)
+    : (config.theme.kitWizardDisplay || 'sequential');
+  config.theme.spareToolsCardMode = ['prominent', 'compact'].includes(String(themeSpareToolsCardMode || ''))
+    ? String(themeSpareToolsCardMode)
+    : (config.theme.spareToolsCardMode || 'prominent');
+  config.theme.enableDiyQuickScenario = readCheckbox(req.body, 'themeEnableDiyQuickScenario', !!config.theme.enableDiyQuickScenario);
+  config.theme.kitWizardSkipRule = ['none', 'optional', 'all'].includes(String(themeKitWizardSkipRule || ''))
+    ? String(themeKitWizardSkipRule)
+    : (config.theme.kitWizardSkipRule || 'none');
+  config.theme.homeLayoutPreset = ['split', 'stacked'].includes(String(themeHomeLayoutPreset || ''))
+    ? String(themeHomeLayoutPreset)
+    : (config.theme.homeLayoutPreset || 'split');
   config.homepage = config.homepage || {};
-  config.homepage.presetId = req.tenant.id === 'eukolakis' ? 'eukolakis_classic_diy' : (config.homepage.presetId || 'default');
-  config.homepage.heroImage = (homepageHeroImage || config.homepage.heroImage || '').trim();
-  const legacyFeaturedIds = String(homepageFeaturedIds || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const featuredPrimaryCombined = [homepageFeaturedPrimary1, homepageFeaturedPrimary2].filter(Boolean).join(',') || homepageFeaturedPrimary || '';
-  const featuredPrimary = String(featuredPrimaryCombined || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 2);
-  config.homepage.featuredPrimary = featuredPrimary.length ? featuredPrimary : legacyFeaturedIds.slice(0, 2);
-  config.homepage.featuredSecondaryId = (homepageFeaturedSecondaryId || config.homepage.featuredSecondaryId || '').trim();
-  config.homepage.featuredIds = legacyFeaturedIds;
+  if (hasBodyField(req.body, 'homepageHeroImage')) {
+    config.homepage.heroImage = String(homepageHeroImage || '').trim();
+  }
+  const hasLegacyFeaturedIds = hasBodyField(req.body, 'homepageFeaturedIds');
+  const hasFeaturedPrimaryInputs =
+    hasBodyField(req.body, 'homepageFeaturedPrimary') ||
+    hasBodyField(req.body, 'homepageFeaturedPrimary1') ||
+    hasBodyField(req.body, 'homepageFeaturedPrimary2');
+  if (hasLegacyFeaturedIds || hasFeaturedPrimaryInputs) {
+    const legacyFeaturedIds = String(homepageFeaturedIds || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const featuredPrimaryCombined = [homepageFeaturedPrimary1, homepageFeaturedPrimary2].filter(Boolean).join(',') || homepageFeaturedPrimary || '';
+    const featuredPrimary = String(featuredPrimaryCombined || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 2);
+    config.homepage.featuredPrimary = featuredPrimary.length ? featuredPrimary : legacyFeaturedIds.slice(0, 2);
+    config.homepage.featuredIds = legacyFeaturedIds;
+  }
+  if (hasBodyField(req.body, 'homepageFeaturedSecondaryId')) {
+    config.homepage.featuredSecondaryId = String(homepageFeaturedSecondaryId || '').trim();
+  }
   config.homepage.secondaryCard = config.homepage.secondaryCard || {};
-  config.homepage.secondaryCard.title = buildTranslatableFromBody(req.body, 'homepageSecondaryTitle', homepageSecondaryTitle || config.homepage.secondaryCard.title || '');
-  config.homepage.secondaryCard.text = buildTranslatableFromBody(req.body, 'homepageSecondaryText', homepageSecondaryText || config.homepage.secondaryCard.text || '');
-  config.homepage.secondaryCard.link = (homepageSecondaryLink || config.homepage.secondaryCard.link || '').trim();
-  config.homepage.secondaryCard.image = (homepageSecondaryImage || config.homepage.secondaryCard.image || '').trim();
-  config.homepage.showSubscriptionsCard = homepageShowSubscriptionsCard === 'on';
+  if (
+    hasBodyField(req.body, 'homepageSecondaryTitle') ||
+    CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSecondaryTitle_${lang}`))
+  ) {
+    config.homepage.secondaryCard.title = buildTranslatableFromBody(
+      req.body,
+      'homepageSecondaryTitle',
+      config.homepage.secondaryCard.title || ''
+    );
+  }
+  if (
+    hasBodyField(req.body, 'homepageSecondaryText') ||
+    CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSecondaryText_${lang}`))
+  ) {
+    config.homepage.secondaryCard.text = buildTranslatableFromBody(
+      req.body,
+      'homepageSecondaryText',
+      config.homepage.secondaryCard.text || ''
+    );
+  }
+  if (hasBodyField(req.body, 'homepageSecondaryLink')) {
+    config.homepage.secondaryCard.link = String(homepageSecondaryLink || '').trim();
+  }
+  if (hasBodyField(req.body, 'homepageSecondaryImage')) {
+    config.homepage.secondaryCard.image = String(homepageSecondaryImage || '').trim();
+  }
+  config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
+  config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
+  config.homepage.introVideoUrl = (homepageIntroVideoUrl || config.homepage.introVideoUrl || '').trim();
+  config.homepage.introPosterUrl = (homepageIntroPosterUrl || config.homepage.introPosterUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageBlockOrder')) {
+    const parsedOrder = String(homepageBlockOrder || '')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+    const validKeys = ['hero', 'kits', 'spare', 'subscriptions'];
+    const normalized = parsedOrder.filter((k) => validKeys.includes(k));
+    const merged = normalized.concat(validKeys.filter((k) => !normalized.includes(k)));
+    config.homepage.blockOrder = merged;
+  }
+  config.homepage.blockVisibility = config.homepage.blockVisibility || {};
+  config.homepage.blockVisibility.hero = readCheckbox(req.body, 'homepageBlockHero', config.homepage.blockVisibility.hero !== false);
+  config.homepage.blockVisibility.kits = readCheckbox(req.body, 'homepageBlockKits', config.homepage.blockVisibility.kits !== false);
+  config.homepage.blockVisibility.spare = readCheckbox(req.body, 'homepageBlockSpare', config.homepage.blockVisibility.spare !== false);
+  config.homepage.blockVisibility.subscriptions = readCheckbox(req.body, 'homepageBlockSubscriptions', config.homepage.blockVisibility.subscriptions !== false);
+  config.homepage.blockContent = config.homepage.blockContent || {};
+  if (hasBodyField(req.body, 'homepageKitsTitle')) config.homepage.blockContent.kitsTitle = String(homepageKitsTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareTitle')) config.homepage.blockContent.spareTitle = String(homepageSpareTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsTitle')) config.homepage.blockContent.subscriptionsTitle = String(homepageSubscriptionsTitle || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaLabel')) config.homepage.blockContent.kitsCtaLabel = String(homepageKitsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageKitsCtaHref')) config.homepage.blockContent.kitsCtaHref = String(homepageKitsCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaLabel')) config.homepage.blockContent.spareCtaLabel = String(homepageSpareCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSpareCtaHref')) config.homepage.blockContent.spareCtaHref = String(homepageSpareCtaHref || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaLabel')) config.homepage.blockContent.subscriptionsCtaLabel = String(homepageSubscriptionsCtaLabel || '').trim();
+  if (hasBodyField(req.body, 'homepageSubscriptionsCtaHref')) config.homepage.blockContent.subscriptionsCtaHref = String(homepageSubscriptionsCtaHref || '').trim();
+  config.footer = config.footer || {};
+  config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
+  config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();
+  config.footer.facebookUrl = (footerFacebookUrl || config.footer.facebookUrl || '').trim();
+  config.footer.instagramUrl = (footerInstagramUrl || config.footer.instagramUrl || '').trim();
+  config.footer.tiktokUrl = (footerTiktokUrl || config.footer.tiktokUrl || '').trim();
 
   saveTenantConfig(req, config);
 
@@ -2651,6 +3282,40 @@ app.post('/admin/settings', async (req, res) => {
     'admin',
     buildAdminViewModel(req, { message: 'Οι ρυθμίσεις αποθηκεύτηκαν.' })
   );
+});
+
+app.post('/admin/coupons', async (req, res) => {
+  const { password, code, type, value, minSubtotal, active } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή κουπονιών.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const normalizedCode = normalizeCouponCode(code || '');
+  if (!normalizedCode) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Δώστε έγκυρο coupon code.' }));
+  }
+  const couponType = String(type || 'percent').toLowerCase() === 'fixed' ? 'fixed' : 'percent';
+  const couponValue = Math.max(0, Number(value) || 0);
+  const couponMinSubtotal = Math.max(0, Number(minSubtotal) || 0);
+  const config = loadTenantConfig(req);
+  const coupons = Array.isArray(config.coupons) ? config.coupons.slice() : [];
+  const idx = coupons.findIndex((c) => normalizeCouponCode(c.code) === normalizedCode);
+  const nextCoupon = {
+    code: normalizedCode,
+    type: couponType,
+    value: couponValue,
+    minSubtotal: couponMinSubtotal,
+    active: String(active || '1') !== '0'
+  };
+  if (idx >= 0) coupons[idx] = Object.assign({}, coupons[idx], nextCoupon);
+  else coupons.push(nextCoupon);
+  config.coupons = coupons;
+  saveTenantConfig(req, config);
+  return res.render('admin', buildAdminViewModel(req, { message: `Το κουπόνι ${normalizedCode} αποθηκεύτηκε.` }));
 });
 
 app.post('/admin/notifications', async (req, res) => {
@@ -3040,6 +3705,7 @@ app.post('/admin/products', async (req, res) => {
         p.seoDescription = desc.length > 160 ? desc.slice(0, 157) + '…' : desc || p.seoTitle;
       }
       if (!Array.isArray(p.gallery)) p.gallery = [];
+      if (typeof p.active !== 'boolean') p.active = true;
     });
     saveTenantProducts(req, parsed);
     res.render(
@@ -3152,10 +3818,9 @@ app.post(
     const auth = await verifyAdminAction(req, req.body.password);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No image uploaded.' });
-    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
+    const { productId, variantSku } = getVariantMediaMeta(req);
+    const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
+    return res.json({ ok: true, url });
   }
 );
 
@@ -3170,10 +3835,9 @@ app.post(
     const auth = await verifyAdminAction(req, req.body.password);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
     if (!req.file) return res.status(400).json({ ok: false, error: 'No video uploaded.' });
-    const productId = String(req.body.productId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    const variantKey = String(req.body.variantSku || req.body.variantId || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
-    if (!productId || !variantKey) return res.status(400).json({ ok: false, error: 'productId and variantId/variantSku are required.' });
-    return res.json({ ok: true, url: `/tenants/${req.tenant.id}/media/variants/${productId}/${variantKey}/${req.file.filename}` });
+    const { productId, variantSku } = getVariantMediaMeta(req);
+    const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
+    return res.json({ ok: true, url });
   }
 );
 
@@ -3807,7 +4471,10 @@ app.get('/root/logout', (req, res) => {
 });
 
 app.post('/root/tenants/create', async (req, res) => {
-  const { rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent } = req.body;
+  const {
+    rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent,
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
+  } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
     return res.status(401).render('root-tenants',
@@ -3835,10 +4502,24 @@ app.post('/root/tenants/create', async (req, res) => {
   const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
 
   const cleanRefCode = (refCode || '').trim();
+  const primaryDomainClean = String(primaryDomain || domain || '').trim().toLowerCase();
+  const domainsArray = String(domains || '')
+    .split(',')
+    .map((d) => normalizeHost(d))
+    .filter(Boolean);
+  if (primaryDomainClean && !domainsArray.includes(primaryDomainClean)) domainsArray.unshift(primaryDomainClean);
+  const previewSubdomainClean = String(previewSubdomain || cleanId).trim().toLowerCase();
+  const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
   const newTenant = {
     id: cleanId,
     domain: (domain || '').trim(),
+    primaryDomain: primaryDomainClean || '',
+    domains: domainsArray,
+    previewSubdomain: previewSubdomainClean,
+    domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
+    canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
     supportTier: resolvedTier,
+    allowPoweredBy: false,
     adminPasswordHash,
     createdAt: new Date().toISOString(),
     active: true,
@@ -3884,7 +4565,10 @@ app.post('/root/templates/create', (req, res) => {
 });
 
 app.post('/root/tenants/update', (req, res) => {
-  const { rootPassword, tenantId, domain, supportTier, active } = req.body;
+  const {
+    rootPassword, tenantId, domain, supportTier, active, allowPoweredBy,
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
+  } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
     return res.status(401).render('root-tenants',
@@ -3899,8 +4583,28 @@ app.post('/root/tenants/update', (req, res) => {
   }
 
   if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
+  if (primaryDomain !== undefined) tenants[idx].primaryDomain = normalizeHost(primaryDomain || '');
+  if (domains !== undefined) {
+    const parsedDomains = String(domains || '')
+      .split(',')
+      .map((d) => normalizeHost(d))
+      .filter(Boolean);
+    const normalizedPrimary = normalizeHost(tenants[idx].primaryDomain || tenants[idx].domain || '');
+    if (normalizedPrimary && !parsedDomains.includes(normalizedPrimary)) parsedDomains.unshift(normalizedPrimary);
+    tenants[idx].domains = parsedDomains;
+  }
+  if (previewSubdomain !== undefined) tenants[idx].previewSubdomain = String(previewSubdomain || '').trim().toLowerCase();
+  if (domainStatus !== undefined) {
+    const normalizedStatus = String(domainStatus || '').trim();
+    const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
+    tenants[idx].domainStatus = allowedDomainStatuses.includes(normalizedStatus) ? normalizedStatus : (tenants[idx].domainStatus || 'pending_dns');
+  }
+  if (canonicalToWww !== undefined) {
+    tenants[idx].canonicalToWww = canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on';
+  }
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';
+  tenants[idx].allowPoweredBy = allowPoweredBy === 'true' || allowPoweredBy === '1' || allowPoweredBy === 'on';
 
   const { subscriptionExpiry } = req.body;
   if (subscriptionExpiry) {
@@ -3978,107 +4682,118 @@ app.post('/root/tenants/payment-config', (req, res) => {
 
 // ── Stripe webhook → referral earnings ───────────────────────────────────────
 app.post('/stripe/webhook', async (req, res) => {
-  const sig    = req.headers['stripe-signature'] || '';
-  const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
-  let event;
+  try {
+    const sig = req.headers['stripe-signature'] || '';
+    const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    let event;
 
-  // Verify signature when secret is configured
-  if (secret) {
-    try {
-      // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
-      const payload   = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
-      const parts     = sig.split(',').reduce((acc, p) => {
-        const [k, v] = p.split('='); acc[k] = v; return acc;
-      }, {});
-      const ts        = parts.t;
-      const expected  = crypto.createHmac('sha256', secret)
-                              .update(`${ts}.${payload.toString()}`)
-                              .digest('hex');
-      if (expected !== parts.v1) {
-        console.warn('[Stripe Webhook] Invalid signature');
-        return res.status(400).json({ error: 'Invalid signature' });
+    // Verify signature when secret is configured
+    if (secret) {
+      try {
+        // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
+        const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+        const parts = sig.split(',').reduce((acc, p) => {
+          const [k, v] = p.split('='); acc[k] = v; return acc;
+        }, {});
+        const ts = parts.t;
+        const expected = crypto.createHmac('sha256', secret)
+          .update(`${ts}.${payload.toString()}`)
+          .digest('hex');
+        if (expected !== parts.v1) {
+          console.warn('[Stripe Webhook] Invalid signature');
+          return res.status(400).json({ error: 'Invalid signature' });
+        }
+        event = JSON.parse(payload.toString());
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
       }
-      event = JSON.parse(payload.toString());
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
+    } else {
+      // In production, webhook secret is required — reject unverified events
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      // Dev/testing only — accept raw JSON
+      try {
+        event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid JSON' });
+      }
     }
-  } else {
-    // In production, webhook secret is required — reject unverified events
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
-    }
-    // Dev/testing only — accept raw JSON
-    try {
-      event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
-    } catch (err) {
-      return res.status(400).json({ error: 'Invalid JSON' });
-    }
+
+    const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
+    if (!HANDLED.includes(event.type)) return res.json({ received: true });
+
+    const obj = event.data && event.data.object;
+    if (!obj) return res.json({ received: true });
+
+    // Resolve tenantId from metadata
+    const tenantId = (obj.metadata && obj.metadata.tenantId) || '';
+    const externalId = obj.id || '';
+    const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
+    const amountFiat = +(amountRaw / 100).toFixed(2);
+    const currency = (obj.currency || 'eur').toUpperCase();
+
+    if (!tenantId || amountFiat <= 0) return res.json({ received: true });
+
+    const tenants = loadTenantsRegistry();
+    const tenant = tenants.find((t) => t.id === tenantId);
+    if (!tenant || !tenant.referral || !tenant.referral.code) return res.json({ received: true });
+
+    const refCode = tenant.referral.code;
+    const percent = typeof tenant.referral.percent === 'number' ? tenant.referral.percent : 0.1;
+    const commission = +(amountFiat * percent).toFixed(2);
+    const source = event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout';
+
+    // Write earning row (idempotent for webhook retries)
+    const earnings = loadReferralEarnings();
+    const alreadyRecorded = earnings.some((e) =>
+      e && e.tenantId === tenantId && e.externalId === externalId && e.source === source
+    );
+    if (alreadyRecorded) return res.json({ received: true });
+
+    const earningId = `re_${Date.now().toString(36)}`;
+    earnings.push({
+      id:          earningId,
+      tenantId,
+      refCode,
+      amountFiat:  commission,
+      currency,
+      source,
+      externalId,
+      status:      'pending',
+      createdAt:   new Date().toISOString(),
+      paidAt:      null,
+      paidVia:     null,
+      txId:        null
+    });
+    saveReferralEarnings(earnings);
+
+    // Update account totals
+    const accounts = ensureReferralAccount(refCode, percent);
+    accounts[refCode].totals.earnedFiat = +(accounts[refCode].totals.earnedFiat + commission).toFixed(2);
+    if (!accounts[refCode].tenants.includes(tenantId)) accounts[refCode].tenants.push(tenantId);
+    saveReferralAccounts(accounts);
+
+    console.log(`[Referral] Earning recorded: refCode=${refCode} tenant=${tenantId} commission=${commission} ${currency}`);
+
+    // Notify core (fire-and-forget)
+    coreReferralEarn({
+      tenantId,
+      refCode,
+      amountFiat: commission,
+      currency,
+      source,
+      externalId,
+      payoutMode: 'offchain_fiat',
+      meta: { stripeEvent: event.type }
+    }).catch(() => {});
+
+    return res.json({ received: true });
+  } catch (err) {
+    console.error('[Stripe Webhook] Unexpected error:', err.message);
+    return res.status(200).json({ received: true });
   }
-
-  const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
-  if (!HANDLED.includes(event.type)) return res.json({ received: true });
-
-  const obj       = event.data && event.data.object;
-  if (!obj) return res.json({ received: true });
-
-  // Resolve tenantId from metadata
-  const tenantId  = (obj.metadata && obj.metadata.tenantId) || '';
-  const externalId = obj.id || '';
-  const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
-  const amountFiat = +(amountRaw / 100).toFixed(2);
-  const currency  = (obj.currency || 'eur').toUpperCase();
-
-  if (!tenantId || amountFiat <= 0) return res.json({ received: true });
-
-  const tenants   = loadTenantsRegistry();
-  const tenant    = tenants.find((t) => t.id === tenantId);
-  if (!tenant || !tenant.referral || !tenant.referral.code) return res.json({ received: true });
-
-  const refCode   = tenant.referral.code;
-  const percent   = typeof tenant.referral.percent === 'number' ? tenant.referral.percent : 0.1;
-  const commission = +(amountFiat * percent).toFixed(2);
-
-  // Write earning row
-  const earnings  = loadReferralEarnings();
-  const earningId = `re_${Date.now().toString(36)}`;
-  earnings.push({
-    id:          earningId,
-    tenantId,
-    refCode,
-    amountFiat:  commission,
-    currency,
-    source:      event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout',
-    externalId,
-    status:      'pending',
-    createdAt:   new Date().toISOString(),
-    paidAt:      null,
-    paidVia:     null,
-    txId:        null
-  });
-  saveReferralEarnings(earnings);
-
-  // Update account totals
-  const accounts  = ensureReferralAccount(refCode, percent);
-  accounts[refCode].totals.earnedFiat = +(accounts[refCode].totals.earnedFiat + commission).toFixed(2);
-  if (!accounts[refCode].tenants.includes(tenantId)) accounts[refCode].tenants.push(tenantId);
-  saveReferralAccounts(accounts);
-
-  console.log(`[Referral] Earning recorded: refCode=${refCode} tenant=${tenantId} commission=${commission} ${currency}`);
-
-  // Notify core (fire-and-forget)
-  coreReferralEarn({
-    tenantId,
-    refCode,
-    amountFiat: commission,
-    currency,
-    source:     event.type === 'invoice.payment_succeeded' ? 'stripe_subscription' : 'stripe_checkout',
-    externalId,
-    payoutMode: 'offchain_fiat',
-    meta:       { stripeEvent: event.type }
-  }).catch(() => {});
-
-  res.json({ received: true });
 });
 
 // ── Root: referral config per tenant ─────────────────────────────────────────
