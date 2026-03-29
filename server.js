@@ -2572,68 +2572,6 @@ app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req,
   return res.status(400).json({ ok: false, error: 'unknown action' });
 });
 
-app.get('/track', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  res.render('track-order', { config, tenant: req.tenant, order: null, error: null });
-});
-
-app.post('/track', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  const orderId = String(req.body.orderId || '').trim();
-  const email = normalizeEmail(req.body.email || '');
-  const orders = loadTenantOrders(req);
-  const order = orders.find((o) => o.id === orderId && normalizeEmail(o.email) === email);
-  if (!order) {
-    return res.status(404).render('track-order', {
-      config,
-      tenant: req.tenant,
-      order: null,
-      error: req.lang === 'el' ? 'Δεν βρέθηκε παραγγελία με αυτά τα στοιχεία.' : 'No order found for these details.'
-    });
-  }
-  return res.render('track-order', { config, tenant: req.tenant, order, error: null });
-});
-
-app.post('/api/assistant/command', express.json({ limit: '256kb' }), async (req, res) => {
-  const config = loadTenantConfig(req);
-  const assistantCfg = config.assistant || {};
-  const expectedKey = String(assistantCfg.apiKey || process.env.THRC_ASSISTANT_API_KEY || '').trim();
-  const providedKey = String(req.headers['x-thronos-assistant-key'] || '').trim();
-  if (expectedKey && providedKey !== expectedKey) {
-    return res.status(401).json({ ok: false, error: 'invalid assistant key' });
-  }
-  const action = String((req.body && req.body.action) || '').trim();
-  if (action === 'set_setting') {
-    const section = String(req.body.section || '').trim();
-    const key = String(req.body.key || '').trim();
-    const value = req.body.value;
-    const allowList = {
-      theme: new Set(['cardDensity', 'productPreOpenEffect', 'productCardHoverEffect', 'logoMaxHeight']),
-      homepage: new Set(['introEnabled', 'showSubscriptionsCard'])
-    };
-    if (!allowList[section] || !allowList[section].has(key)) {
-      return res.status(400).json({ ok: false, error: 'setting not allowed' });
-    }
-    config[section] = config[section] || {};
-    config[section][key] = value;
-    saveTenantConfig(req, config);
-    return res.json({ ok: true, action, section, key, value });
-  }
-  if (action === 'send_tracking_reminder') {
-    const orderId = String(req.body.orderId || '').trim();
-    const orders = loadTenantOrders(req);
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return res.status(404).json({ ok: false, error: 'order not found' });
-    await dispatchAssistantEvent(req, 'tracking_reminder', {
-      orderId: order.id,
-      email: order.email,
-      trackingNumber: order.trackingNumber || ''
-    });
-    return res.json({ ok: true, action, orderId });
-  }
-  return res.status(400).json({ ok: false, error: 'unknown action' });
-});
-
 app.get('/admin/login', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   if (req.session.admin && req.session.admin.tenantId === req.tenant.id) return res.redirect(buildTenantLink(req, '/admin'));
