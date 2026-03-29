@@ -78,6 +78,7 @@
     <script>
       // Clear cart after successful order
       try { localStorage.removeItem('thrc_cart'); } catch(e) {}
+      try { sessionStorage.removeItem('thrc_cart_session'); } catch(e) {}
     </script>
     <% } %>
   </body>
