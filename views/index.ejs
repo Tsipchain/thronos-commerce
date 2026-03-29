@@ -645,21 +645,27 @@
       };
     })) %></script>
     <% } %>
-    <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
-      <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
-      <div class="social-links" style="justify-content:center;">
-        <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
-        <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
-        <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
-      </div>
-      <% } %>
-      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
-      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
-      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
-      <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
-      <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
-      <% } %>
-    </footer>
+<footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
+  <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
+  <div class="social-links" style="justify-content:center;">
+    <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
+    <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
+    <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
+  </div>
+  <% } %>
+
+  <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+  <% if (config.footer && config.footer.contactEmail) { %>
+    <div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div>
+  <% } %>
+  <% if (config.footer && config.footer.pickupAddress) { %>
+    <div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div>
+  <% } %>
+
+  <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
+    <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
+  <% } %>
+</footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
     <%- include('_cart') %>
