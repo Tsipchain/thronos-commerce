@@ -75,7 +75,8 @@
     "logoRadius": 12,
     "logoShadow": "floating",
     "logoMaxHeight": 56,
-    "presetId": "eukolakis_classic_diy"
+    "presetId": "eukolakis_classic_diy",
+    "colorMode": "dark"
   },
   "homepage": {
     "presetId": "eukolakis_classic_diy",
@@ -101,6 +102,9 @@
       "link": "/?category=spare-parts",
       "image": ""
     },
-    "showSubscriptionsCard": true
+    "showSubscriptionsCard": true,
+    "introEnabled": false,
+    "introVideoUrl": "",
+    "introPosterUrl": ""
   }
 }
