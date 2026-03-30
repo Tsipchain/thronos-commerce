@@ -921,57 +921,6 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function normalizeFulfillmentStatus(order) {
-  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
-  if (raw) return raw;
-  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
-  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
-  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
-  if (paymentStatus === 'PAID') return 'ready_to_ship';
-  if (paymentStatus === 'CANCELLED') return 'cancelled';
-  return 'ready_to_ship';
-}
-
-function orderHasTracking(order) {
-  return !!String(order && order.trackingNumber ? order.trackingNumber : '').trim();
-}
-
-function normalizeFulfillmentTimestamps(order) {
-  const rawShippedAt = String(order && order.shippedAt ? order.shippedAt : '').trim();
-  const rawDeliveredAt = String(order && order.deliveredAt ? order.deliveredAt : '').trim();
-  return {
-    shippedAt: rawShippedAt || null,
-    deliveredAt: rawDeliveredAt || null
-  };
-}
-
-function normalizeOrderForFulfillment(order) {
-  const fulfillmentStatus = normalizeFulfillmentStatus(order);
-  const trackingCarrier = String(order && order.trackingCarrier ? order.trackingCarrier : '').trim();
-  const trackingNumber = String(order && order.trackingNumber ? order.trackingNumber : '').trim();
-  const trackingUrl = String(order && order.trackingUrl ? order.trackingUrl : '').trim() || deriveTrackingUrl(trackingCarrier, trackingNumber);
-  const ts = normalizeFulfillmentTimestamps(order);
-  return {
-    ...order,
-    fulfillmentStatus,
-    trackingCarrier,
-    trackingNumber,
-    trackingUrl,
-    shippedAt: ts.shippedAt,
-    deliveredAt: ts.deliveredAt,
-    hasTracking: !!trackingNumber
-  };
-}
-
-function isOrderUnresolved(order) {
-  const fulfillmentStatus = normalizeFulfillmentStatus(order);
-  const hasTracking = orderHasTracking(order);
-  if (fulfillmentStatus === 'cancelled' || fulfillmentStatus === 'delivered') return false;
-  if (fulfillmentStatus === 'issue') return true;
-  if (fulfillmentStatus === 'shipped') return !hasTracking;
-  return !hasTracking || ['cod_pending', 'pending_payment', 'ready_to_ship'].includes(fulfillmentStatus);
-}
-
 function deriveTrackingUrl(carrier, trackingNumber) {
   const number = String(trackingNumber || '').trim();
   if (!number) return '';
@@ -982,6 +931,18 @@ function deriveTrackingUrl(carrier, trackingNumber) {
   if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
   if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
   return '';
+}
+
+function normalizeFulfillmentStatus(order) {
+  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
+  const allowed = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (allowed.has(raw)) return raw;
+  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
+  if (paymentStatus === 'PAID') return 'ready_to_ship';
+  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
+  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
+  if (paymentStatus === 'CANCELLED') return 'cancelled';
+  return 'ready_to_ship';
 }
 
 function safeJsonForScript(value) {
