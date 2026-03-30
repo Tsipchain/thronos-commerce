@@ -2209,7 +2209,9 @@ app.get('/', (req, res) => {
     const introSeen = new RegExp(`(?:^|;\\s*)${introCookieName}=1(?:;|$)`).test(cookieHeader);
     const skipIntro = String(req.query.skipIntro || '') === '1';
     if (config.homepage && config.homepage.introEnabled && !introSeen && !skipIntro) {
-      const nextTarget = String((req.originalUrl || req.url || '/')).trim() || '/';
+      // Use req.url (already rewritten, tenant-prefix-stripped) so buildTenantLink
+      // doesn't double-prepend /t/:tenantId when constructing the ?next= redirect.
+      const nextTarget = String(req.url || '/').trim() || '/';
       return res.redirect(buildTenantLink(req, '/intro', Object.assign({ next: nextTarget }, req.lang !== 'el' ? { lang: req.lang } : {})));
     }
     const categories = loadTenantCategories(req);
