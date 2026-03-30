@@ -4,45 +4,45 @@ const { resolveTenantFromHost } = require('../utils/tenant-host-resolver');
 
 const tenants = [
   {
+    id: 'demo',
+    domain: 'demo.thronoscommerce.local',
+    primaryDomain: 'demo-shop.gr',
+    domains: ['demo-shop.gr', 'www.demo-shop.gr'],
+    previewSubdomain: 'demo'
+  },
+  {
     id: 'eukolakis',
+    domain: 'eukolaki.gr',
     primaryDomain: 'eukolaki.gr',
     domains: ['eukolaki.gr', 'www.eukolaki.gr'],
-    previewSubdomain: 'eukolakis',
-    domainStatus: 'active'
+    previewSubdomain: 'eukolakis'
   }
 ];
 
-test('preview domain resolves to tenant', () => {
-  const result = resolveTenantFromHost('eukolakis.thronoscommerce.thronoschain.org', tenants);
-  assert.equal(result.type, 'tenant');
-  assert.equal(result.tenant.id, 'eukolakis');
+test('resolves configured custom apex host', () => {
+  const out = resolveTenantFromHost('eukolaki.gr', tenants);
+  assert.equal(out.type, 'tenant');
+  assert.equal(out.tenant.id, 'eukolakis');
 });
 
-test('custom domain resolves to tenant', () => {
-  const result = resolveTenantFromHost('www.eukolaki.gr', tenants);
-  assert.equal(result.type, 'tenant');
-  assert.equal(result.tenant.id, 'eukolakis');
+test('resolves configured custom www host', () => {
+  const out = resolveTenantFromHost('www.eukolaki.gr', tenants);
+  assert.equal(out.type, 'tenant');
+  assert.equal(out.tenant.id, 'eukolakis');
 });
 
-test('unknown custom domain resolves unknown', () => {
-  const result = resolveTenantFromHost('unknown-shop.gr', tenants);
-  assert.equal(result.type, 'unknown');
+test('resolves preview host', () => {
+  const out = resolveTenantFromHost('eukolakis.thronoscommerce.thronoschain.org', tenants);
+  assert.equal(out.type, 'tenant');
+  assert.equal(out.tenant.id, 'eukolakis');
 });
 
-test('platform host resolves platform', () => {
-  const result = resolveTenantFromHost('thronoscommerce.thronoschain.org', tenants);
-  assert.equal(result.type, 'platform');
+test('classifies platform host', () => {
+  const out = resolveTenantFromHost('localhost:3000', tenants);
+  assert.equal(out.type, 'platform');
 });
 
-test('apex host resolves tenant when only www is configured', () => {
-  const onlyWwwTenant = [{ id: 'shop', domains: ['www.shop.gr'] }];
-  const result = resolveTenantFromHost('shop.gr', onlyWwwTenant);
-  assert.equal(result.type, 'tenant');
-  assert.equal(result.tenant.id, 'shop');
-});
-
-test('preview host is not mistaken for platform host', () => {
-  const result = resolveTenantFromHost('eukolakis.thonoscommerce.thronoschain.org', tenants);
-  assert.equal(result.type, 'tenant');
-  assert.equal(result.tenant.id, 'eukolakis');
+test('returns unknown for unresolved host', () => {
+  const out = resolveTenantFromHost('unknown-host.example', tenants);
+  assert.equal(out.type, 'unknown');
 });

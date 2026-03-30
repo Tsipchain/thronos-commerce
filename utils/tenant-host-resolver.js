@@ -1,8 +1,8 @@
 const PLATFORM_HOSTS = new Set([
-  'thronoscommerce.thronoschain.org',
-  'thonoscommerce.thronoschain.org',
   'localhost',
-  '127.0.0.1'
+  '127.0.0.1',
+  'thronoscommerce.thronoschain.org',
+  'thonoscommerce.thronoschain.org'
 ]);
 
 function normalizeHost(rawHost) {
@@ -28,26 +28,26 @@ function matchesPlatformHost(host) {
 
 function tenantHostnames(tenant) {
   const hosts = new Set();
-  const add = (v) => {
-    const n = normalizeHost(v);
-    if (n) hosts.add(n);
+  const add = (value) => {
+    const h = normalizeHost(value);
+    if (h) hosts.add(h);
   };
   if (!tenant || typeof tenant !== 'object') return hosts;
-  add(tenant.primaryDomain);
   add(tenant.domain);
+  add(tenant.primaryDomain);
   if (Array.isArray(tenant.domains)) tenant.domains.forEach(add);
   if (tenant.previewSubdomain) {
-    const preview = String(tenant.previewSubdomain).trim().toLowerCase();
-    if (preview) {
-      add(`${preview}.thronoscommerce.thronoschain.org`);
-      add(`${preview}.thonoscommerce.thronoschain.org`);
+    const sub = String(tenant.previewSubdomain).trim().toLowerCase();
+    if (sub) {
+      add(`${sub}.thronoscommerce.thronoschain.org`);
+      add(`${sub}.thonoscommerce.thronoschain.org`);
     }
   }
   if (tenant.id) {
-    const tid = String(tenant.id).trim().toLowerCase();
-    if (tid) {
-      add(`${tid}.thronoscommerce.thronoschain.org`);
-      add(`${tid}.thonoscommerce.thronoschain.org`);
+    const id = String(tenant.id).trim().toLowerCase();
+    if (id) {
+      add(`${id}.thronoscommerce.thronoschain.org`);
+      add(`${id}.thonoscommerce.thronoschain.org`);
     }
   }
   return hosts;
@@ -55,25 +55,15 @@ function tenantHostnames(tenant) {
 
 function resolveTenantFromHost(rawHost, tenants) {
   const normalizedHost = normalizeHost(rawHost);
-  const candidates = hostCandidates(normalizedHost);
-  if (!normalizedHost) {
-    return { type: 'unknown', normalizedHost, reason: 'empty_host' };
-  }
-  if (matchesPlatformHost(normalizedHost)) {
-    return { type: 'platform', normalizedHost, reason: 'platform_host' };
-  }
+  if (!normalizedHost) return { type: 'unknown', normalizedHost, reason: 'empty_host' };
+  if (matchesPlatformHost(normalizedHost)) return { type: 'platform', normalizedHost, reason: 'platform_host' };
   const list = Array.isArray(tenants) ? tenants : [];
+  const candidates = hostCandidates(normalizedHost);
   for (const tenant of list) {
-    const mappedHosts = tenantHostnames(tenant);
+    const mapped = tenantHostnames(tenant);
     for (const c of candidates) {
-      if (mappedHosts.has(c)) {
-        return {
-          type: 'tenant',
-          tenant,
-          normalizedHost,
-          matchedHost: c,
-          reason: 'tenant_host_match'
-        };
+      if (mapped.has(c)) {
+        return { type: 'tenant', tenant, normalizedHost, matchedHost: c, reason: 'tenant_host_match' };
       }
     }
   }
@@ -83,5 +73,6 @@ function resolveTenantFromHost(rawHost, tenants) {
 module.exports = {
   PLATFORM_HOSTS,
   normalizeHost,
+  tenantHostnames,
   resolveTenantFromHost
 };

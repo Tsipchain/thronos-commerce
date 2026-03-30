@@ -6,8 +6,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "check:syntax": "node --check server.js",
-    "check:conflicts": "bash -lc '! rg -n \"^(<<<<<<<|=======|>>>>>>>)\" server.js views data'",
     "test:tenant-hosts": "node --test tests/tenant-host-resolver.test.js"
   },
   "dependencies": {

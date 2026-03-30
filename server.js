@@ -7,9 +7,13 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
-const nodemailer = require('nodemailer');
-const StripeLib = require('stripe');
-const { normalizeHost, resolveTenantFromHost } = require('./utils/tenant-host-resolver');
+const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
+
+function safeRequire(mod) {
+  try { return require(mod); } catch (e) { return null; }
+}
+const nodemailer = safeRequire('nodemailer');
+const StripeLib  = safeRequire('stripe');
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
 function stripeForTenant(config) {
@@ -734,6 +738,16 @@ function appendTenantOrder(req, order) {
   const orders = loadTenantOrders(req);
   orders.push(order);
   saveJson(req.tenantPaths.orders, orders);
+}
+
+function shouldCanonicalizeToWwwHost(tenant, hostHeader) {
+  const host = normalizeHost(hostHeader);
+  if (!tenant || tenant.canonicalToWww !== true || !host || host.startsWith('www.')) return false;
+  if (host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return false;
+  if (host.includes('.thronoscommerce.thronoschain.org') || host.includes('.thonoscommerce.thronoschain.org')) return false;
+  const hosts = tenantHostnames(tenant);
+  if (!hosts.has(host)) return false;
+  return hosts.has(`www.${host}`);
 }
 
 // Tenant-scoped loaders
@@ -1981,17 +1995,6 @@ app.use((req, res, next) => {
   } else {
     const tenants = loadTenantsRegistry();
     const hostResolution = resolveTenantFromHost(hostHeader, tenants);
-    console.log(
-      '[tenant-resolver]',
-      JSON.stringify({
-        host: hostHeader,
-        path: req.originalUrl || req.url,
-        type: hostResolution.type,
-        reason: hostResolution.reason,
-        matchedHost: hostResolution.matchedHost || null,
-        tenantId: hostResolution.tenant ? hostResolution.tenant.id : null
-      })
-    );
     if (hostResolution.type === 'tenant') {
       tenant = hostResolution.tenant;
       mode = 'host';
@@ -2000,11 +2003,17 @@ app.use((req, res, next) => {
       tenant = findTenantById('demo') || (Array.isArray(tenants) && tenants.length ? tenants[0] : null);
       mode = 'platform-host';
     } else {
-      mode = 'unknown-host';
       return res.status(404).render('tenant-not-found', {
         host: hostHeader,
         supportEmail: process.env.SUPPORT_EMAIL || 'support@thronoschain.org'
       });
+    }
+  }
+  if (!tenant) {
+    const allTenants = loadTenantsRegistry();
+    if (Array.isArray(allTenants) && allTenants.length) {
+      tenant = allTenants[0];
+      mode = mode === 'host' ? 'registry-fallback' : mode;
     }
   }
   if (!tenant) {
@@ -2014,20 +2023,8 @@ app.use((req, res, next) => {
   }
   if (mode === 'host' && shouldCanonicalizeToWwwHost(tenant, hostHeader)) {
     const canonicalHost = `www.${hostHeader}`;
-    const target = `${requestProtocol(req)}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
-    console.log('[tenant-admin] canonical-redirect', JSON.stringify({
-      host: hostHeader,
-      canonicalHost,
-      from: req.originalUrl || req.url,
-      to: target
-    }));
+    const target = `${req.protocol}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
     return res.redirect(308, target);
-  } else if (mode === 'host' && tenant.canonicalToWww === true && hostHeader && !hostHeader.startsWith('www.')) {
-    console.log('[tenant-admin] canonical-skip', JSON.stringify({
-      host: hostHeader,
-      tenantId: tenant.id,
-      reason: 'host_not_eligible_for_www_redirect'
-    }));
   }
   req.tenant = tenant;
   req.tenantId = tenant.id;
