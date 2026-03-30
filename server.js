@@ -956,6 +956,13 @@ function normalizeFulfillmentStatus(order) {
   return 'ready_to_ship';
 }
 
+// An order is "unresolved" (still needs admin action) if it has not yet reached
+// a terminal state (delivered or cancelled). The "issue" status is explicitly unresolved.
+function isOrderUnresolved(order) {
+  const status = normalizeFulfillmentStatus(order);
+  return status !== 'delivered' && status !== 'cancelled';
+}
+
 function safeJsonForScript(value) {
   return JSON.stringify(value)
     .replace(/<\//g, '<\\/')
