@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title><%= t('checkout.pageTitle') %> – <%= config.storeName %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.ico" />
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
       :root {
@@ -37,6 +37,7 @@
         font-size: .9rem; font-family: inherit; box-sizing: border-box; width: 100%;
       }
       .form-row textarea { resize: vertical; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
 
       /* ── Order summary card ── */
       .checkout-summary {
@@ -111,6 +112,7 @@
       </div>
       <% } %>
     </header>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
 
     <div id="empty-cart-msg" style="display:none;">
       <p><%= t('checkout.cartEmptyMsg') %></p>
@@ -206,6 +208,10 @@
                 <% }); %>
               </select>
             </label>
+            <label>
+              <%= lang === 'el' ? 'Κουπόνι' : 'Coupon' %>
+              <input type="text" name="couponCode" id="coupon-code" placeholder="WELCOME10" />
+            </label>
           </div>
 
           <%# Stripe badge (shown when stripe payment selected) %>
@@ -241,6 +247,14 @@
           <span><%= t('checkout.subtotal') %></span>
           <span id="sum-subtotal">–</span>
         </div>
+        <div class="summary-line" id="sum-qtydisc-row" style="display:none;">
+          <span><%= lang === 'el' ? 'Έκπτωση ποσότητας' : 'Quantity discount' %></span>
+          <span id="sum-qtydisc">–</span>
+        </div>
+        <div class="summary-line" id="sum-coupon-row" style="display:none;">
+          <span><%= lang === 'el' ? 'Έκπτωση κουπονιού' : 'Coupon discount' %></span>
+          <span id="sum-coupon">–</span>
+        </div>
         <div class="summary-line">
           <span><%= t('checkout.shipping') %></span>
           <span id="sum-shipping">–</span>
@@ -262,10 +276,55 @@
 
     <script>
       const CART_KEY = 'thrc_cart';
+      const CART_SESSION_KEY = 'thrc_cart_session';
+      const cartJsonInput = document.getElementById('cart-json-input');
+      const cartSnapshotApi = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
 
       // ── Load & validate cart ──────────────────────────────────────
-      let cart = [];
-      try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch(e) {}
+      function readCartSnapshot() {
+        try {
+          const local = JSON.parse(localStorage.getItem(CART_KEY) || 'null');
+          if (Array.isArray(local)) return local;
+        } catch(e) {}
+        try {
+          const session = JSON.parse(sessionStorage.getItem(CART_SESSION_KEY) || 'null');
+          if (Array.isArray(session)) return session;
+        } catch(e) {}
+        return [];
+      }
+      function normalizeCartForCheckout(snapshot) {
+        if (!Array.isArray(snapshot)) return [];
+        return snapshot
+          .filter(function(item){ return item && item.id; })
+          .map(function(item){
+            return {
+              id: String(item.id || '').trim(),
+              qty: Math.max(1, Number(item.qty) || 1),
+              variantId: item.variantId ? String(item.variantId).trim() : '',
+              isKitSummary: !!item.isKitSummary,
+              selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+            };
+          })
+          .filter(function(item){ return item.id; });
+      }
+      function syncCartPayload(snapshot) {
+        const safeSnapshot = normalizeCartForCheckout(snapshot);
+        if (cartJsonInput) cartJsonInput.value = JSON.stringify(safeSnapshot);
+      }
+      function syncCartSnapshotToServer(snapshot) {
+        const safeSnapshot = normalizeCartForCheckout(snapshot);
+        if (!safeSnapshot.length) return;
+        try {
+          fetch(cartSnapshotApi, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            keepalive: true,
+            body: JSON.stringify({ items: safeSnapshot })
+          }).catch(function(){});
+        } catch (_) {}
+      }
+      let cart = readCartSnapshot();
 
       if (!cart.length) {
         document.getElementById('empty-cart-msg').style.display = '';
@@ -275,6 +334,8 @@
         renderSummaryItems();
         recalc();
       }
+      syncCartPayload(cart);
+      syncCartSnapshotToServer(cart);
 
       function renderSummaryItems() {
         const el = document.getElementById('summary-items');
@@ -291,7 +352,14 @@
 
       // ── Live price calculation ────────────────────────────────────
       function recalc() {
-        const subtotal = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
+        const subtotalRaw = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
+        const qtyDiscount = cart.reduce(function(s, i) {
+          const qty = Number(i.qty) || 1;
+          const line = (Number(i.price) || 0) * qty;
+          const rate = qty >= 10 ? 0.10 : (qty >= 5 ? 0.05 : 0);
+          return s + line * rate;
+        }, 0);
+        const subtotal = Math.max(0, subtotalRaw - qtyDiscount);
 
         const shipSel  = document.getElementById('sel-shipping');
         const paySel   = document.getElementById('sel-payment');
@@ -302,10 +370,14 @@
         const codFee       = (payOpt && payOpt.dataset.iscod === '1')
                              ? parseFloat(shipOpt ? shipOpt.dataset.codfee || 0 : 0) : 0;
         const surcharge    = payOpt  ? parseFloat(payOpt.dataset.surcharge || 0) : 0;
-        const gatewayFee   = subtotal * surcharge;
-        const total        = subtotal + shippingCost + codFee + gatewayFee;
+        const couponEl = document.getElementById('coupon-code');
+        const couponCode = (couponEl && couponEl.value || '').trim().toUpperCase();
+        const couponDiscount = couponCode === 'WELCOME10' ? subtotal * 0.10 : 0;
+        const subtotalAfterCoupon = Math.max(0, subtotal - couponDiscount);
+        const gatewayFee   = subtotalAfterCoupon * surcharge;
+        const total        = subtotalAfterCoupon + shippingCost + codFee + gatewayFee;
 
-        document.getElementById('sum-subtotal').textContent = subtotal.toFixed(2)      + ' €';
+        document.getElementById('sum-subtotal').textContent = subtotalAfterCoupon.toFixed(2)      + ' €';
         document.getElementById('sum-shipping').textContent = shippingCost.toFixed(2)  + ' €';
         document.getElementById('sum-total').textContent    = total.toFixed(2)         + ' €';
 
@@ -315,6 +387,18 @@
         gwRow.style.display  = gatewayFee > 0 ? '' : 'none';
         document.getElementById('sum-cod').textContent     = codFee.toFixed(2)     + ' €';
         document.getElementById('sum-gateway').textContent = gatewayFee.toFixed(2) + ' €';
+        const qtyRow = document.getElementById('sum-qtydisc-row');
+        const qtyVal = document.getElementById('sum-qtydisc');
+        if (qtyRow && qtyVal) {
+          qtyRow.style.display = qtyDiscount > 0 ? '' : 'none';
+          qtyVal.textContent = '-' + qtyDiscount.toFixed(2) + ' €';
+        }
+        const couponRow = document.getElementById('sum-coupon-row');
+        const couponVal = document.getElementById('sum-coupon');
+        if (couponRow && couponVal) {
+          couponRow.style.display = couponDiscount > 0 ? '' : 'none';
+          couponVal.textContent = '-' + couponDiscount.toFixed(2) + ' €';
+        }
 
         // ── Stripe indicator ──────────────────────────────────────
         const isStripe  = payOpt && payOpt.dataset.type === 'stripe';
@@ -325,10 +409,55 @@
       }
 
       // ── On submit: inject cart JSON ───────────────────────────────
+      let checkoutSubmitting = false;
       document.getElementById('checkout-form').addEventListener('submit', function(e) {
-        if (!cart.length) { e.preventDefault(); return; }
-        document.getElementById('cart-json-input').value = JSON.stringify(cart);
+        if (checkoutSubmitting) { e.preventDefault(); return; }
+        const latestCart = readCartSnapshot();
+        const submitSnapshot = Array.isArray(latestCart) && latestCart.length
+          ? latestCart
+          : (Array.isArray(cart) && cart.length ? cart : []);
+        if (!submitSnapshot.length) { e.preventDefault(); return; }
+        cart = submitSnapshot;
+        syncCartPayload(submitSnapshot);
+        syncCartSnapshotToServer(submitSnapshot);
+        checkoutSubmitting = true;
+        const submitBtn = document.getElementById('btn-submit');
+        if (submitBtn) submitBtn.disabled = true;
       });
+      window.addEventListener('pageshow', function() {
+        const refreshedCart = readCartSnapshot();
+        if (Array.isArray(refreshedCart) && refreshedCart.length) {
+          cart = refreshedCart;
+          syncCartPayload(refreshedCart);
+          syncCartSnapshotToServer(refreshedCart);
+        }
+      });
+      const couponInput = document.getElementById('coupon-code');
+      if (couponInput) couponInput.addEventListener('input', recalc);
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = '<%= withTenantLink("/") %>';
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try { if (currentUrl.indexOf('/admin') !== 0) sessionStorage.setItem(key, currentUrl); } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
     </script>
   </body>
 </html>
