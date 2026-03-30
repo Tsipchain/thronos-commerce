@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Root Hosting Panel</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Root Hosting Panel</h1>
+    <p class="subtitle"><a href="/root/tenants">← Root Tenants</a></p>
+  </header>
+  <main class="admin-layout">
+    <% const safeRows = Array.isArray(rows) ? rows : []; %>
+    <% if (message) { %><div class="flash ok"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash err"><%= error %></div><% } %>
+    <section class="admin-block">
+      <h2>Overview</h2>
+      <p>Tenants listed: <strong><%= safeRows.length %></strong> · Unresolved hosting issues: <strong><%= Number(unresolvedCount || 0) %></strong></p>
+    </section>
+    <section class="admin-block">
+      <h2>Tenant Hosting Operations</h2>
+      <% if (!safeRows.length) { %>
+        <p>No tenants.</p>
+      <% } %>
+      <% safeRows.forEach(function(row){ %>
+        <details style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin:0 0 10px;">
+          <summary style="cursor:pointer;"><strong><%= row.tenantId %></strong> · <%= row.primaryDomain || '-' %> · domain=<%= row.domainStatus %> · ssl=<%= row.sslStatus %> <% if (row.issueFlag) { %>· ⚠ issue<% } %></summary>
+          <div style="margin-top:10px;">
+            <p>Preview: <code><%= row.previewHost || '-' %></code></p>
+            <p>Aliases: <%= Array.isArray(row.aliases) && row.aliases.length ? row.aliases.join(', ') : '-' %></p>
+            <p>Canonical www: <strong><%= row.canonicalToWww ? 'on' : 'off' %></strong></p>
+            <p>Assets: logo=<%= row.logoConfigured ? 'ok' : 'missing' %> · favicon=<%= row.faviconConfigured ? 'ok' : 'missing' %></p>
+            <form method="POST" action="/root/hosting/update" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+              <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+              <label>Domain status
+                <select name="domainStatus">
+                  <% ['pending_dns','ssl_validating','active','failed'].forEach(function(st){ %>
+                    <option value="<%= st %>" <%= row.domainStatus === st ? 'selected' : '' %>><%= st %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>SSL status
+                <select name="sslStatus">
+                  <% ['pending','validating','active','failed'].forEach(function(st){ %>
+                    <option value="<%= st %>" <%= row.sslStatus === st ? 'selected' : '' %>><%= st %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>SSL provider <input type="text" name="sslProvider" value="<%= row.sslProvider || '' %>" /></label>
+              <label>SSL valid until <input type="text" name="sslValidUntil" value="<%= row.sslValidUntil || '' %>" placeholder="YYYY-MM-DD" /></label>
+              <label>DNS verified at <input type="text" name="dnsVerifiedAt" value="<%= row.dnsVerifiedAt || '' %>" placeholder="ISO datetime" /></label>
+              <label>Backup status
+                <select name="backupStatus">
+                  <% ['unknown','healthy','warning','failed'].forEach(function(st){ %>
+                    <option value="<%= st %>" <%= row.backupStatus === st ? 'selected' : '' %>><%= st %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;padding-top:24px;">
+                <input type="checkbox" name="issueFlag" value="1" <%= row.issueFlag ? 'checked' : '' %> />
+                Issue flag
+              </label>
+              <label>Tenant-visible note <input type="text" name="tenantNotes" value="<%= row.tenantNotes || '' %>" /></label>
+              <label>Internal note <input type="text" name="internalNotes" value="<%= row.internalNotes || '' %>" /></label>
+              <label>Root password <input type="password" name="rootPassword" required /></label>
+              <div style="display:flex;align-items:end;"><button class="button" type="submit">Update hosting</button></div>
+            </form>
+          </div>
+        </details>
+      <% }) %>
+    </section>
+  </main>
+</body>
+</html>

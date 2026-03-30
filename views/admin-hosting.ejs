@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hosting – <%= config.storeName %></title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Hosting Panel</h1>
+    <p class="subtitle"><a href="<%= withTenantLink('/admin') %>">← Admin</a></p>
+  </header>
+  <main class="admin-layout">
+    <% const safeHosting = hosting || {}; %>
+    <% if (message) { %><div class="flash ok"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash err"><%= error %></div><% } %>
+
+    <section class="admin-block">
+      <h2>Domain & Routing</h2>
+      <p>Primary domain: <strong><%= safeHosting.primaryDomain || '-' %></strong></p>
+      <p>Aliases: <strong><%= Array.isArray(safeHosting.aliases) && safeHosting.aliases.length ? safeHosting.aliases.join(', ') : '-' %></strong></p>
+      <p>Preview host: <strong><%= safeHosting.previewHost || '-' %></strong></p>
+      <p>Domain status: <strong><%= safeHosting.domainStatus || 'pending_dns' %></strong></p>
+      <p>Canonical www: <strong><%= safeHosting.canonicalToWww ? 'enabled' : 'disabled' %></strong></p>
+      <p>Apex target: <code>CNAME/ALIAS to platform ingress</code></p>
+      <p>WWW target: <code><%= safeHosting.previewHost || 'platform host' %></code></p>
+      <p>TXT verify record: <code>thronos-verify=<%= tenant.id %></code></p>
+    </section>
+
+    <section class="admin-block">
+      <h2>SSL & DNS Health</h2>
+      <p>SSL status: <strong><%= safeHosting.sslStatus || 'pending' %></strong></p>
+      <p>SSL provider: <strong><%= safeHosting.sslProvider || 'unknown' %></strong></p>
+      <p>SSL valid until: <strong><%= safeHosting.sslValidUntil || '-' %></strong></p>
+      <p>DNS verified at: <strong><%= safeHosting.dnsVerifiedAt || '-' %></strong></p>
+      <p>Last SSL check: <strong><%= safeHosting.lastCheckedAt || '-' %></strong></p>
+      <form method="POST" action="<%= withTenantLink('/admin/hosting/ssl-recheck') %>" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+        <label>Password <input type="password" name="password" required /></label>
+        <button class="button" type="submit">Request SSL recheck</button>
+      </form>
+      <form method="POST" action="<%= withTenantLink('/admin/hosting/report-issue') %>" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+        <label>Issue note <input type="text" name="note" placeholder="Describe hosting issue" /></label>
+        <label>Password <input type="password" name="password" required /></label>
+        <button class="button" type="submit">Mark issue / notify support</button>
+      </form>
+      <% if (safeHosting.tenantNotes) { %>
+        <p class="helper">Latest tenant note: <%= safeHosting.tenantNotes %></p>
+      <% } %>
+    </section>
+
+    <section class="admin-block">
+      <h2>Branding Assets</h2>
+      <p>Logo: <strong><%= safeHosting.logoConfigured ? 'configured' : 'missing' %></strong></p>
+      <p>Favicon: <strong><%= safeHosting.faviconConfigured ? 'configured' : 'missing' %></strong></p>
+      <p>Intro enabled: <strong><%= safeHosting.introConfigured ? 'yes' : 'no' %></strong></p>
+      <p>Intro assets: <strong><%= safeHosting.introAssetConfigured ? 'configured' : 'missing' %></strong></p>
+      <p>Storage usage: <strong><%= Number.isFinite(safeHosting.storageUsageMb) ? safeHosting.storageUsageMb + ' MB' : 'N/A' %></strong></p>
+      <p>Backup status: <strong><%= safeHosting.backupStatus || 'unknown' %></strong></p>
+      <p class="helper">Raw hosting providers and server credentials are managed only by root admin.</p>
+    </section>
+  </main>
+</body>
+</html>
