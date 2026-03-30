@@ -7,6 +7,7 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
+const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -508,14 +509,14 @@ function appendTenantOrder(req, order) {
   saveJson(req.tenantPaths.orders, orders);
 }
 
-function getTenantByHost(hostname) {
-  const tenants = loadTenantsRegistry();
-  const host = (hostname || '').toLowerCase();
-  return tenants.find(
-    (t) =>
-      t.domain &&
-      t.domain.toLowerCase() === host
-  );
+function shouldCanonicalizeToWwwHost(tenant, hostHeader) {
+  const host = normalizeHost(hostHeader);
+  if (!tenant || tenant.canonicalToWww !== true || !host || host.startsWith('www.')) return false;
+  if (host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return false;
+  if (host.includes('.thronoscommerce.thronoschain.org') || host.includes('.thonoscommerce.thronoschain.org')) return false;
+  const hosts = tenantHostnames(tenant);
+  if (!hosts.has(host)) return false;
+  return hosts.has(`www.${host}`);
 }
 
 // Tenant-scoped loaders
@@ -1387,10 +1388,11 @@ app.use((req, res, next) => {
 // Tenant resolution middleware (skips root operator panel)
 app.use((req, res, next) => {
   if (req.path.startsWith('/root')) return next();
-  const hostHeader = (req.headers.host || '').split(':')[0];
+  const hostHeader = normalizeHost(req.headers.host || '');
   const requestedTenant = (req.query.tenant || '').trim();
   let tenant = null;
   let mode = 'host';
+  let isPlatformRequest = false;
   if (req.pathTenantId) {
     tenant = findTenantById(req.pathTenantId);
     mode = 'path';
@@ -1401,11 +1403,21 @@ app.use((req, res, next) => {
     tenant = findTenantById(req.session.admin.tenantId);
     mode = 'admin-session';
   } else {
-    tenant = getTenantByHost(hostHeader);
-  }
-  if (!tenant) {
-    tenant = findTenantById('demo');
-    mode = mode === 'host' ? 'demo-fallback' : mode;
+    const tenants = loadTenantsRegistry();
+    const hostResolution = resolveTenantFromHost(hostHeader, tenants);
+    if (hostResolution.type === 'tenant') {
+      tenant = hostResolution.tenant;
+      mode = 'host';
+    } else if (hostResolution.type === 'platform') {
+      isPlatformRequest = true;
+      tenant = findTenantById('demo') || (Array.isArray(tenants) && tenants.length ? tenants[0] : null);
+      mode = 'platform-host';
+    } else {
+      return res.status(404).render('tenant-not-found', {
+        host: hostHeader,
+        supportEmail: process.env.SUPPORT_EMAIL || 'support@thronoschain.org'
+      });
+    }
   }
   if (!tenant) {
     const allTenants = loadTenantsRegistry();
@@ -1419,10 +1431,15 @@ app.use((req, res, next) => {
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
   }
+  if (mode === 'host' && shouldCanonicalizeToWwwHost(tenant, hostHeader)) {
+    const canonicalHost = `www.${hostHeader}`;
+    const target = `${req.protocol}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
+    return res.redirect(308, target);
+  }
   req.tenant = tenant;
   req.tenantId = tenant.id;
   req.tenantContext = { mode };
-  req.isPlatformRequest = mode === 'demo-fallback' && !req.pathTenantId && !requestedTenant;
+  req.isPlatformRequest = isPlatformRequest;
   req.tenantPaths = tenantPaths(tenant.id);
   res.locals.user = req.session ? req.session.user : null;
   res.locals.tenantId = tenant.id;
