@@ -3085,7 +3085,19 @@ app.get('/admin', (req, res) => {
     tenantId: req.tenant ? req.tenant.id : null,
     mode: req.tenantContext ? req.tenantContext.mode : null
   }));
-  res.render('admin', buildAdminViewModel(req));
+  try {
+    const vm = buildAdminViewModel(req);
+    res.render('admin', vm);
+  } catch (err) {
+    console.error('[tenant-admin] render-dashboard failed:', err && err.stack ? err.stack : String(err));
+    res.status(500).send(
+      '<!doctype html><html><body style="font-family:system-ui;padding:20px;">' +
+      '<h2>Admin dashboard temporarily unavailable</h2>' +
+      '<p>An error occurred while loading the admin dashboard. Check server logs for details.</p>' +
+      '<p><a href="' + (req.tenantBasePath || '') + '/admin">Retry</a></p>' +
+      '</body></html>'
+    );
+  }
 });
 
 app.get('/admin/payments', (req, res) => {
@@ -5626,6 +5638,19 @@ app.post('/root/hosting/update', (req, res) => {
   }));
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
   return res.render('root-hosting', { rows, unresolvedCount, message: `Hosting status ενημερώθηκε για ${tenantId}.`, error: null });
+});
+
+// ── Global error handler ──────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[express] unhandled error:', err && err.stack ? err.stack : String(err));
+  if (res.headersSent) return;
+  res.status(500).send(
+    '<!doctype html><html><body style="font-family:system-ui;padding:20px;">' +
+    '<h2>500 – Something went wrong</h2>' +
+    '<p>An unexpected error occurred. Please try again or contact support.</p>' +
+    '</body></html>'
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
