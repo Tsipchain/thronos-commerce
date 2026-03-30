@@ -7,6 +7,7 @@ const axios = require('axios');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
+const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -508,14 +509,14 @@ function appendTenantOrder(req, order) {
   saveJson(req.tenantPaths.orders, orders);
 }
 
-function getTenantByHost(hostname) {
-  const tenants = loadTenantsRegistry();
-  const host = (hostname || '').toLowerCase();
-  return tenants.find(
-    (t) =>
-      t.domain &&
-      t.domain.toLowerCase() === host
-  );
+function shouldCanonicalizeToWwwHost(tenant, hostHeader) {
+  const host = normalizeHost(hostHeader);
+  if (!tenant || tenant.canonicalToWww !== true || !host || host.startsWith('www.')) return false;
+  if (host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return false;
+  if (host.includes('.thronoscommerce.thronoschain.org') || host.includes('.thonoscommerce.thronoschain.org')) return false;
+  const hosts = tenantHostnames(tenant);
+  if (!hosts.has(host)) return false;
+  return hosts.has(`www.${host}`);
 }
 
 // Tenant-scoped loaders
@@ -591,6 +592,30 @@ function saveTenantConfig(req, config) {
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function deriveTrackingUrl(carrier, trackingNumber) {
+  const number = String(trackingNumber || '').trim();
+  if (!number) return '';
+  const normalizedCarrier = String(carrier || '').trim().toLowerCase();
+  const encoded = encodeURIComponent(number);
+  if (normalizedCarrier === 'acs') return `https://www.acscourier.net/el/track-and-trace/?tracking=${encoded}`;
+  if (normalizedCarrier === 'elta') return `https://elta.gr/track?code=${encoded}`;
+  if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
+  if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
+  return '';
+}
+
+function normalizeFulfillmentStatus(order) {
+  const raw = String(order && order.fulfillmentStatus ? order.fulfillmentStatus : '').trim().toLowerCase();
+  const allowed = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+  if (allowed.has(raw)) return raw;
+  const paymentStatus = String(order && order.paymentStatus ? order.paymentStatus : '').toUpperCase();
+  if (paymentStatus === 'PAID') return 'ready_to_ship';
+  if (paymentStatus === 'PENDING_STRIPE') return 'pending_payment';
+  if (paymentStatus === 'PENDING_COD') return 'cod_pending';
+  if (paymentStatus === 'CANCELLED') return 'cancelled';
+  return 'ready_to_ship';
 }
 
 function safeJsonForScript(value) {
@@ -995,6 +1020,30 @@ async function sendOrderEmail({ tenant, config, order }) {
   console.log(`[Thronos Commerce] Order email sent for ${order.id} → ${recipients}`);
 }
 
+async function sendTrackingUpdateEmail({ tenant, config, order }) {
+  const transport = buildTransport();
+  if (!transport) return;
+  const recipient = normalizeEmail(order && order.email);
+  if (!recipient) return;
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
+  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
+  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const subject = `[${tenant.id}] Tracking update #${order.id}`;
+  const lines = [
+    `Order: ${order.id}`,
+    `Fulfillment: ${order.fulfillmentStatus || 'ready_to_ship'}`,
+    `Tracking #: ${order.trackingNumber || '—'}`,
+    `Carrier: ${order.trackingCarrier || '—'}`,
+    `Tracking URL: ${order.trackingUrl || '—'}`
+  ];
+  await transport.sendMail({
+    from,
+    to: recipient,
+    subject,
+    text: lines.join('\n')
+  });
+}
+
 // ── Generic webhook (mobile / Viber bridge) ───────────────────────────────────
 
 async function sendOrderWebhook({ tenant, config, order }) {
@@ -1387,10 +1436,11 @@ app.use((req, res, next) => {
 // Tenant resolution middleware (skips root operator panel)
 app.use((req, res, next) => {
   if (req.path.startsWith('/root')) return next();
-  const hostHeader = (req.headers.host || '').split(':')[0];
+  const hostHeader = normalizeHost(req.headers.host || '');
   const requestedTenant = (req.query.tenant || '').trim();
   let tenant = null;
   let mode = 'host';
+  let isPlatformRequest = false;
   if (req.pathTenantId) {
     tenant = findTenantById(req.pathTenantId);
     mode = 'path';
@@ -1401,11 +1451,21 @@ app.use((req, res, next) => {
     tenant = findTenantById(req.session.admin.tenantId);
     mode = 'admin-session';
   } else {
-    tenant = getTenantByHost(hostHeader);
-  }
-  if (!tenant) {
-    tenant = findTenantById('demo');
-    mode = mode === 'host' ? 'demo-fallback' : mode;
+    const tenants = loadTenantsRegistry();
+    const hostResolution = resolveTenantFromHost(hostHeader, tenants);
+    if (hostResolution.type === 'tenant') {
+      tenant = hostResolution.tenant;
+      mode = 'host';
+    } else if (hostResolution.type === 'platform') {
+      isPlatformRequest = true;
+      tenant = findTenantById('demo') || (Array.isArray(tenants) && tenants.length ? tenants[0] : null);
+      mode = 'platform-host';
+    } else {
+      return res.status(404).render('tenant-not-found', {
+        host: hostHeader,
+        supportEmail: process.env.SUPPORT_EMAIL || 'support@thronoschain.org'
+      });
+    }
   }
   if (!tenant) {
     const allTenants = loadTenantsRegistry();
@@ -1419,10 +1479,15 @@ app.use((req, res, next) => {
       .status(503)
       .send('No tenant configured for this host. Check tenants.json.');
   }
+  if (mode === 'host' && shouldCanonicalizeToWwwHost(tenant, hostHeader)) {
+    const canonicalHost = `www.${hostHeader}`;
+    const target = `${req.protocol}://${canonicalHost}${req.originalUrl || req.url || '/'}`;
+    return res.redirect(308, target);
+  }
   req.tenant = tenant;
   req.tenantId = tenant.id;
   req.tenantContext = { mode };
-  req.isPlatformRequest = mode === 'demo-fallback' && !req.pathTenantId && !requestedTenant;
+  req.isPlatformRequest = isPlatformRequest;
   req.tenantPaths = tenantPaths(tenant.id);
   res.locals.user = req.session ? req.session.user : null;
   res.locals.tenantId = tenant.id;
@@ -2513,6 +2578,64 @@ app.get('/admin/orders', (req, res) => {
     orders,
     permissions: getSupportPermissions(req.tenant.supportTier)
   });
+});
+
+app.post('/admin/orders/tracking', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+
+  const orderId = String(req.body.orderId || '').trim();
+  const trackingNumber = String(req.body.trackingNumber || '').trim();
+  const trackingCarrier = String(req.body.trackingCarrier || '').trim().toLowerCase();
+  const fulfillmentStatus = String(req.body.fulfillmentStatus || '').trim().toLowerCase();
+  const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+
+  if (!orderId) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order ID is required.' }));
+  }
+
+  const orders = loadTenantOrders(req);
+  const idx = orders.findIndex((o) => o.id === orderId);
+  if (idx < 0) {
+    return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order not found.' }));
+  }
+
+  const now = new Date().toISOString();
+  const next = { ...orders[idx] };
+  next.trackingNumber = trackingNumber;
+  next.trackingCarrier = trackingCarrier;
+  next.trackingUrl = deriveTrackingUrl(trackingCarrier, trackingNumber);
+  next.fulfillmentStatus = allowedStatuses.has(fulfillmentStatus)
+    ? fulfillmentStatus
+    : normalizeFulfillmentStatus(next);
+  if (next.fulfillmentStatus === 'shipped' && !next.shippedAt) next.shippedAt = now;
+  if (next.fulfillmentStatus === 'delivered' && !next.deliveredAt) next.deliveredAt = now;
+
+  orders[idx] = next;
+  saveJson(req.tenantPaths.orders, orders);
+
+  if (next.trackingNumber) {
+    try {
+      await sendTrackingUpdateEmail({
+        tenant: req.tenant,
+        config: loadTenantConfig(req),
+        order: next
+      });
+    } catch (err) {
+      console.error('[admin-orders] tracking-email:failed', err && err.message ? err.message : err);
+    }
+  }
+
+  console.log('[admin-orders] tracking-save', JSON.stringify({
+    tenantId: req.tenant && req.tenant.id,
+    orderId,
+    trackingNumber: !!trackingNumber,
+    trackingCarrier,
+    fulfillmentStatus: next.fulfillmentStatus
+  }));
+  return res.redirect(buildTenantLink(req, '/admin/orders', { message: 'Tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/settings', async (req, res) => {
