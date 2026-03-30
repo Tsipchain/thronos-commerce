@@ -26,6 +26,7 @@
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Date</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Total</th>
             <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Digital</th>
+            <th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">Tracking</th>
           </tr>
         </thead>
         <tbody>
@@ -35,6 +36,15 @@
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= new Date(order.createdAt).toLocaleString() %></td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><%= Number(order.total || 0).toFixed(2) %> €</td>
               <td style="padding:8px;border-bottom:1px solid #eee;"><a href="<%= withTenantLink('/content/' + order.id) %>">Open</a></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <% if (order.hasTracking && order.trackingUrl) { %>
+                  <a href="<%= order.trackingUrl %>" target="_blank" rel="noopener"><%= order.trackingNumber %></a>
+                <% } else if (order.hasTracking) { %>
+                  <%= order.trackingNumber %>
+                <% } else { %>
+                  <a href="<%= withTenantLink('/track') %>">Track</a>
+                <% } %>
+              </td>
             </tr>
           <% }) %>
         </tbody>
