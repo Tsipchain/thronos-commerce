@@ -199,149 +199,413 @@
       .kit-wizard-foot { border-top:1px solid #e5e7eb; padding:12px 16px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
       .kit-total { font-weight:800; font-size:1.05rem; color:#0f172a; }
       .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
-      body.eukolakis-classic main { max-width: 1180px; margin: 0 auto; padding: 0 16px 30px; }
-      body.eukolakis-classic .store-header { padding: 14px 16px 10px; border-bottom:none !important; box-shadow:none !important; }
-      body.eukolakis-classic .header-main-row { justify-content: center; }
-      body.eukolakis-classic .logo-title { align-items: center; gap: 16px; width:100%; justify-content:center; text-align:center; }
-      body.eukolakis-classic .logo-frame { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.18); }
-      body.eukolakis-classic .logo-image-dynamic { max-height: clamp(92px, 10vw, 124px) !important; }
-      body.eukolakis-classic .header-auth-actions { margin-left: 0; }
-      body.eukolakis-classic .header-nav-row { margin-top: 6px; padding-top: 0; }
-      body.eukolakis-classic .pill-nav { margin-top: 6px; }
-      body.eukolakis-classic .pill-nav { display:none; }
-      body.eukolakis-classic .hero .hero-actions { display:none; }
-      .branding-mode-logo_only .logo-title { width:100%; justify-content:center; text-align:center; }
-      .branding-mode-logo_only .header-main-row { justify-content:center; }
-      .branding-mode-logo_only .header-auth-actions { margin-left: 0; }
-      body.eukolakis-classic .store-name-wrap h1 { font-size: clamp(2rem, 2.8vw, 2.4rem); letter-spacing: .01em; margin: 0; }
-      body.eukolakis-classic .featured-primary-grid { gap: 20px; }
-      body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
-      body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
+      /* ══════════════════════════════════════════════════════════════════════════
+         EUKOLAKIS INDUSTRIAL METALLIC THEME  —  tenant-scoped to .eukolakis-classic
+         ══════════════════════════════════════════════════════════════════════════ */
 
-      /* ── Eukolaki Industrial Metallic Theme ──────────────────────────────────── */
+      /* ── Design tokens ── */
       body.eukolakis-classic {
-        --eko-bg: #0c0e14;
-        --eko-surface: #141821;
-        --eko-border: rgba(100,110,140,.32);
-        --eko-accent: #b8892a;
-        --eko-accent-light: #d4a843;
-        --eko-text: #cdd2de;
-        --eko-text-muted: #6b7385;
+        --eko-bg:           #0b0d12;
+        --eko-surface:      #141820;
+        --eko-surface-2:    #1c2030;
+        --eko-border:       rgba(100,110,140,.28);
+        --eko-border-hover: rgba(184,137,42,.55);
+        --eko-accent:       #c4902e;
+        --eko-accent-light: #dba83c;
+        --eko-accent-dim:   rgba(196,144,46,.14);
+        --eko-text:         #d0d5e0;
+        --eko-text-muted:   #64707f;
+        --eko-text-strong:  #edf0f6;
         background: var(--eko-bg);
         color: var(--eko-text);
       }
       body.eukolakis-classic.eko-light {
-        --eko-bg: #efefef;
-        --eko-surface: #ffffff;
-        --eko-border: rgba(50,60,80,.16);
-        --eko-accent: #8c6415;
+        --eko-bg:           #f2f3f6;
+        --eko-surface:      #ffffff;
+        --eko-surface-2:    #edeef2;
+        --eko-border:       rgba(40,50,70,.14);
+        --eko-border-hover: rgba(140,100,21,.5);
+        --eko-accent:       #8c6415;
         --eko-accent-light: #b37f1d;
-        --eko-text: #1a1d2a;
-        --eko-text-muted: #555d70;
+        --eko-accent-dim:   rgba(140,100,21,.10);
+        --eko-text:         #1a1d2a;
+        --eko-text-muted:   #515c72;
+        --eko-text-strong:  #0d0f16;
       }
+
+      /* ── Layout ── */
+      body.eukolakis-classic main {
+        max-width: 1180px; margin: 0 auto; padding: 0 18px 40px;
+      }
+
+      /* ── Header: dark industrial bar, logo-left / auth-right ── */
       body.eukolakis-classic .store-header {
-        background: var(--eko-surface) !important;
-        border-bottom: 1px solid var(--eko-border) !important;
+        background: #0d0f14 !important;
+        border-bottom: 1px solid rgba(196,144,46,.18) !important;
+        box-shadow: 0 2px 16px rgba(0,0,0,.4) !important;
+        padding: 0 !important;
       }
-      body.eukolakis-classic .hero {
-        background: var(--eko-surface) !important;
+      body.eukolakis-classic.eko-light .store-header {
+        background: #fff !important;
+        border-bottom-color: rgba(140,100,21,.16) !important;
+        box-shadow: 0 2px 12px rgba(0,0,0,.08) !important;
+      }
+      body.eukolakis-classic .header-main-row {
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 10px 20px;
+        max-width: 1180px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+        flex-wrap: nowrap;
+      }
+      body.eukolakis-classic .logo-title.classic-branding {
+        width: auto !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      /* Remove the white frame around logo */
+      body.eukolakis-classic .logo-frame {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      body.eukolakis-classic .logo-image-dynamic {
+        max-height: 40px !important;
+        filter: brightness(1.08) !important;
+      }
+      body.eukolakis-classic .store-name-wrap h1 {
+        font-size: 1.05rem !important;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--eko-text-strong);
+        margin: 0;
+      }
+      body.eukolakis-classic .header-auth-actions {
+        margin-left: auto !important;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      body.eukolakis-classic .header-auth-actions a.button {
+        font-size: .8rem !important;
+        padding: 7px 15px !important;
+        border-radius: 7px !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+        line-height: 1 !important;
+      }
+      /* Primary (first) auth btn: gold fill */
+      body.eukolakis-classic .header-auth-actions a.button:first-child {
+        background: var(--eko-accent) !important;
+        border-color: var(--eko-accent) !important;
+        color: #fff !important;
+      }
+      /* Secondary auth btn: ghost */
+      body.eukolakis-classic .header-auth-actions a.button:last-child {
+        background: transparent !important;
         border: 1px solid var(--eko-border) !important;
+        color: var(--eko-text) !important;
       }
-      /* ── Industrial category tile grid ── */
-      .eko-cat-section { margin: 24px 0 20px; }
-      .eko-cat-section-title { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--eko-text-muted); margin:0 0 12px; }
-      .eko-cat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; }
-      .eko-cat-tile {
-        position:relative; display:flex; flex-direction:column; text-decoration:none;
-        border-radius:10px; overflow:hidden;
-        border:1px solid var(--eko-border); background:var(--eko-surface);
-        transition:border-color .18s, box-shadow .18s, transform .18s;
-        min-height:120px;
+      body.eukolakis-classic .header-auth-actions a.button:last-child:hover {
+        border-color: var(--eko-border-hover) !important;
+        color: var(--eko-accent) !important;
       }
-      .eko-cat-tile:hover { border-color:var(--eko-accent); box-shadow:0 8px 28px rgba(0,0,0,.3); transform:translateY(-2px); }
-      .eko-cat-tile-img { width:100%; height:88px; object-fit:cover; display:block; flex-shrink:0; }
-      .eko-cat-tile-img-placeholder { width:100%; height:88px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1c2235,#242c40); font-size:2rem; flex-shrink:0; }
-      .eko-cat-tile-body { padding:9px 12px 10px; flex:1; }
-      .eko-cat-tile-name { font-size:.88rem; font-weight:700; color:var(--eko-text); margin:0; line-height:1.3; }
-      .eko-cat-tile-desc { font-size:.72rem; color:var(--eko-text-muted); margin:3px 0 0; line-height:1.4; }
-      .eko-cat-bar { position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--eko-accent); opacity:0; transition:opacity .18s; }
-      .eko-cat-tile:hover .eko-cat-bar { opacity:1; }
+
+      /* ── Nav row: horizontal tab bar ── */
+      body.eukolakis-classic .header-nav-row {
+        margin-top: 0 !important;
+        padding: 0 !important;
+        border-top: 1px solid rgba(100,110,140,.12);
+        background: rgba(0,0,0,.28);
+      }
+      body.eukolakis-classic.eko-light .header-nav-row {
+        background: rgba(0,0,0,.04);
+        border-top-color: rgba(0,0,0,.06);
+      }
+      body.eukolakis-classic .header-nav-row .main-nav {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      body.eukolakis-classic .header-nav-row ul {
+        display: flex; gap: 0; list-style: none; margin: 0; padding: 0;
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+      }
+      body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
+      body.eukolakis-classic .header-nav-row ul li a {
+        display: block; padding: 11px 16px;
+        color: var(--eko-text-muted);
+        text-decoration: none; font-size: .84rem; font-weight: 600;
+        letter-spacing: .01em; white-space: nowrap;
+        border-bottom: 2px solid transparent;
+        transition: color .14s, border-color .14s;
+      }
+      body.eukolakis-classic .header-nav-row ul li a:hover {
+        color: var(--eko-accent);
+      }
+      body.eukolakis-classic .header-nav-row ul li.active a {
+        color: var(--eko-accent);
+        border-bottom-color: var(--eko-accent);
+      }
+      body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
+      body.eukolakis-classic .menu-toggle { display: none; }
+      body.eukolakis-classic .pill-nav { display: none !important; }
+      body.eukolakis-classic .hero .hero-actions { display: none; }
+
+      /* ── Preview mode banner — adapt to dark theme ── */
+      body.eukolakis-classic .preview-banner {
+        background: rgba(196,144,46,.1) !important;
+        border-bottom: 1px solid rgba(196,144,46,.25) !important;
+        color: var(--eko-accent) !important;
+        font-size: .8rem;
+        padding: 6px 20px !important;
+      }
+      body.eukolakis-classic .preview-banner strong { color: var(--eko-accent); }
+
+      /* ── Lang switcher ── */
+      body.eukolakis-classic .lang-switcher {
+        background: rgba(0,0,0,.25) !important;
+        border-bottom: 1px solid var(--eko-border) !important;
+        color: var(--eko-text-muted) !important;
+      }
+      body.eukolakis-classic .lang-switcher select {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+
       /* ── Industrial hero banner ── */
       .eko-hero {
-        position: relative; border-radius: 14px; overflow: hidden;
-        margin: 0 0 22px; background: var(--eko-surface);
+        position: relative; border-radius: 16px; overflow: hidden;
+        margin: 0 0 24px; background: var(--eko-surface);
         border: 1px solid var(--eko-border);
       }
       .eko-hero-img {
-        width: 100%; height: clamp(190px, 26vw, 290px);
+        width: 100%; height: clamp(220px, 30vw, 340px);
         object-fit: cover; display: block;
       }
       .eko-hero-overlay {
         position: absolute; inset: 0;
-        background: linear-gradient(105deg, rgba(12,14,20,.92) 0%, rgba(12,14,20,.6) 52%, rgba(12,14,20,.18) 100%);
+        /* gradient up from bottom for strong text contrast */
+        background: linear-gradient(
+          to top,
+          rgba(11,13,18,.97) 0%,
+          rgba(11,13,18,.72) 38%,
+          rgba(11,13,18,.28) 65%,
+          transparent 100%
+        );
         display: flex; flex-direction: column; justify-content: flex-end;
         padding: clamp(18px, 3vw, 36px);
       }
-      .eko-hero-no-img { padding: clamp(24px, 4vw, 44px); }
+      .eko-hero-no-img {
+        padding: clamp(28px, 5vw, 52px) clamp(20px, 4vw, 44px);
+        background: linear-gradient(135deg, #14182a, var(--eko-surface));
+      }
       .eko-hero-eyebrow {
         font-size: .68rem; font-weight: 800; text-transform: uppercase;
-        letter-spacing: .2em; color: var(--eko-accent); margin: 0 0 6px;
+        letter-spacing: .22em; color: var(--eko-accent); margin: 0 0 7px;
       }
       .eko-hero-title {
-        font-size: clamp(1.45rem, 3.2vw, 2.3rem); font-weight: 900;
-        color: #fff; letter-spacing: -.01em; line-height: 1.14;
-        margin: 0 0 7px; max-width: 540px;
-        text-shadow: 0 2px 14px rgba(0,0,0,.55);
+        font-size: clamp(1.55rem, 3.8vw, 2.6rem); font-weight: 900;
+        color: #fff; letter-spacing: -.02em; line-height: 1.12;
+        margin: 0 0 8px; max-width: 560px;
+        text-shadow: 0 3px 16px rgba(0,0,0,.6);
       }
       .eko-hero-subtitle {
-        font-size: clamp(.8rem, 1.4vw, .94rem);
-        color: rgba(205,210,222,.82); margin: 0 0 16px;
-        max-width: 420px; line-height: 1.52;
+        font-size: clamp(.82rem, 1.5vw, .96rem);
+        color: rgba(208,213,224,.78); margin: 0 0 18px;
+        max-width: 440px; line-height: 1.55;
       }
       .eko-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
       .eko-hero-cta {
-        text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
-        border-radius: 8px; padding: 9px 18px;
-        font-weight: 700; font-size: .87rem; cursor: pointer; border: none;
-        transition: opacity .15s, transform .12s;
+        text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        border-radius: 8px; padding: 10px 20px;
+        font-weight: 700; font-size: .88rem; cursor: pointer; border: none;
+        transition: opacity .14s, transform .12s;
       }
       .eko-hero-cta:hover { opacity: .9; transform: translateY(-1px); }
       .eko-hero-cta-primary { background: var(--eko-accent); color: #fff; }
       .eko-hero-cta-secondary {
-        background: rgba(255,255,255,.11); color: #fff;
-        border: 1px solid rgba(255,255,255,.28);
+        background: rgba(255,255,255,.1); color: #fff;
+        border: 1px solid rgba(255,255,255,.25);
       }
-      /* ── Improved category tiles ── */
-      .eko-cat-tile { min-height: 148px; }
-      .eko-cat-tile-img { height: 96px; }
-      .eko-cat-tile-img-placeholder { height: 96px; }
-      .eko-cat-tile-name { font-size: .92rem; }
-      /* ── Color mode toggle ── */
-      .eko-mode-btn {
-        position:fixed; bottom:68px; right:14px; z-index:900;
-        border:1px solid var(--eko-border); border-radius:999px;
-        padding:7px 13px; background:var(--eko-surface); color:var(--eko-text);
-        cursor:pointer; font-size:.76rem; font-weight:600; opacity:.85;
-        box-shadow:0 4px 16px rgba(0,0,0,.22); transition:opacity .15s;
-        display:none;
+
+      /* ── Category tile grid ── */
+      .eko-cat-section { margin: 0 0 24px; }
+      .eko-cat-section-title {
+        font-size: .68rem; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .2em; color: var(--eko-text-muted); margin: 0 0 12px;
       }
-      body.eukolakis-classic .eko-mode-btn { display:inline-block; }
-      .eko-mode-btn:hover { opacity:1; }
-      /* ── Metallic accent on featured kit cards ── */
-      body.eukolakis-classic .featured-kit-card { border:1px solid var(--eko-border) !important; background:var(--eko-surface) !important; }
+      .eko-cat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .eko-cat-tile {
+        position: relative; display: flex; flex-direction: column;
+        text-decoration: none; border-radius: 12px; overflow: hidden;
+        border: 1px solid var(--eko-border);
+        background: linear-gradient(150deg, #1a1f2e 0%, var(--eko-surface) 100%);
+        min-height: 158px;
+        transition: border-color .16s, box-shadow .16s, transform .16s;
+      }
+      .eko-cat-tile:hover {
+        border-color: var(--eko-accent);
+        box-shadow: 0 0 0 1px var(--eko-accent-dim), 0 14px 36px rgba(0,0,0,.45);
+        transform: translateY(-3px);
+      }
+      .eko-cat-tile-img {
+        width: 100%; height: 106px; object-fit: cover;
+        display: block; flex-shrink: 0;
+      }
+      .eko-cat-tile-img-placeholder {
+        width: 100%; height: 106px; display: flex; align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1c2235, #242c40);
+        font-size: 2.2rem; flex-shrink: 0;
+      }
+      .eko-cat-tile-body { padding: 10px 14px 12px; flex: 1; }
+      .eko-cat-tile-name {
+        font-size: .95rem; font-weight: 800; letter-spacing: .01em;
+        color: var(--eko-text-strong); margin: 0; line-height: 1.28;
+      }
+      .eko-cat-tile-desc {
+        font-size: .73rem; color: var(--eko-text-muted);
+        margin: 4px 0 0; line-height: 1.42;
+      }
+      .eko-cat-bar {
+        position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+        background: linear-gradient(90deg, var(--eko-accent), var(--eko-accent-light));
+        opacity: 0; transition: opacity .16s;
+      }
+      .eko-cat-tile:hover .eko-cat-bar { opacity: 1; }
+      /* Light mode tile */
+      body.eukolakis-classic.eko-light .eko-cat-tile {
+        background: linear-gradient(150deg, #eef0f6 0%, #fff 100%);
+        border-color: rgba(40,50,70,.14);
+      }
+
+      /* ── Product cards — dark theme adaptation ── */
+      body.eukolakis-classic .product-card {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .product-card:hover {
+        box-shadow: 0 8px 26px rgba(0,0,0,.38) !important;
+        border-color: var(--eko-border-hover) !important;
+      }
+      body.eukolakis-classic .product-card h2 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic .product-card p  { color: var(--eko-text-muted) !important; }
+      body.eukolakis-classic .product-card .price { color: var(--eko-accent) !important; }
+      body.eukolakis-classic .product-card .product-thumb { background: #090b0f !important; }
+      body.eukolakis-classic .btn-cart { background: var(--eko-accent) !important; color: #fff !important; }
+      body.eukolakis-classic .btn-cart:hover { background: var(--eko-accent-light) !important; }
+
+      /* ── Featured kit cards ── */
+      body.eukolakis-classic .featured-kit-card {
+        border: 1px solid var(--eko-border) !important;
+        background: var(--eko-surface-2) !important;
+      }
       body.eukolakis-classic .featured-kit-card .body h3,
-      body.eukolakis-classic .featured-kit-card .body .product-name { color:var(--eko-text) !important; }
+      body.eukolakis-classic .featured-kit-card .body .product-name,
+      body.eukolakis-classic .featured-kit-card .body p { color: var(--eko-text) !important; }
+      body.eukolakis-classic .featured-primary-grid { gap: 20px; }
+      body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
+
+      /* ── Buttons (global override for eukolakis-classic) ── */
       body.eukolakis-classic .button, body.eukolakis-classic .btn-primary {
-        background: var(--eko-accent) !important; border-color:var(--eko-accent) !important;
-        color:#fff !important;
+        background: var(--eko-accent) !important;
+        border-color: var(--eko-accent) !important;
+        color: #fff !important;
       }
       body.eukolakis-classic .button:hover, body.eukolakis-classic .btn-primary:hover {
-        background: var(--eko-accent-light) !important; border-color:var(--eko-accent-light) !important;
+        background: var(--eko-accent-light) !important;
+        border-color: var(--eko-accent-light) !important;
+      }
+
+      /* ── Spare tools / home-secondary cards ── */
+      body.eukolakis-classic .home-secondary {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .spare-tools-card {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .spare-tools-card h3 { color: var(--eko-text-strong) !important; }
+
+      /* ── Featured section title ── */
+      body.eukolakis-classic .featured-section h2 { color: var(--eko-accent) !important; }
+
+      /* ── Filter UI ── */
+      body.eukolakis-classic .spare-filters {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+        box-shadow: none !important;
+      }
+      body.eukolakis-classic .spare-filters input,
+      body.eukolakis-classic .spare-filters select {
+        background: var(--eko-surface-2) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .filter-empty-state {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text-muted) !important;
+      }
+
+      /* ── Footer ── */
+      body.eukolakis-classic .store-footer {
+        border-top-color: var(--eko-border) !important;
+        color: var(--eko-text-muted) !important;
+      }
+      body.eukolakis-classic .store-footer a { color: var(--eko-accent) !important; }
+
+      /* ── Color mode toggle ── */
+      .eko-mode-btn {
+        position: fixed; bottom: 68px; right: 14px; z-index: 900;
+        border: 1px solid var(--eko-border); border-radius: 999px;
+        padding: 7px 13px; background: var(--eko-surface); color: var(--eko-text);
+        cursor: pointer; font-size: .75rem; font-weight: 700; opacity: .8;
+        box-shadow: 0 4px 18px rgba(0,0,0,.28); transition: opacity .14s;
+        display: none;
+      }
+      body.eukolakis-classic .eko-mode-btn { display: inline-block; }
+      .eko-mode-btn:hover { opacity: 1; }
+
+      /* ── Responsive ── */
+      @media (max-width: 860px) {
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
       }
       @media (max-width: 600px) {
-        .eko-cat-grid { grid-template-columns: repeat(2,1fr); gap:9px; }
-        .eko-cat-tile-img, .eko-cat-tile-img-placeholder { height:70px; }
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        body.eukolakis-classic .eko-cat-tile-img,
+        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 76px; }
+        body.eukolakis-classic .eko-cat-tile-name { font-size: .88rem; }
+        body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
+        body.eukolakis-classic .header-main-row { padding: 8px 14px; }
+        body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
+        body.eukolakis-classic main { padding: 0 12px 32px; }
       }
+      @media (max-width: 400px) {
+        body.eukolakis-classic .header-auth-actions { gap: 6px; }
+        body.eukolakis-classic .header-auth-actions a.button {
+          font-size: .76rem !important; padding: 6px 10px !important;
+        }
+      }
+
+      /* ── Shared non-eukolakis responsive ── */
       body.device-mobile main { padding-left: 10px; padding-right: 10px; }
       body.device-mobile .pill-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
@@ -364,7 +628,6 @@
         .kit-wizard-backdrop { padding: 0; }
         .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
         .kit-wizard-body { grid-template-columns: 1fr; }
-        body.eukolakis-classic .logo-image-dynamic { max-height: clamp(56px, 14vw, 74px) !important; }
       }
     </style>
   </head>
@@ -489,7 +752,7 @@
     </header>
 
     <% if (isPreviewMode) { %>
-    <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+    <div class="preview-banner" style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
       <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
     </div>
     <% } %>
