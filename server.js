@@ -1489,77 +1489,26 @@ async function sendOrderEmail({ tenant, config, order }) {
 
 async function sendTrackingUpdateEmail({ tenant, config, order }) {
   const transport = buildTransport();
-  if (!transport) {
-    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({ orderId: order.id, reason: 'mailer_not_configured' }));
-    return { sent: false, reason: 'mailer_not_configured' };
-  }
-  const to = normalizeEmail(order.email || '');
-  if (!to) {
-    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({ orderId: order.id, reason: 'missing_customer_email' }));
-    return { sent: false, reason: 'missing_customer_email' };
-  }
-  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG) || tenant.id;
+  if (!transport) return;
+  const recipient = normalizeEmail(order && order.email);
+  if (!recipient) return;
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
   const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
   const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
-  const carrier = String(order.trackingCarrier || '').trim() || 'N/A';
-  const trackingUrl = String(order.trackingUrl || '').trim();
-  const subject = `[${storeName}] Tracking update για την παραγγελία #${order.id}`;
+  const subject = `[${tenant.id}] Tracking update #${order.id}`;
   const lines = [
-    `Κατάστημα: ${storeName}`,
-    `Order ID: ${order.id}`,
-    `Πελάτης: ${order.customerName || '-'}`,
-    `Tracking number: ${order.trackingNumber || '-'}`,
-    `Carrier: ${carrier}`,
-    `Status: ${normalizeFulfillmentStatus(order)}`,
-    trackingUrl ? `Tracking link: ${trackingUrl}` : 'Tracking link: -'
+    `Order: ${order.id}`,
+    `Fulfillment: ${order.fulfillmentStatus || 'ready_to_ship'}`,
+    `Tracking #: ${order.trackingNumber || '—'}`,
+    `Carrier: ${order.trackingCarrier || '—'}`,
+    `Tracking URL: ${order.trackingUrl || '—'}`
   ];
-
-  try {
-    await transport.sendMail({
-      from,
-      to,
-      subject,
-      text: lines.join('\n')
-    });
-    console.log('[fulfillment] tracking-email:sent', JSON.stringify({ orderId: order.id, to }));
-  } catch (err) {
-    console.error('[fulfillment] tracking-email:failed', JSON.stringify({
-      orderId: order.id,
-      to,
-      error: err && err.message ? err.message : String(err)
-    }));
-    return { sent: false, reason: 'send_failed' };
-  }
-
-  const merchantRecipients = (Array.isArray(config.notificationEmails) ? config.notificationEmails : [])
-    .map((v) => String(v || '').trim())
-    .filter(Boolean);
-  const merchantConfirmationEnabled = config.notificationCcCustomer || (config.notifications && config.notifications.merchantTrackingConfirmation === true);
-  if (merchantRecipients.length && merchantConfirmationEnabled) {
-    try {
-      await transport.sendMail({
-        from,
-        to: merchantRecipients.join(','),
-        subject: `[${tenant.id}] Tracking ενημερώθηκε #${order.id}`,
-        text: lines.join('\n')
-      });
-      console.log('[fulfillment] tracking-email:merchant-confirmation', JSON.stringify({
-        orderId: order.id,
-        to: merchantRecipients
-      }));
-    } catch (err) {
-      console.error('[fulfillment] tracking-email:merchant-failed', JSON.stringify({
-        orderId: order.id,
-        error: err && err.message ? err.message : String(err)
-      }));
-    }
-  } else {
-    console.log('[fulfillment] tracking-email:merchant-skipped', JSON.stringify({
-      orderId: order.id,
-      reason: merchantRecipients.length ? 'merchant_tracking_confirmation_disabled' : 'no_notification_emails'
-    }));
-  }
-  return { sent: true };
+  await transport.sendMail({
+    from,
+    to: recipient,
+    subject,
+    text: lines.join('\n')
+  });
 }
 
 // ── Generic webhook (mobile / Viber bridge) ───────────────────────────────────
@@ -3550,122 +3499,6 @@ function buildAdminOrdersViewModel(req, extra = {}) {
     message,
     error
   });
-  console.log('[fulfillment] status-update', JSON.stringify({
-    tenantId: req.tenant.id,
-    orderId: orders[idx].id,
-    fulfillmentStatus: orders[idx].fulfillmentStatus
-  }));
-  if (orders[idx].trackingNumber) {
-    await sendTrackingUpdateEmail({
-      tenant: req.tenant,
-      config: loadTenantConfig(req),
-      order: orders[idx]
-    });
-  } else {
-    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({
-      tenantId: req.tenant.id,
-      orderId: orders[idx].id,
-      reason: 'tracking_number_missing'
-    }));
-  }
-  return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
-});
-
-app.get('/admin/hosting', (req, res) => {
-  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
-  const hosting = getTenantHostingSnapshot(req.tenant, req);
-  console.log('[tenant-hosting] render', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    domainStatus: hosting.domainStatus,
-    sslStatus: hosting.sslStatus,
-    issueFlag: hosting.issueFlag
-  }));
-  res.render('admin-hosting', {
-    tenant: req.tenant,
-    config,
-    hosting,
-    message: null,
-    error: null
-  });
-});
-
-app.post('/admin/hosting/ssl-recheck', async (req, res) => {
-  const { password } = req.body;
-  const auth = await verifyAdminAction(req, password);
-  if (!auth.ok) {
-    return res.status(401).render('admin-hosting', {
-      tenant: req.tenant,
-      config: localizeConfigContent(loadTenantConfig(req), req.lang),
-      hosting: getTenantHostingSnapshot(req.tenant, req),
-      message: null,
-      error: 'Λάθος κωδικός διαχειριστή.'
-    });
-  }
-  const tenants = loadTenantsRegistry();
-  const idx = tenants.findIndex((t) => t.id === req.tenant.id);
-  if (idx >= 0) {
-    tenants[idx].hosting = tenants[idx].hosting || {};
-    tenants[idx].hosting.lastCheckedAt = new Date().toISOString();
-    saveTenantsRegistry(tenants);
-  }
-  console.log('[tenant-hosting] ssl-recheck-requested', JSON.stringify({ tenantId: req.tenant.id }));
-  return res.render('admin-hosting', {
-    tenant: req.tenant,
-    config: localizeConfigContent(loadTenantConfig(req), req.lang),
-    hosting: getTenantHostingSnapshot(findTenantById(req.tenant.id) || req.tenant, req),
-    message: 'Το αίτημα SSL recheck καταγράφηκε.',
-    error: null
-  });
-});
-
-app.post('/admin/hosting/report-issue', async (req, res) => {
-  const { password, note } = req.body;
-  const auth = await verifyAdminAction(req, password);
-  if (!auth.ok) {
-    return res.status(401).render('admin-hosting', {
-      tenant: req.tenant,
-      config: localizeConfigContent(loadTenantConfig(req), req.lang),
-      hosting: getTenantHostingSnapshot(req.tenant, req),
-      message: null,
-      error: 'Λάθος κωδικός διαχειριστή.'
-    });
-  }
-  const tenants = loadTenantsRegistry();
-  const idx = tenants.findIndex((t) => t.id === req.tenant.id);
-  if (idx >= 0) {
-    tenants[idx].hosting = tenants[idx].hosting || {};
-    tenants[idx].hosting.issueFlag = true;
-    tenants[idx].hosting.tenantNotes = String(note || '').trim();
-    tenants[idx].hosting.lastCheckedAt = new Date().toISOString();
-    saveTenantsRegistry(tenants);
-  }
-  console.log('[tenant-hosting] issue-report', JSON.stringify({ tenantId: req.tenant.id }));
-  return res.render('admin-hosting', {
-    tenant: req.tenant,
-    config: localizeConfigContent(loadTenantConfig(req), req.lang),
-    hosting: getTenantHostingSnapshot(findTenantById(req.tenant.id) || req.tenant, req),
-    message: 'Το hosting issue σημειώθηκε και ενημερώθηκε η υποστήριξη.',
-    error: null
-  });
-  console.log('[fulfillment] status-update', JSON.stringify({
-    tenantId: req.tenant.id,
-    orderId: orders[idx].id,
-    fulfillmentStatus: orders[idx].fulfillmentStatus
-  }));
-  if (orders[idx].trackingNumber) {
-    await sendTrackingUpdateEmail({
-      tenant: req.tenant,
-      config: loadTenantConfig(req),
-      order: orders[idx]
-    });
-  } else {
-    console.log('[fulfillment] tracking-email:skipped', JSON.stringify({
-      tenantId: req.tenant.id,
-      orderId: orders[idx].id,
-      reason: 'tracking_number_missing'
-    }));
-  }
-  return res.render('admin-orders', buildAdminOrdersViewModel(req, { message: 'Το fulfillment/tracking ενημερώθηκε.' }));
 });
 
 app.post('/admin/orders/tracking', async (req, res) => {
@@ -3673,33 +3506,49 @@ app.post('/admin/orders/tracking', async (req, res) => {
   if (!auth.ok) {
     return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Λάθος κωδικός διαχειριστή.' }));
   }
+
   const orderId = String(req.body.orderId || '').trim();
   const trackingNumber = String(req.body.trackingNumber || '').trim();
   const trackingCarrier = String(req.body.trackingCarrier || '').trim().toLowerCase();
   const fulfillmentStatus = String(req.body.fulfillmentStatus || '').trim().toLowerCase();
   const allowedStatuses = new Set(['pending_payment', 'cod_pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'issue']);
+
   if (!orderId) {
     return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order ID is required.' }));
   }
+
   const orders = loadTenantOrders(req);
   const idx = orders.findIndex((o) => o.id === orderId);
   if (idx < 0) {
     return res.redirect(buildTenantLink(req, '/admin/orders', { error: 'Order not found.' }));
   }
+
   const now = new Date().toISOString();
   const next = { ...orders[idx] };
   next.trackingNumber = trackingNumber;
   next.trackingCarrier = trackingCarrier;
   next.trackingUrl = deriveTrackingUrl(trackingCarrier, trackingNumber);
-  if (allowedStatuses.has(fulfillmentStatus)) {
-    next.fulfillmentStatus = fulfillmentStatus;
-  } else {
-    next.fulfillmentStatus = normalizeFulfillmentStatus(next);
-  }
+  next.fulfillmentStatus = allowedStatuses.has(fulfillmentStatus)
+    ? fulfillmentStatus
+    : normalizeFulfillmentStatus(next);
   if (next.fulfillmentStatus === 'shipped' && !next.shippedAt) next.shippedAt = now;
   if (next.fulfillmentStatus === 'delivered' && !next.deliveredAt) next.deliveredAt = now;
+
   orders[idx] = next;
   saveJson(req.tenantPaths.orders, orders);
+
+  if (next.trackingNumber) {
+    try {
+      await sendTrackingUpdateEmail({
+        tenant: req.tenant,
+        config: loadTenantConfig(req),
+        order: next
+      });
+    } catch (err) {
+      console.error('[admin-orders] tracking-email:failed', err && err.message ? err.message : err);
+    }
+  }
+
   console.log('[admin-orders] tracking-save', JSON.stringify({
     tenantId: req.tenant && req.tenant.id,
     orderId,
