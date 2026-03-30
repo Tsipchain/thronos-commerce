@@ -266,6 +266,56 @@
       .eko-cat-tile-desc { font-size:.72rem; color:var(--eko-text-muted); margin:3px 0 0; line-height:1.4; }
       .eko-cat-bar { position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--eko-accent); opacity:0; transition:opacity .18s; }
       .eko-cat-tile:hover .eko-cat-bar { opacity:1; }
+      /* ── Industrial hero banner ── */
+      .eko-hero {
+        position: relative; border-radius: 14px; overflow: hidden;
+        margin: 0 0 22px; background: var(--eko-surface);
+        border: 1px solid var(--eko-border);
+      }
+      .eko-hero-img {
+        width: 100%; height: clamp(190px, 26vw, 290px);
+        object-fit: cover; display: block;
+      }
+      .eko-hero-overlay {
+        position: absolute; inset: 0;
+        background: linear-gradient(105deg, rgba(12,14,20,.92) 0%, rgba(12,14,20,.6) 52%, rgba(12,14,20,.18) 100%);
+        display: flex; flex-direction: column; justify-content: flex-end;
+        padding: clamp(18px, 3vw, 36px);
+      }
+      .eko-hero-no-img { padding: clamp(24px, 4vw, 44px); }
+      .eko-hero-eyebrow {
+        font-size: .68rem; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .2em; color: var(--eko-accent); margin: 0 0 6px;
+      }
+      .eko-hero-title {
+        font-size: clamp(1.45rem, 3.2vw, 2.3rem); font-weight: 900;
+        color: #fff; letter-spacing: -.01em; line-height: 1.14;
+        margin: 0 0 7px; max-width: 540px;
+        text-shadow: 0 2px 14px rgba(0,0,0,.55);
+      }
+      .eko-hero-subtitle {
+        font-size: clamp(.8rem, 1.4vw, .94rem);
+        color: rgba(205,210,222,.82); margin: 0 0 16px;
+        max-width: 420px; line-height: 1.52;
+      }
+      .eko-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .eko-hero-cta {
+        text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+        border-radius: 8px; padding: 9px 18px;
+        font-weight: 700; font-size: .87rem; cursor: pointer; border: none;
+        transition: opacity .15s, transform .12s;
+      }
+      .eko-hero-cta:hover { opacity: .9; transform: translateY(-1px); }
+      .eko-hero-cta-primary { background: var(--eko-accent); color: #fff; }
+      .eko-hero-cta-secondary {
+        background: rgba(255,255,255,.11); color: #fff;
+        border: 1px solid rgba(255,255,255,.28);
+      }
+      /* ── Improved category tiles ── */
+      .eko-cat-tile { min-height: 148px; }
+      .eko-cat-tile-img { height: 96px; }
+      .eko-cat-tile-img-placeholder { height: 96px; }
+      .eko-cat-tile-name { font-size: .92rem; }
       /* ── Color mode toggle ── */
       .eko-mode-btn {
         position:fixed; bottom:68px; right:14px; z-index:900;
@@ -470,6 +520,33 @@
       <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
       <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
+      <%/* ── Eukolaki Classic industrial hero banner ── */%>
+      <% if (isEukolakisClassic && !activeCategory) { %>
+      <section class="eko-hero">
+        <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
+        <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
+        <% if (homepage.heroImage) { %>
+          <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
+          <div class="eko-hero-overlay">
+        <% } else { %>
+          <div class="eko-hero-no-img">
+        <% } %>
+            <p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p>
+            <h2 class="eko-hero-title"><%= heroTitleText %></h2>
+            <% if (heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
+            <div class="eko-hero-actions">
+              <% if (topPrimaryKit1) { %>
+              <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>">
+                🔧 <%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %>
+              </a>
+              <% } %>
+              <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= sparePartsHref %>">
+                🔩 <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
+              </a>
+            </div>
+          </div>
+      </section>
+      <% } %>
       <%/* ── Eukolaki Classic industrial category tile grid ── */%>
       <% if (isEukolakisClassic && !activeCategory) { %>
       <section class="eko-cat-section">
@@ -528,7 +605,8 @@
         'spare-parts': { el: { title: 'Ανταλλακτικά & Εργαλεία', subtitle: 'SKU αναζήτηση και φίλτρα για γρήγορο εντοπισμό τεχνικών εξαρτημάτων.' }, en: { title: 'Spare Parts & Tools', subtitle: 'Use SKU search and filters to quickly find technical parts.' } }
       }; %>
       <% const dynamicHeroEntry = activeCategory && dynamicHeroByCategory[activeCategory] ? dynamicHeroByCategory[activeCategory][lang] : null; %>
-      <% if (homeBlockVisibility.hero !== false && (((!config.theme || config.theme.bannerVisible !== false) || (isEukolakisClassic && !activeCategory)) && !(isEukolakisClassic && activeCategory))) { %>
+      <%/* Standard hero: hidden for eukolakis-classic (uses eko-hero instead) */%>
+      <% if (!isEukolakisClassic && homeBlockVisibility.hero !== false && (!config.theme || config.theme.bannerVisible !== false)) { %>
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
         <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
           <div style="margin-bottom:14px;">
@@ -569,12 +647,25 @@
       <% } %>
 
       <% if (activeCategory && activeCategoryObj) { %>
+      <% if (isEukolakisClassic) { %>
+      <div style="display:flex;align-items:center;gap:14px;margin:14px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--eko-border);">
+        <% if (activeCategoryObj.image) { %><img src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--eko-border);" /><% } %>
+        <div>
+          <p style="margin:0 0 2px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--eko-accent);">
+            <%= lang === 'el' ? 'Κατηγορία' : 'Category' %>
+          </p>
+          <h2 style="margin:0;font-size:1.3rem;font-weight:800;color:var(--eko-text);"><%= activeCategoryObj.name %></h2>
+        </div>
+        <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="margin-left:auto;font-size:.8rem;color:var(--eko-accent);text-decoration:none;font-weight:600;">← <%= lang === 'el' ? 'Πίσω' : 'Back' %></a>
+      </div>
+      <% } else { %>
       <section class="home-secondary" style="margin-top:10px;display:flex;align-items:center;gap:12px;">
         <% if (activeCategoryObj.image) { %><img src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" style="width:58px;height:58px;object-fit:cover;border-radius:10px;" /><% } %>
         <div>
           <h2 style="margin:0 0 4px;"><%= activeCategoryObj.name %></h2>
         </div>
       </section>
+      <% } %>
       <% } %>
 
       <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
