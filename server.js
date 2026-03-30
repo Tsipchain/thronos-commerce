@@ -1,3 +1,14 @@
+// ── Fatal error handlers — must be first ─────────────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason);
+  process.exit(1);
+});
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -1379,6 +1390,10 @@ function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
 
 function buildTransport() {
   if (!nodemailer) return null;
+  if (process.env.EMAIL_ENABLED === 'false') {
+    console.log('[mailer] EMAIL_ENABLED=false — email disabled.');
+    return null;
+  }
   const host = process.env.THRC_SMTP_HOST;
   const port = Number(process.env.THRC_SMTP_PORT || '587');
   const user = process.env.THRC_SMTP_USER;
@@ -1854,7 +1869,12 @@ app.use((req, res, next) => {
 });
 
 // Health check
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  uptime: process.uptime(),
+  env: process.env.NODE_ENV || 'development',
+  emailEnabled: process.env.EMAIL_ENABLED !== 'false' && !!(process.env.THRC_SMTP_HOST),
+}));
 app.get('/robots.txt', (_req, res) => {
   res.type('text/plain');
   res.send('User-agent: *\nAllow: /\nDisallow: /admin\n');
@@ -1867,8 +1887,11 @@ app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set('trust proxy', 1);
+if (!process.env.SESSION_SECRET) {
+  console.warn('[boot] SESSION_SECRET not set — using insecure default. Set SESSION_SECRET in production!');
+}
 app.use(session({
-  secret: 'thronos-secret',
+  secret: process.env.SESSION_SECRET || 'thronos-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -5608,16 +5631,36 @@ app.post('/root/hosting/update', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
+
+// ── Boot env audit (presence only — never log values) ────────────────────────
+console.log('[boot] Thronos Commerce starting', {
+  pid: process.pid,
+  node: process.version,
+  env: process.env.NODE_ENV || 'development',
+});
+console.log('[boot] Env audit:', {
+  PORT: !!process.env.PORT,
+  SESSION_SECRET: !!process.env.SESSION_SECRET,
+  THRC_DATA_ROOT: !!process.env.THRC_DATA_ROOT,
+  THRC_SMTP: !!(process.env.THRC_SMTP_HOST && process.env.THRC_SMTP_USER),
+  EMAIL_ENABLED: process.env.EMAIL_ENABLED,
+  STRIPE: !!(process.env.STRIPE_SECRET_KEY),
+  STRIPE_WEBHOOK: !!(process.env.STRIPE_WEBHOOK_SECRET),
+  THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
+  THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
+  THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
+});
+console.log('[boot] DATA_ROOT:', DATA_ROOT);
+
 if (process.env.THRC_PREFLIGHT_EJS === '1') {
   try {
+    console.log('[boot] EJS preflight starting...');
     const ok = preflightCompileTemplates();
-    if (!ok) {
-      console.warn('[boot] EJS preflight completed with template errors (continuing startup).');
-    }
+    console.log('[boot] EJS preflight', ok ? 'OK' : 'completed with template errors (continuing)');
   } catch (e) {
     console.error('[boot] EJS preflight warning:', e.message);
   }
 }
 app.listen(PORT, () => {
-  console.log(`Thronos Commerce running on port ${PORT}`);
+  console.log(`[boot] Thronos Commerce listening on port ${PORT}`);
 });
