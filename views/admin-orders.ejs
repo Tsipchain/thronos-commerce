@@ -171,11 +171,8 @@
             </tbody>
           </table>
         </div>
-        <p class="helper">Orders requiring action are highlighted until tracking/fulfillment is updated.</p>
-
-        <% if (!safeOrders.length) { %>
-          <p class="muted">No orders yet.</p>
         <% } %>
+        <p class="helper">Orders requiring action are highlighted until tracking/fulfillment is updated.</p>
 
         <% safeOrders.forEach(function(order) { 
              const needsAction = !order.hasTracking || ['cod_pending','pending_payment','ready_to_ship'].includes(order.fulfillmentStatus);
