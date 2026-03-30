@@ -217,6 +217,81 @@
       body.eukolakis-classic .featured-primary-grid { gap: 20px; }
       body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
       body.eukolakis-classic .hero { margin-top: 12px; border-radius: 14px; padding: 24px; }
+
+      /* ── Eukolaki Industrial Metallic Theme ──────────────────────────────────── */
+      body.eukolakis-classic {
+        --eko-bg: #0c0e14;
+        --eko-surface: #141821;
+        --eko-border: rgba(100,110,140,.32);
+        --eko-accent: #b8892a;
+        --eko-accent-light: #d4a843;
+        --eko-text: #cdd2de;
+        --eko-text-muted: #6b7385;
+        background: var(--eko-bg);
+        color: var(--eko-text);
+      }
+      body.eukolakis-classic.eko-light {
+        --eko-bg: #efefef;
+        --eko-surface: #ffffff;
+        --eko-border: rgba(50,60,80,.16);
+        --eko-accent: #8c6415;
+        --eko-accent-light: #b37f1d;
+        --eko-text: #1a1d2a;
+        --eko-text-muted: #555d70;
+      }
+      body.eukolakis-classic .store-header {
+        background: var(--eko-surface) !important;
+        border-bottom: 1px solid var(--eko-border) !important;
+      }
+      body.eukolakis-classic .hero {
+        background: var(--eko-surface) !important;
+        border: 1px solid var(--eko-border) !important;
+      }
+      /* ── Industrial category tile grid ── */
+      .eko-cat-section { margin: 24px 0 20px; }
+      .eko-cat-section-title { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--eko-text-muted); margin:0 0 12px; }
+      .eko-cat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; }
+      .eko-cat-tile {
+        position:relative; display:flex; flex-direction:column; text-decoration:none;
+        border-radius:10px; overflow:hidden;
+        border:1px solid var(--eko-border); background:var(--eko-surface);
+        transition:border-color .18s, box-shadow .18s, transform .18s;
+        min-height:120px;
+      }
+      .eko-cat-tile:hover { border-color:var(--eko-accent); box-shadow:0 8px 28px rgba(0,0,0,.3); transform:translateY(-2px); }
+      .eko-cat-tile-img { width:100%; height:88px; object-fit:cover; display:block; flex-shrink:0; }
+      .eko-cat-tile-img-placeholder { width:100%; height:88px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1c2235,#242c40); font-size:2rem; flex-shrink:0; }
+      .eko-cat-tile-body { padding:9px 12px 10px; flex:1; }
+      .eko-cat-tile-name { font-size:.88rem; font-weight:700; color:var(--eko-text); margin:0; line-height:1.3; }
+      .eko-cat-tile-desc { font-size:.72rem; color:var(--eko-text-muted); margin:3px 0 0; line-height:1.4; }
+      .eko-cat-bar { position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--eko-accent); opacity:0; transition:opacity .18s; }
+      .eko-cat-tile:hover .eko-cat-bar { opacity:1; }
+      /* ── Color mode toggle ── */
+      .eko-mode-btn {
+        position:fixed; bottom:68px; right:14px; z-index:900;
+        border:1px solid var(--eko-border); border-radius:999px;
+        padding:7px 13px; background:var(--eko-surface); color:var(--eko-text);
+        cursor:pointer; font-size:.76rem; font-weight:600; opacity:.85;
+        box-shadow:0 4px 16px rgba(0,0,0,.22); transition:opacity .15s;
+        display:none;
+      }
+      body.eukolakis-classic .eko-mode-btn { display:inline-block; }
+      .eko-mode-btn:hover { opacity:1; }
+      /* ── Metallic accent on featured kit cards ── */
+      body.eukolakis-classic .featured-kit-card { border:1px solid var(--eko-border) !important; background:var(--eko-surface) !important; }
+      body.eukolakis-classic .featured-kit-card .body h3,
+      body.eukolakis-classic .featured-kit-card .body .product-name { color:var(--eko-text) !important; }
+      body.eukolakis-classic .button, body.eukolakis-classic .btn-primary {
+        background: var(--eko-accent) !important; border-color:var(--eko-accent) !important;
+        color:#fff !important;
+      }
+      body.eukolakis-classic .button:hover, body.eukolakis-classic .btn-primary:hover {
+        background: var(--eko-accent-light) !important; border-color:var(--eko-accent-light) !important;
+      }
+      @media (max-width: 600px) {
+        .eko-cat-grid { grid-template-columns: repeat(2,1fr); gap:9px; }
+        .eko-cat-tile-img, .eko-cat-tile-img-placeholder { height:70px; }
+      }
       body.device-mobile main { padding-left: 10px; padding-right: 10px; }
       body.device-mobile .pill-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
@@ -243,7 +318,7 @@
       }
     </style>
   </head>
-  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const homeBlockVisibility = Object.assign({ hero: true, kits: true, spare: true, subscriptions: true }, (homepage && homepage.blockVisibility) || {}); %>
@@ -395,6 +470,31 @@
       <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
       <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
+      <%/* ── Eukolaki Classic industrial category tile grid ── */%>
+      <% if (isEukolakisClassic && !activeCategory) { %>
+      <section class="eko-cat-section">
+        <p class="eko-cat-section-title"><%= lang === 'el' ? 'Κατηγορίες' : 'Categories' %></p>
+        <div class="eko-cat-grid">
+          <% navCategories.forEach(function(cat) { %>
+          <a class="eko-cat-tile" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image) { %>
+              <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy" />
+            <% } else { %>
+              <div class="eko-cat-tile-img-placeholder">
+                <% if (cat.id === 'diy-rolla') { %>🔄<% } else if (cat.id === 'diy-sliding') { %>🚪<% } else if (cat.id === 'spare-parts') { %>🔧<% } else { %>📦<% } %>
+              </div>
+            <% } %>
+            <div class="eko-cat-tile-body">
+              <p class="eko-cat-tile-name"><%= cat.name %></p>
+              <% if (cat.shortDescription) { %><p class="eko-cat-tile-desc"><%= cat.shortDescription %></p><% } %>
+            </div>
+            <div class="eko-cat-bar"></div>
+          </a>
+          <% }); %>
+        </div>
+      </section>
+      <% } %>
+
       <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
@@ -1328,6 +1428,33 @@
             if (fallback && fallback !== currentUrl) return window.location.href = fallback;
           } catch (err) {}
           window.location.href = homeUrl;
+        });
+      })();
+      /* ── Eukolaki industrial color mode toggle ── */
+      (function() {
+        var body = document.getElementById('eko-body');
+        if (!body || !body.classList.contains('eukolakis-classic')) return;
+        var STORAGE_KEY = 'eko_color_mode';
+        var saved;
+        try { saved = localStorage.getItem(STORAGE_KEY); } catch(_) {}
+        var serverDefault = <%- JSON.stringify((config.theme && config.theme.colorMode) || 'dark') %>;
+        var current = saved || serverDefault;
+        function applyMode(mode) {
+          if (mode === 'light') { body.classList.add('eko-light'); }
+          else { body.classList.remove('eko-light'); }
+          try { localStorage.setItem(STORAGE_KEY, mode); } catch(_) {}
+          if (btn) btn.textContent = mode === 'light'
+            ? (<%- JSON.stringify(lang) %> === 'el' ? '🌙 Σκοτεινό' : '🌙 Dark')
+            : (<%- JSON.stringify(lang) %> === 'el' ? '☀️ Φωτεινό' : '☀️ Light');
+        }
+        var btn = document.createElement('button');
+        btn.className = 'eko-mode-btn';
+        btn.type = 'button';
+        document.body.appendChild(btn);
+        applyMode(current);
+        btn.addEventListener('click', function() {
+          current = body.classList.contains('eko-light') ? 'dark' : 'light';
+          applyMode(current);
         });
       })();
     </script>
