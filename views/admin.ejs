@@ -176,11 +176,11 @@
         &nbsp;|&nbsp;
         <a href="<%= withTenantLink('/admin/orders') %>" style="font-size:0.85rem"><%= t('admin.ordersLink') %> <% if (typeof unresolvedOrdersCount === 'number' && unresolvedOrdersCount > 0) { %>(<%= unresolvedOrdersCount %> open)<% } %></a>
         &nbsp;|&nbsp;
-        <a href="<%= withTenantLink('/') %>" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
+        <a href="<%= withTenantLink('/') %>" target="_blank" rel="noopener" style="font-size:0.85rem"><%= t('admin.storefrontLink') %></a>
       </p>
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
         <a href="<%= withTenantLink('/admin') %>" class="button" style="font-size:.82rem;">💾 Αποθήκευση αλλαγών</a>
-        <a href="<%= withTenantLink('/') %>" class="button" style="font-size:.82rem;background:#111827;">👁️ Προβολή καταστήματος</a>
+        <a href="<%= withTenantLink('/') %>" target="_blank" rel="noopener" class="button" style="font-size:.82rem;background:#111827;display:inline-flex;align-items:center;gap:6px;">Προβολή Καταστήματος ↗</a>
         <% if (isPreviewMode) { %>
           <span style="font-size:.8rem;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:6px 10px;border-radius:6px;">Preview tenant: <strong><%= tenant.id %></strong></span>
         <% } %>
