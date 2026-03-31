@@ -12,6 +12,7 @@
         --eko-bg: #0b0d12; --eko-surface: #141820; --eko-surface-2: #1c2030;
         --eko-accent: #c4902e; --eko-accent-light: #dba83c;
         --eko-border: rgba(100,110,140,.28); --eko-text: #d0d5e0; --eko-text-muted: #64707f;
+        --eko-text-strong: #edf0f6;
       }
       body {
         margin: 0;
@@ -20,103 +21,200 @@
           repeating-linear-gradient(0deg,  rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 56px),
           repeating-linear-gradient(90deg, rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 56px);
         color: var(--eko-text);
-        font-family: system-ui, sans-serif;
+        font-family: system-ui, -apple-system, sans-serif;
       }
       .intro-card {
-        width: min(980px, 96vw);
+        width: min(960px, 96vw);
         background: var(--eko-surface);
         border: 1px solid var(--eko-border);
         border-top: 2px solid var(--eko-accent);
-        border-radius: 14px; padding: 20px;
-        box-shadow: 0 32px 72px rgba(0,0,0,.65), 0 0 0 1px rgba(196,144,46,.08) inset;
+        border-radius: 16px; padding: 0;
+        box-shadow: 0 40px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(196,144,46,.06) inset;
+        overflow: hidden;
       }
-      .intro-card h2 { color: #edf0f6; letter-spacing: .04em; text-transform: uppercase; font-size: 1rem; }
-      .intro-sound { border: 1px solid var(--eko-border); background: var(--eko-surface-2); color: var(--eko-text); border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+      .intro-brand-bar {
+        display: flex; align-items: center; gap: 12px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--eko-border);
+        background: rgba(11,13,18,.6);
+      }
+      .intro-brand-logo {
+        max-height: 32px; max-width: 120px; object-fit: contain;
+        filter: brightness(1.05);
+      }
+      .intro-brand-name {
+        font-size: .84rem; font-weight: 800; letter-spacing: .1em;
+        text-transform: uppercase; color: var(--eko-text-strong);
+      }
+      .intro-player-wrap { position: relative; background: #000; }
+      .intro-player-wrap video {
+        width: 100%; max-height: 72vh; display: block; object-fit: cover;
+      }
+      .intro-player-overlay {
+        position: absolute; bottom: 0; left: 0; right: 0;
+        background: linear-gradient(to top, rgba(11,13,18,.85) 0%, transparent 60%);
+        padding: 20px 20px 16px;
+        display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+        flex-wrap: wrap;
+      }
+      .intro-player-cta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .intro-sound {
+        border: 1px solid rgba(196,144,46,.4); background: rgba(20,24,32,.8);
+        color: var(--eko-text); border-radius: 8px; padding: 9px 14px;
+        cursor: pointer; font-size: .84rem; backdrop-filter: blur(4px);
+        transition: border-color .14s, background .14s;
+      }
+      .intro-sound:hover { border-color: var(--eko-accent); background: rgba(196,144,46,.12); }
       .quick-back-btn { background: var(--eko-surface-2); border: 1px solid var(--eko-border); color: var(--eko-text); }
+      .intro-no-video {
+        padding: 48px 24px 32px;
+        text-align: center;
+        background: linear-gradient(145deg, #14182a 0%, #0d1018 55%, #0b0d12 100%);
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg,  rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          linear-gradient(145deg, #14182a 0%, #0d1018 55%, #0b0d12 100%);
+      }
+      .intro-no-video-name {
+        font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 900; letter-spacing: .06em;
+        text-transform: uppercase; color: var(--eko-text-strong);
+        margin: 0 0 6px;
+      }
+      .intro-no-video-tagline {
+        color: var(--eko-text-muted); font-size: .9rem; margin: 0 0 28px;
+      }
       <% } else { %>
-      body { margin:0; background: radial-gradient(circle at 10% 10%, #111827, #020617 72%); color:#fff; font-family: system-ui, sans-serif; }
-      .intro-card { width:min(980px,96vw); background:rgba(15,23,42,.9); border:1px solid rgba(148,163,184,.35); border-radius:16px; padding:18px; box-shadow:0 28px 58px rgba(0,0,0,.5); }
-      .intro-sound { border:1px solid rgba(148,163,184,.45); background:#0b1220; color:#e2e8f0; border-radius:8px; padding:9px 12px; cursor:pointer; }
-      .quick-back-btn { background:#0f172a; color:#fff; }
+      body { margin: 0; background: radial-gradient(circle at 10% 10%, #111827, #020617 72%); color: #fff; font-family: system-ui, sans-serif; }
+      .intro-card { width: min(980px,96vw); background: rgba(15,23,42,.9); border: 1px solid rgba(148,163,184,.35); border-radius: 16px; padding: 18px; box-shadow: 0 28px 58px rgba(0,0,0,.5); overflow: hidden; }
+      .intro-brand-bar { padding: 0 0 12px; border-bottom: 1px solid rgba(148,163,184,.15); margin-bottom: 12px; }
+      .intro-brand-name { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+      .intro-brand-logo { max-height: 36px; max-width: 160px; object-fit: contain; }
+      .intro-player-wrap { border-radius: 10px; overflow: hidden; background: #000; }
+      .intro-player-wrap video { width: 100%; max-height: 72vh; display: block; object-fit: cover; }
+      .intro-player-overlay { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+      .intro-sound { border: 1px solid rgba(148,163,184,.45); background: #0b1220; color: #e2e8f0; border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+      .quick-back-btn { background: #0f172a; color: #fff; }
+      .intro-no-video { padding: 32px 20px; text-align: center; }
+      .intro-no-video-name { font-size: 2rem; font-weight: 800; margin: 0 0 8px; }
+      .intro-no-video-tagline { color: rgba(255,255,255,.6); font-size: .9rem; margin: 0 0 24px; }
       <% } %>
-      .intro-wrap { min-height:100vh; display:grid; place-items:center; padding:20px; }
-      .intro-player { width:100%; border-radius:10px; overflow:hidden; background:#000; }
-      .intro-player video { width:100%; max-height:72vh; display:block; object-fit:cover; }
-      .intro-actions { margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; }
-      .intro-enter { border:none; background:<%= isEukolakisClassic ? '#c4902e' : '#0ea5e9' %>; color:#fff; border-radius:8px; padding:10px 22px; font-weight:700; cursor:pointer; font-size:.95rem; letter-spacing:.01em; }
-      .intro-enter:hover { filter:brightness(1.1); transform: translateY(-1px); }
-      .intro-skip { color:#94a3b8; text-decoration:none; padding:6px 12px; font-size:.82rem; display:inline-block; margin-top:8px; }
-      .quick-back-btn { position:fixed; left:12px; bottom:18px; z-index:1200; border:none; border-radius:999px; padding:10px 14px; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
+      .intro-wrap { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+      .intro-actions-row {
+        display: flex; gap: 10px; flex-wrap: wrap;
+        justify-content: center; align-items: center;
+        padding: 16px 20px;
+        border-top: 1px solid <%= isEukolakisClassic ? 'var(--eko-border)' : 'rgba(148,163,184,.15)' %>;
+      }
+      .intro-enter {
+        border: none;
+        background: <%= isEukolakisClassic ? 'var(--eko-accent)' : '#0ea5e9' %>;
+        color: #fff; border-radius: 8px; padding: 12px 28px;
+        font-weight: 800; cursor: pointer; font-size: 1rem; letter-spacing: .02em;
+        transition: filter .14s, transform .14s;
+      }
+      .intro-enter:hover { filter: brightness(1.1); transform: translateY(-2px); }
+      .intro-enter:active { transform: translateY(0); }
+      .intro-skip {
+        color: #94a3b8; text-decoration: none; padding: 6px 12px;
+        font-size: .82rem; display: inline-block;
+        transition: color .14s;
+      }
+      .intro-skip:hover { color: #cbd5e1; }
+      .quick-back-btn {
+        position: fixed; left: 12px; bottom: 18px; z-index: 1200;
+        border: none; border-radius: 999px; padding: 10px 14px;
+        font-weight: 700; cursor: pointer; box-shadow: 0 10px 24px rgba(2,6,23,.28);
+        font-size: .84rem;
+      }
     </style>
   </head>
   <body>
     <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
     <div class="intro-wrap">
       <div class="intro-card">
-        <h2 style="margin:0 0 10px;"><%= config.storeName %></h2>
+        <%# ── Brand bar: logo + store name ── %>
+        <div class="intro-brand-bar">
+          <% if (config.logoPath) { %>
+            <img class="intro-brand-logo" src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+          <% } %>
+          <span class="intro-brand-name"><%= config.storeName %></span>
+        </div>
+
         <% if (homepage.introVideoUrl) { %>
-        <div class="intro-player">
-          <video id="intro-video" controls playsinline preload="metadata" muted <%= homepage.introPosterUrl ? ('poster="' + homepage.introPosterUrl + '"') : '' %>>
+        <%# ── Video player — overlaid CTA for eukolakis, stacked for generic ── %>
+        <div class="intro-player-wrap">
+          <video id="intro-video" controls playsinline preload="metadata" muted
+            <%= homepage.introPosterUrl ? ('poster="' + homepage.introPosterUrl + '"') : '' %>>
             <source src="<%= homepage.introVideoUrl %>" type="video/mp4" />
           </video>
-        </div>
-        <div class="intro-actions">
-          <button class="intro-sound" id="intro-sound-toggle" type="button"><%= lang === 'el' ? 'Αναπαραγωγή με ήχο' : 'Play with sound' %></button>
-          <button class="intro-enter" id="intro-enter"><%= lang === 'el' ? 'Μπες στο κατάστημα' : 'Enter store' %></button>
+          <div class="intro-player-overlay">
+            <div class="intro-player-cta">
+              <button class="intro-sound" id="intro-sound-toggle" type="button">
+                <% if (isEukolakisClassic) { %>♪<% } %> <%= lang === 'el' ? 'Αναπαραγωγή με ήχο' : 'Play with sound' %>
+              </button>
+            </div>
+          </div>
         </div>
         <% } else { %>
-        <div style="padding:40px 20px;text-align:center;">
+        <%# ── No-video fallback: logo splash ── %>
+        <div class="intro-no-video">
           <% if (config.logoPath) { %>
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" style="max-height:80px;max-width:240px;margin:0 auto 20px;display:block;object-fit:contain;" />
-          <% } else { %>
-            <div style="font-size:2.4rem;font-weight:800;letter-spacing:.04em;margin-bottom:20px;"><%= config.storeName %></div>
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>"
+              style="max-height:88px;max-width:280px;margin:0 auto 18px;display:block;object-fit:contain;" />
           <% } %>
-          <p style="color:#94a3b8;margin:0 0 24px;font-size:.95rem;"><%= lang === 'el' ? 'Καλώς ορίσατε στο κατάστημά μας.' : 'Welcome to our store.' %></p>
-          <button class="intro-enter" id="intro-enter" style="font-size:1.1rem;padding:14px 32px;"><%= lang === 'el' ? 'Μπες στο κατάστημα' : 'Enter store' %></button>
+          <p class="intro-no-video-name"><%= config.storeName %></p>
+          <p class="intro-no-video-tagline"><%= lang === 'el' ? 'Καλώς ορίσατε στο κατάστημά μας.' : 'Welcome to our store.' %></p>
         </div>
         <% } %>
-        <div style="text-align:center;"><a class="intro-skip" id="intro-skip" href="<%= skipHref %>"><%= lang === 'el' ? 'Παράλειψη intro' : 'Skip intro' %></a></div>
+
+        <%# ── Enter / skip actions ── %>
+        <div class="intro-actions-row">
+          <button class="intro-enter" id="intro-enter">
+            <%= lang === 'el' ? 'Είσοδος στο κατάστημα →' : 'Enter store →' %>
+          </button>
+          <a class="intro-skip" id="intro-skip" href="<%= skipHref %>">
+            <%= lang === 'el' ? 'Παράλειψη' : 'Skip' %>
+          </a>
+        </div>
       </div>
     </div>
     <script>
       (function(){
         var nextHref = <%- JSON.stringify(skipHref).replace(/</g, '\\u003c') %>;
-        var videoEl = document.getElementById('intro-video');
+        var videoEl  = document.getElementById('intro-video');
         var soundBtn = document.getElementById('intro-sound-toggle');
         function persistIntroSeen() {
-          var days = 180;
-          var expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-          var cookieName = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
-          var storageKey = <%- JSON.stringify(introStorageKey || 'intro_seen') %>;
-          var secureAttr = window.location.protocol === 'https:' ? '; Secure' : '';
-          document.cookie = cookieName + '=1; expires=' + expires + '; path=/; SameSite=Lax' + secureAttr;
-          try { localStorage.setItem(storageKey, '1'); } catch (_) {}
+          var days     = 180;
+          var expires  = new Date(Date.now() + days * 86400000).toUTCString();
+          var name     = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
+          var lsKey    = <%- JSON.stringify(introStorageKey  || 'intro_seen') %>;
+          var secure   = location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = name + '=1; expires=' + expires + '; path=/; SameSite=Lax' + secure;
+          try { localStorage.setItem(lsKey, '1'); } catch (_) {}
         }
         if (soundBtn && videoEl) {
           soundBtn.addEventListener('click', function() {
             videoEl.muted = !videoEl.muted;
-            soundBtn.textContent = videoEl.muted
-              ? <%- JSON.stringify(lang === 'el' ? 'Αναπαραγωγή με ήχο' : 'Play with sound').replace(/</g, '\\u003c') %>
-              : <%- JSON.stringify(lang === 'el' ? 'Σίγαση' : 'Mute').replace(/</g, '\\u003c') %>;
-            if (!videoEl.paused) return;
-            videoEl.play().catch(function(){});
+            var muteLabel  = <%- JSON.stringify(lang === 'el' ? '♪ Αναπαραγωγή με ήχο' : '♪ Play with sound').replace(/</g, '\\u003c') %>;
+            var unmuteLabel = <%- JSON.stringify(lang === 'el' ? '✕ Σίγαση' : '✕ Mute').replace(/</g, '\\u003c') %>;
+            soundBtn.textContent = videoEl.muted ? muteLabel : unmuteLabel;
+            if (videoEl.paused) videoEl.play().catch(function(){});
           });
         }
-        document.getElementById('intro-enter').addEventListener('click', function() {
-          persistIntroSeen();
-          window.location.href = nextHref;
-        });
-        var skipEl = document.getElementById('intro-skip');
-        if (skipEl) {
-          skipEl.addEventListener('click', function() {
+        var enterBtn = document.getElementById('intro-enter');
+        if (enterBtn) {
+          enterBtn.addEventListener('click', function() {
             persistIntroSeen();
+            window.location.href = nextHref;
           });
         }
+        var skipEl = document.getElementById('intro-skip');
+        if (skipEl) skipEl.addEventListener('click', persistIntroSeen);
         var backBtn = document.getElementById('quick-back-btn');
         if (backBtn) {
           backBtn.addEventListener('click', function() {
-            if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.origin) === 0) return window.history.back();
-            window.location.href = nextHref;
+            if (history.length > 1 && document.referrer && document.referrer.indexOf(location.origin) === 0) return history.back();
+            location.href = nextHref;
           });
         }
       })();
