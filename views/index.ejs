@@ -235,20 +235,31 @@
 
       /* ── Layout ── */
       body.eukolakis-classic main {
-        max-width: 1180px; margin: 0 auto; padding: 0 18px 40px;
+        max-width: 1180px; margin: 0 auto; padding: 20px 18px 48px;
       }
 
       /* ── Header: dark industrial bar, logo-left / auth-right ── */
       body.eukolakis-classic .store-header {
-        background: #0d0f14 !important;
-        border-bottom: 1px solid rgba(196,144,46,.18) !important;
-        box-shadow: 0 2px 16px rgba(0,0,0,.4) !important;
+        background: #0b0d12 !important;
+        border-bottom: 2px solid rgba(196,144,46,.32) !important;
+        box-shadow: 0 2px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(196,144,46,.06) inset !important;
         padding: 0 !important;
+      }
+      /* Thin gold accent strip at very top of header */
+      body.eukolakis-classic .store-header::before {
+        content: '';
+        display: block;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, var(--eko-accent) 30%, var(--eko-accent-light) 60%, transparent 100%);
+        opacity: .7;
       }
       body.eukolakis-classic.eko-light .store-header {
         background: #fff !important;
-        border-bottom-color: rgba(140,100,21,.16) !important;
-        box-shadow: 0 2px 12px rgba(0,0,0,.08) !important;
+        border-bottom-color: rgba(140,100,21,.22) !important;
+        box-shadow: 0 2px 14px rgba(0,0,0,.09) !important;
+      }
+      body.eukolakis-classic.eko-light .store-header::before {
+        background: linear-gradient(90deg, transparent 0%, rgba(196,144,46,.55) 30%, rgba(219,168,60,.55) 60%, transparent 100%);
       }
       body.eukolakis-classic .header-main-row {
         justify-content: space-between !important;
@@ -322,12 +333,14 @@
       body.eukolakis-classic .header-nav-row {
         margin-top: 0 !important;
         padding: 0 !important;
-        border-top: 1px solid rgba(100,110,140,.12);
-        background: rgba(0,0,0,.28);
+        border-top: 1px solid rgba(196,144,46,.12);
+        background: rgba(0,0,0,.38);
+        backdrop-filter: blur(4px);
       }
       body.eukolakis-classic.eko-light .header-nav-row {
-        background: rgba(0,0,0,.04);
-        border-top-color: rgba(0,0,0,.06);
+        background: rgba(0,0,0,.03);
+        border-top-color: rgba(140,100,21,.1);
+        backdrop-filter: none;
       }
       body.eukolakis-classic .header-nav-row .main-nav {
         max-width: 1180px;
@@ -336,23 +349,26 @@
       }
       body.eukolakis-classic .header-nav-row ul {
         display: flex; gap: 0; list-style: none; margin: 0; padding: 0;
-        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
       }
       body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row ul li a {
-        display: block; padding: 11px 16px;
+        display: flex; align-items: center;
+        padding: 0 18px; height: 40px;
         color: var(--eko-text-muted);
-        text-decoration: none; font-size: .84rem; font-weight: 600;
-        letter-spacing: .01em; white-space: nowrap;
+        text-decoration: none; font-size: .82rem; font-weight: 600;
+        letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
         border-bottom: 2px solid transparent;
-        transition: color .14s, border-color .14s;
+        transition: color .14s, border-color .14s, background .14s;
       }
       body.eukolakis-classic .header-nav-row ul li a:hover {
         color: var(--eko-accent);
+        background: rgba(196,144,46,.06);
       }
       body.eukolakis-classic .header-nav-row ul li.active a {
         color: var(--eko-accent);
         border-bottom-color: var(--eko-accent);
+        background: rgba(196,144,46,.08);
       }
       body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
       body.eukolakis-classic .menu-toggle { display: none; }
@@ -361,7 +377,7 @@
 
       /* ── Preview mode banner — adapt to dark theme ── */
       body.eukolakis-classic .preview-banner {
-        background: rgba(196,144,46,.1) !important;
+        background: rgba(196,144,46,.12) !important;
         border-bottom: 1px solid rgba(196,144,46,.25) !important;
         color: var(--eko-accent) !important;
         font-size: .8rem;
@@ -410,8 +426,19 @@
         padding: clamp(18px, 3vw, 36px);
       }
       .eko-hero-no-img {
-        padding: clamp(28px, 5vw, 52px) clamp(20px, 4vw, 44px);
-        background: linear-gradient(135deg, #14182a, var(--eko-surface));
+        padding: clamp(32px, 6vw, 60px) clamp(20px, 4vw, 44px);
+        background: #0d1018;
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg,  rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          linear-gradient(145deg, #14182a 0%, #0d1018 55%, #0b0d12 100%);
+      }
+      body.eukolakis-classic.eko-light .eko-hero-no-img {
+        background: #eef0f6;
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(140,100,21,.04) 0px, rgba(140,100,21,.04) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg,  rgba(140,100,21,.04) 0px, rgba(140,100,21,.04) 1px, transparent 1px, transparent 48px),
+          linear-gradient(145deg, #e8eaf4 0%, #eef0f6 55%, #f2f3f8 100%);
       }
       .eko-hero-eyebrow {
         font-size: .68rem; font-weight: 800; text-transform: uppercase;
@@ -463,55 +490,87 @@
         position: relative; display: flex; flex-direction: column;
         text-decoration: none; border-radius: 12px; overflow: hidden;
         border: 1px solid var(--eko-border);
-        background: linear-gradient(150deg, #1a1f2e 0%, var(--eko-surface) 100%);
-        min-height: 158px;
-        transition: border-color .16s, box-shadow .16s, transform .16s;
+        border-top: 2px solid rgba(196,144,46,.28);
+        background: linear-gradient(165deg, #181d2c 0%, #141820 60%, #10131b 100%);
+        min-height: 162px;
+        transition: border-color .16s, box-shadow .16s, transform .18s;
       }
       .eko-cat-tile:hover {
         border-color: var(--eko-accent);
-        box-shadow: 0 0 0 1px var(--eko-accent-dim), 0 14px 36px rgba(0,0,0,.45);
-        transform: translateY(-3px);
+        border-top-color: var(--eko-accent);
+        box-shadow: 0 0 0 1px rgba(196,144,46,.15), 0 16px 40px rgba(0,0,0,.55);
+        transform: translateY(-4px);
       }
       .eko-cat-tile-img {
-        width: 100%; height: 106px; object-fit: cover;
+        width: 100%; height: 112px; object-fit: cover;
         display: block; flex-shrink: 0;
+        transition: transform .22s;
       }
+      .eko-cat-tile:hover .eko-cat-tile-img { transform: scale(1.04); }
       .eko-cat-tile-img-placeholder {
-        width: 100%; height: 106px; display: flex; align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #1c2235, #242c40);
-        font-size: 2.2rem; flex-shrink: 0;
+        width: 100%; height: 112px; display: flex; align-items: center;
+        justify-content: center; flex-shrink: 0;
+        background: linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+        /* subtle metal mesh pattern */
+        background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 20px),
+                          repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 20px),
+                          linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
       }
-      .eko-cat-tile-body { padding: 10px 14px 12px; flex: 1; }
+      .eko-cat-tile-placeholder-icon {
+        width: 44px; height: 44px;
+        border: 1.5px solid rgba(196,144,46,.35);
+        border-radius: 10px;
+        background: rgba(196,144,46,.08);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; line-height: 1;
+      }
+      .eko-cat-tile-body { padding: 11px 14px 13px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
       .eko-cat-tile-name {
-        font-size: .95rem; font-weight: 800; letter-spacing: .01em;
+        font-size: .94rem; font-weight: 800; letter-spacing: .01em;
         color: var(--eko-text-strong); margin: 0; line-height: 1.28;
       }
       .eko-cat-tile-desc {
-        font-size: .73rem; color: var(--eko-text-muted);
+        font-size: .72rem; color: var(--eko-text-muted);
         margin: 4px 0 0; line-height: 1.42;
       }
+      .eko-cat-tile-arrow {
+        display: inline-block; margin-top: 6px;
+        font-size: .72rem; color: var(--eko-accent);
+        opacity: 0; transition: opacity .16s;
+      }
+      .eko-cat-tile:hover .eko-cat-tile-arrow { opacity: 1; }
       .eko-cat-bar {
-        position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+        position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
         background: linear-gradient(90deg, var(--eko-accent), var(--eko-accent-light));
         opacity: 0; transition: opacity .16s;
       }
       .eko-cat-tile:hover .eko-cat-bar { opacity: 1; }
       /* Light mode tile */
       body.eukolakis-classic.eko-light .eko-cat-tile {
-        background: linear-gradient(150deg, #eef0f6 0%, #fff 100%);
+        background: linear-gradient(165deg, #f0f2f8 0%, #fff 100%);
         border-color: rgba(40,50,70,.14);
+        border-top-color: rgba(140,100,21,.25);
+      }
+      body.eukolakis-classic.eko-light .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #e8eaf2 0%, #f0f2f8 100%);
+        background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.03) 0px, rgba(0,0,0,.03) 1px, transparent 1px, transparent 20px),
+                          repeating-linear-gradient(90deg, rgba(0,0,0,.03) 0px, rgba(0,0,0,.03) 1px, transparent 1px, transparent 20px),
+                          linear-gradient(135deg, #e8eaf2 0%, #f0f2f8 100%);
       }
 
       /* ── Product cards — dark theme adaptation ── */
       body.eukolakis-classic .product-card {
         background: var(--eko-surface) !important;
         border-color: var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.2) !important;
         color: var(--eko-text) !important;
+        transition: box-shadow .18s, border-color .18s, transform .18s !important;
       }
       body.eukolakis-classic .product-card:hover {
-        box-shadow: 0 8px 26px rgba(0,0,0,.38) !important;
-        border-color: var(--eko-border-hover) !important;
+        box-shadow: 0 10px 32px rgba(0,0,0,.45) !important;
+        border-color: var(--eko-accent) !important;
+        border-top-color: var(--eko-accent) !important;
+        transform: translateY(-3px) !important;
       }
       body.eukolakis-classic .product-card h2 { color: var(--eko-text-strong) !important; }
       body.eukolakis-classic .product-card p  { color: var(--eko-text-muted) !important; }
@@ -557,7 +616,23 @@
       body.eukolakis-classic .spare-tools-card img { background: transparent !important; padding: 0 !important; }
 
       /* ── Featured section title ── */
-      body.eukolakis-classic .featured-section h2 { color: var(--eko-accent) !important; }
+      body.eukolakis-classic .featured-section { margin-bottom: 28px; }
+      body.eukolakis-classic .featured-section h2 {
+        color: var(--eko-text-strong) !important;
+        font-size: 1rem !important;
+        font-weight: 800 !important;
+        letter-spacing: .12em !important;
+        text-transform: uppercase !important;
+        padding-bottom: 10px !important;
+        border-bottom: 1px solid var(--eko-border) !important;
+        margin-bottom: 16px !important;
+        display: flex !important; align-items: center !important; gap: 10px !important;
+      }
+      body.eukolakis-classic .featured-section h2::before {
+        content: '';
+        display: inline-block; width: 3px; height: 1em;
+        background: var(--eko-accent); border-radius: 2px; flex-shrink: 0;
+      }
 
       /* ── Featured kit card product name (shown for eukolakis-classic) ── */
       body.eukolakis-classic .featured-kit-card-name {
@@ -639,7 +714,7 @@
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
         body.eukolakis-classic .header-main-row { padding: 8px 14px; }
         body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
-        body.eukolakis-classic main { padding: 0 12px 32px; }
+        body.eukolakis-classic main { padding: 14px 12px 36px; }
       }
       @media (max-width: 400px) {
         body.eukolakis-classic .header-auth-actions { gap: 6px; }
@@ -864,12 +939,17 @@
               <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy" />
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">
-                <% if (cat.id === 'diy-rolla') { %>🔄<% } else if (cat.id === 'diy-sliding') { %>🚪<% } else if (cat.id === 'spare-parts') { %>🔧<% } else { %>📦<% } %>
+                <div class="eko-cat-tile-placeholder-icon">
+                  <% if (cat.id === 'diy-rolla') { %>⚙<% } else if (cat.id === 'diy-sliding') { %>⬡<% } else if (cat.id === 'spare-parts') { %>⌧<% } else { %>◈<% } %>
+                </div>
               </div>
             <% } %>
             <div class="eko-cat-tile-body">
-              <p class="eko-cat-tile-name"><%= cat.name %></p>
-              <% if (cat.shortDescription) { %><p class="eko-cat-tile-desc"><%= cat.shortDescription %></p><% } %>
+              <div>
+                <p class="eko-cat-tile-name"><%= cat.name %></p>
+                <% if (cat.shortDescription) { %><p class="eko-cat-tile-desc"><%= cat.shortDescription %></p><% } %>
+              </div>
+              <span class="eko-cat-tile-arrow"><%= lang === 'el' ? 'Δείτε →' : 'View →' %></span>
             </div>
             <div class="eko-cat-bar"></div>
           </a>

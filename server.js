@@ -2263,24 +2263,29 @@ app.get('/', (req, res) => {
 
 app.get('/intro', (req, res) => {
   if (req.isPlatformRequest) return res.redirect('/');
-  const config = loadTenantConfig(req);
-  if (!config.homepage || !config.homepage.introEnabled) {
-    return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
+  try {
+    const config = loadTenantConfig(req);
+    if (!config.homepage || !config.homepage.introEnabled) {
+      return res.redirect(buildTenantLink(req, '/', req.lang !== 'el' ? { lang: req.lang } : {}));
+    }
+    const rawNext = String(req.query.next || '').trim();
+    const safeNext = rawNext && rawNext.startsWith('/') ? rawNext : '/';
+    const skipHref = buildTenantLink(req, safeNext, Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
+    const introCookieName = buildIntroSeenKey(req);
+    const introStorageKey = `${introCookieName}_ls`;
+    return res.render('intro', {
+      config: localizeConfigContent(config, req.lang),
+      homepage: config.homepage || {},
+      tenant: req.tenant,
+      skipHref,
+      introCookieName,
+      introStorageKey,
+      isEukolakisClassic: isEukolakisClassicPreset(req)
+    });
+  } catch (err) {
+    console.error('[intro] render failed:', err && err.stack ? err.stack : String(err));
+    return res.redirect(buildTenantLink(req, '/', {}));
   }
-  const rawNext = String(req.query.next || '').trim();
-  const safeNext = rawNext && rawNext.startsWith('/') ? rawNext : '/';
-  const skipHref = buildTenantLink(req, safeNext, Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
-  const introCookieName = buildIntroSeenKey(req);
-  const introStorageKey = `${introCookieName}_ls`;
-  return res.render('intro', {
-    config: localizeConfigContent(config, req.lang),
-    homepage: config.homepage || {},
-    tenant: req.tenant,
-    skipHref,
-    introCookieName,
-    introStorageKey,
-    isEukolakisClassic: isEukolakisClassicPreset(req)
-  });
 });
 
 // Product detail
@@ -3114,7 +3119,12 @@ app.get('/admin/payments', (req, res) => {
   const extra = {};
   if (req.query.message) extra.message = String(req.query.message);
   if (req.query.error) extra.error = String(req.query.error);
-  res.render('admin-payments', buildAdminPaymentsViewModel(req, extra));
+  try {
+    res.render('admin-payments', buildAdminPaymentsViewModel(req, extra));
+  } catch (err) {
+    console.error('[admin-payments] render failed:', err && err.stack ? err.stack : String(err));
+    res.status(500).send('<p>Admin payments page temporarily unavailable. <a href="javascript:history.back()">Go back</a></p>');
+  }
 });
 
 app.get('/admin/export/products.json', (req, res) => {
@@ -3456,23 +3466,64 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
 
 // Admin orders view
 app.get('/admin/orders', (req, res) => {
-  const config = loadTenantConfig(req);
-  const allOrders = loadTenantOrders(req);
-  const orders = allOrders.slice(-100).reverse().map((order) => normalizeOrderForFulfillment(order));
-  const message = typeof req.query.message === 'string' ? String(req.query.message) : null;
-  const error = typeof req.query.error === 'string' ? String(req.query.error) : null;
-  console.log('[admin-orders] render', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
-    count: orders.length
-  }));
-  res.render('admin-orders', {
-    tenant: req.tenant,
-    config,
-    orders,
-    permissions: getSupportPermissions(req.tenant.supportTier),
-    message,
-    error
-  });
+  try {
+    const config = loadTenantConfig(req);
+    const allOrders = loadTenantOrders(req);
+    const orders = allOrders.slice(-100).reverse().map((order) => normalizeOrderForFulfillment(order));
+    const message = typeof req.query.message === 'string' ? String(req.query.message) : null;
+    const error = typeof req.query.error === 'string' ? String(req.query.error) : null;
+    console.log('[admin-orders] render', JSON.stringify({
+      tenantId: req.tenant && req.tenant.id,
+      count: orders.length
+    }));
+    res.render('admin-orders', {
+      tenant: req.tenant,
+      config,
+      orders,
+      permissions: getSupportPermissions(req.tenant.supportTier),
+      message,
+      error
+    });
+  } catch (err) {
+    console.error('[admin-orders] render failed:', err && err.stack ? err.stack : String(err));
+    res.status(500).send(
+      '<p>Admin orders page temporarily unavailable. Check server logs.</p>' +
+      '<p><a href="javascript:history.back()">Go back</a></p>'
+    );
+  }
+});
+
+app.get('/admin/hosting', (req, res) => {
+  try {
+    const config = loadTenantConfig(req);
+    const tenantHosting = req.tenant.hosting && typeof req.tenant.hosting === 'object'
+      ? req.tenant.hosting : {};
+    const hosting = {
+      primaryDomain: tenantHosting.primaryDomain || req.tenant.customDomain || '',
+      aliases: Array.isArray(tenantHosting.aliases) ? tenantHosting.aliases : [],
+      previewHost: tenantHosting.previewHost || '',
+      domainStatus: tenantHosting.domainStatus || req.tenant.domainStatus || 'pending_dns',
+      canonicalToWww: !!tenantHosting.canonicalToWww,
+      sslStatus: tenantHosting.sslStatus || 'pending',
+      sslProvider: tenantHosting.sslProvider || '',
+      sslValidUntil: tenantHosting.sslValidUntil || '',
+      dnsVerifiedAt: tenantHosting.dnsVerifiedAt || '',
+      lastCheckedAt: tenantHosting.lastCheckedAt || '',
+      tenantNotes: tenantHosting.tenantNotes || '',
+      logoConfigured: !!(config.logoPath),
+      faviconConfigured: !!(config.favicon && config.favicon.path),
+      introConfigured: !!(config.homepage && config.homepage.introEnabled),
+      introAssetConfigured: !!(config.homepage && config.homepage.introVideoUrl),
+      storageUsageMb: Number.isFinite(Number(tenantHosting.storageUsageMb)) ? Number(tenantHosting.storageUsageMb) : null,
+      backupStatus: tenantHosting.backupStatus || 'unknown'
+    };
+    const message = typeof req.query.message === 'string' ? String(req.query.message) : null;
+    const error = typeof req.query.error === 'string' ? String(req.query.error) : null;
+    res.render('admin-hosting', { tenant: req.tenant, config, hosting, message, error });
+  } catch (err) {
+    console.error('[admin-hosting] render failed:', err && err.stack ? err.stack : String(err));
+    res.status(500).send('<p>Hosting page unavailable. <a href="javascript:history.back()">Go back</a></p>');
+  }
 });
 
 app.post('/admin/orders/tracking', async (req, res) => {
@@ -3754,8 +3805,8 @@ app.post('/admin/settings', async (req, res) => {
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
-  config.homepage.introVideoUrl = (homepageIntroVideoUrl || config.homepage.introVideoUrl || '').trim();
-  config.homepage.introPosterUrl = (homepageIntroPosterUrl || config.homepage.introPosterUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = String(homepageIntroVideoUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = String(homepageIntroPosterUrl || '').trim();
   if (hasBodyField(req.body, 'homepageBlockOrder')) {
     const parsedOrder = String(homepageBlockOrder || '')
       .split(',')
