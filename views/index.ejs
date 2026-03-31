@@ -424,7 +424,8 @@
       .eko-cat-header-icon {
         width: 56px; height: 56px; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.5rem; color: var(--eko-accent);
+        font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+        color: var(--eko-accent);
         background: rgba(196,144,46,.08);
         border: 1px solid rgba(196,144,46,.22);
         border-radius: 10px;
@@ -814,10 +815,13 @@
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
       }
       @media (max-width: 600px) {
-        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        /* Keep 3 columns — with 3 categories a 2-col layout leaves an orphan row */
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
         body.eukolakis-classic .eko-cat-tile-img,
-        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 76px; }
-        body.eukolakis-classic .eko-cat-tile-name { font-size: .88rem; }
+        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 62px; }
+        body.eukolakis-classic .eko-cat-tile-name { font-size: .76rem; }
+        body.eukolakis-classic .eko-cat-tile-body { padding: 7px 8px 9px; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
         body.eukolakis-classic .header-main-row { padding: 8px 14px; }
         body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
@@ -1155,7 +1159,7 @@
         <% if (activeCategoryObj.image) { %>
           <img class="eko-cat-header-img" src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" />
         <% } else { %>
-          <div class="eko-cat-header-icon">◈</div>
+          <div class="eko-cat-header-icon"><% if (activeCategoryObj.id === 'diy-rolla') { %>KIT<% } else if (activeCategoryObj.id === 'diy-sliding') { %>SLD<% } else if (activeCategoryObj.id === 'spare-parts') { %>SPN<% } else { %><%= (activeCategoryObj.name || 'CAT').slice(0,3).toUpperCase() %><% } %></div>
         <% } %>
         <div class="eko-cat-header-text">
           <p class="eko-cat-header-eyebrow"><%= lang === 'el' ? 'Κατηγορία' : 'Category' %></p>

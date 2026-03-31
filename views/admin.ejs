@@ -756,17 +756,18 @@
           <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="π.χ. eukolaki-spare-pack" />
           <small class="helper">ID ενός επιπλέον προϊόντος που εμφανίζεται σε μικρό block κάτω από τα κύρια kits. Βρείτε το ID στην ενότητα Προϊόντα.</small>
         </label>
-        <label><span>Secondary block τίτλος (EL / EN)</span>
-          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="Ελληνικά" />
-          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="English" />
+        <label><span>Κάρτα Ανταλλακτικών — Τίτλος (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
+          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="π.χ. Ανταλλακτικά & Εργαλεία" />
+          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="e.g. Spare Parts & Tools" />
+          <small class="helper">Τίτλος της κάρτας ανταλλακτικών. Αφήστε κενό για τον αυτόματο τίτλο.</small>
         </label>
-        <label><span>Secondary block κείμενο (EL / EN)</span>
-          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="Ελληνικά" />
-          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="English" />
+        <label><span>Κάρτα Ανταλλακτικών — Περιγραφή (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="π.χ. Βρες το κομμάτι που σου λείπει." />
+          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="e.g. Find the part you need." />
         </label>
-        <label><span>Secondary block σύνδεσμος</span>
+        <label><span>Κάρτα Ανταλλακτικών — Σύνδεσμος <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
-          <small class="helper">Σχετικό URL — π.χ. <code>/?category=spare-parts</code> ή <code>/</code></small>
+          <small class="helper">Σχετικό URL — π.χ. <code>/?category=spare-parts</code>. Αφήστε κενό για αυτόματο σύνδεσμο στα ανταλλακτικά.</small>
         </label>
 
         <h3 class="settings-section-heading">Ενότητες Αρχικής Σελίδας</h3>
@@ -830,8 +831,8 @@
         <h3 class="settings-section-heading" style="margin-top:20px;">Σειρά & Ορατότητα Ενοτήτων</h3>
         <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.</p>
         <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;margin-bottom:10px;">
-          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero / Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits (Προτεινόμενα)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Ανταλλακτικά (Spare parts)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Συνδρομές / Videos</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
         </div>
@@ -857,7 +858,7 @@
         <p class=”helper”>Τα στοιχεία επικοινωνίας και τα social links εμφανίζονται στο footer του καταστήματος.</p>
 
         <label><span>Email επικοινωνίας</span>
-          <input type=”email” name=”footerContactEmail” value=”<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>” placeholder=”info@yourshop.com” />
+          <input type=”email” name=”footerContactEmail” value=”<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>” placeholder=”info@katastima.gr” />
           <small class=”helper”>Εμφανίζεται στο footer ως σύνδεσμος επικοινωνίας.</small>
         </label>
         <label><span>Διεύθυνση παραλαβής / φυσικό κατάστημα</span>
