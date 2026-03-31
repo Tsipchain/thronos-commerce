@@ -563,7 +563,8 @@
         border-radius: 10px;
         background: rgba(196,144,46,.08);
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.4rem; line-height: 1;
+        font-size: .62rem; font-weight: 800; letter-spacing: .06em;
+        color: var(--eko-accent); line-height: 1;
       }
       .eko-cat-tile-body { padding: 11px 14px 13px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
       .eko-cat-tile-name {
@@ -656,6 +657,16 @@
         display: inline-block; margin-top: 10px;
         font-size: .76rem; font-weight: 600; color: var(--eko-accent) !important;
         letter-spacing: .04em;
+      }
+
+      /* ── Featured kit card — no-image placeholder ── */
+      body.eukolakis-classic .featured-kit-card-no-img {
+        width: 100%; height: 200px; display: block; flex-shrink: 0;
+        background: linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 36px),
+          repeating-linear-gradient(90deg,  rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 36px),
+          linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
       }
 
       /* ── Buttons (global override for eukolakis-classic) ── */
@@ -1005,11 +1016,11 @@
             <div class="eko-hero-actions">
               <% if (topPrimaryKit1) { %>
               <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>">
-                🔧 <%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %>
+                <%= lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →' %>
               </a>
               <% } %>
               <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= sparePartsHref %>">
-                🔩 <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
+                <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
               </a>
             </div>
           </div>
@@ -1027,7 +1038,7 @@
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">
                 <div class="eko-cat-tile-placeholder-icon">
-                  <% if (cat.id === 'diy-rolla') { %>⚙<% } else if (cat.id === 'diy-sliding') { %>⬡<% } else if (cat.id === 'spare-parts') { %>⌧<% } else { %>◈<% } %>
+                  <% if (cat.id === 'diy-rolla') { %>KIT<% } else if (cat.id === 'diy-sliding') { %>SLD<% } else if (cat.id === 'spare-parts') { %>SPN<% } else { %><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %><% } %>
                 </div>
               </div>
             <% } %>
@@ -1066,7 +1077,7 @@
         <% categories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-            <div><%= cat.name %> <% if (cat.featured) { %>⭐<% } %></div>
+            <div><%= cat.name %></div>
             <% if (cat.shortDescription && config.theme && config.theme.categoryMenuStyle !== 'image') { %><small><%= cat.shortDescription %></small><% } %>
           </a>
         <% }) %>
@@ -1153,7 +1164,11 @@
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
             <article class="featured-kit-card kit-clickable" data-kit-product-id="<%= product.id %>">
-              <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
+              <% if (product.imageUrl) { %>
+                <img src="<%= product.imageUrl %>" alt="<%= product.name %>" />
+              <% } else if (isEukolakisClassic) { %>
+                <div class="featured-kit-card-no-img"></div>
+              <% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <% if (isEukolakisClassic) { %>
@@ -1241,7 +1256,6 @@
         <% }); %>
       </section>
       <div id="spare-filter-empty" class="filter-empty-state">
-        <div style="font-size:1.4rem;">🧰</div>
         <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
         <div><%= lang === 'el' ? 'Δοκίμασε άλλο SKU ή κάνε reset.' : 'Try another SKU or reset filters.' %></div>
         <button type="button" id="spare-filter-empty-reset" class="button"><%= lang === 'el' ? 'Καθαρισμός φίλτρων' : 'Reset filters' %></button>
