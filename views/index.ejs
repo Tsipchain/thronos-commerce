@@ -385,21 +385,30 @@
       }
       body.eukolakis-classic .preview-banner strong { color: var(--eko-accent); }
 
-      /* ── Lang switcher ── */
-      body.eukolakis-classic .lang-switcher {
-        background: transparent !important;
-        border-bottom: 1px solid var(--eko-border) !important;
-        color: var(--eko-text-muted) !important;
-        padding: 4px 16px !important;
-        justify-content: flex-end !important;
-        font-size: .75rem !important;
+      /* ── Lang switcher: hidden for eukolakis-classic (moved into nav-row) ── */
+      body.eukolakis-classic .lang-switcher { display: none !important; }
+
+      /* ── Integrated nav lang selector ── */
+      .eko-nav-lang { display: none; }
+      body.eukolakis-classic .eko-nav-lang {
+        display: flex; align-items: stretch; flex-shrink: 0;
       }
-      body.eukolakis-classic .lang-switcher select {
-        background: var(--eko-surface-2) !important;
-        border-color: var(--eko-border) !important;
-        color: var(--eko-text) !important;
-        padding: 2px 6px !important;
-        font-size: .75rem !important;
+      body.eukolakis-classic .eko-nav-lang select {
+        background: transparent; border: none;
+        border-left: 1px solid var(--eko-border);
+        color: var(--eko-text-muted); font-size: .73rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        padding: 0 14px; height: 40px; cursor: pointer;
+        outline: none; -webkit-appearance: none; appearance: none;
+        transition: color .14s, background .14s;
+      }
+      body.eukolakis-classic .eko-nav-lang select:hover {
+        color: var(--eko-accent);
+        background: rgba(196,144,46,.06);
+      }
+      body.eukolakis-classic.eko-light .eko-nav-lang select {
+        color: var(--eko-text-muted);
+        border-left-color: var(--eko-border);
       }
 
       /* ── Category view header breadcrumb ── */
@@ -937,6 +946,16 @@
           <% } %>
         </ul>
       </nav>
+      <% if (isEukolakisClassic) { %>
+      <div class="eko-nav-lang">
+        <select onchange="window.location.href=this.value" aria-label="<%= lang === 'el' ? 'Γλώσσα' : 'Language' %>">
+          <% (contentLangs || ['el','en']).forEach(function(l) { %>
+            <% var _lUrl = withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, l !== 'el' ? { lang: l } : {})); %>
+            <option value="<%= _lUrl %>" <%= lang === l ? 'selected' : '' %>><%= l === 'el' ? 'ΕΛ' : 'EN' %></option>
+          <% }) %>
+        </select>
+      </div>
+      <% } %>
       </div>
       <% } %>
       <% if (tenant.id === 'eukolakis') { %>

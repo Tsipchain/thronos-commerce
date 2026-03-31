@@ -414,6 +414,9 @@
 
         <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης</h3>
         <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
+        <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;margin-bottom:10px;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό σκούρο header — αυτά τα χρώματα δεν εφαρμόζονται στο τρέχον θέμα.</p>
+        <% } %>
 
         <label><span><%= t('admin.menuBg') %></span>
           <div class="color-field">
@@ -2724,18 +2727,18 @@
       if (homepageBannerBtn) {
         homepageBannerBtn.addEventListener('click', async function() {
           const file = homepageBannerFile && homepageBannerFile.files && homepageBannerFile.files[0];
-          if (!file) return alert('Select a banner image first.');
-          if (homepageBannerStatus) homepageBannerStatus.textContent = 'Uploading...';
+          if (!file) return alert('<%= lang === "el" ? "Επίλεξε πρώτα αρχείο εικόνας για το banner." : "Select a banner image first." %>');
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '<%= lang === "el" ? "Γίνεται ανέβασμα..." : "Uploading..." %>';
           const fd = new FormData();
           fd.append('bannerFile', file);
           const inlinePw = (document.querySelector('#tab-homepage input[name=\"password\"]') || { value: '' }).value || '';
-          const pw = inlinePw || prompt('Admin password for banner upload:') || '';
+          const pw = inlinePw || prompt('<%= lang === "el" ? "Κωδικός admin για ανέβασμα banner:" : "Admin password for banner upload:" %>') || '';
           fd.append('password', pw);
           const r = await fetch('<%= withTenantLink("/admin/homepage/banner-upload") %>', { method: 'POST', body: fd });
           const j = await r.json();
           if (!j.ok) {
-            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || 'Upload failed.';
-            alert(j.error || 'Upload failed');
+            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || '<%= lang === "el" ? "Σφάλμα ανεβάσματος." : "Upload failed." %>';
+            alert(j.error || '<%= lang === "el" ? "Σφάλμα ανεβάσματος." : "Upload failed." %>');
             return;
           }
           if (homepageHeroInput) homepageHeroInput.value = j.url || '';
@@ -2743,7 +2746,7 @@
             homepageHeroPreview.src = j.url;
             homepageHeroPreview.style.display = 'block';
           }
-          if (homepageBannerStatus) homepageBannerStatus.textContent = '✓ Uploaded';
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '<%= lang === "el" ? "✓ Ανέβηκε επιτυχώς" : "✓ Uploaded" %>';
         });
       }
 
