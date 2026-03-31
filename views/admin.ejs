@@ -143,6 +143,10 @@
       .admin-sidebar a.active { background:#eef2ff; color:#3730a3; font-weight:700; }
       .section-panel { display:none; }
       .section-panel.active { display:block; }
+      .settings-section-heading { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#64748b; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin:22px 0 12px; }
+      .settings-section-heading:first-child { margin-top:6px; }
+      .settings-info-note { padding:8px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; font-size:.82rem; color:#0369a1; margin:8px 0 14px; }
+      .settings-divider { border:none; border-top:1px dashed #e2e8f0; margin:20px 0 16px; }
       .sidebar-toggle{display:none;margin-bottom:10px;}
       @media (max-width: 900px){ .admin-shell{grid-template-columns:1fr;} .sidebar-toggle{display:inline-block;} .admin-sidebar{display:none;} .admin-shell.show-sidebar .admin-sidebar{display:block;} }
       .cat-preview { width: 120px; height: 74px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; background: #f8fafc; }
@@ -306,8 +310,10 @@
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
       <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
-        <h2>Store identity & εμφάνιση</h2>
+        <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
+
+        <h3 class="settings-section-heading">Store Identity</h3>
 
         <label><span><%= t('admin.storeName') %></span>
           <input type="text" name="storeName_el" value="<%= resolveField(rawConfig.storeName, 'el') %>" placeholder="Ελληνικά"
@@ -317,6 +323,25 @@
           <small class="helper">Το όνομα που βλέπει ο πελάτης στο storefront.</small>
         </label>
 
+        <label><span>Κείμενο hero / Καλωσόρισμα</span>
+          <textarea name="heroText_el" rows="2" placeholder="Ελληνικά"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'el') %></textarea>
+          <textarea name="heroText_en" rows="2" placeholder="English"
+                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'en') %></textarea>
+          <small class="helper">Σύντομο μήνυμα κάτω από τον τίτλο στο hero banner. Για πιο πλούσιο hero (εικόνα + τίτλος), χρησιμοποιήστε την ενότητα <a href="#tab-homepage">Homepage → Hero Banner</a>.</small>
+        </label>
+
+        <label><span>Web3 Domain <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="web3Domain" value="<%= config.web3Domain %>"
+                 placeholder="π.χ. mystore.thr" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αφήστε κενό αν δεν χρησιμοποιείτε Web3 domain. Εμφανίζεται δίπλα στο όνομα καταστήματος.</small>
+        </label>
+
+        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία</h3>
+        <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερή βιομηχανική παλέτα χρωμάτων. Τα παρακάτω χρώματα δεν εφαρμόζονται στο ενεργό θέμα — μπορείτε να τα αλλάξετε αν αλλάξετε θέμα.</p>
+        <% } %>
+
         <label><span><%= t('admin.primaryColor') %></span>
           <div class="color-field">
             <input type="text" name="primaryColor" id="txt-primaryColor"
@@ -325,6 +350,7 @@
             <input type="color" id="cp-primaryColor" value="<%= config.primaryColor || '#222222' %>"
                    title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
           </div>
+          <small class="helper">Κύριο χρώμα κεφαλίδας, μενού και call-to-action buttons.</small>
         </label>
 
         <label><span><%= t('admin.accentColor') %></span>
@@ -335,12 +361,13 @@
             <input type="color" id="cp-accentColor" value="<%= config.accentColor || '#00ff88' %>"
                    title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
           </div>
+          <small class="helper">Δευτερεύον χρώμα για highlights, badges και ενεργές κατηγορίες.</small>
         </label>
 
         <label><span><%= t('admin.fontFamily') %></span>
           <select name="fontFamily" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-              <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI (προεπιλογή)</option>
+              <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI — προεπιλογή (γρήγορο φόρτωμα)</option>
             <option value="'Roboto', Arial, sans-serif"
               <%= config.fontFamily.includes('Roboto') ? 'selected' : '' %>>Roboto</option>
             <option value="'Segoe UI', system-ui, sans-serif"
@@ -348,37 +375,45 @@
           </select>
         </label>
 
-        <label><span><%= t('admin.heroTextLabel') %></span>
-          <textarea name="heroText_el" rows="2" placeholder="Ελληνικά"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'el') %></textarea>
-          <textarea name="heroText_en" rows="2" placeholder="English"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'en') %></textarea>
-        </label>
+        <h3 class="settings-section-heading">Logo</h3>
 
-        <label><span><%= t('admin.web3DomainLabel') %></span>
-          <input type="text" name="web3Domain" value="<%= config.web3Domain %>"
-                 placeholder="π.χ. mystore.thr" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-        </label>
+        <% if (config.logoPath) { %>
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;">
+          <div style="background:#1e2130;border-radius:8px;padding:10px;min-width:74px;display:flex;align-items:center;justify-content:center;">
+            <img src="<%= config.logoPath %>" alt="Current logo" style="max-height:46px;max-width:130px;object-fit:contain;" />
+          </div>
+          <div style="flex:1;min-width:0;">
+            <p style="margin:0 0 2px;font-size:.8rem;font-weight:700;color:#374151;">Τρέχον logo</p>
+            <code style="font-size:.72rem;color:#64748b;word-break:break-all;"><%= config.logoPath %></code>
+          </div>
+        </div>
+        <% } else { %>
+        <div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin-bottom:12px;font-size:.82rem;color:#92400e;">
+          Δεν έχει ανέβει logo ακόμα — χρησιμοποιήστε το upload παρακάτω.
+        </div>
+        <% } %>
 
         <label><span><%= t('admin.logoPath') %></span>
           <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
                  placeholder="/logo.svg" readonly />
-          <small class="helper">Το πεδίο ενημερώνεται αυτόματα από το upload λογότυπου.</small>
+          <small class="helper">Ενημερώνεται αυτόματα μετά το upload. Δεν χρειάζεται χειροκίνητη αλλαγή.</small>
         </label>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
           <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
           <div class="logo-upload-row">
             <input type="file" id="logo-file" accept="image/*" />
-            <input type="password" id="logo-pass" placeholder="<%= t('admin.logoPassPlaceholder') %>" style="width:130px;" />
+            <input type="password" id="logo-pass" placeholder="Κωδικός (προαιρετικό)" style="width:160px;" />
             <button type="button" class="btn-xs" id="logo-upload-btn"><%= t('admin.uploadLogoBtn') %></button>
           </div>
           <p id="logo-upload-status"></p>
+          <small class="helper">Αποδεκτές μορφές: PNG, SVG, JPG, WEBP. Συνιστάται τετράγωνο PNG με διαφανές φόντο.</small>
         </div>
         <% } %>
+        <p class="settings-info-note">Το favicon (εικόνα στην καρτέλα browser) ανεβαίνει στην ενότητα <a href="#tab-upload">Media</a>.</p>
 
-        <h3><%= t('admin.menuColors') %></h3>
-        <p class="helper"><%= t('admin.menuColorsHelper') %></p>
+        <h3 style="font-size:.82rem;color:#475569;font-weight:700;margin:14px 0 3px;"><%= t('admin.menuColors') %></h3>
+        <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
 
         <label><span><%= t('admin.menuBg') %></span>
           <div class="color-field">
@@ -424,62 +459,64 @@
           </div>
         </label>
 
-        <label><span><%= t('admin.buttonRadius') %></span>
+        <label><span>Στρογγυλότητα κουμπιών <small style="font-weight:400;color:#94a3b8;">(corner radius)</small></span>
           <input type="text" name="themeButtonRadius"
                  value="<%= (config.theme && config.theme.buttonRadius) || '4px' %>"
                  placeholder="4px" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Τιμές: <code>0px</code> = γωνιώδη, <code>4px</code> = ήπιo, <code>999px</code> = πλήρως στρογγυλά.</small>
         </label>
-        <details style="margin:10px 0 14px;">
-          <summary style="cursor:pointer;font-weight:700;">Advanced theme settings</summary>
-          <p class="helper">Εσωτερικές ρυθμίσεις εμφάνισης. Συνήθως δεν χρειάζονται συχνές αλλαγές.</p>
+
+        <hr class="settings-divider" />
+        <details style="margin:0 0 14px;">
+          <summary style="cursor:pointer;font-weight:700;">Logo display options <small style="font-weight:400;color:#94a3b8;">(advanced)</small></summary>
+          <p class="helper">Ρυθμίσεις εμφάνισης λογότυπου και διάταξης header. Αλλάξτε μόνο αν θέλετε να προσαρμόσετε την εμφάνιση του logo στο header.</p>
         <label><span>Διάταξη Header</span>
           <select name="themeHeaderLayout" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default</option>
-            <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered logo + τίτλος</option>
+            <option value="default" <%= ((config.theme && config.theme.headerLayout) || 'default') === 'default' ? 'selected' : '' %>>Default (logo αριστερά)</option>
+            <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered (logo + τίτλος κεντραρισμένα)</option>
           </select>
         </label>
-        <label><span>Branding mode</span>
+        <label><span>Τι εμφανίζεται στο header</span>
           <select name="themeBrandingMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Name</option>
-            <option value="logo_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'logo_only' ? 'selected' : '' %>>Logo only</option>
-            <option value="name_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'name_only' ? 'selected' : '' %>>Name only</option>
+            <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Όνομα καταστήματος</option>
+            <option value="logo_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'logo_only' ? 'selected' : '' %>>Μόνο logo (χωρίς κείμενο)</option>
+            <option value="name_only" <%= ((config.theme && config.theme.brandingMode) || '') === 'name_only' ? 'selected' : '' %>>Μόνο όνομα (χωρίς logo)</option>
           </select>
         </label>
-        <label><span>Logo display mode</span>
+        <label><span>Τρόπος εμφάνισης logo</span>
           <select name="themeLogoDisplayMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="contain" <%= ((config.theme && config.theme.logoDisplayMode) || 'contain') === 'contain' ? 'selected' : '' %>>Contain</option>
-            <option value="cover" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'cover' ? 'selected' : '' %>>Cover</option>
-            <option value="clean_badge" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'clean_badge' ? 'selected' : '' %>>Clean badge</option>
-            <option value="transparent_blend" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'transparent_blend' ? 'selected' : '' %>>Transparent blend</option>
+            <option value="contain" <%= ((config.theme && config.theme.logoDisplayMode) || 'contain') === 'contain' ? 'selected' : '' %>>Contain — ολόκληρο το logo ορατό (συνιστάται)</option>
+            <option value="cover" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'cover' ? 'selected' : '' %>>Cover — γεμίζει το πλαίσιο (μπορεί να κόψει)</option>
+            <option value="clean_badge" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'clean_badge' ? 'selected' : '' %>>Clean badge — με λευκό φόντο badge</option>
+            <option value="transparent_blend" <%= ((config.theme && config.theme.logoDisplayMode) || '') === 'transparent_blend' ? 'selected' : '' %>>Transparent blend — για PNG με διαφανές φόντο</option>
           </select>
         </label>
-        <label><span>Logo background mode</span>
+        <label><span>Φόντο πλαισίου logo</span>
           <select name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>None</option>
-            <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Dark badge</option>
-            <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Light badge</option>
-            <option value="auto" <%= ((config.theme && config.theme.logoBgMode) || 'auto') === 'auto' ? 'selected' : '' %>>Auto</option>
+            <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>Χωρίς φόντο</option>
+            <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Σκούρο badge</option>
+            <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Ανοιχτό badge</option>
+            <option value="auto" <%= ((config.theme && config.theme.logoBgMode) || 'auto') === 'auto' ? 'selected' : '' %>>Auto (βάσει theme χρώματος)</option>
           </select>
         </label>
-        <label><span>Logo padding (px)</span>
+        <label><span>Εσωτερικό κενό logo (padding, px)</span>
           <input type="number" min="0" max="24" name="themeLogoPadding" value="<%= Number((config.theme && config.theme.logoPadding) || 6) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Εσωτερικό κενό γύρω από το logo frame.</small>
+          <small class="helper">Χώρος γύρω από το logo μέσα στο πλαίσιο (0–24px).</small>
         </label>
-        <label><span>Logo radius (px)</span>
+        <label><span>Γωνίες πλαισίου logo (radius, px)</span>
           <input type="number" min="0" max="36" name="themeLogoRadius" value="<%= Number((config.theme && config.theme.logoRadius) || 10) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Γωνίες του frame που περιβάλλει το logo.</small>
+          <small class="helper">Στρογγυλότητα του πλαισίου γύρω από το logo (0 = τετράγωνο, 36 = κύκλος).</small>
         </label>
-        <label><span>Logo shadow</span>
+        <label><span>Σκιά logo</span>
           <select name="themeLogoShadow" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="none" <%= ((config.theme && config.theme.logoShadow) || '') === 'none' ? 'selected' : '' %>>None</option>
-            <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
-            <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating</option>
+            <option value="none" <%= ((config.theme && config.theme.logoShadow) || '') === 'none' ? 'selected' : '' %>>Χωρίς σκιά</option>
+            <option value="soft" <%= ((config.theme && config.theme.logoShadow) || 'soft') === 'soft' ? 'selected' : '' %>>Ήπια σκιά (συνιστάται)</option>
+            <option value="floating" <%= ((config.theme && config.theme.logoShadow) || '') === 'floating' ? 'selected' : '' %>>Floating — έντονη σκιά (ιδανικό για διαφανή PNG)</option>
           </select>
-          <small class="helper">Drop-shadow πάνω στο logo (ιδανικό για διαφανή PNG).</small>
         </label>
-        <label><span>Logo max height (px)</span>
+        <label><span>Μέγιστο ύψος logo στο header (px)</span>
           <input type="number" min="28" max="140" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Μέγιστο ύψος logo στο header (το storefront το τηρεί 1:1).</small>
+          <small class="helper">Ύψος σε pixels. Τιμές 56–96px δουλεύουν καλά για τα περισσότερα logo.</small>
         </label>
         <% if (config.logoPath) { %>
         <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
@@ -575,48 +612,50 @@
             </div>
           </div>
         </div>
-        <label><span>Hero Style</span>
+        <h4 style="margin:12px 0 6px;font-size:.82rem;color:#475569;">Διάταξη Storefront</h4>
+        <label><span>Στυλ Hero Banner</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
-            <option value="strong" <%= ((config.theme && config.theme.heroStyle) || '') === 'strong' ? 'selected' : '' %>>Strong / Branded</option>
+            <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft — ήπια εμφάνιση</option>
+            <option value="strong" <%= ((config.theme && config.theme.heroStyle) || '') === 'strong' ? 'selected' : '' %>>Strong / Branded — έντονο brand χρώμα</option>
           </select>
         </label>
-        <label><span>Category Menu Style</span>
+        <label><span>Εμφάνιση κατηγοριών στο μενού</span>
           <select name="themeCategoryMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="text" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'text' ? 'selected' : '' %>>Text only</option>
-            <option value="image" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'image' ? 'selected' : '' %>>Image only</option>
-            <option value="image_label" <%= ((config.theme && config.theme.categoryMenuStyle) || 'image_label') === 'image_label' ? 'selected' : '' %>>Image + Label</option>
+            <option value="text" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'text' ? 'selected' : '' %>>Μόνο κείμενο</option>
+            <option value="image" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'image' ? 'selected' : '' %>>Μόνο εικόνα</option>
+            <option value="image_label" <%= ((config.theme && config.theme.categoryMenuStyle) || 'image_label') === 'image_label' ? 'selected' : '' %>>Εικόνα + Τίτλος (συνιστάται)</option>
           </select>
         </label>
-        <label><span>Card Style</span>
+        <label><span>Στυλ καρτών προϊόντων</span>
           <select name="themeCardStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="soft" <%= ((config.theme && config.theme.cardStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
-            <option value="bold" <%= ((config.theme && config.theme.cardStyle) || '') === 'bold' ? 'selected' : '' %>>Bold</option>
+            <option value="soft" <%= ((config.theme && config.theme.cardStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft — λεπτό περίγραμμα</option>
+            <option value="bold" <%= ((config.theme && config.theme.cardStyle) || '') === 'bold' ? 'selected' : '' %>>Bold — έντονα πλαίσια</option>
           </select>
         </label>
-        <label><span>Section Spacing</span>
+        <label><span>Απόσταση ενοτήτων</span>
           <select name="themeSectionSpacing" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="normal" <%= ((config.theme && config.theme.sectionSpacing) || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
-            <option value="relaxed" <%= ((config.theme && config.theme.sectionSpacing) || '') === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
+            <option value="relaxed" <%= ((config.theme && config.theme.sectionSpacing) || '') === 'relaxed' ? 'selected' : '' %>>Relaxed — περισσότερος αέρας</option>
           </select>
         </label>
         <label class="checkbox-label">
           <input type="hidden" name="themeBannerVisible" value="0" />
           <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Εμφάνιση banner/hero</span>
+          <span>Εμφάνιση hero banner στην αρχική σελίδα</span>
         </label>
-        <label><span>Preview Badge Style</span>
+        <label><span>Preview mode indicator style <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται μόνο σε preview)</small></span>
           <select name="themePreviewBadgeStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.previewBadgeStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
             <option value="contrast" <%= ((config.theme && config.theme.previewBadgeStyle) || '') === 'contrast' ? 'selected' : '' %>>High contrast</option>
           </select>
+          <small class="helper">Μπάνερ που εμφανίζεται στο storefront όταν το κατάστημα βρίσκεται σε preview mode (δεν το βλέπουν οι πελάτες).</small>
         </label>
         <label class="checkbox-label">
           <input type="hidden" name="themeCursorEffect" value="0" />
           <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>DIY cursor effect (μόνο desktop)</span>
+          <span>Custom cursor (μόνο desktop, προαιρετικό)</span>
         </label>
-        <small class="helper">Cursor applies only on desktop. Use root-relative path (e.g. /tenants/.../media/cursors/file.png).</small>
+        <small class="helper">Αντικαθιστά τον κανονικό κέρσορα με προσαρμοσμένη εικόνα στο desktop. Αφήστε ανενεργό αν δεν χρησιμοποιείτε custom cursor.</small>
         <% if (tenant.id === 'eukolakis') { %>
         <label><span>Cursor image URL (desktop only)</span>
           <input type="text" id="themeCursorImage-input" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
@@ -632,14 +671,8 @@
           <small class="helper">Αν μείνει κενό, γίνεται fallback σε crosshair.</small>
         </label>
         <% } %>
-        <div style="margin-top:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:.78rem;color:#334155;">
-          <strong>Applied to storefront:</strong>
-          brandingMode=<%= (config.theme && config.theme.brandingMode) || 'logo_name' %>,
-          logoDisplayMode=<%= (config.theme && config.theme.logoDisplayMode) || 'contain' %>,
-          logoMaxHeight=<%= Number((config.theme && config.theme.logoMaxHeight) || 72) %>px,
-          cursorEffect=<%= (config.theme && config.theme.cursorEffect) ? 'on' : 'off' %>,
-          thumb=<%= (config.theme && config.theme.productThumbAspect) || '4:3' %>/<%= (config.theme && config.theme.productThumbFit) || 'cover' %>.
-          <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" target="_blank" rel="noopener noreferrer">Storefront preview</a>
+        <div style="margin-top:10px;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:.82rem;color:#166534;">
+          Αποθηκεύστε και δείτε τις αλλαγές: <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" target="_blank" rel="noopener noreferrer" style="font-weight:700;">Άνοιγμα storefront →</a>
         </div>
         </details>
 
@@ -659,126 +692,165 @@
 
       <form id="tab-homepage" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Homepage</h2>
-        <p class="helper">Ρυθμίστε την αρχική σελίδα σαν branded landing-store για kits, ανταλλακτικά και εργαλεία.</p>
-        <label><span>Hero title (EL/EN)</span>
-          <input type="text" name="heroTitle_el" value="<%= resolveField(rawConfig.heroTitle, 'el') %>" placeholder="Ελληνικά" />
-          <input type="text" name="heroTitle_en" value="<%= resolveField(rawConfig.heroTitle, 'en') %>" placeholder="English" />
+        <p class="helper">Ρυθμίστε την αρχική σελίδα του καταστήματός σας — εικόνα banner, τίτλοι, προτεινόμενα προϊόντα και ορατότητα ενοτήτων.</p>
+
+        <h3 class="settings-section-heading">Hero Banner</h3>
+
+        <label><span>Τίτλος hero (EL / EN)</span>
+          <input type="text" name="heroTitle_el" value="<%= resolveField(rawConfig.heroTitle, 'el') %>" placeholder="Ελληνικά — π.χ. DIY Kit Ρολών" />
+          <input type="text" name="heroTitle_en" value="<%= resolveField(rawConfig.heroTitle, 'en') %>" placeholder="English — e.g. DIY Roller Kit" />
+          <small class="helper">Μεγάλος τίτλος που εμφανίζεται πάνω στην εικόνα hero.</small>
         </label>
-        <label><span>Hero subtitle (EL/EN)</span>
-          <textarea name="heroSubtitle_el" rows="2" placeholder="Ελληνικά"><%= resolveField(rawConfig.heroSubtitle, 'el') %></textarea>
-          <textarea name="heroSubtitle_en" rows="2" placeholder="English"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
+        <label><span>Υπότιτλος hero (EL / EN)</span>
+          <textarea name="heroSubtitle_el" rows="2" placeholder="Ελληνικά — σύντομη περιγραφή"><%= resolveField(rawConfig.heroSubtitle, 'el') %></textarea>
+          <textarea name="heroSubtitle_en" rows="2" placeholder="English — short tagline"><%= resolveField(rawConfig.heroSubtitle, 'en') %></textarea>
+          <small class="helper">Προαιρετικός υπότιτλος κάτω από τον τίτλο.</small>
         </label>
-        <label><span>Hero image / banner URL</span>
+        <label><span>Εικόνα hero / banner</span>
           <input type="text" id="homepageHeroImage" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
-          <img id="homepage-hero-preview" src="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" alt="" style="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) ? '' : 'display:none;' %>margin-top:6px;width:180px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+          <% if (rawConfig.homepage && rawConfig.homepage.heroImage) { %>
+          <div style="margin-top:6px;">
+            <img id="homepage-hero-preview" src="<%= rawConfig.homepage.heroImage %>" alt="Hero preview" style="width:220px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+            <small style="display:block;font-size:.75rem;color:#64748b;margin-top:3px;">Τρέχουσα εικόνα hero</small>
+          </div>
+          <% } else { %>
+          <img id="homepage-hero-preview" src="" alt="" style="display:none;margin-top:6px;width:220px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <% } %>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
             <input type="file" id="homepage-banner-file" accept="image/*" />
-            <button type="button" class="btn-xs" id="homepage-banner-upload-btn">Upload banner</button>
+            <button type="button" class="btn-xs" id="homepage-banner-upload-btn">Ανέβασμα banner</button>
             <small id="homepage-banner-status" style="font-size:.78rem;color:#64748b;"></small>
           </div>
-          <small class="helper">Recommended: 1600x600 (desktop). Keep important content in the center (safe crop area).</small>
+          <small class="helper">Συνιστώμενο μέγεθος: <strong>1600 × 600 px</strong>. Κρατήστε το κείμενο στο κέντρο (το mobile κόβει τα άκρα).</small>
         </label>
+        <h3 class="settings-section-heading">Προτεινόμενα Προϊόντα</h3>
+        <p class="helper">Επιλέξτε ποια kits εμφανίζονται στα μεγάλα cards της αρχικής σελίδας.</p>
+
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
         <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
         <% const hpKitIds = hpKitProducts.map(function(p){ return p.id; }); %>
         <% const hpP1Missing = hpPrimary[0] && !hpKitIds.includes(hpPrimary[0]); %>
         <% const hpP2Missing = hpPrimary[1] && !hpKitIds.includes(hpPrimary[1]); %>
-        <label><span>Primary Product #1</span>
+        <label><span>Κύριο προϊόν / Kit #1 <small style="font-weight:400;color:#94a3b8;">(μεγάλο card αριστερά)</small></span>
           <select name="homepageFeaturedPrimary1" id="homepageFeaturedPrimary1">
-            <option value="">-- Select KIT --</option>
+            <option value="">-- Επιλέξτε KIT --</option>
             <% hpKitProducts.forEach(function(p){ %>
-              <option value="<%= p.id %>" <%= hpPrimary[0] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+              <option value="<%= p.id %>" <%= hpPrimary[0] === p.id ? 'selected' : '' %>><%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
             <% }) %>
           </select>
-          <small class="helper">Εμφανίζεται στο πρώτο μεγάλο card της homepage.</small>
-          <% if (hpP1Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
+          <% if (hpP1Missing) { %><small style="color:#b91c1c;font-weight:700;">Το επιλεγμένο προϊόν δεν υπάρχει πλέον — επιλέξτε νέο.</small><% } %>
         </label>
-        <label><span>Primary Product #2</span>
+        <label><span>Κύριο προϊόν / Kit #2 <small style="font-weight:400;color:#94a3b8;">(μεγάλο card δεξιά)</small></span>
           <select name="homepageFeaturedPrimary2" id="homepageFeaturedPrimary2">
-            <option value="">-- Select KIT --</option>
+            <option value="">-- Επιλέξτε KIT --</option>
             <% hpKitProducts.forEach(function(p){ %>
-              <option value="<%= p.id %>" <%= hpPrimary[1] === p.id ? 'selected' : '' %>><%= p.id %> — <%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
+              <option value="<%= p.id %>" <%= hpPrimary[1] === p.id ? 'selected' : '' %>><%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
             <% }) %>
           </select>
-          <small class="helper">Εμφανίζεται στο δεύτερο μεγάλο card της homepage.</small>
-          <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το τρέχον ID δεν βρέθηκε. Pick a KIT now.</small><% } %>
-          <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Pick a KIT now</button><% } %>
+          <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το επιλεγμένο προϊόν δεν υπάρχει πλέον — επιλέξτε νέο.</small><% } %>
+          <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Μεταβείτε στα Προϊόντα →</button><% } %>
         </label>
-        <label><span>Secondary Feature Block</span>
-          <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="eukolaki-spare-pack" />
-          <small class="helper">Μικρότερο block εξερεύνησης κάτω από τα κύρια kits.</small>
+        <label><span>Secondary feature block <small style="font-weight:400;color:#94a3b8;">(product ID)</small></span>
+          <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="π.χ. eukolaki-spare-pack" />
+          <small class="helper">Προαιρετικό — το ID ενός επιπλέον προϊόντος/pack που εμφανίζεται σε μικρότερο block κάτω από τα κύρια kits. Βρείτε το ID στην ενότητα Προϊόντα.</small>
         </label>
-        <label><span>Secondary block title (EL/EN)</span>
+        <label><span>Secondary block τίτλος (EL / EN)</span>
           <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="Ελληνικά" />
           <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="English" />
         </label>
-        <label><span>Secondary block text (EL/EN)</span>
+        <label><span>Secondary block κείμενο (EL / EN)</span>
           <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="Ελληνικά" />
           <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="English" />
         </label>
-        <label><span>Secondary block link</span>
+        <label><span>Secondary block σύνδεσμος</span>
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
+          <small class="helper">Σχετικό URL — π.χ. <code>/?category=spare-parts</code> ή <code>/</code></small>
         </label>
+
+        <h3 class="settings-section-heading">Ενότητες Αρχικής Σελίδας</h3>
+        <p class="helper">Επιλέξτε ποιες ενότητες εμφανίζονται και αλλάξτε τη σειρά τους.</p>
+
         <label class="checkbox-label">
           <input type="hidden" name="homepageShowSubscriptionsCard" value="0" />
           <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
-          <span>Εμφάνιση κάρτας "Συνδρομές / Videos"</span>
+          <span>Εμφάνιση ενότητας "Συνδρομές / Videos" στην αρχική σελίδα</span>
         </label>
+
+        <%# Hidden raw block order input — managed by the drag UI below %>
+        <label style="display:none;">
+          <input type="text" id="homepageBlockOrderInput" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
+        </label>
+
+        <h3 class="settings-section-heading">Welcome / Intro Experience</h3>
+        <p class="helper">Η σελίδα intro εμφανίζεται στον πελάτη πριν μπει στο κατάστημα — ιδανική για video teaser ή branding splash.</p>
         <label class="checkbox-label">
           <input type="hidden" name="homepageIntroEnabled" value="0" />
           <input type="checkbox" name="homepageIntroEnabled" value="1" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
-          <span>Enable intro teaser page (/intro)</span>
+          <span>Ενεργοποίηση intro σελίδας <small style="font-weight:400;color:#94a3b8;">(διαθέσιμη στο /intro)</small></span>
         </label>
-        <label><span>Intro video URL (.mp4)</span>
+        <label><span>Video URL (.mp4) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="homepageIntroVideoUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/intro.mp4" />
+          <small class="helper">Ανεβάστε το βίντεο στην ενότητα <a href="#tab-upload">Media</a> και αντιγράψτε το path εδώ.</small>
         </label>
-        <label><span>Intro poster URL</span>
+        <label><span>Poster / thumbnail εικόνα video <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
+          <small class="helper">Εικόνα που εμφανίζεται πριν φορτωθεί το βίντεο. Ίδιο aspect ratio με το video (π.χ. 16:9).</small>
         </label>
-        <label><span>Homepage blocks order (comma-separated)</span>
-          <input type="text" id="homepageBlockOrderInput" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
-          <small class="helper">Keys: hero, kits, spare, subscriptions. This controls landing block order without code edits.</small>
-        </label>
-        <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;">
-          <strong style="font-size:.85rem;display:block;margin-bottom:8px;">Visual block ordering</strong>
-          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+        <div style="margin:8px 0 16px;">
+          <a href="<%= withTenantLink('/intro') %>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#0ea5e9;text-decoration:none;padding:7px 12px;border:1px solid rgba(14,165,233,.35);border-radius:7px;background:rgba(14,165,233,.06);">
+            ▶ Προεπισκόπηση σελίδας intro &nbsp;<small style="opacity:.7;">(ανοίγει σε νέα καρτέλα)</small>
+          </a>
+          <small class="helper" style="display:block;margin-top:6px;">Η σελίδα intro εμφανίζεται μόνο αν η παραπάνω επιλογή «Ενεργοποίηση» είναι ενεργή και ο επισκέπτης δεν την έχει ήδη δει.</small>
+        </div>
+        <h3 class="settings-section-heading" style="margin-top:20px;">Σειρά & Ορατότητα Ενοτήτων</h3>
+        <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.</p>
+        <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;margin-bottom:10px;">
+          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Spare parts card</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Subscriptions block</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Ανταλλακτικά (Spare parts)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Συνδρομές / Videos</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockHero" value="0" /><input type="checkbox" name="homepageBlockHero" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.hero !== false) ? 'checked' : '' %> /><span>Show Hero block</span></label>
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockKits" value="0" /><input type="checkbox" name="homepageBlockKits" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.kits !== false) ? 'checked' : '' %> /><span>Show Kits block</span></label>
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockSpare" value="0" /><input type="checkbox" name="homepageBlockSpare" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.spare !== false) ? 'checked' : '' %> /><span>Show Spare block</span></label>
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockSubscriptions" value="0" /><input type="checkbox" name="homepageBlockSubscriptions" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.subscriptions !== false) ? 'checked' : '' %> /><span>Show Subscriptions block</span></label>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockHero" value="0" /><input type="checkbox" name="homepageBlockHero" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.hero !== false) ? 'checked' : '' %> /><span>Εμφάνιση Hero</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockKits" value="0" /><input type="checkbox" name="homepageBlockKits" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.kits !== false) ? 'checked' : '' %> /><span>Εμφάνιση Kits</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSpare" value="0" /><input type="checkbox" name="homepageBlockSpare" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.spare !== false) ? 'checked' : '' %> /><span>Εμφάνιση Ανταλλακτικών</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSubscriptions" value="0" /><input type="checkbox" name="homepageBlockSubscriptions" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.subscriptions !== false) ? 'checked' : '' %> /><span>Εμφάνιση Συνδρομών</span></label>
         </div>
-        <label><span>Override Kits block title</span>
+        <label><span>Τίτλος ενότητας Kits <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
           <input type="text" name="homepageKitsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsTitle) || '' %>" placeholder="Κύρια DIY Kits" />
+          <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
-        <label><span>Override Spare block title</span>
+        <label><span>Τίτλος ενότητας Ανταλλακτικών <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
           <input type="text" name="homepageSpareTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareTitle) || '' %>" placeholder="Ανταλλακτικά & Εργαλεία" />
+          <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
-        <label><span>Override Subscriptions block title</span>
+        <label><span>Τίτλος ενότητας Συνδρομών <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
           <input type="text" name="homepageSubscriptionsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsTitle) || '' %>" placeholder="Συνδρομές / Videos" />
+          <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
-        <label><span>Footer contact email</span>
-          <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@shop.com" />
+        <h3 class=”settings-section-heading”>Επικοινωνία & Social Media</h3>
+        <p class=”helper”>Τα στοιχεία επικοινωνίας και τα social links εμφανίζονται στο footer του καταστήματος.</p>
+
+        <label><span>Email επικοινωνίας</span>
+          <input type=”email” name=”footerContactEmail” value=”<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>” placeholder=”info@yourshop.com” />
+          <small class=”helper”>Εμφανίζεται στο footer ως σύνδεσμος επικοινωνίας.</small>
         </label>
-        <label><span>Footer pickup/store address</span>
-          <input type="text" name="footerPickupAddress" value="<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>" placeholder="Store address for pickups" />
+        <label><span>Διεύθυνση παραλαβής / φυσικό κατάστημα</span>
+          <input type=”text” name=”footerPickupAddress” value=”<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>” placeholder=”π.χ. Αθήνα, Λεωφόρος Παπάγου 12” />
+          <small class=”helper”>Αφήστε κενό αν δεν υπάρχει φυσικό κατάστημα παραλαβής.</small>
         </label>
-        <label><span>Footer Facebook URL</span>
-          <input type="text" name="footerFacebookUrl" value="<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>" placeholder="https://facebook.com/..." />
+        <label><span>Facebook URL</span>
+          <input type=”text” name=”footerFacebookUrl” value=”<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>” placeholder=”https://facebook.com/yourpage” />
         </label>
-        <label><span>Footer Instagram URL</span>
-          <input type="text" name="footerInstagramUrl" value="<%= (rawConfig.footer && rawConfig.footer.instagramUrl) || '' %>" placeholder="https://instagram.com/..." />
+        <label><span>Instagram URL</span>
+          <input type=”text” name=”footerInstagramUrl” value=”<%= (rawConfig.footer && rawConfig.footer.instagramUrl) || '' %>” placeholder=”https://instagram.com/yourhandle” />
         </label>
-        <label><span>Footer TikTok URL</span>
-          <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@..." />
+        <label><span>TikTok URL</span>
+          <input type=”text” name=”footerTiktokUrl” value=”<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>” placeholder=”https://tiktok.com/@yourhandle” />
         </label>
-        <p class="helper" style="margin-top:4px;">
-          Το “Powered by” του footer ρυθμίζεται μόνο από το Root Admin στο
-          <code>/root/tenants</code> (δικαιώματα tenant branding).
+        <p class=”helper” style=”margin-top:4px;”>
+          Το “Powered by” του footer ρυθμίζεται από το Root Admin στο
+          <code>/root/tenants</code>.
         </p>
         <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
         <p class="helper" style="margin-top:-4px;">Προαιρετικό όσο το admin session είναι ενεργό (30 λεπτά).</p>
@@ -793,15 +865,15 @@
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
         <form method="POST" action="<%= withTenantLink('/admin/settings') %>" class="admin-subform" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 8px;">Category storefront display</h3>
-          <label><span>Spare parts / tools card emphasis</span>
+          <h3 style="margin:0 0 8px;">Εμφάνιση κατηγοριών στο κατάστημα</h3>
+          <label><span>Τρόπος εμφάνισης κάρτας «Ανταλλακτικά / Εργαλεία»</span>
             <select name="themeSpareToolsCardMode">
-              <option value="prominent" <%= ((config.theme && config.theme.spareToolsCardMode) || 'prominent') === 'prominent' ? 'selected' : '' %>>Prominent (larger centered card)</option>
-              <option value="compact" <%= ((config.theme && config.theme.spareToolsCardMode) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+              <option value="prominent" <%= ((config.theme && config.theme.spareToolsCardMode) || 'prominent') === 'prominent' ? 'selected' : '' %>>Κεντρική / Μεγάλη κάρτα (προεπιλογή)</option>
+              <option value="compact" <%= ((config.theme && config.theme.spareToolsCardMode) || '') === 'compact' ? 'selected' : '' %>>Συμπαγής / Μικρή κάρτα</option>
             </select>
           </label>
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
-          <button type="submit" class="button">Save category display</button>
+          <button type="submit" class="button">Αποθήκευση εμφάνισης</button>
         </form>
         <p class="cat-helper-row">Αντικατάσταση εικόνας: πατήστε «Ανέβασμα/Αλλαγή» και διαλέξτε αρχείο. Δεν χρειάζεται επικόλληση path.</p>
         <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:10px;">
@@ -817,8 +889,8 @@
               <th>Εικόνα</th>
               <th><%= t('admin.catColName') %></th>
               <th><%= t('admin.catColSlug') %></th>
-              <th>Main Nav</th>
-              <th>Order</th>
+              <th>Στο μενού</th>
+              <th>Σειρά</th>
               <th><%= t('admin.catColParent') %></th>
               <th><%= t('admin.catColAction') %></th>
             </tr>
@@ -851,7 +923,7 @@
                   </div>
                 </td>
                 <td><%= cat.slug %></td>
-                <td><%= rawCat && rawCat.showInMainNav === false ? 'No' : 'Yes' %></td>
+                <td><%= rawCat && rawCat.showInMainNav === false ? 'Όχι' : 'Ναι' %></td>
                 <td><%= (rawCat && rawCat.navOrder !== undefined) ? rawCat.navOrder : '—' %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
@@ -887,9 +959,12 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο main navigation strip</span></label>
-          <input type="number" name="navOrder" placeholder="Σειρά στο main nav (π.χ. 1,2,3)" />
-          <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
+          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
+          <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
+          <label>
+            <input type="text" name="slug" placeholder="Slug URL (π.χ. tsantes)" required />
+            <small class="helper">Χρησιμοποιείται στη διεύθυνση URL: /products/tsantes. Χρησιμοποιείτε μόνο λατινικούς χαρακτήρες, αριθμούς και παύλες.</small>
+          </label>
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
             <% categories.forEach(function(cat){ %>
@@ -911,9 +986,12 @@
           <input type="text" name="name_en" placeholder="New name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο main navigation strip</span></label>
-          <input type="number" name="navOrder" placeholder="Σειρά στο main nav (π.χ. 1,2,3)" />
-          <input type="text" name="slug" placeholder="Νέο slug" required />
+          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
+          <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
+          <label>
+            <input type="text" name="slug" placeholder="Νέο slug URL (π.χ. tsantes)" required />
+            <small class="helper">Χρησιμοποιείται στη διεύθυνση URL: /products/tsantes. Χρησιμοποιείτε μόνο λατινικούς χαρακτήρες, αριθμούς και παύλες.</small>
+          </label>
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
             <% categories.forEach(function(cat){ %>
@@ -1149,36 +1227,56 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <form id="tab-notifications" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/notifications') %>">
         <h2><%= t('admin.notificationsTitle') %></h2>
-        <p class="helper">Ρύθμιση παραληπτών email και webhook για ειδοποιήσεις παραγγελιών.</p>
-        <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
+        <p class="helper">Ρύθμιση email ειδοποιήσεων για νέες παραγγελίες. Κάθε φορά που μπαίνει παραγγελία, ο διαχειριστής ειδοποιείται αυτόματα.</p>
+
+        <h3 class="settings-section-heading">Email ειδοποιήσεων</h3>
+
+        <label>
+          <span>Email(s) παραλήπτη <small style="font-weight:400;color:#94a3b8;">(ένα ανά γραμμή)</small></span>
           <textarea name="notificationEmails" rows="3"
                     placeholder="owner@myshop.gr&#10;backup@myshop.gr"
                     <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
+          <small class="helper">Αυτά τα email θα λαμβάνουν ειδοποίηση για κάθε νέα παραγγελία. Μπορείτε να βάλετε πολλά, ένα ανά γραμμή.</small>
         </label>
+
         <label class="checkbox-label">
           <input type="checkbox" name="notificationCcCustomer"
                  <%= (config.notificationCcCustomer) ? 'checked' : '' %>
                  <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span><%= t('admin.notifCcCustomer') %></span>
+          <span>Αποστολή επιβεβαίωσης παραγγελίας και στον πελάτη (CC)</span>
         </label>
-        <label><span><%= t('admin.notifFromName') %></span>
+        <small class="helper" style="display:block;margin:-4px 0 10px 28px;">Αν ενεργοποιηθεί, ο πελάτης λαμβάνει αντίγραφο του email επιβεβαίωσης.</small>
+
+        <label>
+          <span>Εμφανιζόμενο όνομα αποστολέα</span>
           <input type="text" name="notificationFromName"
                  value="<%= config.notificationFromName || '' %>"
-                 placeholder="π.χ. FashionMM Store"
+                 placeholder="π.χ. Eukolakis Store"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αυτό φαίνεται ως «Από:» στα email που λαμβάνουν οι πελάτες και ο διαχειριστής. Χρησιμοποιήστε το όνομα του καταστήματός σας.</small>
         </label>
-        <label><span><%= t('admin.webhookUrl') %></span>
-          <input type="text" name="notificationWebhookUrl"
-                 value="<%= config.notificationWebhookUrl || '' %>"
-                 placeholder="https://myhook.example.com/orders"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
-        </label>
-        <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
-          <input type="text" name="notificationWebhookSecret"
-                 value="<%= config.notificationWebhookSecret || '' %>"
-                 placeholder="mysecret123"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
-        </label>
+
+        <details style="margin:10px 0 14px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:.88rem;">Webhook integration <small style="font-weight:400;color:#94a3b8;">(για προχωρημένους — προαιρετικό)</small></summary>
+          <p class="helper" style="margin:8px 0;">Αν θέλετε να ειδοποιείται αυτόματα ένα εξωτερικό σύστημα (π.χ. ERP, Zapier, Make.com) για κάθε παραγγελία, ορίστε εδώ ένα Webhook URL.</p>
+          <label>
+            <span>Webhook URL</span>
+            <input type="text" name="notificationWebhookUrl"
+                   value="<%= config.notificationWebhookUrl || '' %>"
+                   placeholder="https://hooks.zapier.com/hooks/catch/..."
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <small class="helper">Κάθε νέα παραγγελία στέλνει HTTP POST με JSON payload σε αυτό το URL.</small>
+          </label>
+          <label>
+            <span>Webhook Secret <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+            <input type="text" name="notificationWebhookSecret"
+                   value="<%= config.notificationWebhookSecret || '' %>"
+                   placeholder="mysecret123"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <small class="helper">Μυστικό κλειδί για την επαλήθευση της αυθεντικότητας του webhook (X-Thronos-Signature header). Αφήστε κενό αν δεν χρειάζεται.</small>
+          </label>
+        </details>
+
         <% if (permissions.canEditSettings) { %>
         <div class="save-row">
           <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>

@@ -2278,7 +2278,8 @@ app.get('/intro', (req, res) => {
     tenant: req.tenant,
     skipHref,
     introCookieName,
-    introStorageKey
+    introStorageKey,
+    isEukolakisClassic: isEukolakisClassicPreset(req)
   });
 });
 

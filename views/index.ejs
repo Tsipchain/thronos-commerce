@@ -276,7 +276,8 @@
         padding: 0 !important;
       }
       body.eukolakis-classic .logo-image-dynamic {
-        max-height: 40px !important;
+        /* Respect the admin-configured logo height (capped for compact header look) */
+        max-height: clamp(36px, 5vw, 56px) !important;
         filter: brightness(1.08) !important;
       }
       body.eukolakis-classic .store-name-wrap h1 {
@@ -370,14 +371,19 @@
 
       /* ── Lang switcher ── */
       body.eukolakis-classic .lang-switcher {
-        background: rgba(0,0,0,.25) !important;
+        background: transparent !important;
         border-bottom: 1px solid var(--eko-border) !important;
         color: var(--eko-text-muted) !important;
+        padding: 4px 16px !important;
+        justify-content: flex-end !important;
+        font-size: .75rem !important;
       }
       body.eukolakis-classic .lang-switcher select {
-        background: var(--eko-surface) !important;
+        background: var(--eko-surface-2) !important;
         border-color: var(--eko-border) !important;
         color: var(--eko-text) !important;
+        padding: 2px 6px !important;
+        font-size: .75rem !important;
       }
 
       /* ── Industrial hero banner ── */
@@ -434,6 +440,12 @@
       .eko-hero-cta-secondary {
         background: rgba(255,255,255,.1); color: #fff;
         border: 1px solid rgba(255,255,255,.25);
+      }
+      /* Secondary CTA on light mode needs visible background */
+      body.eukolakis-classic.eko-light .eko-hero-cta-secondary {
+        background: rgba(0,0,0,.12);
+        border-color: rgba(0,0,0,.22);
+        color: var(--eko-text-strong);
       }
 
       /* ── Category tile grid ── */
@@ -542,9 +554,40 @@
         color: var(--eko-text) !important;
       }
       body.eukolakis-classic .spare-tools-card h3 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic .spare-tools-card img { background: transparent !important; padding: 0 !important; }
 
       /* ── Featured section title ── */
       body.eukolakis-classic .featured-section h2 { color: var(--eko-accent) !important; }
+
+      /* ── Featured kit card product name (shown for eukolakis-classic) ── */
+      body.eukolakis-classic .featured-kit-card-name {
+        font-size: .97rem; font-weight: 800; color: var(--eko-text-strong);
+        margin: 0 0 6px; line-height: 1.3;
+      }
+
+      /* ── Warning/hint boxes — dark theme adaptation ── */
+      body.eukolakis-classic .eko-hint-box {
+        background: rgba(196,144,46,.12) !important;
+        border: 1px solid rgba(196,144,46,.28) !important;
+        border-radius: 10px; padding: 10px 14px;
+        color: var(--eko-accent) !important;
+        font-size: .84rem;
+        margin-top: 10px;
+      }
+      body.eukolakis-classic .eko-hint-box p { margin: 0; color: inherit !important; }
+      /* Light mode: keep standard amber tone */
+      body.eukolakis-classic.eko-light .eko-hint-box {
+        background: #fff7ed !important;
+        border-color: #fed7aa !important;
+        color: #9a3412 !important;
+      }
+
+      /* ── Quick back button — eukolakis adaptation ── */
+      body.eukolakis-classic .quick-back-btn {
+        background: var(--eko-surface-2) !important;
+        color: var(--eko-text) !important;
+        border: 1px solid var(--eko-border) !important;
+      }
 
       /* ── Filter UI ── */
       body.eukolakis-classic .spare-filters {
@@ -933,7 +976,7 @@
 
       <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
       <section class="featured-section" data-home-block="kits">
-        <h2>🧰 <%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
+        <h2><%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
         <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
@@ -941,20 +984,24 @@
               <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
-                <% if (!isEukolakisClassic) { %><h3 style="margin:0 0 8px;"><%= product.name %></h3><% } %>
-                <% if (product.description) { %><p style="margin:0 0 10px;color:#4b5563;"><%= product.description %></p><% } %>
-                <small style="color:#0f766e;font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
+                <% if (isEukolakisClassic) { %>
+                <p class="featured-kit-card-name"><%= resolveField(product.name, lang) || product.name %></p>
+                <% } else { %>
+                <h3 style="margin:0 0 8px;"><%= product.name %></h3>
+                <% } %>
+                <% if (product.description) { %><p style="margin:0 0 10px;"><%= product.description %></p><% } %>
+                <small style="font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
               </div>
             </article>
           <% }) %>
         </div>
         <% if (missingConfiguredPrimary) { %>
-        <div class="home-secondary" style="margin-top:10px;background:#fff7ed;border-color:#fed7aa;">
-          <p style="margin:0;font-size:.86rem;color:#9a3412;"><%= lang === 'el' ? 'Hint: Έλεγξε Homepage → Primary Product #1 / #2 για σωστό KIT mapping.' : 'Hint: Check Homepage → Primary Product #1 / #2 mapping.' %></p>
+        <div class="home-secondary eko-hint-box" style="margin-top:10px;">
+          <p><%= lang === 'el' ? 'Hint: Έλεγξε Homepage → Primary Product #1 / #2 για σωστό KIT mapping.' : 'Hint: Check Homepage → Primary Product #1 / #2 mapping.' %></p>
         </div>
         <% } %>
         <% } else { %>
-        <div class="home-secondary" style="background:#fff7ed;border-color:#fed7aa;">
+        <div class="home-secondary eko-hint-box">
           <h3 style="margin-top:0;"><%= lang === 'el' ? 'Δεν υπάρχουν ακόμη 2 KIT για τη landing σελίδα' : 'No 2 KIT products configured yet for the landing page' %></h3>
           <p style="margin-bottom:0;"><%= lang === 'el' ? 'Πήγαινε Admin → Products → Make this a KIT / Edit KIT wizard.' : 'Go to Admin → Products → Make this a KIT / Edit KIT wizard.' %></p>
         </div>
