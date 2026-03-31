@@ -323,37 +323,6 @@
           <small class="helper">Το όνομα που βλέπει ο πελάτης στο storefront.</small>
         </label>
 
-        <label><span><%= t('admin.primaryColor') %></span>
-          <div class="color-field">
-            <input type="text" name="primaryColor" id="txt-primaryColor"
-                   value="<%= config.primaryColor %>" placeholder="#222222"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-            <input type="color" id="cp-primaryColor" value="<%= config.primaryColor || '#222222' %>"
-                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          </div>
-        </label>
-
-        <label><span><%= t('admin.accentColor') %></span>
-          <div class="color-field">
-            <input type="text" name="accentColor" id="txt-accentColor"
-                   value="<%= config.accentColor %>" placeholder="#00ff88"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
-            <input type="color" id="cp-accentColor" value="<%= config.accentColor || '#00ff88' %>"
-                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          </div>
-        </label>
-
-        <label><span><%= t('admin.fontFamily') %></span>
-          <select name="fontFamily" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-              <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI (προεπιλογή)</option>
-            <option value="'Roboto', Arial, sans-serif"
-              <%= config.fontFamily.includes('Roboto') ? 'selected' : '' %>>Roboto</option>
-            <option value="'Segoe UI', system-ui, sans-serif"
-              <%= config.fontFamily.includes('Segoe UI') && !config.fontFamily.includes('system-ui, -apple') ? 'selected' : '' %>>Segoe UI</option>
-          </select>
-        </label>
-
         <label><span>Κείμενο hero / Καλωσόρισμα</span>
           <textarea name="heroText_el" rows="2" placeholder="Ελληνικά"
                     <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'el') %></textarea>
@@ -368,30 +337,80 @@
           <small class="helper">Αφήστε κενό αν δεν χρησιμοποιείτε Web3 domain. Εμφανίζεται δίπλα στο όνομα καταστήματος.</small>
         </label>
 
+        <h3 class="settings-section-heading">Colors & Typography</h3>
+
+        <label><span><%= t('admin.primaryColor') %></span>
+          <div class="color-field">
+            <input type="text" name="primaryColor" id="txt-primaryColor"
+                   value="<%= config.primaryColor %>" placeholder="#222222"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-primaryColor" value="<%= config.primaryColor || '#222222' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
+          <small class="helper">Κύριο χρώμα κεφαλίδας, μενού και call-to-action buttons.</small>
+        </label>
+
+        <label><span><%= t('admin.accentColor') %></span>
+          <div class="color-field">
+            <input type="text" name="accentColor" id="txt-accentColor"
+                   value="<%= config.accentColor %>" placeholder="#00ff88"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <input type="color" id="cp-accentColor" value="<%= config.accentColor || '#00ff88' %>"
+                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          </div>
+          <small class="helper">Δευτερεύον χρώμα για highlights, badges και ενεργές κατηγορίες.</small>
+        </label>
+
+        <label><span><%= t('admin.fontFamily') %></span>
+          <select name="fontFamily" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+              <%= config.fontFamily.includes('system-ui') ? 'selected' : '' %>>System UI — προεπιλογή (γρήγορο φόρτωμα)</option>
+            <option value="'Roboto', Arial, sans-serif"
+              <%= config.fontFamily.includes('Roboto') ? 'selected' : '' %>>Roboto</option>
+            <option value="'Segoe UI', system-ui, sans-serif"
+              <%= config.fontFamily.includes('Segoe UI') && !config.fontFamily.includes('system-ui, -apple') ? 'selected' : '' %>>Segoe UI</option>
+          </select>
+        </label>
+
         <h3 class="settings-section-heading">Logo</h3>
+
+        <% if (config.logoPath) { %>
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;">
+          <div style="background:#1e2130;border-radius:8px;padding:10px;min-width:74px;display:flex;align-items:center;justify-content:center;">
+            <img src="<%= config.logoPath %>" alt="Current logo" style="max-height:46px;max-width:130px;object-fit:contain;" />
+          </div>
+          <div style="flex:1;min-width:0;">
+            <p style="margin:0 0 2px;font-size:.8rem;font-weight:700;color:#374151;">Τρέχον logo</p>
+            <code style="font-size:.72rem;color:#64748b;word-break:break-all;"><%= config.logoPath %></code>
+          </div>
+        </div>
+        <% } else { %>
+        <div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin-bottom:12px;font-size:.82rem;color:#92400e;">
+          Δεν έχει ανέβει logo ακόμα — χρησιμοποιήστε το upload παρακάτω.
+        </div>
+        <% } %>
 
         <label><span><%= t('admin.logoPath') %></span>
           <input type="text" name="logoPath" id="logoPath-input" value="<%= config.logoPath %>"
                  placeholder="/logo.svg" readonly />
-          <small class="helper">Το πεδίο ενημερώνεται αυτόματα από το upload λογότυπου.</small>
+          <small class="helper">Ενημερώνεται αυτόματα μετά το upload. Δεν χρειάζεται χειροκίνητη αλλαγή.</small>
         </label>
         <% if (permissions.canUploadMedia) { %>
         <div style="margin:-4px 0 14px;">
           <p class="helper" style="margin-bottom:5px;"><%= t('admin.uploadLogoHelper') %></p>
           <div class="logo-upload-row">
             <input type="file" id="logo-file" accept="image/*" />
-            <input type="password" id="logo-pass" placeholder="<%= t('admin.logoPassPlaceholder') %>" style="width:130px;" />
+            <input type="password" id="logo-pass" placeholder="Κωδικός (προαιρετικό)" style="width:160px;" />
             <button type="button" class="btn-xs" id="logo-upload-btn"><%= t('admin.uploadLogoBtn') %></button>
           </div>
           <p id="logo-upload-status"></p>
+          <small class="helper">Αποδεκτές μορφές: PNG, SVG, JPG, WEBP. Συνιστάται τετράγωνο PNG με διαφανές φόντο.</small>
         </div>
         <% } %>
         <p class="settings-info-note">Το favicon (εικόνα στην καρτέλα browser) ανεβαίνει στην ενότητα <a href="#tab-upload">Media</a>.</p>
 
-        <h3 class="settings-section-heading">Colors & Typography</h3>
-
-        <h3 style="font-size:.85rem;margin:0 0 4px;"><%= t('admin.menuColors') %></h3>
-        <p class="helper"><%= t('admin.menuColorsHelper') %></p>
+        <h3 style="font-size:.82rem;color:#475569;font-weight:700;margin:14px 0 3px;"><%= t('admin.menuColors') %></h3>
+        <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
 
         <label><span><%= t('admin.menuBg') %></span>
           <div class="color-field">
