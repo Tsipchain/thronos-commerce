@@ -313,7 +313,7 @@
         <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
 
-        <h3 class="settings-section-heading">Store Identity</h3>
+        <h3 class="settings-section-heading">Ταυτότητα Καταστήματος</h3>
 
         <label><span><%= t('admin.storeName') %></span>
           <input type="text" name="storeName_el" value="<%= resolveField(rawConfig.storeName, 'el') %>" placeholder="Ελληνικά"
@@ -412,8 +412,11 @@
         <% } %>
         <p class="settings-info-note">Το favicon (εικόνα στην καρτέλα browser) ανεβαίνει στην ενότητα <a href="#tab-upload">Media</a>.</p>
 
-        <h3 style="font-size:.82rem;color:#475569;font-weight:700;margin:14px 0 3px;"><%= t('admin.menuColors') %></h3>
+        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης</h3>
         <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
+        <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;margin-bottom:10px;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό σκούρο header — αυτά τα χρώματα δεν εφαρμόζονται στο τρέχον θέμα.</p>
+        <% } %>
 
         <label><span><%= t('admin.menuBg') %></span>
           <div class="color-field">
@@ -468,7 +471,7 @@
 
         <hr class="settings-divider" />
         <details style="margin:0 0 14px;">
-          <summary style="cursor:pointer;font-weight:700;">Logo display options <small style="font-weight:400;color:#94a3b8;">(advanced)</small></summary>
+          <summary style="cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">Εμφάνιση, layout & προχωρημένα <small style="font-weight:400;color:#94a3b8;">(κλικ για ανάπτυξη/σύμπτυξη)</small></summary>
           <p class="helper">Ρυθμίσεις εμφάνισης λογότυπου και διάταξης header. Αλλάξτε μόνο αν θέλετε να προσαρμόσετε την εμφάνιση του logo στο header.</p>
         <label><span>Διάταξη Header</span>
           <select name="themeHeaderLayout" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -535,84 +538,83 @@
         </div>
         <% } %>
         <div style="margin-top:10px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;">
-          <h4 style="margin:0 0 8px;">Product Cards</h4>
-          <p class="helper" style="margin-bottom:8px;">Uniform thumbnail and hover behavior for storefront product cards.</p>
-          <label><span>Thumb aspect ratio</span>
+          <h4 style="margin:0 0 8px;font-size:.82rem;color:#374151;font-weight:700;">Κάρτες Προϊόντων</h4>
+          <p class="helper" style="margin-bottom:8px;">Εμφάνιση thumbnail και εφέ hover για τις κάρτες προϊόντων στο κατάστημα.</p>
+          <label><span>Αναλογία εικόνας (aspect ratio)</span>
             <select name="themeProductThumbAspect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="4:3" <%= ((config.theme && config.theme.productThumbAspect) || '4:3') === '4:3' ? 'selected' : '' %>>4:3</option>
-              <option value="1:1" <%= ((config.theme && config.theme.productThumbAspect) || '') === '1:1' ? 'selected' : '' %>>1:1</option>
-              <option value="3:4" <%= ((config.theme && config.theme.productThumbAspect) || '') === '3:4' ? 'selected' : '' %>>3:4</option>
+              <option value="4:3" <%= ((config.theme && config.theme.productThumbAspect) || '4:3') === '4:3' ? 'selected' : '' %>>4:3 — οριζόντια (συνιστάται)</option>
+              <option value="1:1" <%= ((config.theme && config.theme.productThumbAspect) || '') === '1:1' ? 'selected' : '' %>>1:1 — τετράγωνο</option>
+              <option value="3:4" <%= ((config.theme && config.theme.productThumbAspect) || '') === '3:4' ? 'selected' : '' %>>3:4 — κατακόρυφο</option>
             </select>
           </label>
-          <label><span>Thumb fit</span>
+          <label><span>Εφαρμογή εικόνας (fit)</span>
             <select name="themeProductThumbFit" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="cover" <%= ((config.theme && config.theme.productThumbFit) || 'cover') === 'cover' ? 'selected' : '' %>>Cover</option>
-              <option value="contain" <%= ((config.theme && config.theme.productThumbFit) || '') === 'contain' ? 'selected' : '' %>>Contain</option>
+              <option value="cover" <%= ((config.theme && config.theme.productThumbFit) || 'cover') === 'cover' ? 'selected' : '' %>>Cover — γεμίζει τον χώρο (συνιστάται)</option>
+              <option value="contain" <%= ((config.theme && config.theme.productThumbFit) || '') === 'contain' ? 'selected' : '' %>>Contain — εμφανίζει ολόκληρη την εικόνα</option>
             </select>
           </label>
-          <label><span>Thumb background</span>
+          <label><span>Φόντο εικόνας (hex χρώμα)</span>
             <input type="text" name="themeProductThumbBg" value="<%= ((config.theme && config.theme.productThumbBg) || '#111111') %>" placeholder="#111111" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <small class="helper">Φαίνεται όταν η εικόνα δεν καλύπτει ολόκληρο τον χώρο.</small>
           </label>
-          <label><span>Card hover effect</span>
+          <label><span>Εφέ hover κάρτας</span>
             <select name="themeProductCardHoverEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="none" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'none' ? 'selected' : '' %>>None</option>
-              <option value="lift" <%= ((config.theme && config.theme.productCardHoverEffect) || 'lift') === 'lift' ? 'selected' : '' %>>Lift</option>
-              <option value="glow" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'glow' ? 'selected' : '' %>>Glow</option>
+              <option value="none" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'none' ? 'selected' : '' %>>Κανένα</option>
+              <option value="lift" <%= ((config.theme && config.theme.productCardHoverEffect) || 'lift') === 'lift' ? 'selected' : '' %>>Lift — ελαφρύ ανέβασμα</option>
+              <option value="glow" <%= ((config.theme && config.theme.productCardHoverEffect) || '') === 'glow' ? 'selected' : '' %>>Glow — λάμψη</option>
             </select>
           </label>
-          <label><span>Card density</span>
+          <label><span>Πυκνότητα καρτών</span>
             <select name="themeCardDensity" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="compact" <%= ((config.theme && config.theme.cardDensity) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
-              <option value="normal" <%= ((config.theme && config.theme.cardDensity) || 'normal') === 'normal' ? 'selected' : '' %>>Normal</option>
-              <option value="spacious" <%= ((config.theme && config.theme.cardDensity) || '') === 'spacious' ? 'selected' : '' %>>Spacious</option>
+              <option value="compact" <%= ((config.theme && config.theme.cardDensity) || '') === 'compact' ? 'selected' : '' %>>Compact — μικρές αποστάσεις</option>
+              <option value="normal" <%= ((config.theme && config.theme.cardDensity) || 'normal') === 'normal' ? 'selected' : '' %>>Normal — κανονικές αποστάσεις</option>
+              <option value="spacious" <%= ((config.theme && config.theme.cardDensity) || '') === 'spacious' ? 'selected' : '' %>>Spacious — μεγάλες αποστάσεις</option>
             </select>
-            <small class="helper">Controls product-card spacing and visual density on storefront.</small>
           </label>
-          <label><span>Pre-open effect</span>
+          <label><span>Εφέ πριν άνοιγμα προϊόντος</span>
             <select name="themeProductPreOpenEffect" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>None</option>
+              <option value="none" <%= ((config.theme && config.theme.productPreOpenEffect) || 'none') === 'none' ? 'selected' : '' %>>Κανένα</option>
               <option value="exposure" <%= ((config.theme && config.theme.productPreOpenEffect) || '') === 'exposure' ? 'selected' : '' %>>Exposure</option>
             </select>
           </label>
-          <label><span>KIT wizard display</span>
+          <label><span>Εμφάνιση KIT wizard</span>
             <select name="themeKitWizardDisplay" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="sequential" <%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') === 'sequential' ? 'selected' : '' %>>Sequential</option>
-              <option value="cinematic" <%= ((config.theme && config.theme.kitWizardDisplay) || '') === 'cinematic' ? 'selected' : '' %>>Cinematic transitions</option>
+              <option value="sequential" <%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') === 'sequential' ? 'selected' : '' %>>Sequential — ένα βήμα κάθε φορά</option>
+              <option value="cinematic" <%= ((config.theme && config.theme.kitWizardDisplay) || '') === 'cinematic' ? 'selected' : '' %>>Cinematic — με εφέ μετάβασης</option>
             </select>
-            <small class="helper">Sequential shows one step at a time. Cinematic adds transition effects and preserves step progress while browsing.</small>
           </label>
-          <label><span>KIT wizard skip rule</span>
+          <label><span>Παράλειψη βημάτων KIT</span>
             <select name="themeKitWizardSkipRule" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="none" <%= ((config.theme && config.theme.kitWizardSkipRule) || 'none') === 'none' ? 'selected' : '' %>>Strict (no skip)</option>
-              <option value="optional" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'optional' ? 'selected' : '' %>>Skip only optional steps</option>
-              <option value="all" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'all' ? 'selected' : '' %>>Skip any step</option>
+              <option value="none" <%= ((config.theme && config.theme.kitWizardSkipRule) || 'none') === 'none' ? 'selected' : '' %>>Strict — δεν επιτρέπεται παράλειψη</option>
+              <option value="optional" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'optional' ? 'selected' : '' %>>Παράλειψη μόνο προαιρετικών βημάτων</option>
+              <option value="all" <%= ((config.theme && config.theme.kitWizardSkipRule) || '') === 'all' ? 'selected' : '' %>>Παράλειψη οποιουδήποτε βήματος</option>
             </select>
           </label>
           <label class="checkbox-label">
             <input type="hidden" name="themeEnableDiyQuickScenario" value="0" />
             <input type="checkbox" name="themeEnableDiyQuickScenario" value="1" <%= (config.theme && config.theme.enableDiyQuickScenario) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-            <span>Enable 2nd "DIY εύκολο σενάριο" wizard entry</span>
+            <span>Εμφάνιση «DIY Εύκολο Σενάριο» — δεύτερη είσοδος wizard</span>
           </label>
-          <label><span>Homepage layout preset</span>
+          <label><span>Διάταξη αρχικής σελίδας</span>
             <select name="themeHomeLayoutPreset" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-              <option value="split" <%= ((config.theme && config.theme.homeLayoutPreset) || 'split') === 'split' ? 'selected' : '' %>>Split (2-column desktop)</option>
-              <option value="stacked" <%= ((config.theme && config.theme.homeLayoutPreset) || '') === 'stacked' ? 'selected' : '' %>>Stacked (single column)</option>
+              <option value="split" <%= ((config.theme && config.theme.homeLayoutPreset) || 'split') === 'split' ? 'selected' : '' %>>Split — 2 στήλες σε desktop</option>
+              <option value="stacked" <%= ((config.theme && config.theme.homeLayoutPreset) || '') === 'stacked' ? 'selected' : '' %>>Stacked — μία στήλη</option>
             </select>
           </label>
-          <label><span>Footer text color</span>
+          <label><span>Χρώμα κειμένου footer</span>
             <input type="text" name="themeFooterTextColor" value="<%= ((config.theme && config.theme.footerTextColor) || '#6b7280') %>" placeholder="#6b7280" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           </label>
           <div style="margin-top:8px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;">
-            <small style="display:block;margin-bottom:6px;color:#475569;">Live preview</small>
+            <small style="display:block;margin-bottom:6px;color:#475569;">Προεπισκόπηση κάρτας</small>
             <div style="width:160px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
               <div style="aspect-ratio:<%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;background:<%= (config.theme && config.theme.productThumbBg) || '#111111' %>;display:flex;align-items:center;justify-content:center;">
-                <span style="font-size:20px;">🖼️</span>
+                <span style="font-size:20px;opacity:.5;">▣</span>
               </div>
-              <div style="padding:8px;font-size:.78rem;">Sample card</div>
+              <div style="padding:8px;font-size:.78rem;color:#374151;">Δείγμα κάρτας</div>
             </div>
           </div>
         </div>
-        <h4 style="margin:12px 0 6px;font-size:.82rem;color:#475569;">Διάταξη Storefront</h4>
+        <h4 style="margin:12px 0 6px;font-size:.82rem;color:#475569;font-weight:700;">Διάταξη Storefront</h4>
         <label><span>Στυλ Hero Banner</span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft — ήπια εμφάνιση</option>
@@ -750,21 +752,22 @@
           <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το επιλεγμένο προϊόν δεν υπάρχει πλέον — επιλέξτε νέο.</small><% } %>
           <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Μεταβείτε στα Προϊόντα →</button><% } %>
         </label>
-        <label><span>Secondary feature block <small style="font-weight:400;color:#94a3b8;">(product ID)</small></span>
+        <label><span>Επιπλέον προϊόν / block <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="π.χ. eukolaki-spare-pack" />
-          <small class="helper">Προαιρετικό — το ID ενός επιπλέον προϊόντος/pack που εμφανίζεται σε μικρότερο block κάτω από τα κύρια kits. Βρείτε το ID στην ενότητα Προϊόντα.</small>
+          <small class="helper">ID ενός επιπλέον προϊόντος που εμφανίζεται σε μικρό block κάτω από τα κύρια kits. Βρείτε το ID στην ενότητα Προϊόντα.</small>
         </label>
-        <label><span>Secondary block τίτλος (EL / EN)</span>
-          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="Ελληνικά" />
-          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="English" />
+        <label><span>Κάρτα Ανταλλακτικών — Τίτλος (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
+          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="π.χ. Ανταλλακτικά & Εργαλεία" />
+          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="e.g. Spare Parts & Tools" />
+          <small class="helper">Τίτλος της κάρτας ανταλλακτικών. Αφήστε κενό για τον αυτόματο τίτλο.</small>
         </label>
-        <label><span>Secondary block κείμενο (EL / EN)</span>
-          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="Ελληνικά" />
-          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="English" />
+        <label><span>Κάρτα Ανταλλακτικών — Περιγραφή (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="π.χ. Βρες το κομμάτι που σου λείπει." />
+          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="e.g. Find the part you need." />
         </label>
-        <label><span>Secondary block σύνδεσμος</span>
+        <label><span>Κάρτα Ανταλλακτικών — Σύνδεσμος <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
-          <small class="helper">Σχετικό URL — π.χ. <code>/?category=spare-parts</code> ή <code>/</code></small>
+          <small class="helper">Σχετικό URL — π.χ. <code>/?category=spare-parts</code>. Αφήστε κενό για αυτόματο σύνδεσμο στα ανταλλακτικά.</small>
         </label>
 
         <h3 class="settings-section-heading">Ενότητες Αρχικής Σελίδας</h3>
@@ -781,32 +784,55 @@
           <input type="text" id="homepageBlockOrderInput" name="homepageBlockOrder" value="<%= Array.isArray(rawConfig.homepage && rawConfig.homepage.blockOrder) ? rawConfig.homepage.blockOrder.join(',') : 'hero,kits,spare,subscriptions' %>" placeholder="hero,kits,spare,subscriptions" />
         </label>
 
-        <h3 class="settings-section-heading">Welcome / Intro Experience</h3>
-        <p class="helper">Η σελίδα intro εμφανίζεται στον πελάτη πριν μπει στο κατάστημα — ιδανική για video teaser ή branding splash.</p>
+        <h3 class="settings-section-heading">Intro / Teaser Σελίδα</h3>
+        <% const _introEnabled = !!(rawConfig.homepage && rawConfig.homepage.introEnabled); %>
+        <% const _introVideo   = (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || ''; %>
+        <% const _introPoster  = (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || ''; %>
+        <div style="padding:10px 14px;border-radius:10px;margin-bottom:12px;background:<%= _introEnabled ? '#f0fdf4' : '#f8fafc' %>;border:1px solid <%= _introEnabled ? '#bbf7d0' : '#e2e8f0' %>;">
+          <p style="margin:0;font-size:.84rem;font-weight:700;color:<%= _introEnabled ? '#15803d' : '#475569' %>;">
+            <% if (_introEnabled) { %>✓ Intro ενεργό — εμφανίζεται στον επισκέπτη πριν μπει στο κατάστημα<% } else { %>○ Intro ανενεργό — παρακάμπτεται αυτόματα<% } %>
+          </p>
+          <% if (_introEnabled) { %>
+          <p style="margin:4px 0 0;font-size:.78rem;color:#166534;">
+            <% if (_introVideo) { %>Video: <strong>ρυθμισμένο ✓</strong><% } else { %>Video: <em style="color:#ca8a04;">δεν έχει ρυθμιστεί — θα εμφανιστεί το logo και μήνυμα καλωσορίσματος</em><% } %>
+            &nbsp;·&nbsp;
+            <% if (_introPoster) { %>Poster: <strong>ρυθμισμένο ✓</strong><% } else { %>Poster: <em>κανένα</em><% } %>
+          </p>
+          <% } %>
+        </div>
         <label class="checkbox-label">
           <input type="hidden" name="homepageIntroEnabled" value="0" />
-          <input type="checkbox" name="homepageIntroEnabled" value="1" <%= (rawConfig.homepage && rawConfig.homepage.introEnabled) ? 'checked' : '' %> />
-          <span>Ενεργοποίηση intro σελίδας <small style="font-weight:400;color:#94a3b8;">(διαθέσιμη στο /intro)</small></span>
+          <input type="checkbox" name="homepageIntroEnabled" value="1" <%= _introEnabled ? 'checked' : '' %> />
+          <span>Ενεργοποίηση intro σελίδας</span>
         </label>
-        <label><span>Video URL (.mp4) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageIntroVideoUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/intro.mp4" />
-          <small class="helper">Ανεβάστε το βίντεο στην ενότητα <a href="#tab-upload">Media</a> και αντιγράψτε το path εδώ.</small>
+        <small class="helper" style="display:block;margin:-4px 0 12px 28px;">Όταν ενεργό, ο νέος επισκέπτης βλέπει πρώτα την intro σελίδα — αφού την δει μία φορά, παρακάμπτεται αυτόματα (cookie 180 ημερών).</small>
+        <label><span>URL video εισαγωγής (.mp4) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageIntroVideoUrl" value="<%= _introVideo %>" placeholder="/tenants/eukolakis/media/intro/intro.mp4" />
+          <small class="helper">Ανεβάστε το βίντεο στην ενότητα <a href="#tab-upload">Media</a> και αντιγράψτε το path εδώ. Αν αφήσετε κενό, εμφανίζεται το logo του καταστήματος.</small>
         </label>
-        <label><span>Poster / thumbnail εικόνα video <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
-          <small class="helper">Εικόνα που εμφανίζεται πριν φορτωθεί το βίντεο. Ίδιο aspect ratio με το video (π.χ. 16:9).</small>
+        <label><span>Εικόνα poster (εμφανίζεται πριν φορτωθεί το βίντεο) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageIntroPosterUrl" value="<%= _introPoster %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
+          <% if (_introPoster) { %>
+          <div style="margin-top:6px;">
+            <img src="<%= _introPoster %>" alt="Poster preview" style="height:72px;max-width:220px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db;" onerror="this.style.display='none'" />
+            <small style="display:block;font-size:.72rem;color:#64748b;margin-top:2px;">Τρέχον poster</small>
+          </div>
+          <% } %>
+          <small class="helper">Ίδιο aspect ratio με το video (π.χ. 16:9).</small>
         </label>
-        <div style="margin:8px 0 16px;">
+        <div style="margin:8px 0 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <a href="<%= withTenantLink('/intro') %>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#0ea5e9;text-decoration:none;padding:7px 12px;border:1px solid rgba(14,165,233,.35);border-radius:7px;background:rgba(14,165,233,.06);">
-            ▶ Προεπισκόπηση σελίδας intro &nbsp;<small style="opacity:.7;">(ανοίγει σε νέα καρτέλα)</small>
+            ▶ Προεπισκόπηση intro &nbsp;<small style="opacity:.7;">(νέα καρτέλα)</small>
           </a>
-          <small class="helper" style="display:block;margin-top:6px;">Η σελίδα intro εμφανίζεται μόνο αν η παραπάνω επιλογή «Ενεργοποίηση» είναι ενεργή και ο επισκέπτης δεν την έχει ήδη δει.</small>
+          <% if (!_introEnabled) { %>
+          <small style="color:#64748b;font-size:.78rem;">Θα ανακατευθυνθείτε στην αρχική αν το intro δεν είναι ενεργό.</small>
+          <% } %>
         </div>
         <h3 class="settings-section-heading" style="margin-top:20px;">Σειρά & Ορατότητα Ενοτήτων</h3>
         <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.</p>
         <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;margin-bottom:10px;">
-          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero / Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits (Προτεινόμενα)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Ανταλλακτικά (Spare parts)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Συνδρομές / Videos</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
         </div>
@@ -832,7 +858,7 @@
         <p class=”helper”>Τα στοιχεία επικοινωνίας και τα social links εμφανίζονται στο footer του καταστήματος.</p>
 
         <label><span>Email επικοινωνίας</span>
-          <input type=”email” name=”footerContactEmail” value=”<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>” placeholder=”info@yourshop.com” />
+          <input type=”email” name=”footerContactEmail” value=”<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>” placeholder=”info@katastima.gr” />
           <small class=”helper”>Εμφανίζεται στο footer ως σύνδεσμος επικοινωνίας.</small>
         </label>
         <label><span>Διεύθυνση παραλαβής / φυσικό κατάστημα</span>
@@ -2702,18 +2728,18 @@
       if (homepageBannerBtn) {
         homepageBannerBtn.addEventListener('click', async function() {
           const file = homepageBannerFile && homepageBannerFile.files && homepageBannerFile.files[0];
-          if (!file) return alert('Select a banner image first.');
-          if (homepageBannerStatus) homepageBannerStatus.textContent = 'Uploading...';
+          if (!file) return alert('<%= lang === "el" ? "Επίλεξε πρώτα αρχείο εικόνας για το banner." : "Select a banner image first." %>');
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '<%= lang === "el" ? "Γίνεται ανέβασμα..." : "Uploading..." %>';
           const fd = new FormData();
           fd.append('bannerFile', file);
           const inlinePw = (document.querySelector('#tab-homepage input[name=\"password\"]') || { value: '' }).value || '';
-          const pw = inlinePw || prompt('Admin password for banner upload:') || '';
+          const pw = inlinePw || prompt('<%= lang === "el" ? "Κωδικός admin για ανέβασμα banner:" : "Admin password for banner upload:" %>') || '';
           fd.append('password', pw);
           const r = await fetch('<%= withTenantLink("/admin/homepage/banner-upload") %>', { method: 'POST', body: fd });
           const j = await r.json();
           if (!j.ok) {
-            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || 'Upload failed.';
-            alert(j.error || 'Upload failed');
+            if (homepageBannerStatus) homepageBannerStatus.textContent = j.error || '<%= lang === "el" ? "Σφάλμα ανεβάσματος." : "Upload failed." %>';
+            alert(j.error || '<%= lang === "el" ? "Σφάλμα ανεβάσματος." : "Upload failed." %>');
             return;
           }
           if (homepageHeroInput) homepageHeroInput.value = j.url || '';
@@ -2721,7 +2747,7 @@
             homepageHeroPreview.src = j.url;
             homepageHeroPreview.style.display = 'block';
           }
-          if (homepageBannerStatus) homepageBannerStatus.textContent = '✓ Uploaded';
+          if (homepageBannerStatus) homepageBannerStatus.textContent = '<%= lang === "el" ? "✓ Ανέβηκε επιτυχώς" : "✓ Uploaded" %>';
         });
       }
 

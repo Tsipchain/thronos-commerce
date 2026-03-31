@@ -385,21 +385,72 @@
       }
       body.eukolakis-classic .preview-banner strong { color: var(--eko-accent); }
 
-      /* ── Lang switcher ── */
-      body.eukolakis-classic .lang-switcher {
-        background: transparent !important;
-        border-bottom: 1px solid var(--eko-border) !important;
-        color: var(--eko-text-muted) !important;
-        padding: 4px 16px !important;
-        justify-content: flex-end !important;
-        font-size: .75rem !important;
+      /* ── Lang switcher: hidden for eukolakis-classic (moved into nav-row) ── */
+      body.eukolakis-classic .lang-switcher { display: none !important; }
+
+      /* ── Integrated nav lang selector ── */
+      .eko-nav-lang { display: none; }
+      body.eukolakis-classic .eko-nav-lang {
+        display: flex; align-items: stretch; flex-shrink: 0;
       }
-      body.eukolakis-classic .lang-switcher select {
-        background: var(--eko-surface-2) !important;
-        border-color: var(--eko-border) !important;
-        color: var(--eko-text) !important;
-        padding: 2px 6px !important;
-        font-size: .75rem !important;
+      body.eukolakis-classic .eko-nav-lang select {
+        background: transparent; border: none;
+        border-left: 1px solid var(--eko-border);
+        color: var(--eko-text-muted); font-size: .73rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        padding: 0 14px; height: 40px; cursor: pointer;
+        outline: none; -webkit-appearance: none; appearance: none;
+        transition: color .14s, background .14s;
+      }
+      body.eukolakis-classic .eko-nav-lang select:hover {
+        color: var(--eko-accent);
+        background: rgba(196,144,46,.06);
+      }
+      body.eukolakis-classic.eko-light .eko-nav-lang select {
+        color: var(--eko-text-muted);
+        border-left-color: var(--eko-border);
+      }
+
+      /* ── Category view header breadcrumb ── */
+      .eko-cat-header {
+        display: flex; align-items: center; gap: 16px;
+        margin: 0 0 20px; padding-bottom: 16px;
+        border-bottom: 1px solid var(--eko-border);
+      }
+      .eko-cat-header-img {
+        width: 56px; height: 56px; object-fit: cover;
+        border-radius: 10px; border: 1px solid var(--eko-border); flex-shrink: 0;
+      }
+      .eko-cat-header-icon {
+        width: 56px; height: 56px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+        color: var(--eko-accent);
+        background: rgba(196,144,46,.08);
+        border: 1px solid rgba(196,144,46,.22);
+        border-radius: 10px;
+      }
+      .eko-cat-header-text { flex: 1; min-width: 0; }
+      .eko-cat-header-eyebrow {
+        margin: 0 0 2px; font-size: .66rem; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .18em; color: var(--eko-accent);
+      }
+      .eko-cat-header-title {
+        margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--eko-text-strong);
+        letter-spacing: -.01em;
+      }
+      .eko-cat-header-desc {
+        margin: 3px 0 0; font-size: .78rem; color: var(--eko-text-muted); line-height: 1.45;
+      }
+      .eko-cat-header-back {
+        margin-left: auto; flex-shrink: 0;
+        font-size: .8rem; font-weight: 700; color: var(--eko-accent);
+        text-decoration: none; padding: 6px 12px;
+        border: 1px solid rgba(196,144,46,.25); border-radius: 7px;
+        transition: background .14s, border-color .14s;
+      }
+      .eko-cat-header-back:hover {
+        background: rgba(196,144,46,.08); border-color: var(--eko-accent);
       }
 
       /* ── Industrial hero banner ── */
@@ -522,7 +573,8 @@
         border-radius: 10px;
         background: rgba(196,144,46,.08);
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.4rem; line-height: 1;
+        font-size: .62rem; font-weight: 800; letter-spacing: .06em;
+        color: var(--eko-accent); line-height: 1;
       }
       .eko-cat-tile-body { padding: 11px 14px 13px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
       .eko-cat-tile-name {
@@ -582,13 +634,50 @@
       /* ── Featured kit cards ── */
       body.eukolakis-classic .featured-kit-card {
         border: 1px solid var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.3) !important;
         background: var(--eko-surface-2) !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        transition: box-shadow .2s, border-color .2s, transform .2s !important;
+        cursor: pointer !important;
+      }
+      body.eukolakis-classic .featured-kit-card:hover {
+        border-color: var(--eko-accent) !important;
+        border-top-color: var(--eko-accent) !important;
+        box-shadow: 0 16px 44px rgba(0,0,0,.5) !important;
+        transform: translateY(-4px) !important;
+      }
+      body.eukolakis-classic .featured-kit-card img {
+        width: 100% !important; height: 200px !important;
+        object-fit: cover !important; display: block !important;
+      }
+      body.eukolakis-classic .featured-kit-card .kit-badge {
+        background: var(--eko-accent) !important;
+        color: #fff !important;
+        font-size: .7rem !important; font-weight: 800 !important;
+        letter-spacing: .08em !important; text-transform: uppercase !important;
+        padding: 3px 8px !important; border-radius: 5px !important;
       }
       body.eukolakis-classic .featured-kit-card .body h3,
       body.eukolakis-classic .featured-kit-card .body .product-name,
       body.eukolakis-classic .featured-kit-card .body p { color: var(--eko-text) !important; }
       body.eukolakis-classic .featured-primary-grid { gap: 20px; }
       body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
+      body.eukolakis-classic .featured-kit-card .body small {
+        display: inline-block; margin-top: 10px;
+        font-size: .76rem; font-weight: 600; color: var(--eko-accent) !important;
+        letter-spacing: .04em;
+      }
+
+      /* ── Featured kit card — no-image placeholder ── */
+      body.eukolakis-classic .featured-kit-card-no-img {
+        width: 100%; height: 200px; display: block; flex-shrink: 0;
+        background: linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 36px),
+          repeating-linear-gradient(90deg,  rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 36px),
+          linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+      }
 
       /* ── Buttons (global override for eukolakis-classic) ── */
       body.eukolakis-classic .button, body.eukolakis-classic .btn-primary {
@@ -609,11 +698,30 @@
       }
       body.eukolakis-classic .spare-tools-card {
         background: var(--eko-surface) !important;
-        border-color: var(--eko-border) !important;
+        border: 1px solid var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.25) !important;
         color: var(--eko-text) !important;
+        border-radius: 12px !important;
+        transition: border-color .18s, box-shadow .18s !important;
+      }
+      body.eukolakis-classic .spare-tools-card:hover {
+        border-color: var(--eko-accent) !important;
+        border-top-color: var(--eko-accent) !important;
+        box-shadow: 0 8px 26px rgba(0,0,0,.35) !important;
       }
       body.eukolakis-classic .spare-tools-card h3 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic .spare-tools-card p   { color: var(--eko-text-muted) !important; }
       body.eukolakis-classic .spare-tools-card img { background: transparent !important; padding: 0 !important; }
+      /* Subscriptions section */
+      body.eukolakis-classic [data-home-block="subscriptions"] {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.18) !important;
+        border-radius: 12px !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic [data-home-block="subscriptions"] h3 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic [data-home-block="subscriptions"] p  { color: var(--eko-text-muted) !important; }
 
       /* ── Featured section title ── */
       body.eukolakis-classic .featured-section { margin-bottom: 28px; }
@@ -707,10 +815,13 @@
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
       }
       @media (max-width: 600px) {
-        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+        /* Keep 3 columns — with 3 categories a 2-col layout leaves an orphan row */
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
         body.eukolakis-classic .eko-cat-tile-img,
-        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 76px; }
-        body.eukolakis-classic .eko-cat-tile-name { font-size: .88rem; }
+        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 62px; }
+        body.eukolakis-classic .eko-cat-tile-name { font-size: .76rem; }
+        body.eukolakis-classic .eko-cat-tile-body { padding: 7px 8px 9px; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
         body.eukolakis-classic .header-main-row { padding: 8px 14px; }
         body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
@@ -839,6 +950,16 @@
           <% } %>
         </ul>
       </nav>
+      <% if (isEukolakisClassic) { %>
+      <div class="eko-nav-lang">
+        <select onchange="window.location.href=this.value" aria-label="<%= lang === 'el' ? 'Γλώσσα' : 'Language' %>">
+          <% (contentLangs || ['el','en']).forEach(function(l) { %>
+            <% var _lUrl = withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, l !== 'el' ? { lang: l } : {})); %>
+            <option value="<%= _lUrl %>" <%= lang === l ? 'selected' : '' %>><%= l === 'el' ? 'ΕΛ' : 'EN' %></option>
+          <% }) %>
+        </select>
+      </div>
+      <% } %>
       </div>
       <% } %>
       <% if (tenant.id === 'eukolakis') { %>
@@ -918,11 +1039,11 @@
             <div class="eko-hero-actions">
               <% if (topPrimaryKit1) { %>
               <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>">
-                🔧 <%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %>
+                <%= lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →' %>
               </a>
               <% } %>
               <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= sparePartsHref %>">
-                🔩 <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
+                <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
               </a>
             </div>
           </div>
@@ -940,7 +1061,7 @@
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">
                 <div class="eko-cat-tile-placeholder-icon">
-                  <% if (cat.id === 'diy-rolla') { %>⚙<% } else if (cat.id === 'diy-sliding') { %>⬡<% } else if (cat.id === 'spare-parts') { %>⌧<% } else { %>◈<% } %>
+                  <% if (cat.id === 'diy-rolla') { %>KIT<% } else if (cat.id === 'diy-sliding') { %>SLD<% } else if (cat.id === 'spare-parts') { %>SPN<% } else { %><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %><% } %>
                 </div>
               </div>
             <% } %>
@@ -979,7 +1100,7 @@
         <% categories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-            <div><%= cat.name %> <% if (cat.featured) { %>⭐<% } %></div>
+            <div><%= cat.name %></div>
             <% if (cat.shortDescription && config.theme && config.theme.categoryMenuStyle !== 'image') { %><small><%= cat.shortDescription %></small><% } %>
           </a>
         <% }) %>
@@ -1034,15 +1155,20 @@
 
       <% if (activeCategory && activeCategoryObj) { %>
       <% if (isEukolakisClassic) { %>
-      <div style="display:flex;align-items:center;gap:14px;margin:14px 0 16px;padding-bottom:12px;border-bottom:1px solid var(--eko-border);">
-        <% if (activeCategoryObj.image) { %><img src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--eko-border);" /><% } %>
-        <div>
-          <p style="margin:0 0 2px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--eko-accent);">
-            <%= lang === 'el' ? 'Κατηγορία' : 'Category' %>
-          </p>
-          <h2 style="margin:0;font-size:1.3rem;font-weight:800;color:var(--eko-text);"><%= activeCategoryObj.name %></h2>
+      <div class="eko-cat-header">
+        <% if (activeCategoryObj.image) { %>
+          <img class="eko-cat-header-img" src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" />
+        <% } else { %>
+          <div class="eko-cat-header-icon"><% if (activeCategoryObj.id === 'diy-rolla') { %>KIT<% } else if (activeCategoryObj.id === 'diy-sliding') { %>SLD<% } else if (activeCategoryObj.id === 'spare-parts') { %>SPN<% } else { %><%= (activeCategoryObj.name || 'CAT').slice(0,3).toUpperCase() %><% } %></div>
+        <% } %>
+        <div class="eko-cat-header-text">
+          <p class="eko-cat-header-eyebrow"><%= lang === 'el' ? 'Κατηγορία' : 'Category' %></p>
+          <h2 class="eko-cat-header-title"><%= activeCategoryObj.name %></h2>
+          <% if (activeCategoryObj.shortDescription) { %>
+            <p class="eko-cat-header-desc"><%= activeCategoryObj.shortDescription %></p>
+          <% } %>
         </div>
-        <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="margin-left:auto;font-size:.8rem;color:var(--eko-accent);text-decoration:none;font-weight:600;">← <%= lang === 'el' ? 'Πίσω' : 'Back' %></a>
+        <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" class="eko-cat-header-back">← <%= lang === 'el' ? 'Αρχική' : 'Home' %></a>
       </div>
       <% } else { %>
       <section class="home-secondary" style="margin-top:10px;display:flex;align-items:center;gap:12px;">
@@ -1061,7 +1187,11 @@
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
             <article class="featured-kit-card kit-clickable" data-kit-product-id="<%= product.id %>">
-              <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="<%= product.name %>" /><% } %>
+              <% if (product.imageUrl) { %>
+                <img src="<%= product.imageUrl %>" alt="<%= product.name %>" />
+              <% } else if (isEukolakisClassic) { %>
+                <div class="featured-kit-card-no-img"></div>
+              <% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
                 <% if (isEukolakisClassic) { %>
@@ -1111,7 +1241,7 @@
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
       <% if (featuredProducts.length > 0) { %>
       <section class="featured-section">
-        <h2>⭐ <%= t('storefront.featuredTitle') %></h2>
+        <h2><%= t('storefront.featuredTitle') %></h2>
         <div class="product-list">
           <% featuredProducts.forEach(function (product) { %>
             <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
@@ -1149,7 +1279,6 @@
         <% }); %>
       </section>
       <div id="spare-filter-empty" class="filter-empty-state">
-        <div style="font-size:1.4rem;">🧰</div>
         <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
         <div><%= lang === 'el' ? 'Δοκίμασε άλλο SKU ή κάνε reset.' : 'Try another SKU or reset filters.' %></div>
         <button type="button" id="spare-filter-empty-reset" class="button"><%= lang === 'el' ? 'Καθαρισμός φίλτρων' : 'Reset filters' %></button>
