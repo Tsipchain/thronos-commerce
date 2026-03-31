@@ -371,14 +371,19 @@
 
       /* ── Lang switcher ── */
       body.eukolakis-classic .lang-switcher {
-        background: rgba(0,0,0,.25) !important;
+        background: transparent !important;
         border-bottom: 1px solid var(--eko-border) !important;
         color: var(--eko-text-muted) !important;
+        padding: 4px 16px !important;
+        justify-content: flex-end !important;
+        font-size: .75rem !important;
       }
       body.eukolakis-classic .lang-switcher select {
-        background: var(--eko-surface) !important;
+        background: var(--eko-surface-2) !important;
         border-color: var(--eko-border) !important;
         color: var(--eko-text) !important;
+        padding: 2px 6px !important;
+        font-size: .75rem !important;
       }
 
       /* ── Industrial hero banner ── */
@@ -549,6 +554,7 @@
         color: var(--eko-text) !important;
       }
       body.eukolakis-classic .spare-tools-card h3 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic .spare-tools-card img { background: transparent !important; padding: 0 !important; }
 
       /* ── Featured section title ── */
       body.eukolakis-classic .featured-section h2 { color: var(--eko-accent) !important; }
@@ -970,7 +976,7 @@
 
       <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
       <section class="featured-section" data-home-block="kits">
-        <h2>🧰 <%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
+        <h2><%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
         <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>

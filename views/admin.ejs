@@ -337,7 +337,10 @@
           <small class="helper">Αφήστε κενό αν δεν χρησιμοποιείτε Web3 domain. Εμφανίζεται δίπλα στο όνομα καταστήματος.</small>
         </label>
 
-        <h3 class="settings-section-heading">Colors & Typography</h3>
+        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία</h3>
+        <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερή βιομηχανική παλέτα χρωμάτων. Τα παρακάτω χρώματα δεν εφαρμόζονται στο ενεργό θέμα — μπορείτε να τα αλλάξετε αν αλλάξετε θέμα.</p>
+        <% } %>
 
         <label><span><%= t('admin.primaryColor') %></span>
           <div class="color-field">
@@ -793,6 +796,12 @@
           <input type="text" name="homepageIntroPosterUrl" value="<%= (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || '' %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
           <small class="helper">Εικόνα που εμφανίζεται πριν φορτωθεί το βίντεο. Ίδιο aspect ratio με το video (π.χ. 16:9).</small>
         </label>
+        <div style="margin:8px 0 16px;">
+          <a href="<%= withTenantLink('/intro') %>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#0ea5e9;text-decoration:none;padding:7px 12px;border:1px solid rgba(14,165,233,.35);border-radius:7px;background:rgba(14,165,233,.06);">
+            ▶ Προεπισκόπηση σελίδας intro &nbsp;<small style="opacity:.7;">(ανοίγει σε νέα καρτέλα)</small>
+          </a>
+          <small class="helper" style="display:block;margin-top:6px;">Η σελίδα intro εμφανίζεται μόνο αν η παραπάνω επιλογή «Ενεργοποίηση» είναι ενεργή και ο επισκέπτης δεν την έχει ήδη δει.</small>
+        </div>
         <h3 class="settings-section-heading" style="margin-top:20px;">Σειρά & Ορατότητα Ενοτήτων</h3>
         <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.</p>
         <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;margin-bottom:10px;">
@@ -856,15 +865,15 @@
         <h2><%= t('admin.categoriesTitle') %></h2>
         <p class="helper"><%= t('admin.categoriesHelper') %></p>
         <form method="POST" action="<%= withTenantLink('/admin/settings') %>" class="admin-subform" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 8px;">Category storefront display</h3>
-          <label><span>Spare parts / tools card emphasis</span>
+          <h3 style="margin:0 0 8px;">Εμφάνιση κατηγοριών στο κατάστημα</h3>
+          <label><span>Τρόπος εμφάνισης κάρτας «Ανταλλακτικά / Εργαλεία»</span>
             <select name="themeSpareToolsCardMode">
-              <option value="prominent" <%= ((config.theme && config.theme.spareToolsCardMode) || 'prominent') === 'prominent' ? 'selected' : '' %>>Prominent (larger centered card)</option>
-              <option value="compact" <%= ((config.theme && config.theme.spareToolsCardMode) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+              <option value="prominent" <%= ((config.theme && config.theme.spareToolsCardMode) || 'prominent') === 'prominent' ? 'selected' : '' %>>Κεντρική / Μεγάλη κάρτα (προεπιλογή)</option>
+              <option value="compact" <%= ((config.theme && config.theme.spareToolsCardMode) || '') === 'compact' ? 'selected' : '' %>>Συμπαγής / Μικρή κάρτα</option>
             </select>
           </label>
           <input type="password" name="password" placeholder="Κωδικός διαχειριστή" />
-          <button type="submit" class="button">Save category display</button>
+          <button type="submit" class="button">Αποθήκευση εμφάνισης</button>
         </form>
         <p class="cat-helper-row">Αντικατάσταση εικόνας: πατήστε «Ανέβασμα/Αλλαγή» και διαλέξτε αρχείο. Δεν χρειάζεται επικόλληση path.</p>
         <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:10px;">
@@ -880,8 +889,8 @@
               <th>Εικόνα</th>
               <th><%= t('admin.catColName') %></th>
               <th><%= t('admin.catColSlug') %></th>
-              <th>Main Nav</th>
-              <th>Order</th>
+              <th>Στο μενού</th>
+              <th>Σειρά</th>
               <th><%= t('admin.catColParent') %></th>
               <th><%= t('admin.catColAction') %></th>
             </tr>
@@ -914,7 +923,7 @@
                   </div>
                 </td>
                 <td><%= cat.slug %></td>
-                <td><%= rawCat && rawCat.showInMainNav === false ? 'No' : 'Yes' %></td>
+                <td><%= rawCat && rawCat.showInMainNav === false ? 'Όχι' : 'Ναι' %></td>
                 <td><%= (rawCat && rawCat.navOrder !== undefined) ? rawCat.navOrder : '—' %></td>
                 <td><%= cat.parentId ? cat.parentId : '–' %></td>
                 <td>
@@ -950,9 +959,12 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο main navigation strip</span></label>
-          <input type="number" name="navOrder" placeholder="Σειρά στο main nav (π.χ. 1,2,3)" />
-          <input type="text" name="slug" placeholder="Slug (π.χ. tsantes)" required />
+          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
+          <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
+          <label>
+            <input type="text" name="slug" placeholder="Slug URL (π.χ. tsantes)" required />
+            <small class="helper">Χρησιμοποιείται στη διεύθυνση URL: /products/tsantes. Χρησιμοποιείτε μόνο λατινικούς χαρακτήρες, αριθμούς και παύλες.</small>
+          </label>
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
             <% categories.forEach(function(cat){ %>
@@ -974,9 +986,12 @@
           <input type="text" name="name_en" placeholder="New name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο main navigation strip</span></label>
-          <input type="number" name="navOrder" placeholder="Σειρά στο main nav (π.χ. 1,2,3)" />
-          <input type="text" name="slug" placeholder="Νέο slug" required />
+          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
+          <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
+          <label>
+            <input type="text" name="slug" placeholder="Νέο slug URL (π.χ. tsantes)" required />
+            <small class="helper">Χρησιμοποιείται στη διεύθυνση URL: /products/tsantes. Χρησιμοποιείτε μόνο λατινικούς χαρακτήρες, αριθμούς και παύλες.</small>
+          </label>
           <select name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
             <% categories.forEach(function(cat){ %>
@@ -1212,36 +1227,56 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <form id="tab-notifications" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/notifications') %>">
         <h2><%= t('admin.notificationsTitle') %></h2>
-        <p class="helper">Ρύθμιση παραληπτών email και webhook για ειδοποιήσεις παραγγελιών.</p>
-        <label><span><%= t('admin.notifEmailLabel') %> <small style="color:#999">(<%= t('admin.notifEmailHint') %>)</small></span>
+        <p class="helper">Ρύθμιση email ειδοποιήσεων για νέες παραγγελίες. Κάθε φορά που μπαίνει παραγγελία, ο διαχειριστής ειδοποιείται αυτόματα.</p>
+
+        <h3 class="settings-section-heading">Email ειδοποιήσεων</h3>
+
+        <label>
+          <span>Email(s) παραλήπτη <small style="font-weight:400;color:#94a3b8;">(ένα ανά γραμμή)</small></span>
           <textarea name="notificationEmails" rows="3"
                     placeholder="owner@myshop.gr&#10;backup@myshop.gr"
                     <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
+          <small class="helper">Αυτά τα email θα λαμβάνουν ειδοποίηση για κάθε νέα παραγγελία. Μπορείτε να βάλετε πολλά, ένα ανά γραμμή.</small>
         </label>
+
         <label class="checkbox-label">
           <input type="checkbox" name="notificationCcCustomer"
                  <%= (config.notificationCcCustomer) ? 'checked' : '' %>
                  <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span><%= t('admin.notifCcCustomer') %></span>
+          <span>Αποστολή επιβεβαίωσης παραγγελίας και στον πελάτη (CC)</span>
         </label>
-        <label><span><%= t('admin.notifFromName') %></span>
+        <small class="helper" style="display:block;margin:-4px 0 10px 28px;">Αν ενεργοποιηθεί, ο πελάτης λαμβάνει αντίγραφο του email επιβεβαίωσης.</small>
+
+        <label>
+          <span>Εμφανιζόμενο όνομα αποστολέα</span>
           <input type="text" name="notificationFromName"
                  value="<%= config.notificationFromName || '' %>"
-                 placeholder="π.χ. FashionMM Store"
+                 placeholder="π.χ. Eukolakis Store"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αυτό φαίνεται ως «Από:» στα email που λαμβάνουν οι πελάτες και ο διαχειριστής. Χρησιμοποιήστε το όνομα του καταστήματός σας.</small>
         </label>
-        <label><span><%= t('admin.webhookUrl') %></span>
-          <input type="text" name="notificationWebhookUrl"
-                 value="<%= config.notificationWebhookUrl || '' %>"
-                 placeholder="https://myhook.example.com/orders"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
-        </label>
-        <label><span><%= t('admin.webhookSecret') %> <small style="color:#999">(<%= t('admin.webhookSecretHint') %>)</small></span>
-          <input type="text" name="notificationWebhookSecret"
-                 value="<%= config.notificationWebhookSecret || '' %>"
-                 placeholder="mysecret123"
-                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
-        </label>
+
+        <details style="margin:10px 0 14px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:.88rem;">Webhook integration <small style="font-weight:400;color:#94a3b8;">(για προχωρημένους — προαιρετικό)</small></summary>
+          <p class="helper" style="margin:8px 0;">Αν θέλετε να ειδοποιείται αυτόματα ένα εξωτερικό σύστημα (π.χ. ERP, Zapier, Make.com) για κάθε παραγγελία, ορίστε εδώ ένα Webhook URL.</p>
+          <label>
+            <span>Webhook URL</span>
+            <input type="text" name="notificationWebhookUrl"
+                   value="<%= config.notificationWebhookUrl || '' %>"
+                   placeholder="https://hooks.zapier.com/hooks/catch/..."
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <small class="helper">Κάθε νέα παραγγελία στέλνει HTTP POST με JSON payload σε αυτό το URL.</small>
+          </label>
+          <label>
+            <span>Webhook Secret <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+            <input type="text" name="notificationWebhookSecret"
+                   value="<%= config.notificationWebhookSecret || '' %>"
+                   placeholder="mysecret123"
+                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+            <small class="helper">Μυστικό κλειδί για την επαλήθευση της αυθεντικότητας του webhook (X-Thronos-Signature header). Αφήστε κενό αν δεν χρειάζεται.</small>
+          </label>
+        </details>
+
         <% if (permissions.canEditSettings) { %>
         <div class="save-row">
           <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
