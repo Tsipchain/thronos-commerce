@@ -3606,6 +3606,8 @@ app.post('/admin/settings', async (req, res) => {
     homepageSecondaryImage,
     homepageShowSubscriptionsCard,
     homepageIntroEnabled,
+    homepageIntroMode,
+    homepageIntroTagline,
     homepageIntroVideoUrl,
     homepageIntroPosterUrl,
     homepageBlockOrder,
@@ -3805,6 +3807,12 @@ app.post('/admin/settings', async (req, res) => {
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
+  if (hasBodyField(req.body, 'homepageIntroMode')) {
+    const _validModes = ['basic', 'assembly', 'video'];
+    const _m = String(homepageIntroMode || 'basic').trim().toLowerCase();
+    config.homepage.introMode = _validModes.includes(_m) ? _m : 'basic';
+  }
+  if (hasBodyField(req.body, 'homepageIntroTagline')) config.homepage.introTagline = String(homepageIntroTagline || '').trim();
   if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = String(homepageIntroVideoUrl || '').trim();
   if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = String(homepageIntroPosterUrl || '').trim();
   if (hasBodyField(req.body, 'homepageBlockOrder')) {

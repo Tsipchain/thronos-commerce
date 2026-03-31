@@ -786,32 +786,62 @@
 
         <h3 class="settings-section-heading">Intro / Teaser Σελίδα</h3>
         <% const _introEnabled = !!(rawConfig.homepage && rawConfig.homepage.introEnabled); %>
+        <% const _introMode    = (rawConfig.homepage && rawConfig.homepage.introMode) || 'basic'; %>
         <% const _introVideo   = (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || ''; %>
         <% const _introPoster  = (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || ''; %>
+        <% const _introTagline = (rawConfig.homepage && rawConfig.homepage.introTagline) || ''; %>
+        <%# ── Status summary chip ── %>
         <div style="padding:10px 14px;border-radius:10px;margin-bottom:12px;background:<%= _introEnabled ? '#f0fdf4' : '#f8fafc' %>;border:1px solid <%= _introEnabled ? '#bbf7d0' : '#e2e8f0' %>;">
           <p style="margin:0;font-size:.84rem;font-weight:700;color:<%= _introEnabled ? '#15803d' : '#475569' %>;">
             <% if (_introEnabled) { %>✓ Intro ενεργό — εμφανίζεται στον επισκέπτη πριν μπει στο κατάστημα<% } else { %>○ Intro ανενεργό — παρακάμπτεται αυτόματα<% } %>
           </p>
           <% if (_introEnabled) { %>
           <p style="margin:4px 0 0;font-size:.78rem;color:#166534;">
-            <% if (_introVideo) { %>Video: <strong>ρυθμισμένο ✓</strong><% } else { %>Video: <em style="color:#ca8a04;">δεν έχει ρυθμιστεί — θα εμφανιστεί το logo και μήνυμα καλωσορίσματος</em><% } %>
-            &nbsp;·&nbsp;
-            <% if (_introPoster) { %>Poster: <strong>ρυθμισμένο ✓</strong><% } else { %>Poster: <em>κανένα</em><% } %>
+            Τύπος: <strong><%= _introMode === 'video' ? 'Βίντεο' : _introMode === 'assembly' ? 'Montage (assembly)' : 'Απλό splash' %></strong>
+            <% if (_introMode === 'video') { %>
+              &nbsp;·&nbsp;
+              <% if (_introVideo) { %>Video: <strong>ρυθμισμένο ✓</strong><% } else { %><em style="color:#ca8a04;">χωρίς video URL — θα εμφανιστεί montage</em><% } %>
+            <% } %>
           </p>
           <% } %>
         </div>
+
+        <%# ── Enable/disable ── %>
         <label class="checkbox-label">
           <input type="hidden" name="homepageIntroEnabled" value="0" />
           <input type="checkbox" name="homepageIntroEnabled" value="1" <%= _introEnabled ? 'checked' : '' %> />
           <span>Ενεργοποίηση intro σελίδας</span>
         </label>
         <small class="helper" style="display:block;margin:-4px 0 12px 28px;">Όταν ενεργό, ο νέος επισκέπτης βλέπει πρώτα την intro σελίδα — αφού την δει μία φορά, παρακάμπτεται αυτόματα (cookie 180 ημερών).</small>
-        <label><span>URL video εισαγωγής (.mp4) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageIntroVideoUrl" value="<%= _introVideo %>" placeholder="/tenants/eukolakis/media/intro/intro.mp4" />
-          <small class="helper">Ανεβάστε το βίντεο στην ενότητα <a href="#tab-upload">Media</a> και αντιγράψτε το path εδώ. Αν αφήσετε κενό, εμφανίζεται το logo του καταστήματος.</small>
+
+        <%# ── Mode selector ── %>
+        <label><span>Τύπος εισαγωγής</span>
+          <select name="homepageIntroMode">
+            <option value="basic"    <%= _introMode === 'basic'    ? 'selected' : '' %>>Απλό splash — logo + μήνυμα καλωσορίσματος</option>
+            <option value="assembly" <%= _introMode === 'assembly' ? 'selected' : '' %>>Montage — τα στοιχεία ασσεμπλάρονται στην οθόνη</option>
+            <option value="video"    <%= _introMode === 'video'    ? 'selected' : '' %>>Βίντεο — αναπαραγωγή βίντεο εισαγωγής</option>
+          </select>
+          <small class="helper">
+            <strong>Απλό splash</strong>: logo + όνομα + μήνυμα.&nbsp;
+            <strong>Montage</strong>: τα στοιχεία εμφανίζονται το ένα μετά το άλλο (premium εφέ).&nbsp;
+            <strong>Βίντεο</strong>: παίζει βίντεο — αν δεν έχει οριστεί URL, εμφανίζεται αυτόματα montage.
+          </small>
         </label>
-        <label><span>Εικόνα poster (εμφανίζεται πριν φορτωθεί το βίντεο) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageIntroPosterUrl" value="<%= _introPoster %>" placeholder="/tenants/eukolakis/media/intro/poster.jpg" />
+
+        <%# ── Tagline (used by basic + assembly modes) ── %>
+        <label><span>Υπότιτλος / tagline <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageIntroTagline" value="<%= _introTagline %>"
+                 placeholder="<%= lang === 'el' ? 'π.χ. Εξοπλισμός & ανταλλακτικά για επαγγελματίες' : 'e.g. Professional tools & parts' %>" />
+          <small class="helper">Εμφανίζεται κάτω από το όνομα του καταστήματος στο splash ή το montage. Αφήστε κενό για το προεπιλεγμένο μήνυμα καλωσορίσματος.</small>
+        </label>
+
+        <%# ── Video fields — shown always, note when irrelevant ── %>
+        <label><span>URL βίντεο εισαγωγής (.mp4) <small style="font-weight:400;color:#94a3b8;">(για τύπο Βίντεο)</small></span>
+          <input type="text" name="homepageIntroVideoUrl" value="<%= _introVideo %>" placeholder="/tenants/<%= tenant.id %>/media/intro/intro.mp4" />
+          <small class="helper">Ανεβάστε το βίντεο στην ενότητα <a href="#tab-upload">Media</a> και αντιγράψτε το path εδώ.</small>
+        </label>
+        <label><span>Εικόνα poster βίντεο <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται πριν φορτωθεί το βίντεο)</small></span>
+          <input type="text" name="homepageIntroPosterUrl" value="<%= _introPoster %>" placeholder="/tenants/<%= tenant.id %>/media/intro/poster.jpg" />
           <% if (_introPoster) { %>
           <div style="margin-top:6px;">
             <img src="<%= _introPoster %>" alt="Poster preview" style="height:72px;max-width:220px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db;" onerror="this.style.display='none'" />
@@ -820,6 +850,8 @@
           <% } %>
           <small class="helper">Ίδιο aspect ratio με το video (π.χ. 16:9).</small>
         </label>
+
+        <%# ── Preview link ── %>
         <div style="margin:8px 0 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <a href="<%= withTenantLink('/intro') %>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#0ea5e9;text-decoration:none;padding:7px 12px;border:1px solid rgba(14,165,233,.35);border-radius:7px;background:rgba(14,165,233,.06);">
             ▶ Προεπισκόπηση intro &nbsp;<small style="opacity:.7;">(νέα καρτέλα)</small>

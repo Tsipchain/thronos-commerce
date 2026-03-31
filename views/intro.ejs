@@ -6,123 +6,175 @@
     <title><%= config.storeName %> · Intro</title>
     <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
     <link rel="stylesheet" href="/styles.css" />
+    <%
+      /* ── Intro mode resolution ──────────────────────────────────────────────
+         Supported modes: 'basic' | 'assembly' | 'video'
+         'basic'    — logo + welcome text splash (default / fallback)
+         'assembly' — brand elements animate in from different directions
+         'video'    — video player with sound toggle
+         Auto-fallback: 'video' without a URL degrades to 'assembly' if logo
+         is present, otherwise 'basic'.
+      ──────────────────────────────────────────────────────────────────────── */
+      const _storedMode  = ((homepage.introMode) || 'basic').toLowerCase();
+      const _hasVideo    = !!(homepage.introVideoUrl);
+      const _hasLogo     = !!(config.logoPath);
+      const effectiveMode =
+          _storedMode === 'video'    && _hasVideo  ? 'video'
+        : _storedMode === 'assembly'               ? 'assembly'
+        : _storedMode === 'video'    && _hasLogo   ? 'assembly'   /* video chosen, no URL → degrade */
+        : 'basic';
+    %>
     <style>
+      /* ── Theme tokens ────────────────────────────────────────────────────── */
       <% if (isEukolakisClassic) { %>
       :root {
-        --eko-bg: #0b0d12; --eko-surface: #141820; --eko-surface-2: #1c2030;
-        --eko-accent: #c4902e; --eko-accent-light: #dba83c;
-        --eko-border: rgba(100,110,140,.28); --eko-text: #d0d5e0; --eko-text-muted: #64707f;
-        --eko-text-strong: #edf0f6;
+        --ix-bg:           #0b0d12;
+        --ix-surface:      #141820;
+        --ix-surface-2:    #1c2030;
+        --ix-accent:       #c4902e;
+        --ix-accent-light: #dba83c;
+        --ix-border:       rgba(100,110,140,.28);
+        --ix-text:         #d0d5e0;
+        --ix-text-strong:  #edf0f6;
+        --ix-text-muted:   #64707f;
       }
       body {
         margin: 0;
-        background: var(--eko-bg);
+        background: var(--ix-bg);
         background-image:
           repeating-linear-gradient(0deg,  rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 56px),
           repeating-linear-gradient(90deg, rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 56px);
-        color: var(--eko-text);
+        color: var(--ix-text);
         font-family: system-ui, -apple-system, sans-serif;
       }
       .intro-card {
         width: min(960px, 96vw);
-        background: var(--eko-surface);
-        border: 1px solid var(--eko-border);
-        border-top: 2px solid var(--eko-accent);
-        border-radius: 16px; padding: 0;
+        background: var(--ix-surface);
+        border: 1px solid var(--ix-border);
+        border-top: 2px solid var(--ix-accent);
+        border-radius: 16px;
+        padding: 0;
         box-shadow: 0 40px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(196,144,46,.06) inset;
         overflow: hidden;
       }
       .intro-brand-bar {
         display: flex; align-items: center; gap: 12px;
         padding: 14px 20px;
-        border-bottom: 1px solid var(--eko-border);
+        border-bottom: 1px solid var(--ix-border);
         background: rgba(11,13,18,.6);
       }
-      .intro-brand-logo {
-        max-height: 32px; max-width: 120px; object-fit: contain;
-        filter: brightness(1.05);
-      }
-      .intro-brand-name {
-        font-size: .84rem; font-weight: 800; letter-spacing: .1em;
-        text-transform: uppercase; color: var(--eko-text-strong);
-      }
+      .intro-brand-logo { max-height: 32px; max-width: 120px; object-fit: contain; filter: brightness(1.05); }
+      .intro-brand-name { font-size: .84rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ix-text-strong); }
+      /* video mode */
       .intro-player-wrap { position: relative; background: #000; }
-      .intro-player-wrap video {
-        width: 100%; max-height: 72vh; display: block; object-fit: cover;
-      }
+      .intro-player-wrap video { width: 100%; max-height: 72vh; display: block; object-fit: cover; }
       .intro-player-overlay {
         position: absolute; bottom: 0; left: 0; right: 0;
         background: linear-gradient(to top, rgba(11,13,18,.85) 0%, transparent 60%);
         padding: 20px 20px 16px;
-        display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
-        flex-wrap: wrap;
+        display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
       }
       .intro-player-cta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
       .intro-sound {
         border: 1px solid rgba(196,144,46,.4); background: rgba(20,24,32,.8);
-        color: var(--eko-text); border-radius: 8px; padding: 9px 14px;
+        color: var(--ix-text); border-radius: 8px; padding: 9px 14px;
         cursor: pointer; font-size: .84rem; backdrop-filter: blur(4px);
         transition: border-color .14s, background .14s;
       }
-      .intro-sound:hover { border-color: var(--eko-accent); background: rgba(196,144,46,.12); }
-      .quick-back-btn { background: var(--eko-surface-2); border: 1px solid var(--eko-border); color: var(--eko-text); }
+      .intro-sound:hover { border-color: var(--ix-accent); background: rgba(196,144,46,.12); }
+      /* assembly mode */
+      .intro-assembly-wrap {
+        padding: 56px 28px 40px; text-align: center;
+        min-height: 240px; display: flex; flex-direction: column; align-items: center;
+        background: linear-gradient(155deg, #14182a 0%, #0d1018 60%, #0b0d12 100%);
+        background-image:
+          repeating-linear-gradient(0deg,  rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg, rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          linear-gradient(155deg, #14182a 0%, #0d1018 60%, #0b0d12 100%);
+      }
+      /* basic / fallback mode */
       .intro-no-video {
-        padding: 48px 24px 32px;
-        text-align: center;
+        padding: 48px 24px 32px; text-align: center;
         background: linear-gradient(145deg, #14182a 0%, #0d1018 55%, #0b0d12 100%);
         background-image:
-          repeating-linear-gradient(0deg,   rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
-          repeating-linear-gradient(90deg,  rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(0deg,  rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg, rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
           linear-gradient(145deg, #14182a 0%, #0d1018 55%, #0b0d12 100%);
       }
-      .intro-no-video-name {
-        font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 900; letter-spacing: .06em;
-        text-transform: uppercase; color: var(--eko-text-strong);
-        margin: 0 0 6px;
-      }
-      .intro-no-video-tagline {
-        color: var(--eko-text-muted); font-size: .9rem; margin: 0 0 28px;
-      }
+      .intro-no-video-name     { font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--ix-text-strong); margin: 0 0 6px; }
+      .intro-no-video-tagline  { color: var(--ix-text-muted); font-size: .9rem; margin: 0 0 28px; }
+      .quick-back-btn          { background: var(--ix-surface-2); border: 1px solid var(--ix-border); color: var(--ix-text); }
       <% } else { %>
-      body { margin: 0; background: radial-gradient(circle at 10% 10%, #111827, #020617 72%); color: #fff; font-family: system-ui, sans-serif; }
-      .intro-card { width: min(980px,96vw); background: rgba(15,23,42,.9); border: 1px solid rgba(148,163,184,.35); border-radius: 16px; padding: 18px; box-shadow: 0 28px 58px rgba(0,0,0,.5); overflow: hidden; }
-      .intro-brand-bar { padding: 0 0 12px; border-bottom: 1px solid rgba(148,163,184,.15); margin-bottom: 12px; }
-      .intro-brand-name { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+      :root {
+        --ix-bg:           #030712;
+        --ix-surface:      rgba(15,23,42,.9);
+        --ix-surface-2:    #0f172a;
+        --ix-accent:       #0ea5e9;
+        --ix-accent-light: #38bdf8;
+        --ix-border:       rgba(148,163,184,.35);
+        --ix-text:         #e2e8f0;
+        --ix-text-strong:  #f1f5f9;
+        --ix-text-muted:   rgba(255,255,255,.55);
+      }
+      body { margin: 0; background: radial-gradient(circle at 10% 10%, #111827, #020617 72%); color: var(--ix-text); font-family: system-ui, sans-serif; }
+      .intro-card { width: min(980px,96vw); background: var(--ix-surface); border: 1px solid var(--ix-border); border-radius: 16px; padding: 18px; box-shadow: 0 28px 58px rgba(0,0,0,.5); overflow: hidden; }
+      .intro-brand-bar { padding: 0 0 12px; border-bottom: 1px solid var(--ix-border); margin-bottom: 12px; }
+      .intro-brand-name { font-size: 1.05rem; font-weight: 700; color: var(--ix-text-strong); }
       .intro-brand-logo { max-height: 36px; max-width: 160px; object-fit: contain; }
       .intro-player-wrap { border-radius: 10px; overflow: hidden; background: #000; }
       .intro-player-wrap video { width: 100%; max-height: 72vh; display: block; object-fit: cover; }
       .intro-player-overlay { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-      .intro-sound { border: 1px solid rgba(148,163,184,.45); background: #0b1220; color: #e2e8f0; border-radius: 8px; padding: 9px 12px; cursor: pointer; }
-      .quick-back-btn { background: #0f172a; color: #fff; }
+      .intro-sound { border: 1px solid var(--ix-border); background: #0b1220; color: var(--ix-text); border-radius: 8px; padding: 9px 12px; cursor: pointer; transition: border-color .14s; }
+      .intro-sound:hover { border-color: var(--ix-accent); }
+      .intro-assembly-wrap { padding: 52px 28px 36px; text-align: center; min-height: 220px; display: flex; flex-direction: column; align-items: center; background: radial-gradient(circle at 50% 30%, #111827, #020617 80%); }
       .intro-no-video { padding: 32px 20px; text-align: center; }
-      .intro-no-video-name { font-size: 2rem; font-weight: 800; margin: 0 0 8px; }
-      .intro-no-video-tagline { color: rgba(255,255,255,.6); font-size: .9rem; margin: 0 0 24px; }
+      .intro-no-video-name     { font-size: 2rem; font-weight: 800; margin: 0 0 8px; color: var(--ix-text-strong); }
+      .intro-no-video-tagline  { color: var(--ix-text-muted); font-size: .9rem; margin: 0 0 24px; }
+      .quick-back-btn          { background: var(--ix-surface-2); color: var(--ix-text); border: none; }
       <% } %>
+
+      /* ── Assembly animation — shared across all themes ───────────────────── */
+      .assembly-el {
+        opacity: 0;
+        will-change: transform, opacity;
+        transition: opacity .52s cubic-bezier(.4,0,.2,1), transform .52s cubic-bezier(.4,0,.2,1);
+      }
+      .assembly-el--logo { transform: translateX(-30px) scale(.96); transition-delay: 0s; }
+      .assembly-el--bar  { transform: scaleX(0); transform-origin: left center; transition-delay: .18s; }
+      .assembly-el--name { transform: translateX(30px);                          transition-delay: .10s; }
+      .assembly-el--tag  { transform: translateY(10px);                          transition-delay: .32s; }
+      /* JS adds this class to fire all transitions */
+      .intro-assembly-wrap.intro-assembled .assembly-el { opacity: 1; transform: none; }
+
+      .assembly-logo-img  { max-height: 72px; max-width: 220px; object-fit: contain; margin-bottom: 18px; }
+      .assembly-bar-line  { width: 56px; height: 3px; background: var(--ix-accent); border-radius: 2px; margin: 0 auto 16px; }
+      .assembly-name-text { font-size: clamp(1.6rem, 5vw, 2.5rem); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--ix-text-strong); margin: 0 0 6px; }
+      .assembly-tag-text  { color: var(--ix-text-muted); font-size: .9rem; margin: 0 0 28px; }
+
+      /* ── Shared layout ───────────────────────────────────────────────────── */
       .intro-wrap { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
       .intro-actions-row {
         display: flex; gap: 10px; flex-wrap: wrap;
         justify-content: center; align-items: center;
         padding: 16px 20px;
-        border-top: 1px solid <%= isEukolakisClassic ? 'var(--eko-border)' : 'rgba(148,163,184,.15)' %>;
+        border-top: 1px solid var(--ix-border);
       }
       .intro-enter {
-        border: none;
-        background: <%= isEukolakisClassic ? 'var(--eko-accent)' : '#0ea5e9' %>;
+        border: none; background: var(--ix-accent);
         color: #fff; border-radius: 8px; padding: 12px 28px;
         font-weight: 800; cursor: pointer; font-size: 1rem; letter-spacing: .02em;
         transition: filter .14s, transform .14s;
       }
-      .intro-enter:hover { filter: brightness(1.1); transform: translateY(-2px); }
+      .intro-enter:hover  { filter: brightness(1.1); transform: translateY(-2px); }
       .intro-enter:active { transform: translateY(0); }
       .intro-skip {
         color: #94a3b8; text-decoration: none; padding: 6px 12px;
-        font-size: .82rem; display: inline-block;
-        transition: color .14s;
+        font-size: .82rem; display: inline-block; transition: color .14s;
       }
       .intro-skip:hover { color: #cbd5e1; }
       .quick-back-btn {
         position: fixed; left: 12px; bottom: 18px; z-index: 1200;
-        border: none; border-radius: 999px; padding: 10px 14px;
+        border-radius: 999px; padding: 10px 14px;
         font-weight: 700; cursor: pointer; box-shadow: 0 10px 24px rgba(2,6,23,.28);
         font-size: .84rem;
       }
@@ -132,7 +184,8 @@
     <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
     <div class="intro-wrap">
       <div class="intro-card">
-        <%# ── Brand bar: logo + store name ── %>
+
+        <%# ── Brand bar: logo + store name (always shown) ── %>
         <div class="intro-brand-bar">
           <% if (config.logoPath) { %>
             <img class="intro-brand-logo" src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
@@ -140,8 +193,8 @@
           <span class="intro-brand-name"><%= config.storeName %></span>
         </div>
 
-        <% if (homepage.introVideoUrl) { %>
-        <%# ── Video player — overlaid CTA for eukolakis, stacked for generic ── %>
+        <%# ── MODE: video ── %>
+        <% if (effectiveMode === 'video') { %>
         <div class="intro-player-wrap">
           <video id="intro-video" controls playsinline preload="metadata" muted
             <%= homepage.introPosterUrl ? ('poster="' + homepage.introPosterUrl + '"') : '' %>>
@@ -150,20 +203,39 @@
           <div class="intro-player-overlay">
             <div class="intro-player-cta">
               <button class="intro-sound" id="intro-sound-toggle" type="button">
-                <% if (isEukolakisClassic) { %>♪<% } %> <%= lang === 'el' ? 'Αναπαραγωγή με ήχο' : 'Play with sound' %>
+                <%= lang === 'el' ? '♪ Αναπαραγωγή με ήχο' : '♪ Play with sound' %>
               </button>
             </div>
           </div>
         </div>
+
+        <%# ── MODE: assembly ── %>
+        <% } else if (effectiveMode === 'assembly') { %>
+        <div class="intro-assembly-wrap" id="intro-assembly-wrap">
+          <% if (config.logoPath) { %>
+            <img class="assembly-el assembly-el--logo assembly-logo-img"
+                 src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+          <% } %>
+          <div class="assembly-el assembly-el--bar"><div class="assembly-bar-line"></div></div>
+          <p class="assembly-el assembly-el--name assembly-name-text"><%= config.storeName %></p>
+          <p class="assembly-el assembly-el--tag assembly-tag-text"><%=
+            (homepage.introTagline) ||
+            (lang === 'el' ? 'Καλώς ορίσατε στο κατάστημά μας.' : 'Welcome to our store.')
+          %></p>
+        </div>
+
+        <%# ── MODE: basic / fallback ── %>
         <% } else { %>
-        <%# ── No-video fallback: logo splash ── %>
         <div class="intro-no-video">
           <% if (config.logoPath) { %>
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>"
               style="max-height:88px;max-width:280px;margin:0 auto 18px;display:block;object-fit:contain;" />
           <% } %>
           <p class="intro-no-video-name"><%= config.storeName %></p>
-          <p class="intro-no-video-tagline"><%= lang === 'el' ? 'Καλώς ορίσατε στο κατάστημά μας.' : 'Welcome to our store.' %></p>
+          <p class="intro-no-video-tagline"><%=
+            (homepage.introTagline) ||
+            (lang === 'el' ? 'Καλώς ορίσατε στο κατάστημά μας.' : 'Welcome to our store.')
+          %></p>
         </div>
         <% } %>
 
@@ -178,29 +250,43 @@
         </div>
       </div>
     </div>
+
     <script>
       (function(){
         var nextHref = <%- JSON.stringify(skipHref).replace(/</g, '\\u003c') %>;
         var videoEl  = document.getElementById('intro-video');
         var soundBtn = document.getElementById('intro-sound-toggle');
+
         function persistIntroSeen() {
-          var days     = 180;
-          var expires  = new Date(Date.now() + days * 86400000).toUTCString();
-          var name     = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
-          var lsKey    = <%- JSON.stringify(introStorageKey  || 'intro_seen') %>;
-          var secure   = location.protocol === 'https:' ? '; Secure' : '';
+          var days    = 180;
+          var expires = new Date(Date.now() + days * 86400000).toUTCString();
+          var name    = <%- JSON.stringify(introCookieName || 'intro_seen') %>;
+          var lsKey   = <%- JSON.stringify(introStorageKey  || 'intro_seen') %>;
+          var secure  = location.protocol === 'https:' ? '; Secure' : '';
           document.cookie = name + '=1; expires=' + expires + '; path=/; SameSite=Lax' + secure;
           try { localStorage.setItem(lsKey, '1'); } catch (_) {}
         }
+
         if (soundBtn && videoEl) {
           soundBtn.addEventListener('click', function() {
             videoEl.muted = !videoEl.muted;
-            var muteLabel  = <%- JSON.stringify(lang === 'el' ? '♪ Αναπαραγωγή με ήχο' : '♪ Play with sound').replace(/</g, '\\u003c') %>;
+            var muteLabel   = <%- JSON.stringify(lang === 'el' ? '♪ Αναπαραγωγή με ήχο' : '♪ Play with sound').replace(/</g, '\\u003c') %>;
             var unmuteLabel = <%- JSON.stringify(lang === 'el' ? '✕ Σίγαση' : '✕ Mute').replace(/</g, '\\u003c') %>;
             soundBtn.textContent = videoEl.muted ? muteLabel : unmuteLabel;
             if (videoEl.paused) videoEl.play().catch(function(){});
           });
         }
+
+        /* ── Assembly: trigger CSS transitions after first paint ── */
+        var assemblyWrap = document.getElementById('intro-assembly-wrap');
+        if (assemblyWrap) {
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              assemblyWrap.classList.add('intro-assembled');
+            });
+          });
+        }
+
         var enterBtn = document.getElementById('intro-enter');
         if (enterBtn) {
           enterBtn.addEventListener('click', function() {
@@ -208,8 +294,10 @@
             window.location.href = nextHref;
           });
         }
+
         var skipEl = document.getElementById('intro-skip');
         if (skipEl) skipEl.addEventListener('click', persistIntroSeen);
+
         var backBtn = document.getElementById('quick-back-btn');
         if (backBtn) {
           backBtn.addEventListener('click', function() {
