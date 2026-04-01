@@ -264,7 +264,8 @@
       body.eukolakis-classic .header-main-row {
         justify-content: space-between !important;
         align-items: center !important;
-        padding: 10px 20px;
+        padding: 12px 20px;
+        min-height: 72px;
         max-width: 1180px;
         margin: 0 auto;
         width: 100%;
@@ -287,9 +288,10 @@
         padding: 0 !important;
       }
       body.eukolakis-classic .logo-image-dynamic {
-        /* Respect the admin-configured logo height (capped for compact header look) */
-        max-height: clamp(36px, 5vw, 56px) !important;
+        /* max-height is set by inline style from admin config (80–120px range) */
+        max-width: 300px;
         filter: brightness(1.08) !important;
+        width: auto;
       }
       body.eukolakis-classic .store-name-wrap h1 {
         font-size: 1.05rem !important;
@@ -354,7 +356,7 @@
       body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row ul li a {
         display: flex; align-items: center;
-        padding: 0 18px; height: 40px;
+        padding: 0 22px; height: 44px;
         color: var(--eko-text-muted);
         text-decoration: none; font-size: .82rem; font-weight: 600;
         letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
@@ -879,8 +881,8 @@
     <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
     <% const logoDefaultHeight = isEukolakisClassic ? 96 : 88; %>
     <% const logoRequestedHeight = Number(theme.logoMaxHeight || logoDefaultHeight); %>
-    <% const logoMaxHeight = Math.max(80, Math.min(120, logoRequestedHeight || logoDefaultHeight)); %>
-    <% const logoMobileHeight = Math.max(56, Math.min(86, Math.round(logoMaxHeight * 0.72))); %>
+    <% const logoMaxHeight = Math.max(56, Math.min(120, logoRequestedHeight || logoDefaultHeight)); %>
+    <% const logoMobileHeight = Math.max(40, Math.min(86, Math.round(logoMaxHeight * 0.72))); %>
     <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
     <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
     <% const logoShadowMode = (theme.logoShadow === 'none' || theme.logoShadow === 'floating') ? theme.logoShadow : 'soft'; %>
@@ -913,11 +915,11 @@
       <% if (isEukolakisClassic) { %>
       <div class="header-auth-actions">
         <% if (!user) { %>
-          <a class="button" style="padding:6px 10px;text-decoration:none;" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a>
-          <a class="button" style="padding:6px 10px;text-decoration:none;background:#111827;" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a>
+          <a class="button" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
+          <a class="button" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Εγγραφή' : 'Signup' %></a>
         <% } else { %>
-          <a class="button" style="padding:6px 10px;text-decoration:none;" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a>
-          <a class="button" style="padding:6px 10px;text-decoration:none;background:#111827;" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a>
+          <a class="button" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο Λογαριασμός μου' : 'My Account' %></a>
+          <a class="button" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
         <% } %>
       </div>
       <% } %>
@@ -1022,8 +1024,8 @@
       <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
       <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
-      <%/* ── Eukolaki Classic industrial hero banner ── */%>
-      <% if (isEukolakisClassic && !activeCategory) { %>
+      <%/* ── Eukolaki Classic industrial hero banner — visibility controlled solely by homeBlockVisibility.hero ── */%>
+      <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false) { %>
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
