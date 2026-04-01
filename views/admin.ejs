@@ -240,6 +240,7 @@
         <a href="<%= withTenantLink('/admin/payments') %>">💳 Payments</a>
         <a href="<%= withTenantLink('/admin/hosting') %>">🛰️ Hosting</a>
         <a href="#tab-notifications">🔔 Notifications</a>
+        <a href="#tab-assistant">🤖 Βοηθός</a>
         <a href="#tab-support">⚙️ Advanced</a>
         <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
       </aside>
@@ -1341,6 +1342,162 @@
           <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
           <button type="submit" class="button">Αποθήκευση ειδοποιήσεων</button>
         </div>
+        <% } %>
+      </form>
+
+
+      <%# ══════════════════════════════════════════════════════════ %>
+      <%#   TAB – VIRTUAL ASSISTANT                                 %>
+      <%# ══════════════════════════════════════════════════════════ %>
+      <% const _va = (rawConfig.assistant) || {}; %>
+      <% const _vaEnabled = !!_va.vaEnabled; %>
+      <% const _vaMode    = _va.vaMode    || 'disabled'; %>
+      <% const _vaLang    = _va.vaLanguage || 'el'; %>
+      <% const _vaTone    = _va.vaTone    || 'friendly'; %>
+      <form id="tab-assistant" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/assistant') %>">
+        <h2>🤖 Εικονικός Βοηθός</h2>
+        <p class="helper">Ρυθμίστε τον εικονικό βοηθό του καταστήματός σας. Ο βοηθός μπορεί να καθοδηγεί τους πελάτες σας και να σας δίνει εισηγήσεις για τη βελτίωση του καταστήματος — όταν εσείς δεν είστε παρόντες.</p>
+
+        <%# ── Status chip ── %>
+        <div style="padding:10px 14px;border-radius:10px;margin-bottom:18px;background:<%=
+          _vaEnabled && _vaMode !== 'disabled' ? '#f0fdf4' : '#f8fafc'
+        %>;border:1px solid <%=
+          _vaEnabled && _vaMode !== 'disabled' ? '#bbf7d0' : '#e2e8f0'
+        %>;">
+          <p style="margin:0;font-size:.84rem;font-weight:700;color:<%=
+            _vaEnabled && _vaMode !== 'disabled' ? '#15803d' : '#475569'
+          %>;">
+            <% if (_vaEnabled && _vaMode !== 'disabled') { %>
+              ✓ Βοηθός ενεργός —
+              <% if (_vaMode === 'customer')  { %>καθοδήγηση πελατών<% }
+                else if (_vaMode === 'merchant') { %>εισηγήσεις για τον έμπορο<% }
+                else { %>καθοδήγηση πελατών + εισηγήσεις εμπόρου<% } %>
+            <% } else { %>
+              ○ Βοηθός ανενεργός
+            <% } %>
+          </p>
+        </div>
+
+        <%# ── SECTION 1: Ενεργοποίηση ── %>
+        <h3 class="settings-section-heading">Ενεργοποίηση</h3>
+
+        <label class="checkbox-label">
+          <input type="hidden" name="vaEnabled" value="0" />
+          <input type="checkbox" name="vaEnabled" value="1" <%= _vaEnabled ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span>Ενεργοποίηση εικονικού βοηθού</span>
+        </label>
+        <small class="helper" style="display:block;margin:-4px 0 14px 28px;">Όταν ενεργός, ο βοηθός μπορεί να λαμβάνει και να απαντά σε ερωτήματα ανάλογα με τον τρόπο λειτουργίας που επιλέγετε παρακάτω.</small>
+
+        <label><span>Τρόπος λειτουργίας</span>
+          <select name="vaMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="disabled" <%= _vaMode === 'disabled'  ? 'selected' : '' %>>Ανενεργός — δεν απαντά σε τίποτα</option>
+            <option value="customer" <%= _vaMode === 'customer'  ? 'selected' : '' %>>Μόνο πελάτες — βοηθά τους επισκέπτες του καταστήματος</option>
+            <option value="merchant" <%= _vaMode === 'merchant'  ? 'selected' : '' %>>Μόνο έμπορος — εισηγήσεις και υπενθυμίσεις για εσάς</option>
+            <option value="both"     <%= _vaMode === 'both'      ? 'selected' : '' %>>Και τα δύο — πελάτες και εισηγήσεις εμπόρου</option>
+          </select>
+          <small class="helper">
+            <strong>Μόνο πελάτες</strong>: ο βοηθός απαντά σε ερωτήσεις πελατών (διαθεσιμότητα, οδηγίες, shipping κ.λπ.).
+            <strong>Μόνο έμπορος</strong>: σας στέλνει εισηγήσεις για βελτίωση των προϊόντων, περιεχομένου ή εμφάνισης.
+            <strong>Και τα δύο</strong>: συνδυασμός.
+          </small>
+        </label>
+
+        <%# ── SECTION 2: Χαρακτήρας & Φωνή ── %>
+        <h3 class="settings-section-heading">Χαρακτήρας & Φωνή Βοηθού</h3>
+        <p class="helper" style="margin-bottom:12px;">Πείτε στον βοηθό πώς να μιλάει — τι γλώσσα να χρησιμοποιεί και τι ύφος να έχει.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <label><span>Γλώσσα επικοινωνίας</span>
+            <select name="vaLanguage" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="el"   <%= _vaLang === 'el'   ? 'selected' : '' %>>Ελληνικά</option>
+              <option value="en"   <%= _vaLang === 'en'   ? 'selected' : '' %>>English</option>
+              <option value="auto" <%= _vaLang === 'auto' ? 'selected' : '' %>>Αυτόματα (ανάλογα με τον επισκέπτη)</option>
+            </select>
+          </label>
+          <label><span>Ύφος επικοινωνίας</span>
+            <select name="vaTone" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+              <option value="friendly"     <%= _vaTone === 'friendly'     ? 'selected' : '' %>>Φιλικό & προσιτό</option>
+              <option value="professional" <%= _vaTone === 'professional' ? 'selected' : '' %>>Επαγγελματικό & επίσημο</option>
+              <option value="technical"    <%= _vaTone === 'technical'    ? 'selected' : '' %>>Τεχνικό & αναλυτικό</option>
+            </select>
+          </label>
+        </div>
+
+        <label><span>Φωνή της μάρκας / τρόπος έκφρασης <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <textarea name="vaBrandVoice" rows="2"
+            placeholder="π.χ. Μιλάμε ως ειδικοί στα DIY Roll Kit — απλά, κατανοητά, με τεχνική ακρίβεια. Χρησιμοποιούμε πρώτο πληθυντικό πρόσωπο."
+            <%= permissions.canEditSettings ? '' : 'readonly' %>><%= _va.vaBrandVoice || '' %></textarea>
+          <small class="helper">Περιγράψτε πώς θέλετε ο βοηθός να εκφράζεται — σαν να εκπαιδεύετε έναν νέο υπάλληλο στο στυλ επικοινωνίας σας.</small>
+        </label>
+
+        <%# ── SECTION 3: Οδηγίες Καταστήματος ── %>
+        <h3 class="settings-section-heading">Οδηγίες για το Κατάστημα & Προϊόντα</h3>
+        <p class="helper" style="margin-bottom:12px;">Εξηγήστε στον βοηθό τι κάνει το κατάστημά σας και τι να τονίζει όταν μιλά με πελάτες.</p>
+
+        <label><span>Τι κάνει το κατάστημά σας</span>
+          <textarea name="vaStoreInstructions" rows="3"
+            placeholder="π.χ. Πουλάμε εξοπλισμό και ανταλλακτικά για εγκατάσταση συρόμενων κουφωμάτων. Εξυπηρετούμε κυρίως επαγγελματίες τεχνίτες και αρχιτέκτονες στην Ελλάδα."
+            <%= permissions.canEditSettings ? '' : 'readonly' %>><%= _va.vaStoreInstructions || '' %></textarea>
+          <small class="helper">Αυτό βοηθά τον βοηθό να κατανοεί το αντικείμενο του καταστήματος και να απαντά σωστά σε ερωτήσεις πελατών.</small>
+        </label>
+
+        <label><span>Τι να τονίζει για τα προϊόντα <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <textarea name="vaProductGuidance" rows="2"
+            placeholder="π.χ. Τόνισε την ευκολία εγκατάστασης, την ποιότητα υλικών, και ότι τα DIY Roll Kit σχεδιάστηκαν για επαγγελματίες."
+            <%= permissions.canEditSettings ? '' : 'readonly' %>><%= _va.vaProductGuidance || '' %></textarea>
+          <small class="helper">Ειδικές οδηγίες για το τι να προτείνει και τι να τονίζει ο βοηθός όταν κάποιος ρωτά για τα προϊόντα.</small>
+        </label>
+
+        <%# ── SECTION 4: Εξυπηρέτηση Πελατών ── %>
+        <h3 class="settings-section-heading">Εξυπηρέτηση Πελατών</h3>
+
+        <label><span>Πώς να χειρίζεται ερωτήσεις πελατών <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <textarea name="vaCustomerSupport" rows="2"
+            placeholder="π.χ. Για ερωτήσεις shipping, παρέπεμψε στη σελίδα Αποστολές. Για παραγγελίες, παρέπεμψε στο info@katastima.gr. Μην δίνεις τιμές ανταγωνιστών."
+            <%= permissions.canEditSettings ? '' : 'readonly' %>><%= _va.vaCustomerSupport || '' %></textarea>
+          <small class="helper">Οδηγίες για το πώς να αντιμετωπίζει ο βοηθός συνηθισμένες ερωτήσεις: shipping, επιστροφές, παραγγελίες κ.λπ.</small>
+        </label>
+
+        <label><span>Τι να αποφεύγει ο βοηθός <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <textarea name="vaAvoidTopics" rows="2"
+            placeholder="π.χ. Μην αναφέρεις ανταγωνιστές. Μην δίνεις ακριβείς τιμές για custom κατασκευές. Μην υπόσχεσαι χρόνους παράδοσης που δεν είναι εγγυημένοι."
+            <%= permissions.canEditSettings ? '' : 'readonly' %>><%= _va.vaAvoidTopics || '' %></textarea>
+          <small class="helper">Θέματα, πληροφορίες ή υποσχέσεις που ο βοηθός δεν πρέπει ποτέ να αναφέρει.</small>
+        </label>
+
+        <%# ── SECTION 5: Στόχοι Εμπόρου ── %>
+        <h3 class="settings-section-heading">Στόχοι & Προτεραιότητες Πωλήσεων</h3>
+
+        <label><span>Τρέχοντες στόχοι ή προτεραιότητες <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <textarea name="vaMerchantGoals" rows="2"
+            placeholder="π.χ. Θέλουμε να αυξήσουμε τις πωλήσεις των DIY Roll Kit Premium τον επόμενο μήνα. Δευτερεύουσα προτεραιότητα τα ανταλλακτικά."
+            <%= permissions.canEditSettings ? '' : 'readonly' %>><%= _va.vaMerchantGoals || '' %></textarea>
+          <small class="helper">Πείτε στον βοηθό τι να προωθεί προτεραιακά — τρέχουσα καμπάνια, εποχιακά προϊόντα, slow movers κ.λπ.</small>
+        </label>
+
+        <%# ── SECTION 6: Επερχόμενα (placeholder, clearly labeled) ── %>
+        <h3 class="settings-section-heading" style="margin-top:24px;">Επερχόμενες Λειτουργίες</h3>
+        <div style="padding:14px 16px;border-radius:10px;background:#fefce8;border:1px solid #fde68a;color:#92400e;">
+          <p style="margin:0 0 8px;font-size:.86rem;font-weight:700;">Σύντομα διαθέσιμα — ο βοηθός θα μπορεί να:</p>
+          <ul style="margin:0;padding-left:18px;font-size:.83rem;line-height:1.7;">
+            <li>Προτείνει βελτιώσεις στην αρχική σελίδα (εικόνες, τίτλοι, περιγραφές)</li>
+            <li>Εντοπίζει προϊόντα χωρίς φωτογραφία ή περιγραφή</li>
+            <li>Προτείνει FAQ και κείμενο υποστήριξης πελατών</li>
+            <li>Δίνει αναφορές: τι ψάχνουν οι πελάτες που δεν βρίσκουν</li>
+            <li>Σας ειδοποιεί αυτόματα για ζητήματα του καταστήματος</li>
+          </ul>
+          <p style="margin:10px 0 0;font-size:.78rem;color:#a16207;">Αυτές οι λειτουργίες θα ενεργοποιηθούν αυτόματα όταν η σύνδεση με τον βοηθό είναι έτοιμη — δεν απαιτούνται αλλαγές από εσάς.</p>
+        </div>
+
+        <%# ── Save row ── %>
+        <% if (permissions.canEditSettings) { %>
+        <div class="save-row" style="margin-top:20px;">
+          <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
+          <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
+          <button type="submit" class="button">Αποθήκευση βοηθού</button>
+        </div>
+        <% } else { %>
+        <p class="settings-info-note" style="margin-top:14px;">Το πακέτο σας δεν επιτρέπει αλλαγή ρυθμίσεων βοηθού. Επικοινωνήστε με την υποστήριξη για αναβάθμιση.</p>
         <% } %>
       </form>
 

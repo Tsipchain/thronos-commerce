@@ -819,7 +819,18 @@ function loadTenantConfig(req) {
       notifyNewOrders: true,
       notifyLowStock: true,
       notifyTrackingReminder: true,
-      lowStockThreshold: 3
+      lowStockThreshold: 3,
+      /* Virtual Assistant store-facing settings */
+      vaEnabled: false,
+      vaMode: 'disabled',          /* disabled | customer | merchant | both */
+      vaLanguage: 'el',            /* el | en | auto */
+      vaTone: 'friendly',          /* friendly | professional | technical */
+      vaBrandVoice: '',
+      vaStoreInstructions: '',
+      vaProductGuidance: '',
+      vaCustomerSupport: '',
+      vaAvoidTopics: '',
+      vaMerchantGoals: ''
     },
     theme: {
       menuBg: '#111111',
@@ -3921,6 +3932,46 @@ app.post('/admin/notifications', async (req, res) => {
   saveTenantConfig(req, config);
 
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις ειδοποιήσεων αποθηκεύτηκαν.' }));
+});
+
+/* ── Virtual Assistant settings ─────────────────────────────────────────── */
+app.post('/admin/assistant', async (req, res) => {
+  const { password } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, {
+      error: 'Το πακέτο υποστήριξης δεν επιτρέπει αλλαγή ρυθμίσεων βοηθού.'
+    }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, {
+      error: 'Λάθος κωδικός διαχειριστή.'
+    }));
+  }
+
+  const config = loadTenantConfig(req);
+  if (!config.assistant) config.assistant = {};
+
+  const b = req.body;
+  const _validModes = ['disabled', 'customer', 'merchant', 'both'];
+  const _validLangs = ['el', 'en', 'auto'];
+  const _validTones = ['friendly', 'professional', 'technical'];
+  const _str = (v) => String(v || '').trim().slice(0, 2000); /* cap free-text at 2000 chars */
+
+  config.assistant.vaEnabled          = b.vaEnabled === '1';
+  config.assistant.vaMode             = _validModes.includes(b.vaMode)     ? b.vaMode     : 'disabled';
+  config.assistant.vaLanguage         = _validLangs.includes(b.vaLanguage) ? b.vaLanguage : 'el';
+  config.assistant.vaTone             = _validTones.includes(b.vaTone)     ? b.vaTone     : 'friendly';
+  config.assistant.vaBrandVoice       = _str(b.vaBrandVoice);
+  config.assistant.vaStoreInstructions= _str(b.vaStoreInstructions);
+  config.assistant.vaProductGuidance  = _str(b.vaProductGuidance);
+  config.assistant.vaCustomerSupport  = _str(b.vaCustomerSupport);
+  config.assistant.vaAvoidTopics      = _str(b.vaAvoidTopics);
+  config.assistant.vaMerchantGoals    = _str(b.vaMerchantGoals);
+
+  saveTenantConfig(req, config);
+  return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
 });
 
 app.post('/admin/payments', async (req, res) => {
