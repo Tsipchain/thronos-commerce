@@ -616,11 +616,14 @@
           </div>
         </div>
         <h4 style="margin:12px 0 6px;font-size:.82rem;color:#475569;font-weight:700;">Διάταξη Storefront</h4>
-        <label><span>Στυλ Hero Banner</span>
+        <label><span>Στυλ Hero Banner <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %><small style="color:#ca8a04;font-weight:600;">(δεν εφαρμόζεται στο τρέχον θέμα)</small><% } %></span>
           <select name="themeHeroStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.heroStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft — ήπια εμφάνιση</option>
             <option value="strong" <%= ((config.theme && config.theme.heroStyle) || '') === 'strong' ? 'selected' : '' %>>Strong / Branded — έντονο brand χρώμα</option>
           </select>
+          <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+          <small class="helper">Το θέμα <strong>Eukolakis Classic</strong> έχει δικό του hero banner — αυτή η ρύθμιση δεν εφαρμόζεται.</small>
+          <% } %>
         </label>
         <label><span>Εμφάνιση κατηγοριών στο μενού</span>
           <select name="themeCategoryMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -646,6 +649,9 @@
           <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
           <span>Εμφάνιση hero banner στην αρχική σελίδα</span>
         </label>
+        <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+        <small class="helper" style="display:block;margin:-2px 0 10px 28px;">Αυτή η ρύθμιση ισχύει και για το θέμα Eukolakis Classic. Μπορείτε επίσης να κρύψετε το hero από <a href="#tab-homepage">Homepage → Ορατότητα Ενοτήτων → Εμφάνιση Hero</a>.</small>
+        <% } %>
         <label><span>Preview mode indicator style <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται μόνο σε preview)</small></span>
           <select name="themePreviewBadgeStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.previewBadgeStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>

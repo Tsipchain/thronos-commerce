@@ -264,7 +264,8 @@
       body.eukolakis-classic .header-main-row {
         justify-content: space-between !important;
         align-items: center !important;
-        padding: 10px 20px;
+        padding: 12px 20px;
+        min-height: 72px;
         max-width: 1180px;
         margin: 0 auto;
         width: 100%;
@@ -287,9 +288,10 @@
         padding: 0 !important;
       }
       body.eukolakis-classic .logo-image-dynamic {
-        /* Respect the admin-configured logo height (capped for compact header look) */
-        max-height: clamp(36px, 5vw, 56px) !important;
+        /* max-height is set by inline style from admin config (80–120px range) */
+        max-width: 300px;
         filter: brightness(1.08) !important;
+        width: auto;
       }
       body.eukolakis-classic .store-name-wrap h1 {
         font-size: 1.05rem !important;
@@ -1023,7 +1025,7 @@
       <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
       <%/* ── Eukolaki Classic industrial hero banner ── */%>
-      <% if (isEukolakisClassic && !activeCategory) { %>
+      <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false && theme.bannerVisible !== false) { %>
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
