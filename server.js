@@ -419,6 +419,23 @@ function saveTenantsRegistry(tenants) {
   saveJson(TENANTS_REGISTRY, tenants);
 }
 
+function normalizeTenantDomainInputs({ domain, primaryDomain, domains, previewSubdomain, fallbackPreviewSubdomain }) {
+  const normalizedDomain = normalizeHost(domain || '');
+  const normalizedPrimary = normalizeHost(primaryDomain || normalizedDomain);
+  const parsedAliases = String(domains || '')
+    .split(',')
+    .map((value) => normalizeHost(value))
+    .filter(Boolean);
+  const dedupedAliases = [...new Set(parsedAliases)].filter((alias) => alias !== normalizedPrimary);
+  const preview = String(previewSubdomain || fallbackPreviewSubdomain || '').trim().toLowerCase();
+  return {
+    domain: normalizedDomain,
+    primaryDomain: normalizedPrimary,
+    domains: dedupedAliases,
+    previewSubdomain: preview
+  };
+}
+
 function findTenantById(tenantId) {
   return loadTenantsRegistry().find((t) => t.id === tenantId) || null;
 }
@@ -5254,20 +5271,20 @@ app.post('/root/tenants/create', async (req, res) => {
   const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
 
   const cleanRefCode = (refCode || '').trim();
-  const primaryDomainClean = String(primaryDomain || domain || '').trim().toLowerCase();
-  const domainsArray = String(domains || '')
-    .split(',')
-    .map((d) => normalizeHost(d))
-    .filter(Boolean);
-  if (primaryDomainClean && !domainsArray.includes(primaryDomainClean)) domainsArray.unshift(primaryDomainClean);
-  const previewSubdomainClean = String(previewSubdomain || cleanId).trim().toLowerCase();
+  const normalizedDomains = normalizeTenantDomainInputs({
+    domain,
+    primaryDomain,
+    domains,
+    previewSubdomain,
+    fallbackPreviewSubdomain: cleanId
+  });
   const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
   const newTenant = {
     id: cleanId,
-    domain: (domain || '').trim(),
-    primaryDomain: primaryDomainClean || '',
-    domains: domainsArray,
-    previewSubdomain: previewSubdomainClean,
+    domain: normalizedDomains.domain,
+    primaryDomain: normalizedDomains.primaryDomain,
+    domains: normalizedDomains.domains,
+    previewSubdomain: normalizedDomains.previewSubdomain,
     domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
     canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
     supportTier: resolvedTier,
@@ -5334,18 +5351,19 @@ app.post('/root/tenants/update', (req, res) => {
       buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
 
-  if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
-  if (primaryDomain !== undefined) tenants[idx].primaryDomain = normalizeHost(primaryDomain || '');
-  if (domains !== undefined) {
-    const parsedDomains = String(domains || '')
-      .split(',')
-      .map((d) => normalizeHost(d))
-      .filter(Boolean);
-    const normalizedPrimary = normalizeHost(tenants[idx].primaryDomain || tenants[idx].domain || '');
-    if (normalizedPrimary && !parsedDomains.includes(normalizedPrimary)) parsedDomains.unshift(normalizedPrimary);
-    tenants[idx].domains = parsedDomains;
+  if (domain !== undefined || primaryDomain !== undefined || domains !== undefined || previewSubdomain !== undefined) {
+    const normalizedDomains = normalizeTenantDomainInputs({
+      domain: domain !== undefined ? domain : tenants[idx].domain,
+      primaryDomain: primaryDomain !== undefined ? primaryDomain : tenants[idx].primaryDomain,
+      domains: domains !== undefined ? domains : (Array.isArray(tenants[idx].domains) ? tenants[idx].domains.join(',') : ''),
+      previewSubdomain: previewSubdomain !== undefined ? previewSubdomain : tenants[idx].previewSubdomain,
+      fallbackPreviewSubdomain: tenants[idx].id
+    });
+    tenants[idx].domain = normalizedDomains.domain;
+    tenants[idx].primaryDomain = normalizedDomains.primaryDomain;
+    tenants[idx].domains = normalizedDomains.domains;
+    tenants[idx].previewSubdomain = normalizedDomains.previewSubdomain;
   }
-  if (previewSubdomain !== undefined) tenants[idx].previewSubdomain = String(previewSubdomain || '').trim().toLowerCase();
   if (domainStatus !== undefined) {
     const normalizedStatus = String(domainStatus || '').trim();
     const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
