@@ -1024,8 +1024,8 @@
       <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
       <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
-      <%/* ── Eukolaki Classic industrial hero banner ── */%>
-      <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false && theme.bannerVisible !== false) { %>
+      <%/* ── Eukolaki Classic industrial hero banner — visibility controlled solely by homeBlockVisibility.hero ── */%>
+      <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false) { %>
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>

@@ -645,10 +645,10 @@
         <label class="checkbox-label">
           <input type="hidden" name="themeBannerVisible" value="0" />
           <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Εμφάνιση hero banner στην αρχική σελίδα</span>
+          <span>Εμφάνιση hero banner στην αρχική σελίδα<% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %> <small style="color:#ca8a04;font-weight:600;">(δεν εφαρμόζεται στο θέμα Eukolakis Classic)</small><% } %></span>
         </label>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
-        <small class="helper" style="display:block;margin:-2px 0 10px 28px;">Αυτή η ρύθμιση ισχύει και για το θέμα Eukolakis Classic. Μπορείτε επίσης να κρύψετε το hero από <a href="#tab-homepage">Homepage → Ορατότητα Ενοτήτων → Εμφάνιση Hero</a>.</small>
+        <small class="helper" style="display:block;margin:-2px 0 10px 28px;">Στο θέμα <strong>Eukolakis Classic</strong> το hero banner ελέγχεται αποκλειστικά από <a href="#tab-homepage">Homepage → Ορατότητα Ενοτήτων → Εμφάνιση Hero</a>.</small>
         <% } %>
         <label><span>Preview mode indicator style <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται μόνο σε preview)</small></span>
           <select name="themePreviewBadgeStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -866,7 +866,7 @@
           <% } %>
         </div>
         <h3 class="settings-section-heading" style="margin-top:20px;">Σειρά & Ορατότητα Ενοτήτων</h3>
-        <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.</p>
+        <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.<% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %> Το <strong>Εμφάνιση Hero</strong> ελέγχει το βιομηχανικό hero banner της αρχικής σελίδας.<% } %></p>
         <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;margin-bottom:10px;">
           <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero / Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
           <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits (Προτεινόμενα)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
