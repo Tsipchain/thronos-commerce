@@ -119,47 +119,156 @@
       .final-price-box { position: sticky; bottom: 10px; background:#111827;color:#fff;padding:12px;border-radius:10px;margin-top:12px;display:flex;justify-content:space-between;align-items:center; }
       .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
       @media (max-width: 900px) { .kit-layout { grid-template-columns: 1fr; } }
+      /* ── Header structure (shared) ── */
+      .header-main-row { display:flex; align-items:center; gap:12px; }
+      .header-nav-row  { display:flex; align-items:center; gap:12px; margin-top:0; }
+      .header-auth-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+      .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
       .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
 
-      /* ── Eukolakis Classic theme ──────────────────────────────────── */
+      /* ══════════════════════════════════════════════════════════════════
+         EUKOLAKIS INDUSTRIAL THEME — product page
+         ══════════════════════════════════════════════════════════════════ */
       body.eukolakis-classic {
-        --eko-bg:          #0b0d12;
-        --eko-accent:      #c4902e;
-        --eko-surface:     #141820;
-        --eko-border:      rgba(100,110,140,.28);
-        --eko-text:        #d0d5e0;
-        --eko-text-strong: #edf0f6;
-        --eko-text-muted:  #64707f;
+        --eko-bg:           #0b0d12;
+        --eko-surface:      #141820;
+        --eko-surface-2:    #1c2030;
+        --eko-border:       rgba(100,110,140,.28);
+        --eko-border-hover: rgba(184,137,42,.55);
+        --eko-accent:       #c4902e;
+        --eko-accent-light: #dba83c;
+        --eko-text:         #d0d5e0;
+        --eko-text-muted:   #64707f;
+        --eko-text-strong:  #edf0f6;
         background: var(--eko-bg);
         color: var(--eko-text);
       }
-      body.eukolakis-classic .store-header.eko-header {
-        background: #0e1117 !important;
-        border-bottom: 1px solid var(--eko-border) !important;
+
+      /* ── Header: dark industrial bar ── */
+      body.eukolakis-classic .store-header {
+        background: #0b0d12 !important;
+        border-bottom: 2px solid rgba(196,144,46,.32) !important;
+        box-shadow: 0 2px 24px rgba(0,0,0,.55) !important;
+        padding: 0 !important;
       }
-      body.eukolakis-classic .eko-header .logo-title a,
-      body.eukolakis-classic .eko-header h1 {
-        color: var(--eko-text-strong) !important;
+      body.eukolakis-classic .store-header::before {
+        content: ''; display: block; height: 2px;
+        background: linear-gradient(90deg, transparent 0%, var(--eko-accent) 30%, var(--eko-accent-light) 60%, transparent 100%);
+        opacity: .7;
       }
-      body.eukolakis-classic .eko-nav-strip {
-        background: var(--eko-surface);
-        border-bottom: 1px solid var(--eko-border);
-        padding: 6px 16px;
-        display: flex;
-        gap: 16px;
-        flex-wrap: wrap;
-        font-size: .84rem;
+      body.eukolakis-classic .header-main-row {
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 12px 20px;
+        min-height: 72px;
+        max-width: 1180px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+        flex-wrap: nowrap;
       }
-      body.eukolakis-classic .eko-nav-strip a {
+      body.eukolakis-classic .logo-title.classic-branding {
+        width: auto !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      body.eukolakis-classic .logo-frame {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      body.eukolakis-classic .logo-image-dynamic {
+        max-width: 300px;
+        filter: brightness(1.08) !important;
+        width: auto;
+      }
+      body.eukolakis-classic .store-name-wrap h1 {
+        font-size: 1.05rem !important;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--eko-text-strong);
+        margin: 0;
+      }
+      body.eukolakis-classic .header-auth-actions {
+        margin-left: auto !important;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      body.eukolakis-classic .header-auth-actions a.button {
+        font-size: .8rem !important;
+        padding: 7px 15px !important;
+        border-radius: 7px !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+        line-height: 1 !important;
+      }
+      body.eukolakis-classic .header-auth-actions a.button:first-child {
+        background: var(--eko-accent) !important;
+        border-color: var(--eko-accent) !important;
+        color: #fff !important;
+      }
+      body.eukolakis-classic .header-auth-actions a.button:last-child {
+        background: transparent !important;
+        border: 1px solid var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .header-auth-actions a.button:last-child:hover {
+        border-color: var(--eko-border-hover) !important;
+        color: var(--eko-accent) !important;
+      }
+
+      /* ── Nav tab row ── */
+      body.eukolakis-classic .header-nav-row {
+        padding: 0 !important;
+        border-top: 1px solid rgba(196,144,46,.12);
+        background: rgba(0,0,0,.38);
+      }
+      body.eukolakis-classic .header-nav-row .main-nav {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: block;
+      }
+      body.eukolakis-classic .header-nav-row .main-nav ul {
+        display: flex; gap: 0; list-style: none; margin: 0; padding: 0;
+        overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      }
+      body.eukolakis-classic .header-nav-row .main-nav ul::-webkit-scrollbar { display: none; }
+      body.eukolakis-classic .header-nav-row .main-nav ul li a {
+        display: flex; align-items: center;
+        padding: 0 22px; height: 44px;
         color: var(--eko-text-muted);
-        text-decoration: none;
-        transition: color .15s;
+        text-decoration: none; font-size: .82rem; font-weight: 600;
+        letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
+        border-bottom: 2px solid transparent;
+        transition: color .14s, border-color .14s, background .14s;
       }
-      body.eukolakis-classic .eko-nav-strip a:hover { color: var(--eko-accent); }
+      body.eukolakis-classic .header-nav-row .main-nav ul li a:hover {
+        color: var(--eko-accent);
+        background: rgba(196,144,46,.06);
+      }
+
+      /* ── Preview banner ── */
+      body.eukolakis-classic .preview-banner {
+        background: rgba(196,144,46,.12) !important;
+        border-bottom: 1px solid rgba(196,144,46,.25) !important;
+        color: var(--eko-accent) !important;
+        font-size: .8rem;
+        padding: 6px 20px !important;
+      }
+
+      /* ── Main content area ── */
       body.eukolakis-classic main {
         background: var(--eko-bg);
+        max-width: 1180px;
+        margin: 0 auto;
         min-height: 60vh;
-        padding: 20px 16px 48px;
+        padding: 20px 18px 48px;
       }
       body.eukolakis-classic .product-detail h2 { color: var(--eko-text-strong); }
       body.eukolakis-classic .product-detail p { color: var(--eko-text); }
@@ -220,12 +329,6 @@
       body.eukolakis-classic .eko-back-link {
         color: var(--eko-accent) !important;
       }
-      body.eukolakis-classic .logo-image-dynamic {
-        max-width: 300px;
-        filter: brightness(1.08) !important;
-        width: auto;
-      }
-      .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
       .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
       .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
       .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
@@ -292,34 +395,62 @@
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
-    <header class="store-header <%= isEukolakisClassic ? 'premium eko-header' : (tenant.id === 'eukolakis' ? 'premium' : '') %> branding-mode-<%= brandingMode %>">
-      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %>">
-        <% if (config.logoPath && brandingMode !== 'name_only') { %>
-          <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding || 6) %>px;border-radius:<%= Number(theme.logoRadius || 10) %>px;box-shadow:<%= theme.logoShadow === 'floating' ? '0 12px 24px rgba(0,0,0,.25)' : (theme.logoShadow === 'none' ? 'none' : '0 3px 10px rgba(0,0,0,.12)') %>;">
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= Number(theme.logoMaxHeight || 64) %>px;" />
-          </span>
-        <% } %>
-        <% if (brandingMode !== 'logo_only') { %>
-        <div class="store-name-wrap">
-          <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+    <% const logoMaxHeight = Math.max(56, Math.min(120, Number(theme.logoMaxHeight || (isEukolakisClassic ? 96 : 64)))); %>
+    <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
+    <% const navCategories = Array.isArray(categories) ? categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder)||999)-(Number(b.navOrder)||999); }) : []; %>
+    <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
+      <div class="header-main-row">
+        <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
+          <% if (config.logoPath && brandingMode !== 'name_only') { %>
+            <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding||6) %>px;border-radius:<%= Number(theme.logoRadius||10) %>px;">
+              <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= logoMaxHeight %>px;" />
+            </span>
+          <% } %>
+          <% if (brandingMode !== 'logo_only' && !hideStoreNameForClassicBanner) { %>
+          <div class="store-name-wrap">
+            <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+          </div>
+          <% } %>
+        </div>
+        <% if (isEukolakisClassic) { %>
+        <div class="header-auth-actions">
+          <% if (!user) { %>
+            <a class="button" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
+            <a class="button" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Εγγραφή' : 'Signup' %></a>
+          <% } else { %>
+            <a class="button" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο Λογαριασμός μου' : 'My Account' %></a>
+            <a class="button" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
+          <% } %>
+        </div>
+        <% } else { %>
+        <div style="font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;padding:0 8px;">
+          <% if (!user) { %>
+            <a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a>
+            <a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a>
+          <% } else { %>
+            <a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a>
+            <a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>">My Orders</a>
+            <a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a>
+          <% } %>
         </div>
         <% } %>
       </div>
       <% if (isPreviewMode) { %>
-      <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+      <div class="preview-banner" style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
         <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
       </div>
       <% } %>
-      <div class="<%= isEukolakisClassic ? 'eko-nav-strip' : '' %>" style="<%= isEukolakisClassic ? '' : 'padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;' %>">
-        <% if (!user) { %>
-          <a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
-          <a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Εγγραφή' : 'Signup' %></a>
-        <% } else { %>
-          <a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο Λογαριασμός μου' : 'My Account' %></a>
-          <a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Οι Παραγγελίες μου' : 'My Orders' %></a>
-          <a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
-        <% } %>
+      <% if (isEukolakisClassic && navCategories.length) { %>
+      <div class="header-nav-row">
+        <nav class="main-nav open">
+          <ul>
+            <% navCategories.forEach(function(cat) { %>
+              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><%= cat.name %></a></li>
+            <% }) %>
+          </ul>
+        </nav>
       </div>
+      <% } %>
     </header>
 
     <main>

@@ -2322,7 +2322,8 @@ app.get('/product/:id', (req, res) => {
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
     product: localizeProductContent(hydratedProduct, req.lang),
-    tenant: req.tenant
+    tenant: req.tenant,
+    categories: loadTenantCategories(req)
   });
 });
 
