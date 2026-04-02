@@ -700,6 +700,39 @@
       <form id="tab-homepage" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Homepage</h2>
         <p class="helper">Ρυθμίστε την αρχική σελίδα του καταστήματός σας — εικόνα banner, τίτλοι, προτεινόμενα προϊόντα και ορατότητα ενοτήτων.</p>
+        <% if (tenant.id === 'eukolakis') { %>
+        <% const audit = assetAudit || {}; %>
+        <% const navPlates = Array.isArray(audit.navMenuPlates) ? audit.navMenuPlates : []; %>
+        <% const categoryCardsAudit = Array.isArray(audit.categoryCards) ? audit.categoryCards : []; %>
+        <% const introAssetsAudit = Array.isArray(audit.introAssets) ? audit.introAssets : []; %>
+        <% const missingAssetCount = [audit.headerBanner].concat(navPlates, categoryCardsAudit, introAssetsAudit).filter(function(entry){ return entry && entry.url && !entry.exists; }).length; %>
+        <section style="margin:0 0 14px;padding:12px 14px;border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;">
+          <h3 style="margin:0 0 6px;font-size:.94rem;color:#92400e;">Asset mapping & truth audit (Eukolaki)</h3>
+          <p style="margin:0 0 8px;font-size:.8rem;color:#78350f;">
+            Τα παρακάτω δείχνουν τι είναι πραγματικά διαθέσιμο στον δίσκο και ποια ρύθμιση το οδηγεί.
+            Δεν γίνεται “εικονική” ενεργοποίηση αν λείπει αρχείο.
+          </p>
+          <ul style="margin:0;padding-left:18px;font-size:.78rem;color:#78350f;line-height:1.5;">
+            <li><strong>Header banner:</strong> <code><%= (audit.headerBanner && audit.headerBanner.url) || '—' %></code> · <%= (audit.headerBanner && audit.headerBanner.exists) ? 'OK' : 'MISSING' %> · driver: <code><%= (audit.headerBanner && audit.headerBanner.driver) || 'homepage.heroImage' %></code></li>
+            <li><strong>Τωρινή ταυτότητα header/intro:</strong> <%= (audit.headerBanner && audit.headerBanner.exists) ? 'Χρησιμοποιείται το Header banner asset.' : 'Χρησιμοποιείται fallback στο logoPath μέχρι να ανέβει πραγματικό banner asset.' %></li>
+            <li><strong>Nav/menu plates:</strong> <%= navPlates.length %> mapped από <code>categories[].image</code>.</li>
+            <li><strong>Category cards:</strong> <%= categoryCardsAudit.length %> mapped από <code>categories[].image</code>.</li>
+            <li><strong>Intro assets:</strong> logo/video/poster οδηγούνται από <code>config.logoPath</code> + <code>homepage.intro*</code>.</li>
+          </ul>
+          <% if (missingAssetCount > 0) { %>
+          <p style="margin:8px 0 0;font-size:.78rem;color:#b45309;">
+            ⚠ Βρέθηκαν <strong><%= missingAssetCount %></strong> δηλωμένα asset path(s) που δεν υπάρχουν τοπικά.
+            Το storefront θα χρησιμοποιεί τα κοντινότερα διαθέσιμα fallback στοιχεία όπου χρειάζεται.
+          </p>
+          <% } %>
+        </section>
+        <% if (rawConfig.theme && rawConfig.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p style="margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;font-size:.78rem;color:#1e3a8a;">
+          ℹ️ Στο preset <strong>Eukolakis Classic</strong>, η εμφάνιση Header/Nav/Categories καθορίζεται κυρίως από το preset CSS.
+          Τα πεδία logo/banner/homepage εφαρμόζονται μόνο όπου αναφέρεται στο storefront και στο intro.
+        </p>
+        <% } %>
+        <% } %>
 
         <h3 class="settings-section-heading">Hero Banner</h3>
 
