@@ -738,6 +738,44 @@ function listRecentBackups(req, limit = 40) {
   return files;
 }
 
+function tenantAssetUrlToFilePath(req, rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url || !url.startsWith('/')) return null;
+  if (url.startsWith(`/tenants/${req.tenant.id}/media/`)) {
+    const relativePath = url.replace(`/tenants/${req.tenant.id}/media/`, '');
+    return path.join(req.tenantPaths.media, relativePath);
+  }
+  return path.join(__dirname, 'public', url.slice(1));
+}
+
+function buildTenantAssetAudit(req, config, categories) {
+  const homepage = (config && config.homepage) || {};
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const evaluate = (label, assetUrl, driver) => {
+    const localPath = tenantAssetUrlToFilePath(req, assetUrl);
+    const exists = !!(localPath && fs.existsSync(localPath));
+    return { label, url: String(assetUrl || ''), exists, driver };
+  };
+  return {
+    headerBanner: evaluate('Header banner', homepage.heroImage, 'homepage.heroImage + homepage.blockVisibility.hero'),
+    navMenuPlates: safeCategories.map((cat) => evaluate(
+      `Nav/Menu plate: ${resolveTranslatable(cat.name, 'el') || cat.id || cat.slug || 'category'}`,
+      cat.image,
+      'categories[].image + main navigation/category links'
+    )),
+    categoryCards: safeCategories.map((cat) => evaluate(
+      `Category card: ${resolveTranslatable(cat.name, 'el') || cat.id || cat.slug || 'category'}`,
+      cat.image,
+      'categories[].image rendered by eukolakis category tiles'
+    )),
+    introAssets: [
+      evaluate('Intro logo', config.logoPath, 'config.logoPath + homepage.introEnabled'),
+      evaluate('Intro video', homepage.introVideoUrl, 'homepage.introMode=video + homepage.introVideoUrl'),
+      evaluate('Intro poster', homepage.introPosterUrl, 'homepage.introMode=video + homepage.introPosterUrl')
+    ]
+  };
+}
+
 function hasExportAccess(req) {
   if (req.session && req.session.rootAdmin) return true;
   const tier = req.tenant && req.tenant.supportTier;
@@ -2072,6 +2110,7 @@ function buildAdminViewModel(req, extra) {
   }));
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
+  const assetAudit = buildTenantAssetAudit(req, config, categories);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
   const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
   const contentLang = CONTENT_LANGS.includes(qContentLang)
@@ -2133,6 +2172,7 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     unresolvedOrdersCount,
+    assetAudit,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
     exportAccess: hasExportAccess(req),
@@ -2275,13 +2315,15 @@ app.get('/', (req, res) => {
     const viewLang = req.lang;
     const localizedConfig = localizeConfigContent(config, viewLang);
     const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
+    const storefrontAssetAudit = buildTenantAssetAudit(req, config, categories);
     res.render('index', {
       config: localizedConfig,
       categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
       products: products.map((p) => localizeProductContent(p, viewLang)),
       allProducts: localizedAllProducts,
       activeCategory: catSlug || null,
-      tenant: req.tenant
+      tenant: req.tenant,
+      storefrontAssetAudit
     });
   } catch (err) {
     console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
