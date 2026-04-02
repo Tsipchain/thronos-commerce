@@ -23,6 +23,11 @@
         : _storedMode === 'assembly'               ? 'assembly'
         : _storedMode === 'video'    && _hasLogo   ? 'assembly'   /* video chosen, no URL → degrade */
         : 'basic';
+      const _introAudit = introAssetAudit || {};
+      const _bannerAudit = _introAudit.headerBanner || null;
+      const _brandIdentitySrc = (_bannerAudit && _bannerAudit.exists && _bannerAudit.url)
+        ? _bannerAudit.url
+        : (config.logoPath || '');
     %>
     <style>
       /* ── Theme tokens ────────────────────────────────────────────────────── */
@@ -216,12 +221,12 @@
 
         <%# ── Brand bar: logo + store name (always shown) ── %>
         <div class="intro-brand-bar">
-          <% if (isEukolakisClassic && config.logoPath) { %>
+          <% if (isEukolakisClassic && _brandIdentitySrc) { %>
             <div class="intro-brand-banner">
-              <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+              <img src="<%= _brandIdentitySrc %>" alt="<%= config.storeName %>" />
             </div>
-          <% } else if (config.logoPath) { %>
-            <img class="intro-brand-logo" src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+          <% } else if (_brandIdentitySrc) { %>
+            <img class="intro-brand-logo" src="<%= _brandIdentitySrc %>" alt="<%= config.storeName %>" />
           <% } %>
           <span class="intro-brand-name"><%= config.storeName %></span>
         </div>
@@ -245,14 +250,14 @@
         <%# ── MODE: assembly ── %>
         <% } else if (effectiveMode === 'assembly') { %>
         <div class="intro-assembly-wrap" id="intro-assembly-wrap">
-          <% if (config.logoPath) { %>
+          <% if (_brandIdentitySrc) { %>
             <% if (isEukolakisClassic) { %>
               <div class="assembly-el assembly-el--logo assembly-logo-plate">
-                <img class="assembly-logo-img" src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+                <img class="assembly-logo-img" src="<%= _brandIdentitySrc %>" alt="<%= config.storeName %>" />
               </div>
             <% } else { %>
               <img class="assembly-el assembly-el--logo assembly-logo-img"
-                  src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+                  src="<%= _brandIdentitySrc %>" alt="<%= config.storeName %>" />
             <% } %>
           <% } %>
           <div class="assembly-el assembly-el--bar"><div class="assembly-bar-line"></div></div>
@@ -266,8 +271,8 @@
         <%# ── MODE: basic / fallback ── %>
         <% } else { %>
         <div class="intro-no-video">
-          <% if (config.logoPath) { %>
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>"
+          <% if (_brandIdentitySrc) { %>
+            <img src="<%= _brandIdentitySrc %>" alt="<%= config.storeName %>"
               style="max-height:88px;max-width:280px;margin:0 auto 18px;display:block;object-fit:contain;" />
           <% } %>
           <p class="intro-no-video-name"><%= config.storeName %></p>

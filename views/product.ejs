@@ -427,12 +427,17 @@
     <% const logoMaxHeight = Math.max(56, Math.min(120, Number(theme.logoMaxHeight || (isEukolakisClassic ? 96 : 64)))); %>
     <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
     <% const navCategories = Array.isArray(categories) ? categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder)||999)-(Number(b.navOrder)||999); }) : []; %>
+    <% const productAssetAudit = storefrontAssetAudit || {}; %>
+    <% const productHeaderBannerAudit = productAssetAudit.headerBanner || null; %>
+    <% const headerBrandAssetSrc = (productHeaderBannerAudit && productHeaderBannerAudit.exists && productHeaderBannerAudit.url) ? productHeaderBannerAudit.url : (config.logoPath || ''); %>
+    <% const navMenuPlateAudit = Array.isArray(productAssetAudit.navMenuPlates) ? productAssetAudit.navMenuPlates : []; %>
+    <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
         <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
-          <% if (isEukolakisClassic && config.logoPath) { %>
+          <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
             <div class="eko-brand-banner">
-              <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+              <img src="<%= headerBrandAssetSrc %>" alt="<%= config.storeName %>" />
             </div>
           <% } else if (config.logoPath && brandingMode !== 'name_only') { %>
             <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding||6) %>px;border-radius:<%= Number(theme.logoRadius||10) %>px;">
@@ -479,7 +484,7 @@
           <ul>
             <% navCategories.forEach(function(cat) { %>
               <% const catLabel = (typeof cat.name === 'string') ? cat.name : (resolveField(cat.name, lang) || resolveField(cat.name, 'el') || resolveField(cat.name, 'en') || cat.id || cat.slug || 'CAT'); %>
-              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><%= catLabel %></a></li>
+              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="" style="width:28px;height:20px;border-radius:4px;object-fit:cover;border:1px solid rgba(196,144,46,.26);" /><% } else { %><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><% } %><%= catLabel %></a></li>
             <% }) %>
           </ul>
         </nav>

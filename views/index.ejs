@@ -916,6 +916,7 @@
     <% const homepage = config.homepage || {}; %>
     <% const assetAudit = storefrontAssetAudit || {}; %>
     <% const headerBannerAudit = assetAudit.headerBanner || null; %>
+    <% const headerBrandAssetSrc = (headerBannerAudit && headerBannerAudit.exists && headerBannerAudit.url) ? headerBannerAudit.url : (config.logoPath || ''); %>
     <% const navMenuPlateAudit = Array.isArray(assetAudit.navMenuPlates) ? assetAudit.navMenuPlates : []; %>
     <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
     <% const homeBlockVisibility = Object.assign({ hero: true, kits: true, spare: true, subscriptions: true }, (homepage && homepage.blockVisibility) || {}); %>
@@ -948,9 +949,9 @@
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
-        <% if (isEukolakisClassic && config.logoPath) { %>
+        <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
           <div class="eko-brand-banner">
-            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" />
+            <img src="<%= headerBrandAssetSrc %>" alt="<%= config.storeName %>" />
             <div class="eko-brand-caption"><%= lang === 'el' ? 'Industrial Systems' : 'Industrial Systems' %></div>
           </div>
         <% } else if (config.logoPath && brandingMode !== 'name_only') { %>
@@ -1044,7 +1045,7 @@
           <% const navHomepage = config.homepage || {}; %>
           <% navCategories.forEach(function(cat){ %>
             <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-              <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+              <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
               <span><%= cat.name %></span>
             </a>
           <% }) %>
@@ -1154,7 +1155,7 @@
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
           <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
           </a>
         <% }) %>
@@ -1186,7 +1187,7 @@
       <%/* Standard hero: hidden for eukolakis-classic (uses eko-hero instead) */%>
       <% if (!isEukolakisClassic && homeBlockVisibility.hero !== false && (!config.theme || config.theme.bannerVisible !== false)) { %>
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
-        <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
+        <% if (homepage.heroImage && tenant.id === 'eukolakis' && (!headerBannerAudit || headerBannerAudit.exists)) { %>
           <div style="margin-bottom:14px;">
             <% if (heroPrimaryProduct) { %>
               <a href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>" data-exposure-link style="display:block;">
