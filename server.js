@@ -177,6 +177,41 @@ function normalizeSlug(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+function normalizeMediaPath(value, options = {}) {
+  const allowAbsoluteUrl = options.allowAbsoluteUrl === true;
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (allowAbsoluteUrl && /^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/')) return raw;
+  return `/${raw.replace(/^\.?\//, '')}`;
+}
+
+function normalizeCategoryRecord(rawCategory, index = 0) {
+  const source = rawCategory && typeof rawCategory === 'object' ? rawCategory : {};
+  const safeId = normalizeSlug(source.id || source.slug || `category-${index + 1}`) || `category-${index + 1}`;
+  const safeSlug = normalizeSlug(source.slug || safeId) || safeId;
+  const fallbackName = safeSlug.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  const normalizedName = source.name && (typeof source.name === 'string' || typeof source.name === 'object')
+    ? source.name
+    : fallbackName;
+  const navVisibilityRaw = source.showInMainNav;
+  const normalizedShowInMainNav = navVisibilityRaw !== undefined
+    ? navVisibilityRaw !== false
+    : (source.visible !== false && source.inMainNav !== false);
+  const rawOrder = source.navOrder !== undefined ? source.navOrder : source.order;
+  const navOrder = Number.isFinite(Number(rawOrder)) ? Number(rawOrder) : index;
+  return {
+    ...source,
+    id: safeId,
+    slug: safeSlug,
+    name: normalizedName,
+    image: normalizeMediaPath(source.image),
+    featured: source.featured === true,
+    showInMainNav: normalizedShowInMainNav,
+    navOrder
+  };
+}
+
 function isUrlSafeSlug(value) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value || ''));
 }
@@ -947,6 +982,21 @@ function loadTenantConfig(req) {
   cfg.favicon = Object.assign({}, fallback.favicon, cfg.favicon || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
+  cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
+  cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
+  cfg.homepage.secondaryCard.image = normalizeMediaPath(cfg.homepage.secondaryCard.image);
+  cfg.homepage.secondaryCard.link = String(cfg.homepage.secondaryCard.link || '').trim();
+  cfg.homepage.introVideoUrl = normalizeMediaPath(cfg.homepage.introVideoUrl, { allowAbsoluteUrl: true });
+  cfg.homepage.introPosterUrl = normalizeMediaPath(cfg.homepage.introPosterUrl, { allowAbsoluteUrl: true });
+  const introModes = new Set(['basic', 'assembly', 'video']);
+  cfg.homepage.introMode = introModes.has(String(cfg.homepage.introMode || '').trim().toLowerCase())
+    ? String(cfg.homepage.introMode).trim().toLowerCase()
+    : 'basic';
+  cfg.homepage.introTagline = String(cfg.homepage.introTagline || '').trim();
+  cfg.homepage.blockOrder = Array.isArray(cfg.homepage.blockOrder)
+    ? cfg.homepage.blockOrder.filter((key) => ['hero', 'kits', 'spare', 'subscriptions'].includes(String(key))).slice(0, 4)
+    : ['hero', 'kits', 'spare', 'subscriptions'];
+  if (cfg.homepage.blockOrder.length === 0) cfg.homepage.blockOrder = ['hero', 'kits', 'spare', 'subscriptions'];
   const paymentOptions = Array.isArray(cfg.paymentOptions) ? cfg.paymentOptions.slice() : [];
   const hasCod = paymentOptions.some((opt) => {
     const id = String((opt && (opt.id || opt.type)) || '').toLowerCase();
@@ -967,7 +1017,40 @@ function loadTenantProducts(req) {
 }
 
 function loadTenantCategories(req) {
-  return loadJson(req.tenantPaths.categories, []);
+  const raw = loadJson(req.tenantPaths.categories, []);
+  const list = Array.isArray(raw) ? raw : [];
+  const normalized = [];
+  const usedIds = new Set();
+  const usedSlugs = new Set();
+  let adjustedCount = 0;
+  list.forEach((cat, idx) => {
+    const next = normalizeCategoryRecord(cat, idx);
+    let id = next.id;
+    let slug = next.slug;
+    let suffix = 2;
+    while (usedIds.has(id)) { id = `${next.id}-${suffix++}`; }
+    suffix = 2;
+    while (usedSlugs.has(slug)) { slug = `${next.slug}-${suffix++}`; }
+    usedIds.add(id);
+    usedSlugs.add(slug);
+    const normalizedCategory = { ...next, id, slug };
+    const original = cat && typeof cat === 'object' ? cat : {};
+    if (
+      normalizedCategory.id !== String(original.id || '') ||
+      normalizedCategory.slug !== String(original.slug || '') ||
+      normalizedCategory.image !== normalizeMediaPath(original.image) ||
+      normalizedCategory.showInMainNav !== (original.showInMainNav !== undefined ? original.showInMainNav !== false : (original.visible !== false && original.inMainNav !== false))
+    ) adjustedCount += 1;
+    normalized.push(normalizedCategory);
+  });
+  if (adjustedCount > 0) {
+    console.warn('[tenant-config] categories-normalized', JSON.stringify({
+      tenantId: req && req.tenant ? req.tenant.id : null,
+      total: normalized.length,
+      adjusted: adjustedCount
+    }));
+  }
+  return normalized;
 }
 
 function loadTenantUsers(req) {
@@ -3777,7 +3860,7 @@ app.post('/admin/settings', async (req, res) => {
   config.heroTitle = buildTranslatableFromBody(req.body, 'heroTitle', heroTitle || config.heroTitle || config.storeName);
   config.heroSubtitle = buildTranslatableFromBody(req.body, 'heroSubtitle', heroSubtitle || config.heroSubtitle || config.heroText);
   config.web3Domain = web3Domain || config.web3Domain;
-  config.logoPath = logoPath || config.logoPath;
+  config.logoPath = normalizeMediaPath(hasBodyField(req.body, 'logoPath') ? logoPath : config.logoPath) || '/logo.svg';
   config.theme = config.theme || {};
   config.theme.menuBg = themeMenuBg || config.theme.menuBg || '#111111';
   config.theme.menuText = themeMenuText || config.theme.menuText || '#ffffff';
@@ -3829,7 +3912,7 @@ app.post('/admin/settings', async (req, res) => {
     : (config.theme.homeLayoutPreset || 'split');
   config.homepage = config.homepage || {};
   if (hasBodyField(req.body, 'homepageHeroImage')) {
-    config.homepage.heroImage = String(homepageHeroImage || '').trim();
+    config.homepage.heroImage = normalizeMediaPath(homepageHeroImage);
   }
   const hasLegacyFeaturedIds = hasBodyField(req.body, 'homepageFeaturedIds');
   const hasFeaturedPrimaryInputs =
@@ -3878,7 +3961,7 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.secondaryCard.link = String(homepageSecondaryLink || '').trim();
   }
   if (hasBodyField(req.body, 'homepageSecondaryImage')) {
-    config.homepage.secondaryCard.image = String(homepageSecondaryImage || '').trim();
+    config.homepage.secondaryCard.image = normalizeMediaPath(homepageSecondaryImage);
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
@@ -3888,8 +3971,8 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.introMode = _validModes.includes(_m) ? _m : 'basic';
   }
   if (hasBodyField(req.body, 'homepageIntroTagline')) config.homepage.introTagline = String(homepageIntroTagline || '').trim();
-  if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = String(homepageIntroVideoUrl || '').trim();
-  if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = String(homepageIntroPosterUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = normalizeMediaPath(homepageIntroVideoUrl, { allowAbsoluteUrl: true });
+  if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = normalizeMediaPath(homepageIntroPosterUrl, { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageBlockOrder')) {
     const parsedOrder = String(homepageBlockOrder || '')
       .split(',')
@@ -4177,7 +4260,8 @@ app.post('/admin/categories/add', async (req, res) => {
   const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
   const newCat = { id: normalizedId, name: translatedName, slug: normalizedSlug };
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
-  if (image && image.trim()) newCat.image = image.trim();
+  const normalizedCategoryImage = normalizeMediaPath(image);
+  if (normalizedCategoryImage) newCat.image = normalizedCategoryImage;
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   newCat.showInMainNav = showInMainNav === 'on';
   if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
@@ -4262,7 +4346,8 @@ app.post('/admin/categories/update', async (req, res) => {
   else delete categories[idx].shortDescription;
   categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
-    if (image && image.trim()) categories[idx].image = image.trim();
+    const normalizedCategoryImage = normalizeMediaPath(image);
+    if (normalizedCategoryImage) categories[idx].image = normalizedCategoryImage;
     else delete categories[idx].image;
   }
   if (parentId !== undefined) {
