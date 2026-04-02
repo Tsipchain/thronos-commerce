@@ -355,13 +355,24 @@
       }
       body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row ul li a {
-        display: flex; align-items: center;
-        padding: 0 22px; height: 44px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 16px; height: 48px;
         color: var(--eko-text-muted);
         text-decoration: none; font-size: .82rem; font-weight: 600;
         letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
         border-bottom: 2px solid transparent;
         transition: color .14s, border-color .14s, background .14s;
+      }
+      body.eukolakis-classic .eko-nav-plate-thumb {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        object-fit: cover; border: 1px solid rgba(196,144,46,.26);
+        background: linear-gradient(135deg, #1b2233 0%, #121722 100%);
+      }
+      body.eukolakis-classic .eko-nav-plate-fallback {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        border: 1px solid rgba(196,144,46,.26); background: rgba(196,144,46,.08);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .56rem; letter-spacing: .06em; color: var(--eko-accent); font-weight: 800;
       }
       body.eukolakis-classic .header-nav-row ul li a:hover {
         color: var(--eko-accent);
@@ -865,6 +876,10 @@
   <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
+    <% const assetAudit = storefrontAssetAudit || {}; %>
+    <% const headerBannerAudit = assetAudit.headerBanner || null; %>
+    <% const navMenuPlateAudit = Array.isArray(assetAudit.navMenuPlates) ? assetAudit.navMenuPlates : []; %>
+    <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
     <% const homeBlockVisibility = Object.assign({ hero: true, kits: true, spare: true, subscriptions: true }, (homepage && homepage.blockVisibility) || {}); %>
     <% const homeBlockContent = Object.assign({ kitsTitle: '', spareTitle: '', subscriptionsTitle: '' }, (homepage && homepage.blockContent) || {}); %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
@@ -938,7 +953,16 @@
             <% if (!isEukolakisClassic && theme.categoryMenuStyle && theme.categoryMenuStyle !== 'text') { return; } %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-                <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+                <% if (isEukolakisClassic) { %>
+                  <% if (cat.image && navPlateExistsByUrl[cat.image]) { %>
+                    <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy" />
+                  <% } else { %>
+                    <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
+                  <% } %>
+                <% } else if (cat.image) { %>
+                  <img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" />
+                <% } %>
+                <%= cat.name %>
               </a>
             </li>
           <% }); %>
@@ -1029,7 +1053,8 @@
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
-        <% if (homepage.heroImage) { %>
+        <% const hasRealHeroImage = homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists); %>
+        <% if (hasRealHeroImage) { %>
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
           <div class="eko-hero-overlay">
         <% } else { %>
@@ -1058,7 +1083,8 @@
         <div class="eko-cat-grid">
           <% navCategories.forEach(function(cat) { %>
           <a class="eko-cat-tile" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image) { %>
+            <% const hasRealCategoryImage = !!(cat.image && navPlateExistsByUrl[cat.image]); %>
+            <% if (hasRealCategoryImage) { %>
               <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy" />
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">

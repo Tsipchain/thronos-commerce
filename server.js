@@ -419,6 +419,23 @@ function saveTenantsRegistry(tenants) {
   saveJson(TENANTS_REGISTRY, tenants);
 }
 
+function normalizeTenantDomainInputs({ domain, primaryDomain, domains, previewSubdomain, fallbackPreviewSubdomain }) {
+  const normalizedDomain = normalizeHost(domain || '');
+  const normalizedPrimary = normalizeHost(primaryDomain || normalizedDomain);
+  const parsedAliases = String(domains || '')
+    .split(',')
+    .map((value) => normalizeHost(value))
+    .filter(Boolean);
+  const dedupedAliases = [...new Set(parsedAliases)].filter((alias) => alias !== normalizedPrimary);
+  const preview = String(previewSubdomain || fallbackPreviewSubdomain || '').trim().toLowerCase();
+  return {
+    domain: normalizedDomain,
+    primaryDomain: normalizedPrimary,
+    domains: dedupedAliases,
+    previewSubdomain: preview
+  };
+}
+
 function findTenantById(tenantId) {
   return loadTenantsRegistry().find((t) => t.id === tenantId) || null;
 }
@@ -719,6 +736,44 @@ function listRecentBackups(req, limit = 40) {
       };
     });
   return files;
+}
+
+function tenantAssetUrlToFilePath(req, rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url || !url.startsWith('/')) return null;
+  if (url.startsWith(`/tenants/${req.tenant.id}/media/`)) {
+    const relativePath = url.replace(`/tenants/${req.tenant.id}/media/`, '');
+    return path.join(req.tenantPaths.media, relativePath);
+  }
+  return path.join(__dirname, 'public', url.slice(1));
+}
+
+function buildTenantAssetAudit(req, config, categories) {
+  const homepage = (config && config.homepage) || {};
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const evaluate = (label, assetUrl, driver) => {
+    const localPath = tenantAssetUrlToFilePath(req, assetUrl);
+    const exists = !!(localPath && fs.existsSync(localPath));
+    return { label, url: String(assetUrl || ''), exists, driver };
+  };
+  return {
+    headerBanner: evaluate('Header banner', homepage.heroImage, 'homepage.heroImage + homepage.blockVisibility.hero'),
+    navMenuPlates: safeCategories.map((cat) => evaluate(
+      `Nav/Menu plate: ${resolveTranslatable(cat.name, 'el') || cat.id || cat.slug || 'category'}`,
+      cat.image,
+      'categories[].image + main navigation/category links'
+    )),
+    categoryCards: safeCategories.map((cat) => evaluate(
+      `Category card: ${resolveTranslatable(cat.name, 'el') || cat.id || cat.slug || 'category'}`,
+      cat.image,
+      'categories[].image rendered by eukolakis category tiles'
+    )),
+    introAssets: [
+      evaluate('Intro logo', config.logoPath, 'config.logoPath + homepage.introEnabled'),
+      evaluate('Intro video', homepage.introVideoUrl, 'homepage.introMode=video + homepage.introVideoUrl'),
+      evaluate('Intro poster', homepage.introPosterUrl, 'homepage.introMode=video + homepage.introPosterUrl')
+    ]
+  };
 }
 
 function hasExportAccess(req) {
@@ -2055,6 +2110,7 @@ function buildAdminViewModel(req, extra) {
   }));
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
+  const assetAudit = buildTenantAssetAudit(req, config, categories);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
   const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
   const contentLang = CONTENT_LANGS.includes(qContentLang)
@@ -2116,6 +2172,7 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     unresolvedOrdersCount,
+    assetAudit,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
     exportAccess: hasExportAccess(req),
@@ -2258,13 +2315,15 @@ app.get('/', (req, res) => {
     const viewLang = req.lang;
     const localizedConfig = localizeConfigContent(config, viewLang);
     const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
+    const storefrontAssetAudit = buildTenantAssetAudit(req, config, categories);
     res.render('index', {
       config: localizedConfig,
       categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
       products: products.map((p) => localizeProductContent(p, viewLang)),
       allProducts: localizedAllProducts,
       activeCategory: catSlug || null,
-      tenant: req.tenant
+      tenant: req.tenant,
+      storefrontAssetAudit
     });
   } catch (err) {
     console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
@@ -5254,20 +5313,20 @@ app.post('/root/tenants/create', async (req, res) => {
   const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
 
   const cleanRefCode = (refCode || '').trim();
-  const primaryDomainClean = String(primaryDomain || domain || '').trim().toLowerCase();
-  const domainsArray = String(domains || '')
-    .split(',')
-    .map((d) => normalizeHost(d))
-    .filter(Boolean);
-  if (primaryDomainClean && !domainsArray.includes(primaryDomainClean)) domainsArray.unshift(primaryDomainClean);
-  const previewSubdomainClean = String(previewSubdomain || cleanId).trim().toLowerCase();
+  const normalizedDomains = normalizeTenantDomainInputs({
+    domain,
+    primaryDomain,
+    domains,
+    previewSubdomain,
+    fallbackPreviewSubdomain: cleanId
+  });
   const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
   const newTenant = {
     id: cleanId,
-    domain: (domain || '').trim(),
-    primaryDomain: primaryDomainClean || '',
-    domains: domainsArray,
-    previewSubdomain: previewSubdomainClean,
+    domain: normalizedDomains.domain,
+    primaryDomain: normalizedDomains.primaryDomain,
+    domains: normalizedDomains.domains,
+    previewSubdomain: normalizedDomains.previewSubdomain,
     domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
     canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
     supportTier: resolvedTier,
@@ -5334,18 +5393,19 @@ app.post('/root/tenants/update', (req, res) => {
       buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
 
-  if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
-  if (primaryDomain !== undefined) tenants[idx].primaryDomain = normalizeHost(primaryDomain || '');
-  if (domains !== undefined) {
-    const parsedDomains = String(domains || '')
-      .split(',')
-      .map((d) => normalizeHost(d))
-      .filter(Boolean);
-    const normalizedPrimary = normalizeHost(tenants[idx].primaryDomain || tenants[idx].domain || '');
-    if (normalizedPrimary && !parsedDomains.includes(normalizedPrimary)) parsedDomains.unshift(normalizedPrimary);
-    tenants[idx].domains = parsedDomains;
+  if (domain !== undefined || primaryDomain !== undefined || domains !== undefined || previewSubdomain !== undefined) {
+    const normalizedDomains = normalizeTenantDomainInputs({
+      domain: domain !== undefined ? domain : tenants[idx].domain,
+      primaryDomain: primaryDomain !== undefined ? primaryDomain : tenants[idx].primaryDomain,
+      domains: domains !== undefined ? domains : (Array.isArray(tenants[idx].domains) ? tenants[idx].domains.join(',') : ''),
+      previewSubdomain: previewSubdomain !== undefined ? previewSubdomain : tenants[idx].previewSubdomain,
+      fallbackPreviewSubdomain: tenants[idx].id
+    });
+    tenants[idx].domain = normalizedDomains.domain;
+    tenants[idx].primaryDomain = normalizedDomains.primaryDomain;
+    tenants[idx].domains = normalizedDomains.domains;
+    tenants[idx].previewSubdomain = normalizedDomains.previewSubdomain;
   }
-  if (previewSubdomain !== undefined) tenants[idx].previewSubdomain = String(previewSubdomain || '').trim().toLowerCase();
   if (domainStatus !== undefined) {
     const normalizedStatus = String(domainStatus || '').trim();
     const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
