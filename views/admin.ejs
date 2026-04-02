@@ -725,6 +725,12 @@
           </p>
           <% } %>
         </section>
+        <% if (rawConfig.theme && rawConfig.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p style="margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;font-size:.78rem;color:#1e3a8a;">
+          ℹ️ Στο preset <strong>Eukolakis Classic</strong>, η εμφάνιση Header/Nav/Categories καθορίζεται κυρίως από το preset CSS.
+          Τα πεδία logo/banner/homepage εφαρμόζονται μόνο όπου αναφέρεται στο storefront και στο intro.
+        </p>
+        <% } %>
         <% } %>
 
         <h3 class="settings-section-heading">Hero Banner</h3>
