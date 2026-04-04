@@ -420,7 +420,7 @@
   </head>
   <body class="<%= (config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
-    <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
@@ -432,7 +432,7 @@
     <% const headerBrandAssetSrc = (productHeaderBannerAudit && productHeaderBannerAudit.exists && productHeaderBannerAudit.url) ? productHeaderBannerAudit.url : (config.logoPath || ''); %>
     <% const navMenuPlateAudit = Array.isArray(productAssetAudit.navMenuPlates) ? productAssetAudit.navMenuPlates : []; %>
     <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
-    <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
+    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
         <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
           <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
@@ -705,7 +705,7 @@
       const KIT_OPTIONS = <%- JSON.stringify(Array.isArray(product.kitOptions) ? product.kitOptions : []) %>;
       const KIT_PAY_MODE = <%- JSON.stringify(product.kitPayMode || 'bundle') %>;
       const HAS_DIGITAL = <%= product.hasDigitalContent ? 'true' : 'false' %>;
-      const IS_EUKOLAKIS_CLASSIC = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      const IS_EUKOLAKIS_CLASSIC = <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
       const HOME_WIZARD_URL = '<%= withTenantLink('/', Object.assign({ wizard: product.id }, lang !== 'el' ? { lang } : {})) %>';
       const BASE_MANUAL  = '<%= product.manualUrl ? '1' : '' %>';
       const BASE_VIDEO   = '<%- (product.videoUrl || '').replace(/'/g, "\\'") %>';

@@ -910,7 +910,7 @@
       }
     </style>
   </head>
-  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const assetAudit = storefrontAssetAudit || {}; %>
@@ -923,7 +923,7 @@
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
     <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
     <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
-    <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
     <% const useCodeTabs = isEukolakisClassic && String(theme.categoryMenuStyle || '').trim().toLowerCase() === 'code_tabs'; %>
     <% const hideMenuForHeroFocus = false; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
@@ -946,7 +946,7 @@
     <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
     <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
     <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
-    <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
+    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
@@ -1034,7 +1034,7 @@
       <% } %>
       </div>
       <% } %>
-      <% if (tenant.id === 'eukolakis') { %>
+      <% if (isEukolakisClassic) { %>
       <div class="pill-nav <%= isEukolakisClassic && activeCategory ? 'compact' : '' %>">
         <% if (isEukolakisClassic) { %>
           <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
@@ -1088,11 +1088,11 @@
       <% const heroPrimaryProduct = featuredPrimaryProducts[0] || featuredHomeProducts[0]; %>
       <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
       <% const secondaryCard = homepage.secondaryCard || {}; %>
-      <% const isEukolakisLanding = tenant.id === 'eukolakis' && !activeCategory; %>
+      <% const isEukolakisLanding = isEukolakisClassic && !activeCategory; %>
       <% const activeCategoryObj = categories.find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
       <% const spareCategory = categories.find(function(c){ return c.slug === 'spare-parts' || c.id === 'spare-parts'; }); %>
       <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
-      <% const secondaryCardHref = tenant.id === 'eukolakis' ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
+      <% const secondaryCardHref = isEukolakisClassic ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
       <%/* ── Eukolaki Classic industrial hero banner — visibility controlled solely by homeBlockVisibility.hero ── */%>
       <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false) { %>
@@ -1153,7 +1153,7 @@
       </section>
       <% } %>
 
-      <% if (!isEukolakisClassic && tenant.id === 'eukolakis' && !activeCategory) { %>
+      <% if (false) { %>
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
           <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
@@ -1189,7 +1189,7 @@
       <%/* Standard hero: hidden for eukolakis-classic (uses eko-hero instead) */%>
       <% if (!isEukolakisClassic && homeBlockVisibility.hero !== false && (!config.theme || config.theme.bannerVisible !== false)) { %>
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
-        <% if (homepage.heroImage && tenant.id === 'eukolakis' && (!headerBannerAudit || headerBannerAudit.exists)) { %>
+        <% if (homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists)) { %>
           <div style="margin-bottom:14px;">
             <% if (heroPrimaryProduct) { %>
               <a href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>" data-exposure-link style="display:block;">
@@ -1200,14 +1200,14 @@
             <% } %>
           </div>
         <% } %>
-        <% if (tenant.id === 'eukolakis' && !isEukolakisClassic) { %>
+        <% if (false) { %>
           <h2 class="hero-title"><%= (dynamicHeroEntry && dynamicHeroEntry.title) || resolveField(homepage.heroTitle, lang) || config.storeName %></h2>
           <% const resolvedHeroSubtitle = (dynamicHeroEntry && dynamicHeroEntry.subtitle) || resolveField(homepage.heroSubtitle, lang); %>
           <% if (resolvedHeroSubtitle) { %><p style="margin:0;color:inherit;opacity:.92;"><%= resolvedHeroSubtitle %></p><% } %>
         <% } else { %>
         <% if (config.heroText) { %><p><%= config.heroText %></p><% } %>
         <% } %>
-        <% if (tenant.id === 'eukolakis') { %>
+        <% if (isEukolakisClassic) { %>
           <div class="hero-actions">
             <% if (isEukolakisClassic && topPrimaryKit1) { %>
             <a
@@ -1310,7 +1310,7 @@
       <% } %>
       <% } %>
 
-      <% if (!(tenant.id === 'eukolakis' && !activeCategory && featuredHomeProducts.length)) { %>
+      <% if (!(isEukolakisClassic && !activeCategory && featuredHomeProducts.length)) { %>
       <%# ── Featured products ── %>
       <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
       <% if (featuredProducts.length > 0) { %>
@@ -1359,7 +1359,7 @@
       </div>
       <% } %>
 
-      <% if (tenant.id === 'eukolakis' && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
+      <% if (isEukolakisClassic && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
       <section class="home-secondary">
         <h3 style="margin-top:0;"><%= featuredSecondary.name %></h3>
         <p><%= featuredSecondary.description || '' %></p>
@@ -1367,7 +1367,7 @@
       </section>
       <% } %>
     </main>
-    <% if (tenant.id === 'eukolakis') { %>
+    <% if (isEukolakisClassic) { %>
     <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" data-wizard-display="<%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') %>" aria-hidden="true">
       <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Οδηγός kit' : 'Kit wizard' %>">
         <div class="kit-wizard-head">
@@ -1477,7 +1477,7 @@
           mainNav.classList.toggle("open");
         });
       }
-      const isEukolakis = <%= tenant.id === 'eukolakis' ? 'true' : 'false' %>;
+      const isEukolakis = <%= isEukolakisClassic ? 'true' : 'false' %>;
       const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
       const productPreOpenEffect = <%- safeJson((config.theme && config.theme.productPreOpenEffect) || 'none') %>;
       if (isEukolakis && isDesktopDevice && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %>) {
