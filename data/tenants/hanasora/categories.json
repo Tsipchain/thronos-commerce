@@ -1,6 +1,0 @@
-[
-  { "id": "fountains", "name": { "el": "Σιντριβάνια", "en": "Fountains" }, "slug": "fountains", "showInMainNav": true, "navOrder": 1, "image": "" },
-  { "id": "flowers", "name": { "el": "Λουλούδια & Συνθέσεις", "en": "Flowers & Arrangements" }, "slug": "flowers", "showInMainNav": true, "navOrder": 2, "image": "" },
-  { "id": "cherry-blossom", "name": { "el": "Cherry Blossom Decor", "en": "Cherry Blossom Decor" }, "slug": "cherry-blossom", "showInMainNav": true, "navOrder": 3, "image": "" },
-  { "id": "home-aesthetics", "name": { "el": "Home Aesthetics", "en": "Home Aesthetics" }, "slug": "home-aesthetics", "showInMainNav": true, "navOrder": 4, "image": "" }
-]

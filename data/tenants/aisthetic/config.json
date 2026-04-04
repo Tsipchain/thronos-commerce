@@ -1,22 +1,22 @@
 {
   "storeName": {
-    "el": "Hanasora Living",
-    "en": "Hanasora Living"
+    "el": "Aisthetic Stores",
+    "en": "Aisthetic Stores"
   },
-  "primaryColor": "#2f5d50",
-  "accentColor": "#f4a6b7",
+  "primaryColor": "#36534d",
+  "accentColor": "#e8a1b5",
   "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   "heroText": {
-    "el": "Διακόσμηση σπιτιού με ανθισμένες λεπτομέρειες, νερά και φυσική ηρεμία.",
-    "en": "Home decor with floral details, fountains and calm aesthetics."
+    "el": "Διακόσμηση χώρου με floral λεπτομέρειες, συντριβάνια και seasonal προτάσεις.",
+    "en": "Living decor with floral details, fountains and seasonal picks."
   },
   "heroTitle": {
-    "el": "Home living συλλογή για ήρεμους χώρους",
-    "en": "Home living collection for calm spaces"
+    "el": "Home aesthetics για καθημερινή ηρεμία",
+    "en": "Home aesthetics for everyday calm"
   },
   "heroSubtitle": {
-    "el": "Επιλεγμένα decor items για σαλόνι, κήπο και cozy corners.",
-    "en": "Curated decor items for living room, garden and cozy corners."
+    "el": "Διάλεξε διακοσμητικά, λουλούδια και δώρα για όμορφες γωνιές στο σπίτι.",
+    "en": "Discover decor, floral pieces and gift ideas for beautiful home corners."
   },
   "web3Domain": "",
   "logoPath": "",
@@ -31,9 +31,9 @@
   ],
   "theme": {
     "presetId": "core_default",
-    "menuBg": "#2f5d50",
+    "menuBg": "#36534d",
     "menuText": "#ffffff",
-    "menuActiveBg": "#f4a6b7",
+    "menuActiveBg": "#e8a1b5",
     "menuActiveText": "#1f2937",
     "buttonRadius": "8px",
     "headerLayout": "default",
@@ -72,12 +72,12 @@
     "featuredIds": [],
     "secondaryCard": {
       "title": {
-        "el": "Ανοιξιάτικες πινελιές",
-        "en": "Spring touches"
+        "el": "Seasonal living ideas",
+        "en": "Seasonal living ideas"
       },
       "text": {
-        "el": "Διακριτικά χρώματα και floral προτάσεις για καθημερινό χώρο.",
-        "en": "Soft colors and floral accents for everyday living spaces."
+        "el": "Δες προτάσεις για άνοιξη, γιορτές και cozy home στιγμές.",
+        "en": "Browse spring, festive and cozy living inspirations."
       },
       "link": "",
       "image": ""

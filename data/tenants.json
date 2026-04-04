@@ -41,13 +41,13 @@
     ]
   },
   {
-    "id": "hanasora",
-    "domain": "hanasora-living.gr",
-    "primaryDomain": "hanasora-living.gr",
+    "id": "aisthetic",
+    "domain": "aisthetic-stores.gr",
+    "primaryDomain": "aisthetic-stores.gr",
     "domains": [
-      "www.hanasora-living.gr"
+      "www.aisthetic-stores.gr"
     ],
-    "previewSubdomain": "hanasora",
+    "previewSubdomain": "aisthetic",
     "domainStatus": "pending_dns",
     "canonicalToWww": false,
     "supportTier": "MANAGEMENT_START",

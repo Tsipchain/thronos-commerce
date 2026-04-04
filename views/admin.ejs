@@ -318,6 +318,7 @@
       <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
+        <p class="settings-info-note">Quick start για νέο merchant: <strong>1)</strong> ανέβασε logo, <strong>2)</strong> βάλε hero κείμενο/εικόνα στην Homepage, <strong>3)</strong> ανέβασε category εικόνες, <strong>4)</strong> πρόσθεσε πρώτα προϊόντα.</p>
         <label><span>Ενεργό Theme</span>
           <select name="themePresetId" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <% (allowedThemes || []).forEach(function(themeMeta) { %>
