@@ -38,9 +38,9 @@
     "buttonRadius": "8px",
     "headerLayout": "default",
     "heroStyle": "soft",
-    "categoryMenuStyle": "image_label",
+    "categoryMenuStyle": "text",
     "cardStyle": "soft",
-    "sectionSpacing": "normal",
+    "sectionSpacing": "relaxed",
     "bannerVisible": true,
     "previewBadgeStyle": "soft",
     "cursorEffect": false,
@@ -90,14 +90,14 @@
     "introPosterUrl": "",
     "blockOrder": [
       "hero",
-      "kits",
       "spare",
+      "kits",
       "subscriptions"
     ],
     "blockVisibility": {
       "hero": true,
-      "kits": true,
-      "spare": true,
+      "kits": false,
+      "spare": false,
       "subscriptions": false
     },
     "blockContent": {
