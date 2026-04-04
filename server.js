@@ -2494,9 +2494,15 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
       selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
     }))
     .slice(0, 120);
-  req.session.checkoutCartSnapshot = snapshot;
+  const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+  if (!req.session.checkoutCartSnapshotByTenant || typeof req.session.checkoutCartSnapshotByTenant !== 'object') {
+    req.session.checkoutCartSnapshotByTenant = {};
+  }
+  if (tenantId) {
+    req.session.checkoutCartSnapshotByTenant[tenantId] = snapshot;
+  }
   console.log('[checkout] cart-snapshot:save', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
+    tenantId,
     count: snapshot.length
   }));
   return res.json({ ok: true, count: snapshot.length });
@@ -2521,10 +2527,15 @@ app.post('/checkout', async (req, res) => {
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
-  if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
-    cartItems = req.session.checkoutCartSnapshot.slice();
+  const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+  const snapshotByTenant = (req.session && req.session.checkoutCartSnapshotByTenant && typeof req.session.checkoutCartSnapshotByTenant === 'object')
+    ? req.session.checkoutCartSnapshotByTenant
+    : {};
+  const tenantSnapshot = tenantId && Array.isArray(snapshotByTenant[tenantId]) ? snapshotByTenant[tenantId] : [];
+  if ((!Array.isArray(cartItems) || !cartItems.length) && tenantSnapshot.length) {
+    cartItems = tenantSnapshot.slice();
     console.log('[checkout] submit:session-fallback', JSON.stringify({
-      tenantId: req.tenant && req.tenant.id,
+      tenantId,
       count: cartItems.length
     }));
   }
@@ -3023,9 +3034,15 @@ app.get('/checkout/complete', (req, res) => {
     return p && p.hasDigitalContent;
   });
   if (req.session) {
-    req.session.checkoutCartSnapshot = [];
+    const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+    if (!req.session.checkoutCartSnapshotByTenant || typeof req.session.checkoutCartSnapshotByTenant !== 'object') {
+      req.session.checkoutCartSnapshotByTenant = {};
+    }
+    if (tenantId) {
+      req.session.checkoutCartSnapshotByTenant[tenantId] = [];
+    }
     console.log('[checkout] complete:cart-clear', JSON.stringify({
-      tenantId: req.tenant && req.tenant.id,
+      tenantId,
       orderId: order.id
     }));
   }
