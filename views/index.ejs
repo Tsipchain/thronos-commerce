@@ -264,8 +264,8 @@
       body.eukolakis-classic .header-main-row {
         justify-content: space-between !important;
         align-items: center !important;
-        padding: 12px 20px;
-        min-height: 72px;
+        padding: 10px 20px 12px;
+        min-height: 96px;
         max-width: 1180px;
         margin: 0 auto;
         width: 100%;
@@ -277,8 +277,40 @@
         justify-content: flex-start !important;
         text-align: left !important;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
         flex-shrink: 0;
+      }
+      body.eukolakis-classic .eko-brand-banner {
+        position: relative;
+        min-width: min(540px, 64vw);
+        border-radius: 12px;
+        padding: 10px 14px;
+        border: 1px solid rgba(196,144,46,.42);
+        background: linear-gradient(145deg, rgba(17,24,39,.88) 0%, rgba(12,16,24,.95) 100%);
+        box-shadow: 0 10px 28px rgba(0,0,0,.42), 0 0 0 1px rgba(196,144,46,.12) inset;
+      }
+      body.eukolakis-classic .eko-brand-banner::after {
+        content: '';
+        position: absolute; inset: 0;
+        border-radius: 12px;
+        background: linear-gradient(90deg, transparent, rgba(196,144,46,.08), transparent);
+        pointer-events: none;
+      }
+      body.eukolakis-classic .eko-brand-banner img {
+        width: 100%;
+        max-height: 62px;
+        object-fit: contain;
+        object-position: left center;
+        display: block;
+        filter: drop-shadow(0 8px 10px rgba(0,0,0,.35));
+      }
+      body.eukolakis-classic .eko-brand-caption {
+        margin-top: 4px;
+        font-size: .62rem;
+        font-weight: 800;
+        letter-spacing: .18em;
+        color: rgba(196,144,46,.86);
+        text-transform: uppercase;
       }
       /* Remove the white frame around logo */
       body.eukolakis-classic .logo-frame {
@@ -286,6 +318,7 @@
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
+        display: none !important;
       }
       body.eukolakis-classic .logo-image-dynamic {
         /* max-height is set by inline style from admin config (80–120px range) */
@@ -294,7 +327,7 @@
         width: auto;
       }
       body.eukolakis-classic .store-name-wrap h1 {
-        font-size: 1.05rem !important;
+        font-size: .9rem !important;
         font-weight: 800;
         letter-spacing: .04em;
         text-transform: uppercase;
@@ -307,9 +340,9 @@
         flex-shrink: 0;
       }
       body.eukolakis-classic .header-auth-actions a.button {
-        font-size: .8rem !important;
-        padding: 7px 15px !important;
-        border-radius: 7px !important;
+        font-size: .76rem !important;
+        padding: 8px 14px !important;
+        border-radius: 9px !important;
         font-weight: 700 !important;
         text-decoration: none !important;
         line-height: 1 !important;
@@ -355,22 +388,36 @@
       }
       body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row ul li a {
-        display: flex; align-items: center;
-        padding: 0 22px; height: 44px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 16px; height: 48px;
         color: var(--eko-text-muted);
         text-decoration: none; font-size: .82rem; font-weight: 600;
         letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
         border-bottom: 2px solid transparent;
-        transition: color .14s, border-color .14s, background .14s;
+        transition: color .14s, border-color .14s, background .14s, box-shadow .14s;
+        border-left: 1px solid rgba(196,144,46,.14);
+      }
+      body.eukolakis-classic .eko-nav-plate-thumb {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        object-fit: cover; border: 1px solid rgba(196,144,46,.26);
+        background: linear-gradient(135deg, #1b2233 0%, #121722 100%);
+      }
+      body.eukolakis-classic .eko-nav-plate-fallback {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        border: 1px solid rgba(196,144,46,.26); background: rgba(196,144,46,.08);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .56rem; letter-spacing: .06em; color: var(--eko-accent); font-weight: 800;
       }
       body.eukolakis-classic .header-nav-row ul li a:hover {
         color: var(--eko-accent);
-        background: rgba(196,144,46,.06);
+        background: linear-gradient(180deg, rgba(196,144,46,.12), rgba(196,144,46,.04));
+        box-shadow: inset 0 0 0 1px rgba(196,144,46,.18);
       }
       body.eukolakis-classic .header-nav-row ul li.active a {
         color: var(--eko-accent);
         border-bottom-color: var(--eko-accent);
-        background: rgba(196,144,46,.08);
+        background: linear-gradient(180deg, rgba(196,144,46,.18), rgba(196,144,46,.06));
+        box-shadow: inset 0 0 0 1px rgba(196,144,46,.28), 0 6px 20px rgba(0,0,0,.25);
       }
       body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
       body.eukolakis-classic .menu-toggle { display: none; }
@@ -536,7 +583,7 @@
       }
       .eko-cat-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 14px;
       }
       .eko-cat-tile {
@@ -545,7 +592,7 @@
         border: 1px solid var(--eko-border);
         border-top: 2px solid rgba(196,144,46,.28);
         background: linear-gradient(165deg, #181d2c 0%, #141820 60%, #10131b 100%);
-        min-height: 162px;
+        min-height: 176px;
         transition: border-color .16s, box-shadow .16s, transform .18s;
       }
       .eko-cat-tile:hover {
@@ -555,9 +602,10 @@
         transform: translateY(-4px);
       }
       .eko-cat-tile-img {
-        width: 100%; height: 112px; object-fit: cover;
+        width: 100%; height: 124px; object-fit: contain;
         display: block; flex-shrink: 0;
         transition: transform .22s;
+        background: radial-gradient(circle at 20% 20%, rgba(255,255,255,.06), rgba(255,255,255,0) 48%);
       }
       .eko-cat-tile:hover .eko-cat-tile-img { transform: scale(1.04); }
       .eko-cat-tile-img-placeholder {
@@ -817,15 +865,15 @@
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
       }
       @media (max-width: 600px) {
-        /* Keep 3 columns — with 3 categories a 2-col layout leaves an orphan row */
-        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
         body.eukolakis-classic .eko-cat-tile-img,
         body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 62px; }
         body.eukolakis-classic .eko-cat-tile-name { font-size: .76rem; }
         body.eukolakis-classic .eko-cat-tile-body { padding: 7px 8px 9px; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
-        body.eukolakis-classic .header-main-row { padding: 8px 14px; }
+        body.eukolakis-classic .header-main-row { padding: 8px 12px; min-height: 84px; }
+        body.eukolakis-classic .eko-brand-banner { min-width: 100%; }
         body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
         body.eukolakis-classic main { padding: 14px 12px 36px; }
       }
@@ -865,12 +913,18 @@
   <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
+    <% const assetAudit = storefrontAssetAudit || {}; %>
+    <% const headerBannerAudit = assetAudit.headerBanner || null; %>
+    <% const headerBrandAssetSrc = (headerBannerAudit && headerBannerAudit.exists && headerBannerAudit.url) ? headerBannerAudit.url : (config.logoPath || ''); %>
+    <% const navMenuPlateAudit = Array.isArray(assetAudit.navMenuPlates) ? assetAudit.navMenuPlates : []; %>
+    <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
     <% const homeBlockVisibility = Object.assign({ hero: true, kits: true, spare: true, subscriptions: true }, (homepage && homepage.blockVisibility) || {}); %>
     <% const homeBlockContent = Object.assign({ kitsTitle: '', spareTitle: '', subscriptionsTitle: '' }, (homepage && homepage.blockContent) || {}); %>
     <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
     <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
     <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
     <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const useCodeTabs = isEukolakisClassic && String(theme.categoryMenuStyle || '').trim().toLowerCase() === 'code_tabs'; %>
     <% const hideMenuForHeroFocus = false; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
@@ -895,7 +949,12 @@
     <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
-        <% if (config.logoPath && brandingMode !== 'name_only') { %>
+        <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
+          <div class="eko-brand-banner">
+            <img src="<%= headerBrandAssetSrc %>" alt="<%= config.storeName %>" />
+            <div class="eko-brand-caption"><%= lang === 'el' ? 'Industrial Systems' : 'Industrial Systems' %></div>
+          </div>
+        <% } else if (config.logoPath && brandingMode !== 'name_only') { %>
           <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= logoPadding %>px;border-radius:<%= logoRadius %>px;box-shadow:<%= logoBoxShadow %>;--logo-max-height-desktop:<%= logoMaxHeight %>px;--logo-max-height-mobile:<%= logoMobileHeight %>px;">
             <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
           </span>
@@ -938,7 +997,18 @@
             <% if (!isEukolakisClassic && theme.categoryMenuStyle && theme.categoryMenuStyle !== 'text') { return; } %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-                <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" /><% } %><%= cat.name %>
+                <% if (isEukolakisClassic && !useCodeTabs) { %>
+                  <% if (cat.image && navPlateExistsByUrl[cat.image]) { %>
+                    <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy" />
+                  <% } else { %>
+                    <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
+                  <% } %>
+                <% } else if (isEukolakisClassic && useCodeTabs) { %>
+                  <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
+                <% } else if (cat.image) { %>
+                  <img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" />
+                <% } %>
+                <%= cat.name %>
               </a>
             </li>
           <% }); %>
@@ -977,7 +1047,7 @@
           <% const navHomepage = config.homepage || {}; %>
           <% navCategories.forEach(function(cat){ %>
             <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-              <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+              <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
               <span><%= cat.name %></span>
             </a>
           <% }) %>
@@ -1029,7 +1099,8 @@
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
-        <% if (homepage.heroImage) { %>
+        <% const hasRealHeroImage = homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists); %>
+        <% if (hasRealHeroImage) { %>
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
           <div class="eko-hero-overlay">
         <% } else { %>
@@ -1058,7 +1129,8 @@
         <div class="eko-cat-grid">
           <% navCategories.forEach(function(cat) { %>
           <a class="eko-cat-tile" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image) { %>
+            <% const hasRealCategoryImage = !!(cat.image && navPlateExistsByUrl[cat.image]); %>
+            <% if (hasRealCategoryImage) { %>
               <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy" />
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">
@@ -1085,7 +1157,7 @@
       <section class="category-cards">
         <% navCategories.forEach(function(cat) { %>
           <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
           </a>
         <% }) %>
@@ -1117,7 +1189,7 @@
       <%/* Standard hero: hidden for eukolakis-classic (uses eko-hero instead) */%>
       <% if (!isEukolakisClassic && homeBlockVisibility.hero !== false && (!config.theme || config.theme.bannerVisible !== false)) { %>
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
-        <% if (homepage.heroImage && tenant.id === 'eukolakis') { %>
+        <% if (homepage.heroImage && tenant.id === 'eukolakis' && (!headerBannerAudit || headerBannerAudit.exists)) { %>
           <div style="margin-bottom:14px;">
             <% if (heroPrimaryProduct) { %>
               <a href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>" data-exposure-link style="display:block;">

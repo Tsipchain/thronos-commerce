@@ -271,17 +271,19 @@
             <label>
               Domain
               <input type="text" name="domain" placeholder="π.χ. myshop.gr" />
-              <span class="hint">Το hostname για tenant resolution</span>
+              <span class="hint">Πραγματικό hostname για tenant resolution (αποθηκεύεται σε lowercase).</span>
             </label>
 
             <label>
               Primary domain
               <input type="text" name="primaryDomain" placeholder="π.χ. myshop.gr" />
+              <span class="hint">Το βασικό domain του tenant (apex ή www).</span>
             </label>
 
             <label>
               Domain aliases
               <input type="text" name="domains" placeholder="myshop.gr,www.myshop.gr" />
+              <span class="hint">Προαιρετικά aliases, χωρισμένα με κόμμα. Μην βάζετε εδώ το Primary domain.</span>
             </label>
 
             <label>
@@ -297,12 +299,14 @@
                 <option value="active">active</option>
                 <option value="failed">failed</option>
               </select>
+              <span class="hint">Χειροκίνητο πεδίο παρακολούθησης (metadata) — δεν κάνει DNS/SSL provisioning.</span>
             </label>
 
             <label class="checkbox-row" style="align-self:end;">
               <input type="hidden" name="canonicalToWww" value="0" />
               <input type="checkbox" name="canonicalToWww" value="1" />
               Canonical redirect to www
+              <span class="hint">Ενεργοποιεί redirect μόνο αν το app ήδη λύνει και τα δύο hosts.</span>
             </label>
 
             <label>
@@ -444,6 +448,7 @@
             <label>
               Domain aliases (comma separated)
               <input type="text" name="domains" id="update-domains" placeholder="eukolaki.gr,www.eukolaki.gr" />
+              <span class="hint">Το σύστημα αφαιρεί κενά, κάνει lowercase, dedupe και αφαιρεί το Primary από aliases.</span>
             </label>
 
             <label>
@@ -459,12 +464,14 @@
                 <option value="active">active</option>
                 <option value="failed">failed</option>
               </select>
+              <span class="hint">Χειροκίνητο metadata για operator tracking (όχι αυτοματισμός hosting).</span>
             </label>
 
             <label class="checkbox-row" style="align-self:end;">
               <input type="hidden" name="canonicalToWww" value="0" />
               <input type="checkbox" id="update-canonical-to-www" name="canonicalToWww" value="1" />
               Canonical redirect to www
+              <span class="hint">Δεν αντικαθιστά DNS/Railway ρυθμίσεις· εφαρμόζεται μόνο όταν και τα δύο hosts χαρτογραφούνται.</span>
             </label>
 
             <label>
