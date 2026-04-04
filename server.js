@@ -3491,6 +3491,23 @@ app.get('/admin/import/variants-template.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/import/categories-template.csv', (req, res) => {
+  const rows = [
+    ['id', 'name', 'slug', 'description', 'image', 'visible', 'showInMainNav', 'navOrder'],
+    ['fountains', 'Διακοσμητικά Συντριβάνια', 'fountains', 'Ήρεμη ατμόσφαιρα με νερό', '', '1', '1', '1'],
+    ['artificial-flowers', 'Τεχνητά Λουλούδια', 'artificial-flowers', 'Floral συνθέσεις για κάθε χώρο', `/tenants/${req.tenant.id}/media/categories/flowers.jpg`, '1', '1', '2']
+  ];
+  const esc = (value) => {
+    const v = String(value || '');
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-categories-template.csv\"`);
+  res.send(csv);
+});
+
 app.get('/admin/export/categories.json', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -3716,6 +3733,140 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
     return res.render('admin', buildAdminViewModel(req, { message: msg, error: 'Failed rows: ' + failRows.slice(0, 12).join(' | ') }));
   }
   return res.render('admin', buildAdminViewModel(req, { message: msg }));
+});
+
+app.post('/admin/import/categories', importUpload.single('file'), async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  if (!req.file) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Δεν ανέβηκε αρχείο CSV.' }));
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  if (ext !== '.csv') return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Υποστηρίζεται μόνο CSV αρχείο.' }));
+
+  const rows = parseCsv(req.file.buffer.toString('utf8')).filter((r) => r.some((c) => String(c || '').trim()));
+  if (rows.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Το CSV δεν έχει γραμμές δεδομένων.' }));
+  const headers = rows[0].map((h) => String(h || '').trim());
+  const idx = (name) => headers.indexOf(name);
+  const hasColumn = (name) => idx(name) >= 0;
+  const get = (cols, name) => {
+    const i = idx(name);
+    return i >= 0 ? String(cols[i] || '').trim() : '';
+  };
+  const parseBool = (raw, fallback = null) => {
+    const v = String(raw || '').trim().toLowerCase();
+    if (!v) return fallback;
+    if (['1', 'true', 'yes', 'on', 'y'].includes(v)) return true;
+    if (['0', 'false', 'no', 'off', 'n'].includes(v)) return false;
+    return fallback;
+  };
+
+  const categories = loadTenantCategories(req);
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const rowIssues = [];
+
+  for (let i = 1; i < rows.length; i += 1) {
+    const cols = rows[i];
+    const rawId = get(cols, 'id');
+    const rawSlug = get(cols, 'slug');
+    const rawName = get(cols, 'name');
+    const rawNameEl = get(cols, 'name_el');
+    const rawNameEn = get(cols, 'name_en');
+    const rawDesc = get(cols, 'description');
+    const rawDescEl = get(cols, 'description_el');
+    const rawDescEn = get(cols, 'description_en');
+    const rawImage = get(cols, 'image');
+    const rawVisible = get(cols, 'visible');
+    const rawShow = get(cols, 'showInMainNav');
+    const rawNavOrder = get(cols, 'navOrder');
+
+    const normalizedId = normalizeSlug(rawId || rawSlug || rawName || rawNameEl || rawNameEn);
+    const normalizedSlug = normalizeSlug(rawSlug || rawId || rawName || rawNameEl || rawNameEn);
+    const nameValue = rawNameEl || rawNameEn
+      ? (rawNameEn ? { el: rawNameEl || rawNameEn, en: rawNameEn } : rawNameEl)
+      : rawName;
+    const descriptionValue = rawDescEl || rawDescEn
+      ? (rawDescEn ? { el: rawDescEl || rawDescEn, en: rawDescEn } : rawDescEl)
+      : rawDesc;
+
+    if (!normalizedId && !normalizedSlug && !nameValue) {
+      skipped += 1;
+      rowIssues.push(`Row ${i + 1}: λείπει id/slug/name.`);
+      continue;
+    }
+
+    const visible = parseBool(rawVisible, null);
+    const showInMainNav = parseBool(rawShow, null);
+    const navOrder = rawNavOrder === '' ? null : Number(rawNavOrder);
+    const normalizedImage = hasColumn('image') ? normalizeMediaPath(rawImage) : '';
+
+    const existingIndex = categories.findIndex((cat) => (
+      (normalizedId && normalizeSlug(cat.id) === normalizedId) ||
+      (normalizedSlug && normalizeSlug(cat.slug) === normalizedSlug)
+    ));
+    const existing = existingIndex >= 0 ? categories[existingIndex] : null;
+    if (!existing && !nameValue) {
+      skipped += 1;
+      rowIssues.push(`Row ${i + 1}: για νέο category απαιτείται name (ή name_el/name_en).`);
+      continue;
+    }
+
+    const candidate = existing ? { ...existing } : {};
+    if (!existing && normalizedId) candidate.id = normalizedId;
+    if (normalizedSlug) candidate.slug = normalizedSlug;
+    if (nameValue) candidate.name = nameValue;
+    if (descriptionValue) candidate.shortDescription = descriptionValue;
+    if (hasColumn('image')) {
+      if (normalizedImage) candidate.image = normalizedImage;
+      else delete candidate.image;
+    }
+    if (showInMainNav !== null) candidate.showInMainNav = showInMainNav;
+    else if (visible !== null) candidate.showInMainNav = visible;
+    if (navOrder !== null) {
+      if (!Number.isFinite(navOrder)) {
+        skipped += 1;
+        rowIssues.push(`Row ${i + 1}: μη έγκυρο navOrder.`);
+        continue;
+      }
+      candidate.navOrder = navOrder;
+    }
+
+    const normalized = normalizeCategoryRecord(candidate, existingIndex >= 0 ? existingIndex : categories.length);
+    if (existing) {
+      normalized.id = existing.id; // keep stable id
+      let slugCandidate = normalized.slug || existing.slug;
+      let suffix = 2;
+      while (categories.some((cat, idxCheck) => idxCheck !== existingIndex && normalizeSlug(cat.slug) === normalizeSlug(slugCandidate))) {
+        slugCandidate = `${normalized.slug || existing.slug}-${suffix++}`;
+      }
+      normalized.slug = slugCandidate;
+      categories[existingIndex] = normalized;
+      updated += 1;
+    } else {
+      let idCandidate = normalized.id;
+      let slugCandidate = normalized.slug;
+      let suffix = 2;
+      while (categories.some((cat) => normalizeSlug(cat.id) === normalizeSlug(idCandidate))) {
+        idCandidate = `${normalized.id}-${suffix++}`;
+      }
+      suffix = 2;
+      while (categories.some((cat) => normalizeSlug(cat.slug) === normalizeSlug(slugCandidate))) {
+        slugCandidate = `${normalized.slug}-${suffix++}`;
+      }
+      categories.push({ ...normalized, id: idCandidate, slug: slugCandidate });
+      created += 1;
+    }
+  }
+
+  saveTenantCategories(req, categories);
+  const message = `Category import: ${created} νέα, ${updated} ενημερώσεις, ${skipped} skipped.`;
+  if (rowIssues.length) {
+    return res.render('admin', buildAdminViewModel(req, {
+      message,
+      error: `Προβλήματα γραμμών: ${rowIssues.slice(0, 20).join(' | ')}`
+    }));
+  }
+  return res.render('admin', buildAdminViewModel(req, { message }));
 });
 
 // Admin orders view

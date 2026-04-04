@@ -1081,6 +1081,23 @@
         </table>
 
         <% if (permissions.canEditCategories) { %>
+        <form method="POST" action="<%= withTenantLink('/admin/import/categories') %>" enctype="multipart/form-data" class="admin-subform">
+          <h3>Μαζικό import κατηγοριών (CSV)</h3>
+          <p class="helper">
+            Χρήσιμες στήλες: <code>id</code>, <code>name</code>, <code>slug</code>, <code>description</code>, <code>image</code>, <code>visible</code>, <code>showInMainNav</code>, <code>navOrder</code>.
+            Μπορείτε επίσης να δώσετε <code>name_el/name_en</code> και <code>description_el/description_en</code>.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv,text/csv" required />
+            <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
+            <button type="submit" class="button">Import categories</button>
+            <a class="button" style="background:#334155;" href="<%= withTenantLink('/admin/import/categories-template.csv') %>">Sample CSV</a>
+          </div>
+          <small class="helper">Το import κάνει create/update με ασφαλή normalisation. Στο αποτέλεσμα θα δείτε πόσα έγιναν create/update/skipped και τυχόν προβλήματα ανά γραμμή.</small>
+        </form>
+        <% } %>
+
+        <% if (permissions.canEditCategories) { %>
         <form method="POST" action="<%= withTenantLink('/admin/categories/add') %>" class="admin-subform">
           <h3><%= t('admin.catAddTitle') %></h3>
           <p class="helper"><%= t('admin.catAddHelper') %></p>
