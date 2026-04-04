@@ -159,8 +159,8 @@
       body.eukolakis-classic .header-main-row {
         justify-content: space-between !important;
         align-items: center !important;
-        padding: 12px 20px;
-        min-height: 72px;
+        padding: 10px 20px 12px;
+        min-height: 96px;
         max-width: 1180px;
         margin: 0 auto;
         width: 100%;
@@ -172,14 +172,30 @@
         justify-content: flex-start !important;
         text-align: left !important;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
         flex-shrink: 0;
+      }
+      body.eukolakis-classic .eko-brand-banner {
+        min-width: min(540px, 64vw);
+        border-radius: 12px;
+        padding: 10px 14px;
+        border: 1px solid rgba(196,144,46,.42);
+        background: linear-gradient(145deg, rgba(17,24,39,.88) 0%, rgba(12,16,24,.95) 100%);
+        box-shadow: 0 10px 28px rgba(0,0,0,.42), 0 0 0 1px rgba(196,144,46,.12) inset;
+      }
+      body.eukolakis-classic .eko-brand-banner img {
+        width: 100%;
+        max-height: 62px;
+        object-fit: contain;
+        object-position: left center;
+        display: block;
       }
       body.eukolakis-classic .logo-frame {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
+        display: none !important;
       }
       body.eukolakis-classic .logo-image-dynamic {
         max-width: 300px;
@@ -240,17 +256,25 @@
       }
       body.eukolakis-classic .header-nav-row .main-nav ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row .main-nav ul li a {
-        display: flex; align-items: center;
-        padding: 0 22px; height: 44px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 16px; height: 48px;
         color: var(--eko-text-muted);
         text-decoration: none; font-size: .82rem; font-weight: 600;
         letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
         border-bottom: 2px solid transparent;
-        transition: color .14s, border-color .14s, background .14s;
+        transition: color .14s, border-color .14s, background .14s, box-shadow .14s;
+        border-left: 1px solid rgba(196,144,46,.14);
       }
       body.eukolakis-classic .header-nav-row .main-nav ul li a:hover {
         color: var(--eko-accent);
-        background: rgba(196,144,46,.06);
+        background: linear-gradient(180deg, rgba(196,144,46,.12), rgba(196,144,46,.04));
+        box-shadow: inset 0 0 0 1px rgba(196,144,46,.18);
+      }
+      body.eukolakis-classic .eko-nav-plate-fallback {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        border: 1px solid rgba(196,144,46,.26); background: rgba(196,144,46,.08);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .56rem; letter-spacing: .06em; color: var(--eko-accent); font-weight: 800;
       }
 
       /* ── Preview banner ── */
@@ -387,7 +411,7 @@
         "name": product.name,
         "description": product.description || product.seoDescription || '',
         "sku": product.sku || '',
-        "image": product.imageUrl || '',
+        "image": (Array.isArray(product.galleryImages) && product.galleryImages.length) ? [product.imageUrl].concat(product.galleryImages).filter(Boolean) : (product.imageUrl || ''),
         "brand": { "@type": "Brand", "name": config.storeName },
         "offers": _offers.length === 1 ? _offers[0] : _offers
       };
@@ -396,17 +420,26 @@
   </head>
   <body class="<%= (config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'eukolakis-classic' : '' %>">
     <% const theme = config.theme || {}; %>
-    <% const isEukolakisClassic = tenant.id === 'eukolakis' && theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
     <% const logoMaxHeight = Math.max(56, Math.min(120, Number(theme.logoMaxHeight || (isEukolakisClassic ? 96 : 64)))); %>
     <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
     <% const navCategories = Array.isArray(categories) ? categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder)||999)-(Number(b.navOrder)||999); }) : []; %>
-    <header class="store-header <%= tenant.id === 'eukolakis' ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
+    <% const productAssetAudit = storefrontAssetAudit || {}; %>
+    <% const productHeaderBannerAudit = productAssetAudit.headerBanner || null; %>
+    <% const headerBrandAssetSrc = (productHeaderBannerAudit && productHeaderBannerAudit.exists && productHeaderBannerAudit.url) ? productHeaderBannerAudit.url : (config.logoPath || ''); %>
+    <% const navMenuPlateAudit = Array.isArray(productAssetAudit.navMenuPlates) ? productAssetAudit.navMenuPlates : []; %>
+    <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
+    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> branding-mode-<%= brandingMode %>">
       <div class="header-main-row">
         <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
-          <% if (config.logoPath && brandingMode !== 'name_only') { %>
+          <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
+            <div class="eko-brand-banner">
+              <img src="<%= headerBrandAssetSrc %>" alt="<%= config.storeName %>" />
+            </div>
+          <% } else if (config.logoPath && brandingMode !== 'name_only') { %>
             <span class="logo-frame <%= logoFrameClass %>" style="padding:<%= Number(theme.logoPadding||6) %>px;border-radius:<%= Number(theme.logoRadius||10) %>px;">
               <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= theme.logoDisplayMode || 'contain' %>" style="max-height:<%= logoMaxHeight %>px;" />
             </span>
@@ -450,7 +483,8 @@
         <nav class="main-nav open">
           <ul>
             <% navCategories.forEach(function(cat) { %>
-              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><%= cat.name %></a></li>
+              <% const catLabel = (typeof cat.name === 'string') ? cat.name : (resolveField(cat.name, lang) || resolveField(cat.name, 'el') || resolveField(cat.name, 'en') || cat.id || cat.slug || 'CAT'); %>
+              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="" style="width:28px;height:20px;border-radius:4px;object-fit:cover;border:1px solid rgba(196,144,46,.26);" /><% } else { %><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><% } %><%= catLabel %></a></li>
             <% }) %>
           </ul>
         </nav>
@@ -466,7 +500,8 @@
       <article class="product-detail">
 
         <%# ── Hero image + lightbox trigger ── %>
-        <% const allImgs = [product.imageUrl].concat(Array.isArray(product.gallery) ? product.gallery : []).filter(Boolean); %>
+        <% const rawGallery = Array.isArray(product.galleryImages) ? product.galleryImages : (Array.isArray(product.gallery) ? product.gallery : []); %>
+        <% const allImgs = [product.imageUrl].concat(rawGallery).filter(Boolean).filter(function(url, idx, arr){ return arr.indexOf(url) === idx; }); %>
         <% if (allImgs.length) { %>
           <div class="product-hero-image" onclick="openLightbox('<%= allImgs[0] %>')" id="hero-wrap">
             <img src="<%= allImgs[0] %>" alt="<%= product.name %>" id="hero-img" />
@@ -671,7 +706,7 @@
       const KIT_OPTIONS = <%- JSON.stringify(Array.isArray(product.kitOptions) ? product.kitOptions : []) %>;
       const KIT_PAY_MODE = <%- JSON.stringify(product.kitPayMode || 'bundle') %>;
       const HAS_DIGITAL = <%= product.hasDigitalContent ? 'true' : 'false' %>;
-      const IS_EUKOLAKIS_CLASSIC = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      const IS_EUKOLAKIS_CLASSIC = <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
       const HOME_WIZARD_URL = '<%= withTenantLink('/', Object.assign({ wizard: product.id }, lang !== 'el' ? { lang } : {})) %>';
       const BASE_MANUAL  = '<%= product.manualUrl ? '1' : '' %>';
       const BASE_VIDEO   = '<%- (product.videoUrl || '').replace(/'/g, "\\'") %>';
