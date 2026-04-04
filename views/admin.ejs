@@ -311,6 +311,7 @@
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
       <% const isEukolakisClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+      <% const isAistheticTenant = tenant && tenant.id === 'aisthetic'; %>
       <% const supportedGroups = (activeThemeMeta && Array.isArray(activeThemeMeta.supportedSettings)) ? activeThemeMeta.supportedSettings : []; %>
       <% const supportsColors = supportedGroups.includes('colors'); %>
       <% const supportsMenu = supportedGroups.includes('menu'); %>
@@ -319,6 +320,15 @@
         <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
         <p class="settings-info-note">Quick start για νέο merchant: <strong>1)</strong> ανέβασε logo, <strong>2)</strong> βάλε hero κείμενο/εικόνα στην Homepage, <strong>3)</strong> ανέβασε category εικόνες, <strong>4)</strong> πρόσθεσε πρώτα προϊόντα.</p>
+        <% if (isAistheticTenant) { %>
+        <div class="settings-info-note" style="background:#eefdf5;border-color:#bbf7d0;color:#166534;">
+          <strong>Aisthetic Stores – First Session Checklist</strong><br />
+          1) <a href="#tab-theme">Branding</a>: ανέβασε logo.<br />
+          2) <a href="#tab-homepage">Homepage</a>: γράψε τίτλο/κείμενο και ανέβασε hero image.<br />
+          3) <a href="#tab-categories">Categories</a>: ανέβασε εικόνα σε κάθε κατηγορία.<br />
+          4) <a href="#tab-products">Products</a>: πρόσθεσε τα πρώτα προϊόντα και τιμές.
+        </div>
+        <% } %>
         <label><span>Ενεργό Theme</span>
           <select name="themePresetId" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <% (allowedThemes || []).forEach(function(themeMeta) { %>
