@@ -1939,10 +1939,19 @@
           <label class="full"><span><%= t('admin.modalSeoDescription') %></span>
             <input type="text" id="f-seoDescription" placeholder="<%= t('admin.modalSeoDescPlaceholder') %>" />
           </label>
-          <label class="full"><span><%= t('admin.modalGallery') %></span>
-            <textarea id="f-gallery" rows="3" placeholder="<%= t('admin.modalGalleryPlaceholder') %>"></textarea>
+          <div class="full">
+            <span><%= t('admin.modalGallery') %></span>
+            <input type="hidden" id="f-gallery" />
+            <div id="f-gallery-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+              <input type="text" id="f-gallery-new-url" placeholder="/tenants/.../media/product-extra.jpg" style="flex:1;min-width:220px;" />
+              <input type="file" id="f-gallery-new-file" accept="image/*" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
+              <button type="button" class="btn-xs" id="f-gallery-upload-btn">Upload</button>
+              <button type="button" class="btn-xs" id="f-gallery-add-btn">Add image</button>
+            </div>
+            <small id="f-gallery-status" style="color:#64748b;font-size:0.78rem;display:block;margin-top:4px;"></small>
             <small style="color:#888;font-size:0.78rem;"><%= t('admin.modalGalleryHelper') %></small>
-          </label>
+          </div>
           <div class="full">
             <span style="font-size:.86rem;font-weight:600;display:block;margin-bottom:6px;"><%= t('admin.modalSpecs') %></span>
             <small style="color:#888;font-size:.78rem;display:block;margin-bottom:8px;"><%= t('admin.modalSpecsHelper') %></small>
@@ -2148,6 +2157,12 @@
       const fSeoTitle   = document.getElementById('f-seoTitle');
       const fSeoDesc    = document.getElementById('f-seoDescription');
       const fGallery    = document.getElementById('f-gallery');
+      const fGalleryList = document.getElementById('f-gallery-list');
+      const fGalleryNewUrl = document.getElementById('f-gallery-new-url');
+      const fGalleryNewFile = document.getElementById('f-gallery-new-file');
+      const fGalleryAddBtn = document.getElementById('f-gallery-add-btn');
+      const fGalleryUploadBtn = document.getElementById('f-gallery-upload-btn');
+      const fGalleryStatus = document.getElementById('f-gallery-status');
       const mTitle      = document.getElementById('modal-title');
 
       // ── Digital content fields (may be null if tier doesn't support) ──
@@ -2301,6 +2316,76 @@
         return result;
       }
 
+      let galleryImages = [];
+      function setGalleryStatus(message, tone) {
+        if (!fGalleryStatus) return;
+        fGalleryStatus.textContent = message || '';
+        fGalleryStatus.style.color = tone === 'error' ? '#b91c1c' : (tone === 'success' ? '#166534' : '#64748b');
+      }
+      function syncGalleryField() {
+        if (!fGallery) return;
+        fGallery.value = galleryImages.join('\n');
+      }
+      function renderGalleryRows() {
+        if (!fGalleryList) return;
+        if (!galleryImages.length) {
+          fGalleryList.innerHTML = '<small style="color:#64748b;">No extra gallery images yet.</small>';
+          syncGalleryField();
+          return;
+        }
+        fGalleryList.innerHTML = galleryImages.map(function(url, idx) {
+          return '<div style="display:grid;grid-template-columns:46px 1fr auto;gap:8px;align-items:center;border:1px solid #e5e7eb;border-radius:8px;padding:6px;">' +
+            '<img src="' + escHtml(url) + '" alt="" style="width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db;" onerror="this.style.opacity=.35;" />' +
+            '<input type="text" value="' + escHtml(url) + '" onchange="updateGalleryImage(' + idx + ', this.value)" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;" />' +
+            '<div style="display:flex;gap:4px;">' +
+              '<button type="button" class="btn-xs" onclick="moveGalleryImage(' + idx + ', -1)" ' + (idx === 0 ? 'disabled' : '') + '>↑</button>' +
+              '<button type="button" class="btn-xs" onclick="moveGalleryImage(' + idx + ', 1)" ' + (idx === galleryImages.length - 1 ? 'disabled' : '') + '>↓</button>' +
+              '<button type="button" class="btn-xs" style="background:#fee2e2;color:#b91c1c;" onclick="removeGalleryImage(' + idx + ')">Remove</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+        syncGalleryField();
+      }
+      function normalizeGalleryInput(url) {
+        return String(url || '').trim();
+      }
+      window.updateGalleryImage = function(idx, value) {
+        const next = normalizeGalleryInput(value);
+        if (!next) return;
+        galleryImages[idx] = next;
+        galleryImages = galleryImages.filter(function(url, i, arr) { return url && arr.indexOf(url) === i; });
+        renderGalleryRows();
+      };
+      window.moveGalleryImage = function(idx, dir) {
+        const target = idx + dir;
+        if (target < 0 || target >= galleryImages.length) return;
+        const tmp = galleryImages[idx];
+        galleryImages[idx] = galleryImages[target];
+        galleryImages[target] = tmp;
+        renderGalleryRows();
+      };
+      window.removeGalleryImage = function(idx) {
+        galleryImages.splice(idx, 1);
+        renderGalleryRows();
+      };
+      function setGalleryImages(list) {
+        galleryImages = (Array.isArray(list) ? list : [])
+          .map(normalizeGalleryInput)
+          .filter(function(url, idx, arr) { return url && arr.indexOf(url) === idx; });
+        renderGalleryRows();
+      }
+      function addGalleryImage(url) {
+        const clean = normalizeGalleryInput(url);
+        if (!clean) return;
+        if (galleryImages.includes(clean)) {
+          setGalleryStatus('Image already exists in gallery list.', 'error');
+          return;
+        }
+        galleryImages.push(clean);
+        renderGalleryRows();
+        setGalleryStatus('Gallery image added.', 'success');
+      }
+
       function clearDigitalFields() {
         if (fHasDigital)  fHasDigital.checked = false;
         if (fContentDesc) fContentDesc.value  = '';
@@ -2372,6 +2457,29 @@
           fImgStatus.textContent = '✓ Uploaded';
         }
         fImgFile.value = '';
+      }
+
+      async function handleGalleryImageUpload() {
+        const file = fGalleryNewFile && fGalleryNewFile.files && fGalleryNewFile.files[0];
+        if (!file) return;
+        setGalleryStatus('Uploading gallery image...', 'neutral');
+        let result = await uploadProductImage(file, '');
+        if (result.status === 401) {
+          const password = prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!password) {
+            setGalleryStatus('Απαιτείται κωδικός.', 'error');
+            fGalleryNewFile.value = '';
+            return;
+          }
+          result = await uploadProductImage(file, password);
+        }
+        if (!result.body || !result.body.ok) {
+          setGalleryStatus((result.body && result.body.error) || 'Gallery image upload failed.', 'error');
+          fGalleryNewFile.value = '';
+          return;
+        }
+        addGalleryImage(result.body.url || '');
+        fGalleryNewFile.value = '';
       }
 
       function ensureVariantRowId(row) {
@@ -2551,6 +2659,10 @@
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
+        if (fGalleryNewUrl) fGalleryNewUrl.value = '';
+        if (fGalleryNewFile) fGalleryNewFile.value = '';
+        setGalleryStatus('', 'neutral');
+        setGalleryImages([]);
         renderSpecRows([]);
         renderVariantRows([]);
         clearDigitalFields();
@@ -2582,7 +2694,10 @@
         fDescEn.value     = getLocalizedForEdit(p.description, 'en');
         fSeoTitle.value   = p.seoTitle || '';
         fSeoDesc.value    = p.seoDescription || '';
-        fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
+        if (fGalleryNewUrl) fGalleryNewUrl.value = '';
+        if (fGalleryNewFile) fGalleryNewFile.value = '';
+        setGalleryStatus('', 'neutral');
+        setGalleryImages(Array.isArray(p.galleryImages) ? p.galleryImages : (Array.isArray(p.gallery) ? p.gallery : []));
         renderSpecRows(Array.isArray(p.specs) ? p.specs : []);
         renderVariantRows(Array.isArray(p.variants) ? p.variants : []);
         fillDigitalFields(p);
@@ -2603,7 +2718,7 @@
           alert(i18nJs.nameRequired);
           return;
         }
-        const galleryRaw    = fGallery.value.split('\n').map(l => l.trim()).filter(Boolean);
+        const galleryRaw    = galleryImages.slice();
         const specsRows     = readSpecRows();
         const variantRows   = readVariantRows();
         const digitalFields = readDigitalFields();
@@ -2621,6 +2736,7 @@
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
+          galleryImages:  galleryRaw.length  ? galleryRaw  : undefined,
           gallery:        galleryRaw.length  ? galleryRaw  : undefined,
           specs:          specsRows.length   ? specsRows   : undefined,
           variants:       variantRows.length ? variantRows : undefined,
@@ -2662,6 +2778,12 @@
         if (fImg.value.trim()) { fImgPreview.src = fImg.value.trim(); fImgPreview.style.display = 'block'; }
         else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
       });
+      if (fGalleryAddBtn) fGalleryAddBtn.addEventListener('click', function() {
+        if (!fGalleryNewUrl) return;
+        addGalleryImage(fGalleryNewUrl.value);
+        fGalleryNewUrl.value = '';
+      });
+      if (fGalleryUploadBtn) fGalleryUploadBtn.addEventListener('click', handleGalleryImageUpload);
 
       async function uploadQuickPartImage(file, password) {
         const fd = new FormData();

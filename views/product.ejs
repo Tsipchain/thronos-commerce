@@ -411,7 +411,7 @@
         "name": product.name,
         "description": product.description || product.seoDescription || '',
         "sku": product.sku || '',
-        "image": product.imageUrl || '',
+        "image": (Array.isArray(product.galleryImages) && product.galleryImages.length) ? [product.imageUrl].concat(product.galleryImages).filter(Boolean) : (product.imageUrl || ''),
         "brand": { "@type": "Brand", "name": config.storeName },
         "offers": _offers.length === 1 ? _offers[0] : _offers
       };
@@ -500,7 +500,8 @@
       <article class="product-detail">
 
         <%# ── Hero image + lightbox trigger ── %>
-        <% const allImgs = [product.imageUrl].concat(Array.isArray(product.gallery) ? product.gallery : []).filter(Boolean); %>
+        <% const rawGallery = Array.isArray(product.galleryImages) ? product.galleryImages : (Array.isArray(product.gallery) ? product.gallery : []); %>
+        <% const allImgs = [product.imageUrl].concat(rawGallery).filter(Boolean).filter(function(url, idx, arr){ return arr.indexOf(url) === idx; }); %>
         <% if (allImgs.length) { %>
           <div class="product-hero-image" onclick="openLightbox('<%= allImgs[0] %>')" id="hero-wrap">
             <img src="<%= allImgs[0] %>" alt="<%= product.name %>" id="hero-img" />

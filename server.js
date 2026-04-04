@@ -1085,7 +1085,43 @@ function loadTenantConfig(req) {
 }
 
 function loadTenantProducts(req) {
-  return loadJson(req.tenantPaths.products, []);
+  const raw = loadJson(req.tenantPaths.products, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.map((product) => normalizeProductRecord(product));
+}
+
+function normalizeGalleryImages(raw) {
+  const source = Array.isArray(raw)
+    ? raw
+    : String(raw || '')
+      .split(/[,\n]/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+  const seen = new Set();
+  const normalized = [];
+  source.forEach((entry) => {
+    const url = normalizeMediaPath(entry, { allowAbsoluteUrl: true });
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    normalized.push(url);
+  });
+  return normalized;
+}
+
+function normalizeProductRecord(product) {
+  if (!product || typeof product !== 'object') return {};
+  const normalized = { ...product };
+  normalized.imageUrl = normalizeMediaPath(normalized.imageUrl || '', { allowAbsoluteUrl: true });
+  const combinedGallery = []
+    .concat(Array.isArray(normalized.galleryImages) ? normalized.galleryImages : [])
+    .concat(Array.isArray(normalized.gallery) ? normalized.gallery : [])
+    .concat(typeof normalized.galleryImages === 'string' ? [normalized.galleryImages] : [])
+    .concat(typeof normalized.gallery === 'string' ? [normalized.gallery] : []);
+  const galleryImages = normalizeGalleryImages(combinedGallery)
+    .filter((url) => url && url !== normalized.imageUrl);
+  normalized.galleryImages = galleryImages;
+  normalized.gallery = galleryImages; // backward compatibility for existing templates/data
+  return normalized;
 }
 
 function loadTenantCategories(req) {
@@ -1135,8 +1171,9 @@ function saveTenantUsers(req, users) {
 }
 
 function saveTenantProducts(req, products) {
-  saveJson(req.tenantPaths.products, products);
-  backupJsonWithRotation(req, 'products', products);
+  const safeProducts = Array.isArray(products) ? products.map((p) => normalizeProductRecord(p)) : [];
+  saveJson(req.tenantPaths.products, safeProducts);
+  backupJsonWithRotation(req, 'products', safeProducts);
 }
 
 function saveTenantCategories(req, categories) {
@@ -3395,9 +3432,11 @@ app.get('/admin/export/products.csv', (req, res) => {
   const esc = (v) => `"${String(v === undefined ? '' : v).replace(/"/g, '""')}"`;
   const rows = [[
     'id', 'type', 'categoryId', 'name_el', 'name_en', 'sku', 'price', 'stock', 'featured', 'imageUrl',
+    'galleryImages',
     'variantId', 'variantLabel_el', 'variantLabel_en', 'variantSku', 'variantPrice', 'variantStock', 'variantImageUrl'
   ]];
   products.forEach((p) => {
+    const galleryCsv = Array.isArray(p.galleryImages) ? p.galleryImages.join(',') : '';
     const baseRow = [
       p.id || '',
       p.type || 'NORMAL',
@@ -3409,6 +3448,7 @@ app.get('/admin/export/products.csv', (req, res) => {
       p.stock === undefined ? '' : Number(p.stock),
       p.featured ? '1' : '0',
       p.imageUrl || '',
+      galleryCsv,
       '',
       '',
       '',
@@ -3424,6 +3464,7 @@ app.get('/admin/export/products.csv', (req, res) => {
           p.id || '',
           p.type || 'NORMAL',
           p.categoryId || '',
+          '',
           '',
           '',
           '',
@@ -3647,6 +3688,12 @@ app.post('/admin/import/products', importUpload.single('file'), async (req, res)
     if (sku) next.sku = sku;
     const imageUrl = get('imageUrl');
     if (imageUrl) next.imageUrl = imageUrl;
+    if (idx('galleryImages') >= 0) {
+      next.galleryImages = get('galleryImages')
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
     const featuredRaw = get('featured');
     if (featuredRaw) next.featured = ['1', 'true', 'yes'].includes(featuredRaw.toLowerCase());
     if (get('price') !== '') next.price = numberOr(get('price'), Number(next.price) || 0);
@@ -4728,7 +4775,10 @@ app.post('/admin/products', async (req, res) => {
         const desc = (localizedDescription || '').trim();
         p.seoDescription = desc.length > 160 ? desc.slice(0, 157) + '…' : desc || p.seoTitle;
       }
-      if (!Array.isArray(p.gallery)) p.gallery = [];
+      const normalizedProduct = normalizeProductRecord(p);
+      p.imageUrl = normalizedProduct.imageUrl;
+      p.galleryImages = normalizedProduct.galleryImages;
+      p.gallery = normalizedProduct.gallery;
       if (typeof p.active !== 'boolean') p.active = true;
     });
     saveTenantProducts(req, parsed);
