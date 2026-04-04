@@ -39,5 +39,23 @@
       "core_default",
       "eukolakis_classic_diy"
     ]
+  },
+  {
+    "id": "hanasora",
+    "domain": "hanasora-living.gr",
+    "primaryDomain": "hanasora-living.gr",
+    "domains": [
+      "www.hanasora-living.gr"
+    ],
+    "previewSubdomain": "hanasora",
+    "domainStatus": "pending_dns",
+    "canonicalToWww": false,
+    "supportTier": "MANAGEMENT_START",
+    "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
+    "createdAt": "2026-04-04T00:00:00Z",
+    "active": true,
+    "allowedThemeKeys": [
+      "core_default"
+    ]
   }
 ]

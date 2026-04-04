@@ -311,6 +311,10 @@
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
       <% const isEukolakisClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+      <% const supportedGroups = (activeThemeMeta && Array.isArray(activeThemeMeta.supportedSettings)) ? activeThemeMeta.supportedSettings : []; %>
+      <% const supportsColors = supportedGroups.includes('colors'); %>
+      <% const supportsMenu = supportedGroups.includes('menu'); %>
+      <% const supportsCursor = supportedGroups.includes('cursor'); %>
       <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
@@ -353,7 +357,7 @@
           <small class="helper">Αφήστε κενό αν δεν χρησιμοποιείτε Web3 domain. Εμφανίζεται δίπλα στο όνομα καταστήματος.</small>
         </label>
 
-        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία</h3>
+        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία <% if (!supportsColors) { %><small style="color:#ca8a04;font-weight:600;">(περιορισμένη επίδραση στο τρέχον theme)</small><% } %></h3>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερή βιομηχανική παλέτα χρωμάτων. Τα παρακάτω χρώματα δεν εφαρμόζονται στο ενεργό θέμα — μπορείτε να τα αλλάξετε αν αλλάξετε θέμα.</p>
         <% } %>
@@ -428,7 +432,7 @@
         <% } %>
         <p class="settings-info-note">Το favicon (εικόνα στην καρτέλα browser) ανεβαίνει στην ενότητα <a href="#tab-upload">Media</a>.</p>
 
-        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης</h3>
+        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης <% if (!supportsMenu) { %><small style="color:#ca8a04;font-weight:600;">(preset-limited)</small><% } %></h3>
         <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;margin-bottom:10px;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό σκούρο header — αυτά τα χρώματα δεν εφαρμόζονται στο τρέχον θέμα.</p>
@@ -679,7 +683,7 @@
         <label class="checkbox-label">
           <input type="hidden" name="themeCursorEffect" value="0" />
           <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Custom cursor (μόνο desktop, προαιρετικό)</span>
+          <span>Custom cursor (μόνο desktop, προαιρετικό) <% if (!supportsCursor) { %><small style="color:#ca8a04;font-weight:600;">(limited support)</small><% } %></span>
         </label>
         <small class="helper">Αντικαθιστά τον κανονικό κέρσορα με προσαρμοσμένη εικόνα στο desktop. Αφήστε ανενεργό αν δεν χρησιμοποιείτε custom cursor.</small>
         <% if (isEukolakisClassic) { %>

@@ -1,0 +1,130 @@
+{
+  "storeName": {
+    "el": "Hanasora Living",
+    "en": "Hanasora Living"
+  },
+  "primaryColor": "#2f5d50",
+  "accentColor": "#f4a6b7",
+  "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  "heroText": {
+    "el": "Διακόσμηση σπιτιού με ανθισμένες λεπτομέρειες, νερά και φυσική ηρεμία.",
+    "en": "Home decor with floral details, fountains and calm aesthetics."
+  },
+  "heroTitle": {
+    "el": "Home living συλλογή για ήρεμους χώρους",
+    "en": "Home living collection for calm spaces"
+  },
+  "heroSubtitle": {
+    "el": "Επιλεγμένα decor items για σαλόνι, κήπο και cozy corners.",
+    "en": "Curated decor items for living room, garden and cozy corners."
+  },
+  "web3Domain": "",
+  "logoPath": "",
+  "shippingOptions": [],
+  "paymentOptions": [
+    {
+      "id": "COD",
+      "label": "Αντικαταβολή",
+      "type": "COD",
+      "gatewaySurchargePercent": 0
+    }
+  ],
+  "theme": {
+    "presetId": "core_default",
+    "menuBg": "#2f5d50",
+    "menuText": "#ffffff",
+    "menuActiveBg": "#f4a6b7",
+    "menuActiveText": "#1f2937",
+    "buttonRadius": "8px",
+    "headerLayout": "default",
+    "heroStyle": "soft",
+    "categoryMenuStyle": "image_label",
+    "cardStyle": "soft",
+    "sectionSpacing": "normal",
+    "bannerVisible": true,
+    "previewBadgeStyle": "soft",
+    "cursorEffect": false,
+    "cursorImage": "",
+    "brandingMode": "logo_name",
+    "logoDisplayMode": "contain",
+    "logoBgMode": "auto",
+    "logoPadding": 6,
+    "logoRadius": 10,
+    "logoShadow": "soft",
+    "logoMaxHeight": 72,
+    "productThumbAspect": "4:3",
+    "productThumbFit": "cover",
+    "productThumbBg": "#f8fafc",
+    "productCardHoverEffect": "lift",
+    "cardDensity": "normal",
+    "productPreOpenEffect": "none",
+    "footerTextColor": "#6b7280",
+    "kitWizardDisplay": "sequential",
+    "spareToolsCardMode": "prominent",
+    "enableDiyQuickScenario": false,
+    "kitWizardSkipRule": "none",
+    "homeLayoutPreset": "split"
+  },
+  "homepage": {
+    "heroImage": "",
+    "featuredPrimary": [],
+    "featuredSecondaryId": "",
+    "featuredIds": [],
+    "secondaryCard": {
+      "title": {
+        "el": "Ανοιξιάτικες πινελιές",
+        "en": "Spring touches"
+      },
+      "text": {
+        "el": "Διακριτικά χρώματα και floral προτάσεις για καθημερινό χώρο.",
+        "en": "Soft colors and floral accents for everyday living spaces."
+      },
+      "link": "",
+      "image": ""
+    },
+    "showSubscriptionsCard": false,
+    "introEnabled": false,
+    "introMode": "basic",
+    "introTagline": "",
+    "introVideoUrl": "",
+    "introPosterUrl": "",
+    "blockOrder": [
+      "hero",
+      "kits",
+      "spare",
+      "subscriptions"
+    ],
+    "blockVisibility": {
+      "hero": true,
+      "kits": true,
+      "spare": true,
+      "subscriptions": false
+    },
+    "blockContent": {
+      "kitsTitle": "",
+      "spareTitle": "",
+      "subscriptionsTitle": "",
+      "kitsCtaLabel": "",
+      "kitsCtaHref": "",
+      "spareCtaLabel": "",
+      "spareCtaHref": "",
+      "subscriptionsCtaLabel": "",
+      "subscriptionsCtaHref": ""
+    }
+  },
+  "footer": {
+    "contactEmail": "",
+    "pickupAddress": "",
+    "facebookUrl": "",
+    "instagramUrl": "",
+    "tiktokUrl": "",
+    "poweredByEnabled": true,
+    "poweredByText": "Powered by Thronos Commerce ↗",
+    "poweredByUrl": "https://thronoscommerce.thronoschain.org/"
+  },
+  "favicon": {
+    "path": "",
+    "mime": "",
+    "updatedAt": 0
+  }
+}

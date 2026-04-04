@@ -1153,23 +1153,7 @@
       </section>
       <% } %>
 
-      <% if (false) { %>
-      <section class="category-cards">
-        <% navCategories.forEach(function(cat) { %>
-          <a class="category-card <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
-            <div><%= cat.name %></div>
-          </a>
-        <% }) %>
-        <% const hasSubscriptionsCategory = navCategories.some(function(c){ return c.slug === 'subscriptions'; }); %>
-        <% if (subscriptionsEnabled && !hasSubscriptionsCategory) { %>
-          <a class="category-card" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>">
-            <div style="height:60px;display:flex;align-items:center;justify-content:center;background:#111827;color:#fff;border-radius:8px;">▶</div>
-            <div><%= lang === 'el' ? 'Eukolaki Συνδρομές' : 'Eukolaki Subscriptions' %></div>
-          </a>
-        <% } %>
-      </section>
-      <% } else if (!isEukolakisClassic) { %>
+      <% if (!isEukolakisClassic) { %>
       <section class="category-cards">
         <% categories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
@@ -1200,13 +1184,7 @@
             <% } %>
           </div>
         <% } %>
-        <% if (false) { %>
-          <h2 class="hero-title"><%= (dynamicHeroEntry && dynamicHeroEntry.title) || resolveField(homepage.heroTitle, lang) || config.storeName %></h2>
-          <% const resolvedHeroSubtitle = (dynamicHeroEntry && dynamicHeroEntry.subtitle) || resolveField(homepage.heroSubtitle, lang); %>
-          <% if (resolvedHeroSubtitle) { %><p style="margin:0;color:inherit;opacity:.92;"><%= resolvedHeroSubtitle %></p><% } %>
-        <% } else { %>
         <% if (config.heroText) { %><p><%= config.heroText %></p><% } %>
-        <% } %>
         <% if (isEukolakisClassic) { %>
           <div class="hero-actions">
             <% if (isEukolakisClassic && topPrimaryKit1) { %>

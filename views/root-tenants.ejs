@@ -149,6 +149,7 @@
                 <th>Συνδρομή</th>
                 <th>Preview URLs</th>
                 <th>Admin hash</th>
+                <th>Allowed themes</th>
               </tr>
             </thead>
             <tbody>
@@ -194,6 +195,9 @@
                 </td>
                 <td style="font-size:0.74rem;color:#999;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                   <%= t.adminPasswordHash ? t.adminPasswordHash.slice(0, 20) + '…' : '–' %>
+                </td>
+                <td style="font-size:.75rem;">
+                  <code><%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(', ') : 'core_default' %></code>
                 </td>
               </tr>
               <% }) %>
@@ -358,7 +362,7 @@
             <label class="full">
               Allowed theme keys (comma separated)
               <input type="text" name="allowedThemeKeys" value="<%= (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys)) ? themeGovernance.availableThemeKeys.join(',') : '' %>" />
-              <span class="hint">Ο tenant θα μπορεί να επιλέξει μόνο από αυτά τα themes.</span>
+              <span class="hint">Ο tenant θα μπορεί να επιλέξει μόνο από αυτά τα themes (υποσύνολο των global available).</span>
             </label>
 
             <label>
@@ -485,6 +489,7 @@
             <label class="full">
               Allowed theme keys (comma separated)
               <input type="text" name="allowedThemeKeys" id="update-allowed-theme-keys" placeholder="core_default,eukolakis_classic_diy" />
+              <span class="hint">Global available = ό,τι ορίστηκε στο Theme Governance. Tenant allowed = υποσύνολο για τον συγκεκριμένο tenant.</span>
             </label>
 
             <label>
