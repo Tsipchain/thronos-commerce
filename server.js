@@ -177,12 +177,47 @@ function normalizeSlug(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+function normalizeMediaPath(value, options = {}) {
+  const allowAbsoluteUrl = options.allowAbsoluteUrl === true;
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (allowAbsoluteUrl && /^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/')) return raw;
+  return `/${raw.replace(/^\.?\//, '')}`;
+}
+
+function normalizeCategoryRecord(rawCategory, index = 0) {
+  const source = rawCategory && typeof rawCategory === 'object' ? rawCategory : {};
+  const safeId = normalizeSlug(source.id || source.slug || `category-${index + 1}`) || `category-${index + 1}`;
+  const safeSlug = normalizeSlug(source.slug || safeId) || safeId;
+  const fallbackName = safeSlug.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  const normalizedName = source.name && (typeof source.name === 'string' || typeof source.name === 'object')
+    ? source.name
+    : fallbackName;
+  const navVisibilityRaw = source.showInMainNav;
+  const normalizedShowInMainNav = navVisibilityRaw !== undefined
+    ? navVisibilityRaw !== false
+    : (source.visible !== false && source.inMainNav !== false);
+  const rawOrder = source.navOrder !== undefined ? source.navOrder : source.order;
+  const navOrder = Number.isFinite(Number(rawOrder)) ? Number(rawOrder) : index;
+  return {
+    ...source,
+    id: safeId,
+    slug: safeSlug,
+    name: normalizedName,
+    image: normalizeMediaPath(source.image),
+    featured: source.featured === true,
+    showInMainNav: normalizedShowInMainNav,
+    navOrder
+  };
+}
+
 function isUrlSafeSlug(value) {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value || ''));
 }
 
 function isEukolakisClassicPreset(req) {
-  if (!req || !req.tenant || req.tenant.id !== 'eukolakis') return false;
+  if (!req || !req.tenant) return false;
   const config = loadTenantConfig(req);
   const presetId = config && config.theme && config.theme.presetId;
   return presetId === 'eukolakis_classic_diy';
@@ -209,7 +244,7 @@ function hasBodyField(body, key) {
 
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
-  return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
+  return !!(config && config.theme && config.theme.presetId === 'eukolakis_classic_diy');
 }
 
 function localizeConfigContent(config, lang) {
@@ -375,6 +410,24 @@ const REFERRAL_ACCOUNTS_FILE = path.join(DATA_ROOT, 'referral_accounts.json');
 const REFERRAL_EARNINGS_FILE = path.join(DATA_ROOT, 'referral_earnings.json');
 const REFERRAL_LEDGER_FILE   = path.join(DATA_ROOT, 'referral_ledger.json');
 const SETTLEMENT_LEDGER_FILE = path.join(DATA_ROOT, 'settlement_ledger.json');
+const THEME_GOVERNANCE_FILE  = path.join(DATA_ROOT, 'theme-governance.json');
+
+const THEME_CATALOG = Object.freeze({
+  core_default: {
+    key: 'core_default',
+    label: 'Core Default',
+    description: 'General storefront theme for most tenants.',
+    supportedSettings: ['colors', 'menu', 'layout', 'logo', 'productCards', 'homepage', 'cursor']
+  },
+  eukolakis_classic_diy: {
+    key: 'eukolakis_classic_diy',
+    label: 'Eukolakis Classic DIY',
+    description: 'Industrial DIY storefront with specialized hero/nav/product behavior.',
+    supportedSettings: ['logo', 'productCards', 'homepage', 'diy']
+  }
+});
+const DEFAULT_THEME_KEY = 'core_default';
+const DEFAULT_AVAILABLE_THEME_KEYS = Object.freeze([DEFAULT_THEME_KEY, 'eukolakis_classic_diy']);
 
 function loadJson(filePath, fallback) {
   try {
@@ -391,13 +444,51 @@ function saveJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function listThemeCatalog() {
+  return Object.values(THEME_CATALOG);
+}
+
+function normalizeThemeKeys(keys, fallback = [DEFAULT_THEME_KEY]) {
+  const source = Array.isArray(keys) ? keys : [];
+  const normalized = [];
+  source.forEach((value) => {
+    const key = String(value || '').trim();
+    if (!key || !THEME_CATALOG[key]) return;
+    if (!normalized.includes(key)) normalized.push(key);
+  });
+  if (!normalized.length) {
+    const fallbackKeys = Array.isArray(fallback) ? fallback : [DEFAULT_THEME_KEY];
+    fallbackKeys.forEach((value) => {
+      const key = String(value || '').trim();
+      if (THEME_CATALOG[key] && !normalized.includes(key)) normalized.push(key);
+    });
+  }
+  if (!normalized.length) normalized.push(DEFAULT_THEME_KEY);
+  return normalized;
+}
+
+function loadThemeGovernance() {
+  const raw = loadJson(THEME_GOVERNANCE_FILE, {});
+  const availableThemeKeys = normalizeThemeKeys(raw && raw.availableThemeKeys, DEFAULT_AVAILABLE_THEME_KEYS);
+  return { availableThemeKeys };
+}
+
+function saveThemeGovernance(next) {
+  const safe = {
+    availableThemeKeys: normalizeThemeKeys(next && next.availableThemeKeys, DEFAULT_AVAILABLE_THEME_KEYS)
+  };
+  saveJson(THEME_GOVERNANCE_FILE, safe);
+}
+
 function loadTenantsRegistry() {
   const tenants = loadJson(TENANTS_REGISTRY, []);
   if (!Array.isArray(tenants)) return [];
+  const governance = loadThemeGovernance();
   return tenants.map((tenant) => {
     const hosting = tenant && tenant.hosting && typeof tenant.hosting === 'object' ? tenant.hosting : {};
     return {
       ...tenant,
+      allowedThemeKeys: normalizeThemeKeys(tenant && tenant.allowedThemeKeys, governance.availableThemeKeys),
       hosting: {
         domainStatus: hosting.domainStatus || tenant.domainStatus || 'pending_dns',
         sslStatus: hosting.sslStatus || 'pending',
@@ -417,6 +508,37 @@ function loadTenantsRegistry() {
 
 function saveTenantsRegistry(tenants) {
   saveJson(TENANTS_REGISTRY, tenants);
+}
+
+function normalizeTenantDomainInputs({ domain, primaryDomain, domains, previewSubdomain, fallbackPreviewSubdomain }) {
+  const normalizedDomain = normalizeHost(domain || '');
+  const normalizedPrimary = normalizeHost(primaryDomain || normalizedDomain);
+  const parsedAliases = String(domains || '')
+    .split(',')
+    .map((value) => normalizeHost(value))
+    .filter(Boolean);
+  const dedupedAliases = [...new Set(parsedAliases)].filter((alias) => alias !== normalizedPrimary);
+  const preview = String(previewSubdomain || fallbackPreviewSubdomain || '').trim().toLowerCase();
+  return {
+    domain: normalizedDomain,
+    primaryDomain: normalizedPrimary,
+    domains: dedupedAliases,
+    previewSubdomain: preview
+  };
+}
+
+function getAllowedThemeKeysForTenant(tenant) {
+  const governance = loadThemeGovernance();
+  const tenantAllowed = normalizeThemeKeys(tenant && tenant.allowedThemeKeys, governance.availableThemeKeys);
+  return tenantAllowed.filter((key) => governance.availableThemeKeys.includes(key));
+}
+
+function resolveThemeKeyForTenant(tenant, requestedKey) {
+  const allowed = getAllowedThemeKeysForTenant(tenant);
+  const key = String(requestedKey || '').trim();
+  if (key && allowed.includes(key)) return key;
+  if (allowed.length) return allowed[0];
+  return DEFAULT_THEME_KEY;
 }
 
 function findTenantById(tenantId) {
@@ -721,6 +843,44 @@ function listRecentBackups(req, limit = 40) {
   return files;
 }
 
+function tenantAssetUrlToFilePath(req, rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url || !url.startsWith('/')) return null;
+  if (url.startsWith(`/tenants/${req.tenant.id}/media/`)) {
+    const relativePath = url.replace(`/tenants/${req.tenant.id}/media/`, '');
+    return path.join(req.tenantPaths.media, relativePath);
+  }
+  return path.join(__dirname, 'public', url.slice(1));
+}
+
+function buildTenantAssetAudit(req, config, categories) {
+  const homepage = (config && config.homepage) || {};
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const evaluate = (label, assetUrl, driver) => {
+    const localPath = tenantAssetUrlToFilePath(req, assetUrl);
+    const exists = !!(localPath && fs.existsSync(localPath));
+    return { label, url: String(assetUrl || ''), exists, driver };
+  };
+  return {
+    headerBanner: evaluate('Header banner', homepage.heroImage, 'homepage.heroImage + homepage.blockVisibility.hero'),
+    navMenuPlates: safeCategories.map((cat) => evaluate(
+      `Nav/Menu plate: ${resolveTranslatable(cat.name, 'el') || cat.id || cat.slug || 'category'}`,
+      cat.image,
+      'categories[].image + main navigation/category links'
+    )),
+    categoryCards: safeCategories.map((cat) => evaluate(
+      `Category card: ${resolveTranslatable(cat.name, 'el') || cat.id || cat.slug || 'category'}`,
+      cat.image,
+      'categories[].image rendered by eukolakis category tiles'
+    )),
+    introAssets: [
+      evaluate('Intro logo', config.logoPath, 'config.logoPath + homepage.introEnabled'),
+      evaluate('Intro video', homepage.introVideoUrl, 'homepage.introMode=video + homepage.introVideoUrl'),
+      evaluate('Intro poster', homepage.introPosterUrl, 'homepage.introMode=video + homepage.introPosterUrl')
+    ]
+  };
+}
+
 function hasExportAccess(req) {
   if (req.session && req.session.rootAdmin) return true;
   const tier = req.tenant && req.tenant.supportTier;
@@ -833,6 +993,7 @@ function loadTenantConfig(req) {
       vaMerchantGoals: ''
     },
     theme: {
+      presetId: DEFAULT_THEME_KEY,
       menuBg: '#111111',
       menuText: '#ffffff',
       menuActiveBg: '#f06292',
@@ -892,6 +1053,22 @@ function loadTenantConfig(req) {
   cfg.favicon = Object.assign({}, fallback.favicon, cfg.favicon || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
+  cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
+  cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
+  cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
+  cfg.homepage.secondaryCard.image = normalizeMediaPath(cfg.homepage.secondaryCard.image);
+  cfg.homepage.secondaryCard.link = String(cfg.homepage.secondaryCard.link || '').trim();
+  cfg.homepage.introVideoUrl = normalizeMediaPath(cfg.homepage.introVideoUrl, { allowAbsoluteUrl: true });
+  cfg.homepage.introPosterUrl = normalizeMediaPath(cfg.homepage.introPosterUrl, { allowAbsoluteUrl: true });
+  const introModes = new Set(['basic', 'assembly', 'video']);
+  cfg.homepage.introMode = introModes.has(String(cfg.homepage.introMode || '').trim().toLowerCase())
+    ? String(cfg.homepage.introMode).trim().toLowerCase()
+    : 'basic';
+  cfg.homepage.introTagline = String(cfg.homepage.introTagline || '').trim();
+  cfg.homepage.blockOrder = Array.isArray(cfg.homepage.blockOrder)
+    ? cfg.homepage.blockOrder.filter((key) => ['hero', 'kits', 'spare', 'subscriptions'].includes(String(key))).slice(0, 4)
+    : ['hero', 'kits', 'spare', 'subscriptions'];
+  if (cfg.homepage.blockOrder.length === 0) cfg.homepage.blockOrder = ['hero', 'kits', 'spare', 'subscriptions'];
   const paymentOptions = Array.isArray(cfg.paymentOptions) ? cfg.paymentOptions.slice() : [];
   const hasCod = paymentOptions.some((opt) => {
     const id = String((opt && (opt.id || opt.type)) || '').toLowerCase();
@@ -901,7 +1078,7 @@ function loadTenantConfig(req) {
     paymentOptions.unshift({ id: 'COD', label: 'Αντικαταβολή', type: 'cod' });
   }
   cfg.paymentOptions = paymentOptions;
-  if (!hasStoredKitWizardDisplay && req.tenant && req.tenant.id === 'eukolakis') {
+  if (!hasStoredKitWizardDisplay && cfg.theme && cfg.theme.presetId === 'eukolakis_classic_diy') {
     cfg.theme.kitWizardDisplay = 'cinematic';
   }
   return cfg;
@@ -912,7 +1089,40 @@ function loadTenantProducts(req) {
 }
 
 function loadTenantCategories(req) {
-  return loadJson(req.tenantPaths.categories, []);
+  const raw = loadJson(req.tenantPaths.categories, []);
+  const list = Array.isArray(raw) ? raw : [];
+  const normalized = [];
+  const usedIds = new Set();
+  const usedSlugs = new Set();
+  let adjustedCount = 0;
+  list.forEach((cat, idx) => {
+    const next = normalizeCategoryRecord(cat, idx);
+    let id = next.id;
+    let slug = next.slug;
+    let suffix = 2;
+    while (usedIds.has(id)) { id = `${next.id}-${suffix++}`; }
+    suffix = 2;
+    while (usedSlugs.has(slug)) { slug = `${next.slug}-${suffix++}`; }
+    usedIds.add(id);
+    usedSlugs.add(slug);
+    const normalizedCategory = { ...next, id, slug };
+    const original = cat && typeof cat === 'object' ? cat : {};
+    if (
+      normalizedCategory.id !== String(original.id || '') ||
+      normalizedCategory.slug !== String(original.slug || '') ||
+      normalizedCategory.image !== normalizeMediaPath(original.image) ||
+      normalizedCategory.showInMainNav !== (original.showInMainNav !== undefined ? original.showInMainNav !== false : (original.visible !== false && original.inMainNav !== false))
+    ) adjustedCount += 1;
+    normalized.push(normalizedCategory);
+  });
+  if (adjustedCount > 0) {
+    console.warn('[tenant-config] categories-normalized', JSON.stringify({
+      tenantId: req && req.tenant ? req.tenant.id : null,
+      total: normalized.length,
+      adjusted: adjustedCount
+    }));
+  }
+  return normalized;
 }
 
 function loadTenantUsers(req) {
@@ -2055,6 +2265,7 @@ function buildAdminViewModel(req, extra) {
   }));
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
+  const assetAudit = buildTenantAssetAudit(req, config, categories);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
   const sContentLang = (req.session && req.session.contentLang ? String(req.session.contentLang) : '').toLowerCase();
   const contentLang = CONTENT_LANGS.includes(qContentLang)
@@ -2062,6 +2273,9 @@ function buildAdminViewModel(req, extra) {
     : (CONTENT_LANGS.includes(sContentLang) ? sContentLang : DEFAULT_CONTENT_LANG);
   if (req.session) req.session.contentLang = contentLang;
   const permissions = getSupportPermissions(req.tenant.supportTier);
+  const allowedThemeKeys = getAllowedThemeKeysForTenant(req.tenant);
+  const allowedThemes = listThemeCatalog().filter((theme) => allowedThemeKeys.includes(theme.key));
+  const activeThemeKey = resolveThemeKeyForTenant(req.tenant, config && config.theme ? config.theme.presetId : DEFAULT_THEME_KEY);
   const orders = loadTenantOrders(req);
   const unresolvedOrdersCount = orders.filter((o) => isOrderUnresolved(o)).length;
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
@@ -2116,6 +2330,7 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     unresolvedOrdersCount,
+    assetAudit,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
     exportAccess: hasExportAccess(req),
@@ -2123,6 +2338,10 @@ function buildAdminViewModel(req, extra) {
     tickets: tickets.slice().reverse(),
     adminActionTimeoutMs: ADMIN_IDLE_TIMEOUT_MS,
     adminReauthRemainingMs,
+    allowedThemeKeys,
+    allowedThemes,
+    activeThemeKey,
+    activeThemeMeta: THEME_CATALOG[activeThemeKey] || THEME_CATALOG[DEFAULT_THEME_KEY],
     financeSummary: {
       pendingSettlementEstimate: +pendingSettlementEstimate.toFixed(2),
       pendingPlatformDues: +pendingPlatformDues.toFixed(2),
@@ -2240,7 +2459,7 @@ app.get('/', (req, res) => {
 
     const rawCategory = String(req.query.category || '');
     let catSlug = normalizeSlug(rawCategory);
-    if (req.tenant.id === 'eukolakis') {
+    if (config && config.theme && config.theme.presetId === 'eukolakis_classic_diy') {
       const aliasMap = { spare: 'spare-parts' };
       catSlug = aliasMap[catSlug] || catSlug;
     }
@@ -2258,13 +2477,15 @@ app.get('/', (req, res) => {
     const viewLang = req.lang;
     const localizedConfig = localizeConfigContent(config, viewLang);
     const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
+    const storefrontAssetAudit = buildTenantAssetAudit(req, config, categories);
     res.render('index', {
       config: localizedConfig,
       categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
       products: products.map((p) => localizeProductContent(p, viewLang)),
       allProducts: localizedAllProducts,
       activeCategory: catSlug || null,
-      tenant: req.tenant
+      tenant: req.tenant,
+      storefrontAssetAudit
     });
   } catch (err) {
     console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
@@ -2284,10 +2505,12 @@ app.get('/intro', (req, res) => {
     const skipHref = buildTenantLink(req, safeNext, Object.assign({ skipIntro: '1' }, req.lang !== 'el' ? { lang: req.lang } : {}));
     const introCookieName = buildIntroSeenKey(req);
     const introStorageKey = `${introCookieName}_ls`;
+    const introAssetAudit = buildTenantAssetAudit(req, config, loadTenantCategories(req));
     return res.render('intro', {
       config: localizeConfigContent(config, req.lang),
       homepage: config.homepage || {},
       tenant: req.tenant,
+      introAssetAudit,
       skipHref,
       introCookieName,
       introStorageKey,
@@ -2319,11 +2542,13 @@ app.get('/product/:id', (req, res) => {
   const hydratedProduct = hydrateKitProduct(product, products, req.lang, {
     defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
   });
+  const productCategories = loadTenantCategories(req);
   res.render('product', {
     config: localizeConfigContent(config, req.lang),
     product: localizeProductContent(hydratedProduct, req.lang),
     tenant: req.tenant,
-    categories: loadTenantCategories(req)
+    categories: productCategories,
+    storefrontAssetAudit: buildTenantAssetAudit(req, config, productCategories)
   });
 });
 
@@ -2348,9 +2573,15 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
       selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
     }))
     .slice(0, 120);
-  req.session.checkoutCartSnapshot = snapshot;
+  const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+  if (!req.session.checkoutCartSnapshotByTenant || typeof req.session.checkoutCartSnapshotByTenant !== 'object') {
+    req.session.checkoutCartSnapshotByTenant = {};
+  }
+  if (tenantId) {
+    req.session.checkoutCartSnapshotByTenant[tenantId] = snapshot;
+  }
   console.log('[checkout] cart-snapshot:save', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
+    tenantId,
     count: snapshot.length
   }));
   return res.json({ ok: true, count: snapshot.length });
@@ -2375,10 +2606,15 @@ app.post('/checkout', async (req, res) => {
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
-  if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
-    cartItems = req.session.checkoutCartSnapshot.slice();
+  const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+  const snapshotByTenant = (req.session && req.session.checkoutCartSnapshotByTenant && typeof req.session.checkoutCartSnapshotByTenant === 'object')
+    ? req.session.checkoutCartSnapshotByTenant
+    : {};
+  const tenantSnapshot = tenantId && Array.isArray(snapshotByTenant[tenantId]) ? snapshotByTenant[tenantId] : [];
+  if ((!Array.isArray(cartItems) || !cartItems.length) && tenantSnapshot.length) {
+    cartItems = tenantSnapshot.slice();
     console.log('[checkout] submit:session-fallback', JSON.stringify({
-      tenantId: req.tenant && req.tenant.id,
+      tenantId,
       count: cartItems.length
     }));
   }
@@ -2877,9 +3113,15 @@ app.get('/checkout/complete', (req, res) => {
     return p && p.hasDigitalContent;
   });
   if (req.session) {
-    req.session.checkoutCartSnapshot = [];
+    const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+    if (!req.session.checkoutCartSnapshotByTenant || typeof req.session.checkoutCartSnapshotByTenant !== 'object') {
+      req.session.checkoutCartSnapshotByTenant = {};
+    }
+    if (tenantId) {
+      req.session.checkoutCartSnapshotByTenant[tenantId] = [];
+    }
     console.log('[checkout] complete:cart-clear', JSON.stringify({
-      tenantId: req.tenant && req.tenant.id,
+      tenantId,
       orderId: order.id
     }));
   }
@@ -3249,6 +3491,23 @@ app.get('/admin/import/variants-template.csv', (req, res) => {
   res.send(csv);
 });
 
+app.get('/admin/import/categories-template.csv', (req, res) => {
+  const rows = [
+    ['id', 'name', 'slug', 'description', 'image', 'visible', 'showInMainNav', 'navOrder'],
+    ['fountains', 'Διακοσμητικά Συντριβάνια', 'fountains', 'Ήρεμη ατμόσφαιρα με νερό', '', '1', '1', '1'],
+    ['artificial-flowers', 'Τεχνητά Λουλούδια', 'artificial-flowers', 'Floral συνθέσεις για κάθε χώρο', `/tenants/${req.tenant.id}/media/categories/flowers.jpg`, '1', '1', '2']
+  ];
+  const esc = (value) => {
+    const v = String(value || '');
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const csv = rows.map((row) => row.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${req.tenant.id}-categories-template.csv\"`);
+  res.send(csv);
+});
+
 app.get('/admin/export/categories.json', (req, res) => {
   if (!hasExportAccess(req)) return renderExportBlockedPage(req, res);
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -3476,6 +3735,140 @@ app.post('/admin/import/variants', importUpload.single('file'), async (req, res)
   return res.render('admin', buildAdminViewModel(req, { message: msg }));
 });
 
+app.post('/admin/import/categories', importUpload.single('file'), async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  if (!req.file) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Δεν ανέβηκε αρχείο CSV.' }));
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  if (ext !== '.csv') return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Υποστηρίζεται μόνο CSV αρχείο.' }));
+
+  const rows = parseCsv(req.file.buffer.toString('utf8')).filter((r) => r.some((c) => String(c || '').trim()));
+  if (rows.length < 2) return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Το CSV δεν έχει γραμμές δεδομένων.' }));
+  const headers = rows[0].map((h) => String(h || '').trim());
+  const idx = (name) => headers.indexOf(name);
+  const hasColumn = (name) => idx(name) >= 0;
+  const get = (cols, name) => {
+    const i = idx(name);
+    return i >= 0 ? String(cols[i] || '').trim() : '';
+  };
+  const parseBool = (raw, fallback = null) => {
+    const v = String(raw || '').trim().toLowerCase();
+    if (!v) return fallback;
+    if (['1', 'true', 'yes', 'on', 'y'].includes(v)) return true;
+    if (['0', 'false', 'no', 'off', 'n'].includes(v)) return false;
+    return fallback;
+  };
+
+  const categories = loadTenantCategories(req);
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const rowIssues = [];
+
+  for (let i = 1; i < rows.length; i += 1) {
+    const cols = rows[i];
+    const rawId = get(cols, 'id');
+    const rawSlug = get(cols, 'slug');
+    const rawName = get(cols, 'name');
+    const rawNameEl = get(cols, 'name_el');
+    const rawNameEn = get(cols, 'name_en');
+    const rawDesc = get(cols, 'description');
+    const rawDescEl = get(cols, 'description_el');
+    const rawDescEn = get(cols, 'description_en');
+    const rawImage = get(cols, 'image');
+    const rawVisible = get(cols, 'visible');
+    const rawShow = get(cols, 'showInMainNav');
+    const rawNavOrder = get(cols, 'navOrder');
+
+    const normalizedId = normalizeSlug(rawId || rawSlug || rawName || rawNameEl || rawNameEn);
+    const normalizedSlug = normalizeSlug(rawSlug || rawId || rawName || rawNameEl || rawNameEn);
+    const nameValue = rawNameEl || rawNameEn
+      ? (rawNameEn ? { el: rawNameEl || rawNameEn, en: rawNameEn } : rawNameEl)
+      : rawName;
+    const descriptionValue = rawDescEl || rawDescEn
+      ? (rawDescEn ? { el: rawDescEl || rawDescEn, en: rawDescEn } : rawDescEl)
+      : rawDesc;
+
+    if (!normalizedId && !normalizedSlug && !nameValue) {
+      skipped += 1;
+      rowIssues.push(`Row ${i + 1}: λείπει id/slug/name.`);
+      continue;
+    }
+
+    const visible = parseBool(rawVisible, null);
+    const showInMainNav = parseBool(rawShow, null);
+    const navOrder = rawNavOrder === '' ? null : Number(rawNavOrder);
+    const normalizedImage = hasColumn('image') ? normalizeMediaPath(rawImage) : '';
+
+    const existingIndex = categories.findIndex((cat) => (
+      (normalizedId && normalizeSlug(cat.id) === normalizedId) ||
+      (normalizedSlug && normalizeSlug(cat.slug) === normalizedSlug)
+    ));
+    const existing = existingIndex >= 0 ? categories[existingIndex] : null;
+    if (!existing && !nameValue) {
+      skipped += 1;
+      rowIssues.push(`Row ${i + 1}: για νέο category απαιτείται name (ή name_el/name_en).`);
+      continue;
+    }
+
+    const candidate = existing ? { ...existing } : {};
+    if (!existing && normalizedId) candidate.id = normalizedId;
+    if (normalizedSlug) candidate.slug = normalizedSlug;
+    if (nameValue) candidate.name = nameValue;
+    if (descriptionValue) candidate.shortDescription = descriptionValue;
+    if (hasColumn('image')) {
+      if (normalizedImage) candidate.image = normalizedImage;
+      else delete candidate.image;
+    }
+    if (showInMainNav !== null) candidate.showInMainNav = showInMainNav;
+    else if (visible !== null) candidate.showInMainNav = visible;
+    if (navOrder !== null) {
+      if (!Number.isFinite(navOrder)) {
+        skipped += 1;
+        rowIssues.push(`Row ${i + 1}: μη έγκυρο navOrder.`);
+        continue;
+      }
+      candidate.navOrder = navOrder;
+    }
+
+    const normalized = normalizeCategoryRecord(candidate, existingIndex >= 0 ? existingIndex : categories.length);
+    if (existing) {
+      normalized.id = existing.id; // keep stable id
+      let slugCandidate = normalized.slug || existing.slug;
+      let suffix = 2;
+      while (categories.some((cat, idxCheck) => idxCheck !== existingIndex && normalizeSlug(cat.slug) === normalizeSlug(slugCandidate))) {
+        slugCandidate = `${normalized.slug || existing.slug}-${suffix++}`;
+      }
+      normalized.slug = slugCandidate;
+      categories[existingIndex] = normalized;
+      updated += 1;
+    } else {
+      let idCandidate = normalized.id;
+      let slugCandidate = normalized.slug;
+      let suffix = 2;
+      while (categories.some((cat) => normalizeSlug(cat.id) === normalizeSlug(idCandidate))) {
+        idCandidate = `${normalized.id}-${suffix++}`;
+      }
+      suffix = 2;
+      while (categories.some((cat) => normalizeSlug(cat.slug) === normalizeSlug(slugCandidate))) {
+        slugCandidate = `${normalized.slug}-${suffix++}`;
+      }
+      categories.push({ ...normalized, id: idCandidate, slug: slugCandidate });
+      created += 1;
+    }
+  }
+
+  saveTenantCategories(req, categories);
+  const message = `Category import: ${created} νέα, ${updated} ενημερώσεις, ${skipped} skipped.`;
+  if (rowIssues.length) {
+    return res.render('admin', buildAdminViewModel(req, {
+      message,
+      error: `Προβλήματα γραμμών: ${rowIssues.slice(0, 20).join(' | ')}`
+    }));
+  }
+  return res.render('admin', buildAdminViewModel(req, { message }));
+});
+
 // Admin orders view
 app.get('/admin/orders', (req, res) => {
   try {
@@ -3647,7 +4040,8 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuText,
     themeMenuActiveBg,
     themeMenuActiveText,
-    themeButtonRadius
+    themeButtonRadius,
+    themePresetId
     ,
     themeHeaderLayout,
     themeHeroStyle,
@@ -3714,8 +4108,9 @@ app.post('/admin/settings', async (req, res) => {
   config.heroTitle = buildTranslatableFromBody(req.body, 'heroTitle', heroTitle || config.heroTitle || config.storeName);
   config.heroSubtitle = buildTranslatableFromBody(req.body, 'heroSubtitle', heroSubtitle || config.heroSubtitle || config.heroText);
   config.web3Domain = web3Domain || config.web3Domain;
-  config.logoPath = logoPath || config.logoPath;
+  config.logoPath = normalizeMediaPath(hasBodyField(req.body, 'logoPath') ? logoPath : config.logoPath) || '/logo.svg';
   config.theme = config.theme || {};
+  config.theme.presetId = resolveThemeKeyForTenant(req.tenant, themePresetId || config.theme.presetId || DEFAULT_THEME_KEY);
   config.theme.menuBg = themeMenuBg || config.theme.menuBg || '#111111';
   config.theme.menuText = themeMenuText || config.theme.menuText || '#ffffff';
   config.theme.menuActiveBg =
@@ -3766,7 +4161,7 @@ app.post('/admin/settings', async (req, res) => {
     : (config.theme.homeLayoutPreset || 'split');
   config.homepage = config.homepage || {};
   if (hasBodyField(req.body, 'homepageHeroImage')) {
-    config.homepage.heroImage = String(homepageHeroImage || '').trim();
+    config.homepage.heroImage = normalizeMediaPath(homepageHeroImage);
   }
   const hasLegacyFeaturedIds = hasBodyField(req.body, 'homepageFeaturedIds');
   const hasFeaturedPrimaryInputs =
@@ -3815,7 +4210,7 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.secondaryCard.link = String(homepageSecondaryLink || '').trim();
   }
   if (hasBodyField(req.body, 'homepageSecondaryImage')) {
-    config.homepage.secondaryCard.image = String(homepageSecondaryImage || '').trim();
+    config.homepage.secondaryCard.image = normalizeMediaPath(homepageSecondaryImage);
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
@@ -3825,8 +4220,8 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.introMode = _validModes.includes(_m) ? _m : 'basic';
   }
   if (hasBodyField(req.body, 'homepageIntroTagline')) config.homepage.introTagline = String(homepageIntroTagline || '').trim();
-  if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = String(homepageIntroVideoUrl || '').trim();
-  if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = String(homepageIntroPosterUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = normalizeMediaPath(homepageIntroVideoUrl, { allowAbsoluteUrl: true });
+  if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = normalizeMediaPath(homepageIntroPosterUrl, { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageBlockOrder')) {
     const parsedOrder = String(homepageBlockOrder || '')
       .split(',')
@@ -4114,7 +4509,8 @@ app.post('/admin/categories/add', async (req, res) => {
   const translatedShortDescription = buildTranslatableFromBody(req.body, 'shortDescription', undefined);
   const newCat = { id: normalizedId, name: translatedName, slug: normalizedSlug };
   if (translatedShortDescription) newCat.shortDescription = translatedShortDescription;
-  if (image && image.trim()) newCat.image = image.trim();
+  const normalizedCategoryImage = normalizeMediaPath(image);
+  if (normalizedCategoryImage) newCat.image = normalizedCategoryImage;
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   newCat.showInMainNav = showInMainNav === 'on';
   if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
@@ -4199,7 +4595,8 @@ app.post('/admin/categories/update', async (req, res) => {
   else delete categories[idx].shortDescription;
   categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
-    if (image && image.trim()) categories[idx].image = image.trim();
+    const normalizedCategoryImage = normalizeMediaPath(image);
+    if (normalizedCategoryImage) categories[idx].image = normalizedCategoryImage;
     else delete categories[idx].image;
   }
   if (parentId !== undefined) {
@@ -5060,6 +5457,8 @@ const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START', 'DI
 
 function buildRootViewModel(extra, req) {
   const tenants = loadTenantsRegistry();
+  const themeGovernance = loadThemeGovernance();
+  const themeCatalog = listThemeCatalog();
   const tenantPaymentConfigs = {};
   tenants.forEach((t) => {
     try {
@@ -5147,6 +5546,8 @@ function buildRootViewModel(extra, req) {
 
   return {
     tenants,
+    themeGovernance,
+    themeCatalog,
     themeTemplates: listThemeTemplates(),
     tenantPaymentConfigs,
     refAccounts,
@@ -5225,7 +5626,7 @@ app.get('/root/logout', (req, res) => {
 app.post('/root/tenants/create', async (req, res) => {
   const {
     rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent,
-    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww, allowedThemeKeys
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
@@ -5254,22 +5655,24 @@ app.post('/root/tenants/create', async (req, res) => {
   const resolvedTier = SUPPORT_TIERS.includes(supportTier) ? supportTier : 'SELF_SERVICE';
 
   const cleanRefCode = (refCode || '').trim();
-  const primaryDomainClean = String(primaryDomain || domain || '').trim().toLowerCase();
-  const domainsArray = String(domains || '')
-    .split(',')
-    .map((d) => normalizeHost(d))
-    .filter(Boolean);
-  if (primaryDomainClean && !domainsArray.includes(primaryDomainClean)) domainsArray.unshift(primaryDomainClean);
-  const previewSubdomainClean = String(previewSubdomain || cleanId).trim().toLowerCase();
+  const normalizedDomains = normalizeTenantDomainInputs({
+    domain,
+    primaryDomain,
+    domains,
+    previewSubdomain,
+    fallbackPreviewSubdomain: cleanId
+  });
   const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
+  const parsedAllowedThemeKeys = normalizeThemeKeys(String(allowedThemeKeys || '').split(','), loadThemeGovernance().availableThemeKeys);
   const newTenant = {
     id: cleanId,
-    domain: (domain || '').trim(),
-    primaryDomain: primaryDomainClean || '',
-    domains: domainsArray,
-    previewSubdomain: previewSubdomainClean,
+    domain: normalizedDomains.domain,
+    primaryDomain: normalizedDomains.primaryDomain,
+    domains: normalizedDomains.domains,
+    previewSubdomain: normalizedDomains.previewSubdomain,
     domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
     canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
+    allowedThemeKeys: parsedAllowedThemeKeys,
     supportTier: resolvedTier,
     allowPoweredBy: false,
     adminPasswordHash,
@@ -5316,10 +5719,27 @@ app.post('/root/templates/create', (req, res) => {
   return res.render('root-tenants', buildRootViewModel({ message: `Template "${tpl.id}" αποθηκεύτηκε.` }));
 });
 
+app.post('/root/themes/update', (req, res) => {
+  const { rootPassword, availableThemeKeys } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+  const parsedKeys = String(availableThemeKeys || '').split(',');
+  const nextAvailable = normalizeThemeKeys(parsedKeys, DEFAULT_AVAILABLE_THEME_KEYS);
+  saveThemeGovernance({ availableThemeKeys: nextAvailable });
+  const tenants = loadTenantsRegistry();
+  const constrained = tenants.map((tenant) => {
+    const allowed = normalizeThemeKeys(tenant.allowedThemeKeys, nextAvailable).filter((key) => nextAvailable.includes(key));
+    return Object.assign({}, tenant, { allowedThemeKeys: allowed });
+  });
+  saveTenantsRegistry(constrained);
+  return res.render('root-tenants', buildRootViewModel({ message: 'Τα διαθέσιμα themes ενημερώθηκαν.' }));
+});
+
 app.post('/root/tenants/update', (req, res) => {
   const {
     rootPassword, tenantId, domain, supportTier, active, allowPoweredBy,
-    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww, allowedThemeKeys
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
@@ -5334,18 +5754,19 @@ app.post('/root/tenants/update', (req, res) => {
       buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
 
-  if (domain !== undefined) tenants[idx].domain = (domain || '').trim();
-  if (primaryDomain !== undefined) tenants[idx].primaryDomain = normalizeHost(primaryDomain || '');
-  if (domains !== undefined) {
-    const parsedDomains = String(domains || '')
-      .split(',')
-      .map((d) => normalizeHost(d))
-      .filter(Boolean);
-    const normalizedPrimary = normalizeHost(tenants[idx].primaryDomain || tenants[idx].domain || '');
-    if (normalizedPrimary && !parsedDomains.includes(normalizedPrimary)) parsedDomains.unshift(normalizedPrimary);
-    tenants[idx].domains = parsedDomains;
+  if (domain !== undefined || primaryDomain !== undefined || domains !== undefined || previewSubdomain !== undefined) {
+    const normalizedDomains = normalizeTenantDomainInputs({
+      domain: domain !== undefined ? domain : tenants[idx].domain,
+      primaryDomain: primaryDomain !== undefined ? primaryDomain : tenants[idx].primaryDomain,
+      domains: domains !== undefined ? domains : (Array.isArray(tenants[idx].domains) ? tenants[idx].domains.join(',') : ''),
+      previewSubdomain: previewSubdomain !== undefined ? previewSubdomain : tenants[idx].previewSubdomain,
+      fallbackPreviewSubdomain: tenants[idx].id
+    });
+    tenants[idx].domain = normalizedDomains.domain;
+    tenants[idx].primaryDomain = normalizedDomains.primaryDomain;
+    tenants[idx].domains = normalizedDomains.domains;
+    tenants[idx].previewSubdomain = normalizedDomains.previewSubdomain;
   }
-  if (previewSubdomain !== undefined) tenants[idx].previewSubdomain = String(previewSubdomain || '').trim().toLowerCase();
   if (domainStatus !== undefined) {
     const normalizedStatus = String(domainStatus || '').trim();
     const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
@@ -5353,6 +5774,11 @@ app.post('/root/tenants/update', (req, res) => {
   }
   if (canonicalToWww !== undefined) {
     tenants[idx].canonicalToWww = canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on';
+  }
+  if (allowedThemeKeys !== undefined) {
+    const governance = loadThemeGovernance();
+    tenants[idx].allowedThemeKeys = normalizeThemeKeys(String(allowedThemeKeys || '').split(','), governance.availableThemeKeys)
+      .filter((key) => governance.availableThemeKeys.includes(key));
   }
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';

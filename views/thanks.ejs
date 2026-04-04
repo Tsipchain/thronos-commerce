@@ -105,8 +105,9 @@
     <% if (locals.clearCart) { %>
     <script>
       // Clear cart after successful order
-      try { localStorage.removeItem('thrc_cart'); } catch(e) {}
-      try { sessionStorage.removeItem('thrc_cart_session'); } catch(e) {}
+      const cartScope = '<%= (tenant && tenant.id) ? tenant.id : "default" %>';
+      try { localStorage.removeItem('thrc_cart:' + cartScope); } catch(e) {}
+      try { sessionStorage.removeItem('thrc_cart_session:' + cartScope); } catch(e) {}
     </script>
     <% } %>
     <script>

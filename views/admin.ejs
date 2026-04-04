@@ -310,9 +310,39 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
+      <% const isEukolakisClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+      <% const isAistheticTenant = tenant && tenant.id === 'aisthetic'; %>
+      <% const supportedGroups = (activeThemeMeta && Array.isArray(activeThemeMeta.supportedSettings)) ? activeThemeMeta.supportedSettings : []; %>
+      <% const supportsColors = supportedGroups.includes('colors'); %>
+      <% const supportsMenu = supportedGroups.includes('menu'); %>
+      <% const supportsCursor = supportedGroups.includes('cursor'); %>
       <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
+        <p class="settings-info-note">Quick start για νέο merchant: <strong>1)</strong> ανέβασε logo, <strong>2)</strong> βάλε hero κείμενο/εικόνα στην Homepage, <strong>3)</strong> ανέβασε category εικόνες, <strong>4)</strong> πρόσθεσε πρώτα προϊόντα.</p>
+        <% if (isAistheticTenant) { %>
+        <div class="settings-info-note" style="background:#eefdf5;border-color:#bbf7d0;color:#166534;">
+          <strong>Aisthetic Stores – First Session Checklist</strong><br />
+          1) <a href="#tab-theme">Branding</a>: ανέβασε logo.<br />
+          2) <a href="#tab-homepage">Homepage</a>: γράψε τίτλο/κείμενο και ανέβασε hero image.<br />
+          3) <a href="#tab-categories">Categories</a>: ανέβασε εικόνα σε κάθε κατηγορία.<br />
+          4) <a href="#tab-products">Products</a>: πρόσθεσε τα πρώτα προϊόντα και τιμές.
+        </div>
+        <% } %>
+        <label><span>Ενεργό Theme</span>
+          <select name="themePresetId" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <% (allowedThemes || []).forEach(function(themeMeta) { %>
+              <option value="<%= themeMeta.key %>" <%= ((config.theme && config.theme.presetId) || 'core_default') === themeMeta.key ? 'selected' : '' %>>
+                <%= themeMeta.label %> (<%= themeMeta.key %>)
+              </option>
+            <% }) %>
+          </select>
+          <small class="helper">Ο tenant μπορεί να επιλέξει μόνο themes που έχουν επιτραπεί από το Root Admin.</small>
+        </label>
+        <p class="settings-info-note">
+          Active theme: <strong><%= (activeThemeMeta && activeThemeMeta.label) || ((config.theme && config.theme.presetId) || 'core_default') %></strong>.
+          Υποστηριζόμενες ομάδες ρυθμίσεων: <code><%= (activeThemeMeta && activeThemeMeta.supportedSettings ? activeThemeMeta.supportedSettings.join(', ') : 'general') %></code>.
+        </p>
 
         <h3 class="settings-section-heading">Ταυτότητα Καταστήματος</h3>
 
@@ -338,7 +368,7 @@
           <small class="helper">Αφήστε κενό αν δεν χρησιμοποιείτε Web3 domain. Εμφανίζεται δίπλα στο όνομα καταστήματος.</small>
         </label>
 
-        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία</h3>
+        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία <% if (!supportsColors) { %><small style="color:#ca8a04;font-weight:600;">(περιορισμένη επίδραση στο τρέχον theme)</small><% } %></h3>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερή βιομηχανική παλέτα χρωμάτων. Τα παρακάτω χρώματα δεν εφαρμόζονται στο ενεργό θέμα — μπορείτε να τα αλλάξετε αν αλλάξετε θέμα.</p>
         <% } %>
@@ -413,7 +443,7 @@
         <% } %>
         <p class="settings-info-note">Το favicon (εικόνα στην καρτέλα browser) ανεβαίνει στην ενότητα <a href="#tab-upload">Media</a>.</p>
 
-        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης</h3>
+        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης <% if (!supportsMenu) { %><small style="color:#ca8a04;font-weight:600;">(preset-limited)</small><% } %></h3>
         <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;margin-bottom:10px;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό σκούρο header — αυτά τα χρώματα δεν εφαρμόζονται στο τρέχον θέμα.</p>
@@ -519,14 +549,14 @@
           </select>
         </label>
         <label><span>Μέγιστο ύψος logo στο header (px)</span>
-          <input type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 72)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Ύψος σε pixels (56–120px). <% if (tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
+          <input type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 72)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Ύψος σε pixels (56–120px). <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
         </label>
         <% if (config.logoPath) { %>
         <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
         <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
         <% const liveBrandingMode = (config.theme && config.theme.brandingMode) || 'logo_name'; %>
-        <% const liveIsClassic = tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+        <% const liveIsClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
         <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 72)); %>
         <% const livePreviewLogoHeight = Math.max(56, Math.min(120, liveRawHeight || (liveIsClassic ? 96 : 72))); %>
         <div class="branding-live-preview">
@@ -628,7 +658,11 @@
             <option value="text" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'text' ? 'selected' : '' %>>Μόνο κείμενο</option>
             <option value="image" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'image' ? 'selected' : '' %>>Μόνο εικόνα</option>
             <option value="image_label" <%= ((config.theme && config.theme.categoryMenuStyle) || 'image_label') === 'image_label' ? 'selected' : '' %>>Εικόνα + Τίτλος (συνιστάται)</option>
+            <option value="code_tabs" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'code_tabs' ? 'selected' : '' %>>Industrial CSS tabs (Eukolaki)</option>
           </select>
+          <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+          <small class="helper">Με <strong>Industrial CSS tabs</strong> ενεργοποιούνται badges/tabs με καθαρό CSS (χωρίς PNG plates) με ένα save.</small>
+          <% } %>
         </label>
         <label><span>Στυλ καρτών προϊόντων</span>
           <select name="themeCardStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -660,10 +694,10 @@
         <label class="checkbox-label">
           <input type="hidden" name="themeCursorEffect" value="0" />
           <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Custom cursor (μόνο desktop, προαιρετικό)</span>
+          <span>Custom cursor (μόνο desktop, προαιρετικό) <% if (!supportsCursor) { %><small style="color:#ca8a04;font-weight:600;">(limited support)</small><% } %></span>
         </label>
         <small class="helper">Αντικαθιστά τον κανονικό κέρσορα με προσαρμοσμένη εικόνα στο desktop. Αφήστε ανενεργό αν δεν χρησιμοποιείτε custom cursor.</small>
-        <% if (tenant.id === 'eukolakis') { %>
+        <% if (isEukolakisClassic) { %>
         <label><span>Cursor image URL (desktop only)</span>
           <input type="text" id="themeCursorImage-input" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
@@ -700,6 +734,39 @@
       <form id="tab-homepage" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Homepage</h2>
         <p class="helper">Ρυθμίστε την αρχική σελίδα του καταστήματός σας — εικόνα banner, τίτλοι, προτεινόμενα προϊόντα και ορατότητα ενοτήτων.</p>
+        <% if (isEukolakisClassic) { %>
+        <% const audit = assetAudit || {}; %>
+        <% const navPlates = Array.isArray(audit.navMenuPlates) ? audit.navMenuPlates : []; %>
+        <% const categoryCardsAudit = Array.isArray(audit.categoryCards) ? audit.categoryCards : []; %>
+        <% const introAssetsAudit = Array.isArray(audit.introAssets) ? audit.introAssets : []; %>
+        <% const missingAssetCount = [audit.headerBanner].concat(navPlates, categoryCardsAudit, introAssetsAudit).filter(function(entry){ return entry && entry.url && !entry.exists; }).length; %>
+        <section style="margin:0 0 14px;padding:12px 14px;border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;">
+          <h3 style="margin:0 0 6px;font-size:.94rem;color:#92400e;">Asset mapping & truth audit (Eukolaki)</h3>
+          <p style="margin:0 0 8px;font-size:.8rem;color:#78350f;">
+            Τα παρακάτω δείχνουν τι είναι πραγματικά διαθέσιμο στον δίσκο και ποια ρύθμιση το οδηγεί.
+            Δεν γίνεται “εικονική” ενεργοποίηση αν λείπει αρχείο.
+          </p>
+          <ul style="margin:0;padding-left:18px;font-size:.78rem;color:#78350f;line-height:1.5;">
+            <li><strong>Header banner:</strong> <code><%= (audit.headerBanner && audit.headerBanner.url) || '—' %></code> · <%= (audit.headerBanner && audit.headerBanner.exists) ? 'OK' : 'MISSING' %> · driver: <code><%= (audit.headerBanner && audit.headerBanner.driver) || 'homepage.heroImage' %></code></li>
+            <li><strong>Τωρινή ταυτότητα header/intro:</strong> <%= (audit.headerBanner && audit.headerBanner.exists) ? 'Χρησιμοποιείται το Header banner asset.' : 'Χρησιμοποιείται fallback στο logoPath μέχρι να ανέβει πραγματικό banner asset.' %></li>
+            <li><strong>Nav/menu plates:</strong> <%= navPlates.length %> mapped από <code>categories[].image</code>.</li>
+            <li><strong>Category cards:</strong> <%= categoryCardsAudit.length %> mapped από <code>categories[].image</code>.</li>
+            <li><strong>Intro assets:</strong> logo/video/poster οδηγούνται από <code>config.logoPath</code> + <code>homepage.intro*</code>.</li>
+          </ul>
+          <% if (missingAssetCount > 0) { %>
+          <p style="margin:8px 0 0;font-size:.78rem;color:#b45309;">
+            ⚠ Βρέθηκαν <strong><%= missingAssetCount %></strong> δηλωμένα asset path(s) που δεν υπάρχουν τοπικά.
+            Το storefront θα χρησιμοποιεί τα κοντινότερα διαθέσιμα fallback στοιχεία όπου χρειάζεται.
+          </p>
+          <% } %>
+        </section>
+        <% if (rawConfig.theme && rawConfig.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p style="margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;font-size:.78rem;color:#1e3a8a;">
+          ℹ️ Στο preset <strong>Eukolakis Classic</strong>, η εμφάνιση Header/Nav/Categories καθορίζεται κυρίως από το preset CSS.
+          Τα πεδία logo/banner/homepage εφαρμόζονται μόνο όπου αναφέρεται στο storefront και στο intro.
+        </p>
+        <% } %>
+        <% } %>
 
         <h3 class="settings-section-heading">Hero Banner</h3>
 
@@ -1012,6 +1079,23 @@
             <% } %>
           </tbody>
         </table>
+
+        <% if (permissions.canEditCategories) { %>
+        <form method="POST" action="<%= withTenantLink('/admin/import/categories') %>" enctype="multipart/form-data" class="admin-subform">
+          <h3>Μαζικό import κατηγοριών (CSV)</h3>
+          <p class="helper">
+            Χρήσιμες στήλες: <code>id</code>, <code>name</code>, <code>slug</code>, <code>description</code>, <code>image</code>, <code>visible</code>, <code>showInMainNav</code>, <code>navOrder</code>.
+            Μπορείτε επίσης να δώσετε <code>name_el/name_en</code> και <code>description_el/description_en</code>.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv,text/csv" required />
+            <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
+            <button type="submit" class="button">Import categories</button>
+            <a class="button" style="background:#334155;" href="<%= withTenantLink('/admin/import/categories-template.csv') %>">Sample CSV</a>
+          </div>
+          <small class="helper">Το import κάνει create/update με ασφαλή normalisation. Στο αποτέλεσμα θα δείτε πόσα έγιναν create/update/skipped και τυχόν προβλήματα ανά γραμμή.</small>
+        </form>
+        <% } %>
 
         <% if (permissions.canEditCategories) { %>
         <form method="POST" action="<%= withTenantLink('/admin/categories/add') %>" class="admin-subform">
@@ -1922,7 +2006,7 @@
         <p class="helper" id="kit-builder-title"></p>
         <p class="helper" style="margin-top:-6px;">
           Storefront wizard mode:
-          <strong><%= ((config.theme && config.theme.kitWizardDisplay) || (tenant.id === 'eukolakis' ? 'cinematic' : 'sequential')) %></strong>
+          <strong><%= ((config.theme && config.theme.kitWizardDisplay) || ((config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'cinematic' : 'sequential')) %></strong>
           · change from <strong>Branding → KIT wizard display</strong>.
         </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1993,7 +2077,7 @@
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
-      const isEukolakisClassicPreset = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      const isEukolakisClassicPreset = <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
       let productFilter = 'all';
       let pendingKitCreate = null;
 

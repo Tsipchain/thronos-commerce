@@ -1,0 +1,130 @@
+{
+  "storeName": {
+    "el": "Aisthetic Stores",
+    "en": "Aisthetic Stores"
+  },
+  "primaryColor": "#36534d",
+  "accentColor": "#e8a1b5",
+  "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  "heroText": {
+    "el": "Διακόσμηση χώρου με floral λεπτομέρειες, συντριβάνια και seasonal προτάσεις.",
+    "en": "Living decor with floral details, fountains and seasonal picks."
+  },
+  "heroTitle": {
+    "el": "Home aesthetics για καθημερινή ηρεμία",
+    "en": "Home aesthetics for everyday calm"
+  },
+  "heroSubtitle": {
+    "el": "Διάλεξε διακοσμητικά, λουλούδια και δώρα για όμορφες γωνιές στο σπίτι.",
+    "en": "Discover decor, floral pieces and gift ideas for beautiful home corners."
+  },
+  "web3Domain": "",
+  "logoPath": "",
+  "shippingOptions": [],
+  "paymentOptions": [
+    {
+      "id": "COD",
+      "label": "Αντικαταβολή",
+      "type": "COD",
+      "gatewaySurchargePercent": 0
+    }
+  ],
+  "theme": {
+    "presetId": "core_default",
+    "menuBg": "#36534d",
+    "menuText": "#ffffff",
+    "menuActiveBg": "#e8a1b5",
+    "menuActiveText": "#1f2937",
+    "buttonRadius": "8px",
+    "headerLayout": "default",
+    "heroStyle": "soft",
+    "categoryMenuStyle": "text",
+    "cardStyle": "soft",
+    "sectionSpacing": "relaxed",
+    "bannerVisible": true,
+    "previewBadgeStyle": "soft",
+    "cursorEffect": false,
+    "cursorImage": "",
+    "brandingMode": "logo_name",
+    "logoDisplayMode": "contain",
+    "logoBgMode": "auto",
+    "logoPadding": 6,
+    "logoRadius": 10,
+    "logoShadow": "soft",
+    "logoMaxHeight": 72,
+    "productThumbAspect": "4:3",
+    "productThumbFit": "cover",
+    "productThumbBg": "#f8fafc",
+    "productCardHoverEffect": "lift",
+    "cardDensity": "normal",
+    "productPreOpenEffect": "none",
+    "footerTextColor": "#6b7280",
+    "kitWizardDisplay": "sequential",
+    "spareToolsCardMode": "prominent",
+    "enableDiyQuickScenario": false,
+    "kitWizardSkipRule": "none",
+    "homeLayoutPreset": "split"
+  },
+  "homepage": {
+    "heroImage": "",
+    "featuredPrimary": [],
+    "featuredSecondaryId": "",
+    "featuredIds": [],
+    "secondaryCard": {
+      "title": {
+        "el": "Seasonal living ideas",
+        "en": "Seasonal living ideas"
+      },
+      "text": {
+        "el": "Δες προτάσεις για άνοιξη, γιορτές και cozy home στιγμές.",
+        "en": "Browse spring, festive and cozy living inspirations."
+      },
+      "link": "",
+      "image": ""
+    },
+    "showSubscriptionsCard": false,
+    "introEnabled": false,
+    "introMode": "basic",
+    "introTagline": "",
+    "introVideoUrl": "",
+    "introPosterUrl": "",
+    "blockOrder": [
+      "hero",
+      "spare",
+      "kits",
+      "subscriptions"
+    ],
+    "blockVisibility": {
+      "hero": true,
+      "kits": false,
+      "spare": false,
+      "subscriptions": false
+    },
+    "blockContent": {
+      "kitsTitle": "",
+      "spareTitle": "",
+      "subscriptionsTitle": "",
+      "kitsCtaLabel": "",
+      "kitsCtaHref": "",
+      "spareCtaLabel": "",
+      "spareCtaHref": "",
+      "subscriptionsCtaLabel": "",
+      "subscriptionsCtaHref": ""
+    }
+  },
+  "footer": {
+    "contactEmail": "",
+    "pickupAddress": "",
+    "facebookUrl": "",
+    "instagramUrl": "",
+    "tiktokUrl": "",
+    "poweredByEnabled": true,
+    "poweredByText": "Powered by Thronos Commerce ↗",
+    "poweredByUrl": "https://thronoscommerce.thronoschain.org/"
+  },
+  "favicon": {
+    "path": "",
+    "mime": "",
+    "updatedAt": 0
+  }
+}
