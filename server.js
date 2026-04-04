@@ -217,7 +217,7 @@ function isUrlSafeSlug(value) {
 }
 
 function isEukolakisClassicPreset(req) {
-  if (!req || !req.tenant || req.tenant.id !== 'eukolakis') return false;
+  if (!req || !req.tenant) return false;
   const config = loadTenantConfig(req);
   const presetId = config && config.theme && config.theme.presetId;
   return presetId === 'eukolakis_classic_diy';
@@ -244,7 +244,7 @@ function hasBodyField(body, key) {
 
 const EUKOLAKIS_CORE_CATEGORY_IDS = new Set(['diy-rolla', 'diy-sliding', 'spare-parts']);
 function shouldDefaultPartsOnly(tenant, config) {
-  return tenant && tenant.id === 'eukolakis' && config && config.theme && config.theme.presetId === 'eukolakis_classic_diy';
+  return !!(config && config.theme && config.theme.presetId === 'eukolakis_classic_diy');
 }
 
 function localizeConfigContent(config, lang) {
@@ -410,6 +410,24 @@ const REFERRAL_ACCOUNTS_FILE = path.join(DATA_ROOT, 'referral_accounts.json');
 const REFERRAL_EARNINGS_FILE = path.join(DATA_ROOT, 'referral_earnings.json');
 const REFERRAL_LEDGER_FILE   = path.join(DATA_ROOT, 'referral_ledger.json');
 const SETTLEMENT_LEDGER_FILE = path.join(DATA_ROOT, 'settlement_ledger.json');
+const THEME_GOVERNANCE_FILE  = path.join(DATA_ROOT, 'theme-governance.json');
+
+const THEME_CATALOG = Object.freeze({
+  core_default: {
+    key: 'core_default',
+    label: 'Core Default',
+    description: 'General storefront theme for most tenants.',
+    supportedSettings: ['colors', 'menu', 'layout', 'logo', 'productCards', 'homepage', 'cursor']
+  },
+  eukolakis_classic_diy: {
+    key: 'eukolakis_classic_diy',
+    label: 'Eukolakis Classic DIY',
+    description: 'Industrial DIY storefront with specialized hero/nav/product behavior.',
+    supportedSettings: ['logo', 'productCards', 'homepage', 'diy']
+  }
+});
+const DEFAULT_THEME_KEY = 'core_default';
+const DEFAULT_AVAILABLE_THEME_KEYS = Object.freeze([DEFAULT_THEME_KEY, 'eukolakis_classic_diy']);
 
 function loadJson(filePath, fallback) {
   try {
@@ -426,13 +444,51 @@ function saveJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function listThemeCatalog() {
+  return Object.values(THEME_CATALOG);
+}
+
+function normalizeThemeKeys(keys, fallback = [DEFAULT_THEME_KEY]) {
+  const source = Array.isArray(keys) ? keys : [];
+  const normalized = [];
+  source.forEach((value) => {
+    const key = String(value || '').trim();
+    if (!key || !THEME_CATALOG[key]) return;
+    if (!normalized.includes(key)) normalized.push(key);
+  });
+  if (!normalized.length) {
+    const fallbackKeys = Array.isArray(fallback) ? fallback : [DEFAULT_THEME_KEY];
+    fallbackKeys.forEach((value) => {
+      const key = String(value || '').trim();
+      if (THEME_CATALOG[key] && !normalized.includes(key)) normalized.push(key);
+    });
+  }
+  if (!normalized.length) normalized.push(DEFAULT_THEME_KEY);
+  return normalized;
+}
+
+function loadThemeGovernance() {
+  const raw = loadJson(THEME_GOVERNANCE_FILE, {});
+  const availableThemeKeys = normalizeThemeKeys(raw && raw.availableThemeKeys, DEFAULT_AVAILABLE_THEME_KEYS);
+  return { availableThemeKeys };
+}
+
+function saveThemeGovernance(next) {
+  const safe = {
+    availableThemeKeys: normalizeThemeKeys(next && next.availableThemeKeys, DEFAULT_AVAILABLE_THEME_KEYS)
+  };
+  saveJson(THEME_GOVERNANCE_FILE, safe);
+}
+
 function loadTenantsRegistry() {
   const tenants = loadJson(TENANTS_REGISTRY, []);
   if (!Array.isArray(tenants)) return [];
+  const governance = loadThemeGovernance();
   return tenants.map((tenant) => {
     const hosting = tenant && tenant.hosting && typeof tenant.hosting === 'object' ? tenant.hosting : {};
     return {
       ...tenant,
+      allowedThemeKeys: normalizeThemeKeys(tenant && tenant.allowedThemeKeys, governance.availableThemeKeys),
       hosting: {
         domainStatus: hosting.domainStatus || tenant.domainStatus || 'pending_dns',
         sslStatus: hosting.sslStatus || 'pending',
@@ -469,6 +525,20 @@ function normalizeTenantDomainInputs({ domain, primaryDomain, domains, previewSu
     domains: dedupedAliases,
     previewSubdomain: preview
   };
+}
+
+function getAllowedThemeKeysForTenant(tenant) {
+  const governance = loadThemeGovernance();
+  const tenantAllowed = normalizeThemeKeys(tenant && tenant.allowedThemeKeys, governance.availableThemeKeys);
+  return tenantAllowed.filter((key) => governance.availableThemeKeys.includes(key));
+}
+
+function resolveThemeKeyForTenant(tenant, requestedKey) {
+  const allowed = getAllowedThemeKeysForTenant(tenant);
+  const key = String(requestedKey || '').trim();
+  if (key && allowed.includes(key)) return key;
+  if (allowed.length) return allowed[0];
+  return DEFAULT_THEME_KEY;
 }
 
 function findTenantById(tenantId) {
@@ -923,6 +993,7 @@ function loadTenantConfig(req) {
       vaMerchantGoals: ''
     },
     theme: {
+      presetId: DEFAULT_THEME_KEY,
       menuBg: '#111111',
       menuText: '#ffffff',
       menuActiveBg: '#f06292',
@@ -982,6 +1053,7 @@ function loadTenantConfig(req) {
   cfg.favicon = Object.assign({}, fallback.favicon, cfg.favicon || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
+  cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
   cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
   cfg.homepage.secondaryCard.image = normalizeMediaPath(cfg.homepage.secondaryCard.image);
@@ -1006,7 +1078,7 @@ function loadTenantConfig(req) {
     paymentOptions.unshift({ id: 'COD', label: 'Αντικαταβολή', type: 'cod' });
   }
   cfg.paymentOptions = paymentOptions;
-  if (!hasStoredKitWizardDisplay && req.tenant && req.tenant.id === 'eukolakis') {
+  if (!hasStoredKitWizardDisplay && cfg.theme && cfg.theme.presetId === 'eukolakis_classic_diy') {
     cfg.theme.kitWizardDisplay = 'cinematic';
   }
   return cfg;
@@ -2201,6 +2273,9 @@ function buildAdminViewModel(req, extra) {
     : (CONTENT_LANGS.includes(sContentLang) ? sContentLang : DEFAULT_CONTENT_LANG);
   if (req.session) req.session.contentLang = contentLang;
   const permissions = getSupportPermissions(req.tenant.supportTier);
+  const allowedThemeKeys = getAllowedThemeKeysForTenant(req.tenant);
+  const allowedThemes = listThemeCatalog().filter((theme) => allowedThemeKeys.includes(theme.key));
+  const activeThemeKey = resolveThemeKeyForTenant(req.tenant, config && config.theme ? config.theme.presetId : DEFAULT_THEME_KEY);
   const orders = loadTenantOrders(req);
   const unresolvedOrdersCount = orders.filter((o) => isOrderUnresolved(o)).length;
   const stockLog = loadJson(req.tenantPaths.stockLog, []);
@@ -2263,6 +2338,10 @@ function buildAdminViewModel(req, extra) {
     tickets: tickets.slice().reverse(),
     adminActionTimeoutMs: ADMIN_IDLE_TIMEOUT_MS,
     adminReauthRemainingMs,
+    allowedThemeKeys,
+    allowedThemes,
+    activeThemeKey,
+    activeThemeMeta: THEME_CATALOG[activeThemeKey] || THEME_CATALOG[DEFAULT_THEME_KEY],
     financeSummary: {
       pendingSettlementEstimate: +pendingSettlementEstimate.toFixed(2),
       pendingPlatformDues: +pendingPlatformDues.toFixed(2),
@@ -2380,7 +2459,7 @@ app.get('/', (req, res) => {
 
     const rawCategory = String(req.query.category || '');
     let catSlug = normalizeSlug(rawCategory);
-    if (req.tenant.id === 'eukolakis') {
+    if (config && config.theme && config.theme.presetId === 'eukolakis_classic_diy') {
       const aliasMap = { spare: 'spare-parts' };
       catSlug = aliasMap[catSlug] || catSlug;
     }
@@ -2494,9 +2573,15 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
       selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
     }))
     .slice(0, 120);
-  req.session.checkoutCartSnapshot = snapshot;
+  const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+  if (!req.session.checkoutCartSnapshotByTenant || typeof req.session.checkoutCartSnapshotByTenant !== 'object') {
+    req.session.checkoutCartSnapshotByTenant = {};
+  }
+  if (tenantId) {
+    req.session.checkoutCartSnapshotByTenant[tenantId] = snapshot;
+  }
   console.log('[checkout] cart-snapshot:save', JSON.stringify({
-    tenantId: req.tenant && req.tenant.id,
+    tenantId,
     count: snapshot.length
   }));
   return res.json({ ok: true, count: snapshot.length });
@@ -2521,10 +2606,15 @@ app.post('/checkout', async (req, res) => {
   // ── Parse cart items ──────────────────────────────────────────────
   let cartItems = [];
   try { cartItems = JSON.parse(cartJson || '[]'); } catch (_) {}
-  if ((!Array.isArray(cartItems) || !cartItems.length) && Array.isArray(req.session.checkoutCartSnapshot) && req.session.checkoutCartSnapshot.length) {
-    cartItems = req.session.checkoutCartSnapshot.slice();
+  const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+  const snapshotByTenant = (req.session && req.session.checkoutCartSnapshotByTenant && typeof req.session.checkoutCartSnapshotByTenant === 'object')
+    ? req.session.checkoutCartSnapshotByTenant
+    : {};
+  const tenantSnapshot = tenantId && Array.isArray(snapshotByTenant[tenantId]) ? snapshotByTenant[tenantId] : [];
+  if ((!Array.isArray(cartItems) || !cartItems.length) && tenantSnapshot.length) {
+    cartItems = tenantSnapshot.slice();
     console.log('[checkout] submit:session-fallback', JSON.stringify({
-      tenantId: req.tenant && req.tenant.id,
+      tenantId,
       count: cartItems.length
     }));
   }
@@ -3023,9 +3113,15 @@ app.get('/checkout/complete', (req, res) => {
     return p && p.hasDigitalContent;
   });
   if (req.session) {
-    req.session.checkoutCartSnapshot = [];
+    const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
+    if (!req.session.checkoutCartSnapshotByTenant || typeof req.session.checkoutCartSnapshotByTenant !== 'object') {
+      req.session.checkoutCartSnapshotByTenant = {};
+    }
+    if (tenantId) {
+      req.session.checkoutCartSnapshotByTenant[tenantId] = [];
+    }
     console.log('[checkout] complete:cart-clear', JSON.stringify({
-      tenantId: req.tenant && req.tenant.id,
+      tenantId,
       orderId: order.id
     }));
   }
@@ -3793,7 +3889,8 @@ app.post('/admin/settings', async (req, res) => {
     themeMenuText,
     themeMenuActiveBg,
     themeMenuActiveText,
-    themeButtonRadius
+    themeButtonRadius,
+    themePresetId
     ,
     themeHeaderLayout,
     themeHeroStyle,
@@ -3862,6 +3959,7 @@ app.post('/admin/settings', async (req, res) => {
   config.web3Domain = web3Domain || config.web3Domain;
   config.logoPath = normalizeMediaPath(hasBodyField(req.body, 'logoPath') ? logoPath : config.logoPath) || '/logo.svg';
   config.theme = config.theme || {};
+  config.theme.presetId = resolveThemeKeyForTenant(req.tenant, themePresetId || config.theme.presetId || DEFAULT_THEME_KEY);
   config.theme.menuBg = themeMenuBg || config.theme.menuBg || '#111111';
   config.theme.menuText = themeMenuText || config.theme.menuText || '#ffffff';
   config.theme.menuActiveBg =
@@ -5208,6 +5306,8 @@ const SUPPORT_TIERS = ['SELF_SERVICE', 'MANAGEMENT_START', 'FULL_OPS_START', 'DI
 
 function buildRootViewModel(extra, req) {
   const tenants = loadTenantsRegistry();
+  const themeGovernance = loadThemeGovernance();
+  const themeCatalog = listThemeCatalog();
   const tenantPaymentConfigs = {};
   tenants.forEach((t) => {
     try {
@@ -5295,6 +5395,8 @@ function buildRootViewModel(extra, req) {
 
   return {
     tenants,
+    themeGovernance,
+    themeCatalog,
     themeTemplates: listThemeTemplates(),
     tenantPaymentConfigs,
     refAccounts,
@@ -5373,7 +5475,7 @@ app.get('/root/logout', (req, res) => {
 app.post('/root/tenants/create', async (req, res) => {
   const {
     rootPassword, id, domain, supportTier, adminPasswordPlain, templateId, refCode, refPercent,
-    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww, allowedThemeKeys
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
@@ -5410,6 +5512,7 @@ app.post('/root/tenants/create', async (req, res) => {
     fallbackPreviewSubdomain: cleanId
   });
   const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
+  const parsedAllowedThemeKeys = normalizeThemeKeys(String(allowedThemeKeys || '').split(','), loadThemeGovernance().availableThemeKeys);
   const newTenant = {
     id: cleanId,
     domain: normalizedDomains.domain,
@@ -5418,6 +5521,7 @@ app.post('/root/tenants/create', async (req, res) => {
     previewSubdomain: normalizedDomains.previewSubdomain,
     domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
     canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
+    allowedThemeKeys: parsedAllowedThemeKeys,
     supportTier: resolvedTier,
     allowPoweredBy: false,
     adminPasswordHash,
@@ -5464,10 +5568,27 @@ app.post('/root/templates/create', (req, res) => {
   return res.render('root-tenants', buildRootViewModel({ message: `Template "${tpl.id}" αποθηκεύτηκε.` }));
 });
 
+app.post('/root/themes/update', (req, res) => {
+  const { rootPassword, availableThemeKeys } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+  }
+  const parsedKeys = String(availableThemeKeys || '').split(',');
+  const nextAvailable = normalizeThemeKeys(parsedKeys, DEFAULT_AVAILABLE_THEME_KEYS);
+  saveThemeGovernance({ availableThemeKeys: nextAvailable });
+  const tenants = loadTenantsRegistry();
+  const constrained = tenants.map((tenant) => {
+    const allowed = normalizeThemeKeys(tenant.allowedThemeKeys, nextAvailable).filter((key) => nextAvailable.includes(key));
+    return Object.assign({}, tenant, { allowedThemeKeys: allowed });
+  });
+  saveTenantsRegistry(constrained);
+  return res.render('root-tenants', buildRootViewModel({ message: 'Τα διαθέσιμα themes ενημερώθηκαν.' }));
+});
+
 app.post('/root/tenants/update', (req, res) => {
   const {
     rootPassword, tenantId, domain, supportTier, active, allowPoweredBy,
-    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww
+    primaryDomain, domains, previewSubdomain, domainStatus, canonicalToWww, allowedThemeKeys
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
@@ -5502,6 +5623,11 @@ app.post('/root/tenants/update', (req, res) => {
   }
   if (canonicalToWww !== undefined) {
     tenants[idx].canonicalToWww = canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on';
+  }
+  if (allowedThemeKeys !== undefined) {
+    const governance = loadThemeGovernance();
+    tenants[idx].allowedThemeKeys = normalizeThemeKeys(String(allowedThemeKeys || '').split(','), governance.availableThemeKeys)
+      .filter((key) => governance.availableThemeKeys.includes(key));
   }
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';

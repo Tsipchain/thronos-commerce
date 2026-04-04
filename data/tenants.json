@@ -5,7 +5,10 @@
     "supportTier": "MANAGEMENT_START",
     "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
     "createdAt": "2026-02-20T10:00:00Z",
-    "active": true
+    "active": true,
+    "allowedThemeKeys": [
+      "core_default"
+    ]
   },
   {
     "id": "fashionmm",
@@ -13,7 +16,10 @@
     "supportTier": "FULL_OPS_START",
     "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
     "createdAt": "2026-02-26T10:00:00Z",
-    "active": true
+    "active": true,
+    "allowedThemeKeys": [
+      "core_default"
+    ]
   },
   {
     "id": "eukolakis",
@@ -28,6 +34,28 @@
     "supportTier": "MANAGEMENT_START",
     "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
     "createdAt": "2026-03-25T00:00:00Z",
-    "active": true
+    "active": true,
+    "allowedThemeKeys": [
+      "core_default",
+      "eukolakis_classic_diy"
+    ]
+  },
+  {
+    "id": "aisthetic",
+    "domain": "aisthetic-stores.gr",
+    "primaryDomain": "aisthetic-stores.gr",
+    "domains": [
+      "www.aisthetic-stores.gr"
+    ],
+    "previewSubdomain": "aisthetic",
+    "domainStatus": "pending_dns",
+    "canonicalToWww": false,
+    "supportTier": "MANAGEMENT_START",
+    "adminPasswordHash": "$2b$10$7EqJtq98hPqEX7fNZaFWoOhiXnM4YFQki71RJKVQ1BM8DT6vKrrOe",
+    "createdAt": "2026-04-04T00:00:00Z",
+    "active": true,
+    "allowedThemeKeys": [
+      "core_default"
+    ]
   }
 ]
