@@ -1000,6 +1000,8 @@ function loadTenantConfig(req) {
       menuActiveText: '#ffffff',
       buttonRadius: '4px',
       headerLayout: 'default',
+      authPosition: 'right',
+      menuStyle: 'classic',
       heroStyle: 'soft',
       categoryMenuStyle: 'image_label',
       cardStyle: 'soft',
@@ -1199,6 +1201,8 @@ function deriveTrackingUrl(carrier, trackingNumber) {
   if (normalizedCarrier === 'elta') return `https://elta.gr/track?code=${encoded}`;
   if (normalizedCarrier === 'geniki') return `https://www.taxydromiki.com/track?voucher=${encoded}`;
   if (normalizedCarrier === 'dhl') return `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encoded}`;
+  if (normalizedCarrier === 'courier_center') return `https://www.courier.gr/track?voucher=${encoded}`;
+  if (normalizedCarrier === 'boxnow') return `https://track.boxnow.gr/?trackingNumber=${encoded}`;
   return '';
 }
 
@@ -1622,7 +1626,16 @@ function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
     logoPath: '/logo.svg',
     shippingOptions: [],
     paymentOptions: [],
-    theme: { menuBg: '#111111', menuText: '#ffffff', menuActiveBg: '#f06292', menuActiveText: '#ffffff', buttonRadius: '4px' }
+    theme: {
+      menuBg: '#111111',
+      menuText: '#ffffff',
+      menuActiveBg: '#f06292',
+      menuActiveText: '#ffffff',
+      buttonRadius: '4px',
+      headerLayout: 'default',
+      authPosition: 'right',
+      menuStyle: 'classic'
+    }
   };
 
   if (!fs.existsSync(newPaths.config)) {
@@ -4107,6 +4120,8 @@ app.post('/admin/settings', async (req, res) => {
     themePresetId
     ,
     themeHeaderLayout,
+    themeAuthPosition,
+    themeMenuStyle,
     themeHeroStyle,
     themeCategoryMenuStyle,
     themeCardStyle,
@@ -4183,6 +4198,12 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.buttonRadius =
     themeButtonRadius || config.theme.buttonRadius || '4px';
   config.theme.headerLayout = themeHeaderLayout || config.theme.headerLayout || 'default';
+  config.theme.authPosition = ['left', 'right'].includes(String(themeAuthPosition || '').trim())
+    ? String(themeAuthPosition).trim()
+    : (config.theme.authPosition || 'right');
+  config.theme.menuStyle = ['classic', 'pills', 'compact'].includes(String(themeMenuStyle || '').trim())
+    ? String(themeMenuStyle).trim()
+    : (config.theme.menuStyle || 'classic');
   config.theme.heroStyle = themeHeroStyle || config.theme.heroStyle || 'soft';
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
@@ -4881,10 +4902,12 @@ app.post(
   }
 );
 
-app.post(
-  '/admin/products/image-upload',
-  productsImageUpload.single('imageFile'),
-  async (req, res) => {
+app.post('/admin/products/image-upload', async (req, res) => {
+  productsImageUpload.single('imageFile')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      console.error('[upload] products:image failed', uploadErr && uploadErr.message ? uploadErr.message : uploadErr);
+      return res.status(400).json({ ok: false, error: 'Product image upload failed. Please check file type/size.' });
+    }
     const permissions = getSupportPermissions(req.tenant.supportTier);
     if (!permissions.canUploadMedia || !permissions.canEditProducts) {
       return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
@@ -4894,13 +4917,15 @@ app.post(
     if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
     const url = `/tenants/${req.tenant.id}/media/products/${req.file.filename}`;
     return res.json({ ok: true, url });
-  }
-);
+  });
+});
 
-app.post(
-  '/admin/variants/image-upload',
-  variantImageUpload.single('variantImage'),
-  async (req, res) => {
+app.post('/admin/variants/image-upload', async (req, res) => {
+  variantImageUpload.single('variantImage')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      console.error('[upload] variants:image failed', uploadErr && uploadErr.message ? uploadErr.message : uploadErr);
+      return res.status(400).json({ ok: false, error: 'Variant image upload failed. Please check file type/size.' });
+    }
     const permissions = getSupportPermissions(req.tenant.supportTier);
     if (!permissions.canUploadMedia || !permissions.canEditProducts) {
       return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
@@ -4911,13 +4936,15 @@ app.post(
     const { productId, variantSku } = getVariantMediaMeta(req);
     const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
     return res.json({ ok: true, url });
-  }
-);
+  });
+});
 
-app.post(
-  '/admin/variants/video-upload',
-  variantVideoUpload.single('variantVideo'),
-  async (req, res) => {
+app.post('/admin/variants/video-upload', async (req, res) => {
+  variantVideoUpload.single('variantVideo')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      console.error('[upload] variants:video failed', uploadErr && uploadErr.message ? uploadErr.message : uploadErr);
+      return res.status(400).json({ ok: false, error: 'Variant video upload failed. Please check file type/size.' });
+    }
     const permissions = getSupportPermissions(req.tenant.supportTier);
     if (!permissions.canUploadMedia || !permissions.canEditProducts) {
       return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
@@ -4928,8 +4955,8 @@ app.post(
     const { productId, variantSku } = getVariantMediaMeta(req);
     const url = `/tenants/${req.tenant.id}/media/variants/${productId}/${variantSku}/${req.file.filename}`;
     return res.json({ ok: true, url });
-  }
-);
+  });
+});
 
 app.post(
   '/admin/homepage/banner-upload',

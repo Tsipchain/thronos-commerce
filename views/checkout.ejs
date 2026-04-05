@@ -189,7 +189,7 @@
               <%= t('checkout.shippingMethod') %> *
               <select name="shippingMethodId" id="sel-shipping" required onchange="recalc()">
                 <% (config.shippingOptions || []).forEach(function(opt) { %>
-                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>">
+                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>" data-allowed="<%= Array.isArray(opt.allowedPaymentMethods) ? opt.allowedPaymentMethods.join(',') : '' %>">
                     <%= opt.label %><% if (opt.base > 0) { %> (+<%= Number(opt.base).toFixed(2) %> €)<% } %>
                   </option>
                 <% }); %>
@@ -352,7 +352,30 @@
       const DEFAULT_SUBMIT_TEXT = '<%= t("checkout.submit") %>';
 
       // ── Live price calculation ────────────────────────────────────
+      function syncAllowedPaymentOptions() {
+        const shipSel = document.getElementById('sel-shipping');
+        const paySel = document.getElementById('sel-payment');
+        if (!shipSel || !paySel) return;
+        const shipOpt = shipSel.options[shipSel.selectedIndex];
+        const allowedRaw = shipOpt ? String(shipOpt.dataset.allowed || '').trim() : '';
+        const allowed = allowedRaw
+          ? allowedRaw.split(',').map(function(v) { return String(v || '').trim().toUpperCase(); }).filter(Boolean)
+          : [];
+        const allowedSet = new Set(allowed);
+        let firstEnabledValue = '';
+        Array.from(paySel.options).forEach(function(opt) {
+          const optId = String(opt.value || '').trim().toUpperCase();
+          const enabled = !allowedSet.size || allowedSet.has(optId);
+          opt.hidden = !enabled;
+          opt.disabled = !enabled;
+          if (enabled && !firstEnabledValue) firstEnabledValue = opt.value;
+        });
+        const selected = paySel.options[paySel.selectedIndex];
+        if ((!selected || selected.disabled) && firstEnabledValue) paySel.value = firstEnabledValue;
+      }
+
       function recalc() {
+        syncAllowedPaymentOptions();
         const subtotalRaw = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
         const qtyDiscount = cart.reduce(function(s, i) {
           const qty = Number(i.qty) || 1;

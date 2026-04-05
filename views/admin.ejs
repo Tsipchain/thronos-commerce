@@ -510,6 +510,19 @@
             <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered (logo + τίτλος κεντραρισμένα)</option>
           </select>
         </label>
+        <label><span>Θέση Login / Account</span>
+          <select name="themeAuthPosition" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="right" <%= ((config.theme && config.theme.authPosition) || 'right') === 'right' ? 'selected' : '' %>>Δεξιά</option>
+            <option value="left" <%= ((config.theme && config.theme.authPosition) || '') === 'left' ? 'selected' : '' %>>Αριστερά</option>
+          </select>
+        </label>
+        <label><span>Style κεντρικού menu</span>
+          <select name="themeMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="classic" <%= ((config.theme && config.theme.menuStyle) || 'classic') === 'classic' ? 'selected' : '' %>>Classic</option>
+            <option value="pills" <%= ((config.theme && config.theme.menuStyle) || '') === 'pills' ? 'selected' : '' %>>Pills</option>
+            <option value="compact" <%= ((config.theme && config.theme.menuStyle) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+          </select>
+        </label>
         <label><span>Τι εμφανίζεται στο header</span>
           <select name="themeBrandingMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Όνομα καταστήματος</option>
