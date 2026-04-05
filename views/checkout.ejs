@@ -102,6 +102,13 @@
         z-index: 1300;
         border-bottom: none !important;
         box-shadow:none !important;
+        background: linear-gradient(135deg, rgba(15,23,42,.18), rgba(31,41,55,.16));
+        backdrop-filter: blur(3px);
+        transition: background .28s ease, box-shadow .28s ease, padding .22s ease;
+      }
+      .store-header.is-scrolled {
+        background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(31,41,55,.96));
+        box-shadow: 0 8px 22px rgba(2,6,23,.3) !important;
       }
       .store-header.premium {
         background: #0b0d12 !important;
@@ -132,6 +139,9 @@
         border-radius: 999px;
         padding: 4px 10px;
         font-size: .82rem;
+      }
+      .checkout-nav-links a:hover {
+        background: rgba(255,255,255,.2);
       }
       .store-footer { margin-top:26px; padding:22px 16px 28px; color: var(--footer-text-color, #6b7280); font-size:.9rem; border-top:1px solid #e5e7eb; text-align:center; position:relative; }
       .store-footer .social-links { display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:8px; }
@@ -534,6 +544,16 @@
           } catch (err) {}
           window.location.href = homeUrl;
         });
+      })();
+      (function bindCheckoutHeaderScrollState() {
+        const headerEl = document.querySelector('.store-header');
+        if (!headerEl) return;
+        const sync = function() {
+          if (window.scrollY > 8) headerEl.classList.add('is-scrolled');
+          else headerEl.classList.remove('is-scrolled');
+        };
+        sync();
+        window.addEventListener('scroll', sync, { passive: true });
       })();
     </script>
     <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
