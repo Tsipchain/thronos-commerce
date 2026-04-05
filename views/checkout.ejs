@@ -96,15 +96,68 @@
         border: 1px solid #fed7aa;
         color: #9a3412;
       }
+      .store-header {
+        position: sticky;
+        top: 0;
+        z-index: 1300;
+        border-bottom: none !important;
+        box-shadow:none !important;
+      }
+      .store-header.premium {
+        background: #0b0d12 !important;
+        border-bottom: 2px solid rgba(196,144,46,.32) !important;
+        box-shadow: 0 2px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(196,144,46,.06) inset !important;
+      }
+      .store-header.premium::before {
+        content: '';
+        display: block;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, #c4902e 30%, #dba83c 60%, transparent 100%);
+        opacity: .7;
+      }
+      .checkout-nav {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        flex-wrap:wrap;
+        padding: 8px 16px 12px;
+      }
+      .checkout-nav-links { display:flex; gap:8px; flex-wrap:wrap; }
+      .checkout-nav-links a {
+        text-decoration:none;
+        color: var(--menu-text, #fff);
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: .82rem;
+      }
+      .store-footer { margin-top:26px; padding:22px 16px 28px; color: var(--footer-text-color, #6b7280); font-size:.9rem; border-top:1px solid #e5e7eb; text-align:center; position:relative; }
+      .store-footer .social-links { display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:8px; }
+      .store-footer .social-links a { text-decoration:none; font-size:1.05rem; }
+      .store-footer .meta-line { margin-top:6px; }
+      .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
     </style>
   </head>
-  <body>
-    <header>
+  <body class="<%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+    <header class="store-header <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'premium' : '' %>">
       <div class="logo-title">
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
         <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+      </div>
+      <div class="checkout-nav">
+        <div class="checkout-nav-links">
+          <a href="<%= withTenantLink('/') %>"><%= lang === 'el' ? 'Αρχική' : 'Home' %></a>
+          <a href="<%= withTenantLink('/checkout') %>"><%= lang === 'el' ? 'Ολοκλήρωση' : 'Checkout' %></a>
+          <% if (user) { %>
+          <a href="<%= withTenantLink('/account') %>"><%= lang === 'el' ? 'Λογαριασμός' : 'Account' %></a>
+          <% } else { %>
+          <a href="<%= withTenantLink('/login') %>">Login</a>
+          <% } %>
+        </div>
       </div>
       <% if (isPreviewMode) { %>
       <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
@@ -483,5 +536,20 @@
         });
       })();
     </script>
+    <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
+      <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
+      <div class="social-links">
+        <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
+        <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
+        <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
+      </div>
+      <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
+      <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
+      <% } %>
+    </footer>
   </body>
 </html>
