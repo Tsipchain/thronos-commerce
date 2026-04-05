@@ -149,6 +149,7 @@
                 <th>Συνδρομή</th>
                 <th>Preview URLs</th>
                 <th>Admin hash</th>
+                <th>Allowed themes</th>
               </tr>
             </thead>
             <tbody>
@@ -194,6 +195,9 @@
                 </td>
                 <td style="font-size:0.74rem;color:#999;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                   <%= t.adminPasswordHash ? t.adminPasswordHash.slice(0, 20) + '…' : '–' %>
+                </td>
+                <td style="font-size:.75rem;">
+                  <code><%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(', ') : 'core_default' %></code>
                 </td>
               </tr>
               <% }) %>
@@ -253,6 +257,25 @@
       <%#   CREATE TENANT                                           %>
       <%# ══════════════════════════════════════════════════════════ %>
       <div class="card">
+        <h2>Theme Governance (Root)</h2>
+        <p class="helper">Ορίστε ποια theme keys είναι διαθέσιμα πλατφορμικά και ποια επιτρέπονται ανά tenant.</p>
+        <form method="POST" action="/root/themes/update">
+          <div class="form-grid">
+            <label class="full">
+              Διαθέσιμα theme keys (comma separated)
+              <input type="text" name="availableThemeKeys" value="<%= (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys)) ? themeGovernance.availableThemeKeys.join(',') : '' %>" />
+              <span class="hint">Επιτρεπόμενα keys: <% (themeCatalog || []).forEach(function(t, i) { %><code><%= t.key %></code><%= i < (themeCatalog.length - 1) ? ', ' : '' %><% }) %></span>
+            </label>
+            <label class="full">
+              Root κωδικός *
+              <input type="password" name="rootPassword" required />
+            </label>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Αποθήκευση Theme Governance</button></div>
+        </form>
+      </div>
+
+      <div class="card">
         <h2>Δημιουργία νέου tenant</h2>
         <p class="helper">
           Συμπληρώστε τα στοιχεία του νέου καταστήματος. Τα αρχεία config/products/categories
@@ -271,17 +294,19 @@
             <label>
               Domain
               <input type="text" name="domain" placeholder="π.χ. myshop.gr" />
-              <span class="hint">Το hostname για tenant resolution</span>
+              <span class="hint">Πραγματικό hostname για tenant resolution (αποθηκεύεται σε lowercase).</span>
             </label>
 
             <label>
               Primary domain
               <input type="text" name="primaryDomain" placeholder="π.χ. myshop.gr" />
+              <span class="hint">Το βασικό domain του tenant (apex ή www).</span>
             </label>
 
             <label>
               Domain aliases
               <input type="text" name="domains" placeholder="myshop.gr,www.myshop.gr" />
+              <span class="hint">Προαιρετικά aliases, χωρισμένα με κόμμα. Μην βάζετε εδώ το Primary domain.</span>
             </label>
 
             <label>
@@ -297,12 +322,14 @@
                 <option value="active">active</option>
                 <option value="failed">failed</option>
               </select>
+              <span class="hint">Χειροκίνητο πεδίο παρακολούθησης (metadata) — δεν κάνει DNS/SSL provisioning.</span>
             </label>
 
             <label class="checkbox-row" style="align-self:end;">
               <input type="hidden" name="canonicalToWww" value="0" />
               <input type="checkbox" name="canonicalToWww" value="1" />
               Canonical redirect to www
+              <span class="hint">Ενεργοποιεί redirect μόνο αν το app ήδη λύνει και τα δύο hosts.</span>
             </label>
 
             <label>
@@ -330,6 +357,12 @@
                 <% } %>
               </select>
               <span class="hint">Αντιγράφονται config / products / categories</span>
+            </label>
+
+            <label class="full">
+              Allowed theme keys (comma separated)
+              <input type="text" name="allowedThemeKeys" value="<%= (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys)) ? themeGovernance.availableThemeKeys.join(',') : '' %>" />
+              <span class="hint">Ο tenant θα μπορεί να επιλέξει μόνο από αυτά τα themes (υποσύνολο των global available).</span>
             </label>
 
             <label>
@@ -422,6 +455,7 @@
                     data-preview-subdomain="<%= t.previewSubdomain || t.id || '' %>"
                     data-domain-status="<%= t.domainStatus || 'pending_dns' %>"
                     data-canonical-to-www="<%= t.canonicalToWww ? 'true' : 'false' %>"
+                    data-allowed-theme-keys="<%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(',') : '' %>"
                     data-tier="<%= t.supportTier %>"
                     data-active="<%= t.active ? 'true' : 'false' %>"
                     data-allow-powered-by="<%= t.allowPoweredBy ? 'true' : 'false' %>">
@@ -444,11 +478,18 @@
             <label>
               Domain aliases (comma separated)
               <input type="text" name="domains" id="update-domains" placeholder="eukolaki.gr,www.eukolaki.gr" />
+              <span class="hint">Το σύστημα αφαιρεί κενά, κάνει lowercase, dedupe και αφαιρεί το Primary από aliases.</span>
             </label>
 
             <label>
               Preview subdomain
               <input type="text" name="previewSubdomain" id="update-preview-subdomain" placeholder="eukolakis" />
+            </label>
+
+            <label class="full">
+              Allowed theme keys (comma separated)
+              <input type="text" name="allowedThemeKeys" id="update-allowed-theme-keys" placeholder="core_default,eukolakis_classic_diy" />
+              <span class="hint">Global available = ό,τι ορίστηκε στο Theme Governance. Tenant allowed = υποσύνολο για τον συγκεκριμένο tenant.</span>
             </label>
 
             <label>
@@ -459,12 +500,14 @@
                 <option value="active">active</option>
                 <option value="failed">failed</option>
               </select>
+              <span class="hint">Χειροκίνητο metadata για operator tracking (όχι αυτοματισμός hosting).</span>
             </label>
 
             <label class="checkbox-row" style="align-self:end;">
               <input type="hidden" name="canonicalToWww" value="0" />
               <input type="checkbox" id="update-canonical-to-www" name="canonicalToWww" value="1" />
               Canonical redirect to www
+              <span class="hint">Δεν αντικαθιστά DNS/Railway ρυθμίσεις· εφαρμόζεται μόνο όταν και τα δύο hosts χαρτογραφούνται.</span>
             </label>
 
             <label>
@@ -974,6 +1017,7 @@
             previewSubdomain: "<%- (t.previewSubdomain || t.id || '').replace(/"/g, '\\"') %>",
             domainStatus: "<%- (t.domainStatus || 'pending_dns').replace(/"/g, '\\"') %>",
             canonicalToWww: <%= t.canonicalToWww ? 'true' : 'false' %>,
+            allowedThemeKeys: "<%- (Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(',') : '').replace(/"/g, '\\"') %>",
             tier: "<%= t.supportTier %>",
             active: <%= t.active ? 'true' : 'false' %>,
             allowPoweredBy: <%= t.allowPoweredBy ? 'true' : 'false' %>
@@ -991,6 +1035,8 @@
         if (domainsEl) domainsEl.value = d.domains || '';
         const previewEl = document.getElementById('update-preview-subdomain');
         if (previewEl) previewEl.value = d.previewSubdomain || '';
+        const allowedThemesEl = document.getElementById('update-allowed-theme-keys');
+        if (allowedThemesEl) allowedThemesEl.value = d.allowedThemeKeys || '';
         const domainStatusEl = document.getElementById('update-domain-status');
         if (domainStatusEl) {
           for (let i = 0; i < domainStatusEl.options.length; i++) {
