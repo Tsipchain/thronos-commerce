@@ -714,6 +714,7 @@
       const STOCK_OUT    = '<%= t("checkout.stockOut") %>';
       const STOCK_LOW    = '<%= t("checkout.stockLow") %>';
       const IN_STOCK     = '<%= t("checkout.inStock") %>';
+      const BASE_GALLERY = <%- JSON.stringify([product.imageUrl].concat(Array.isArray(product.galleryImages) ? product.galleryImages : (Array.isArray(product.gallery) ? product.gallery : [])).filter(Boolean)) %>;
 
       let selectedVariant = VARIANTS.length ? VARIANTS[0] : null;
       let selectedKitOptions = [];
@@ -754,6 +755,21 @@
             v.contentDescription || BASE_DESC,
             BASE_MANUAL
           );
+        }
+
+        // Update hero image with variant image when available
+        const nextHero = (v.imageUrl || '').trim() || BASE_GALLERY[0] || PRODUCT.imageUrl;
+        if (nextHero) {
+          const hero = document.getElementById('hero-img');
+          const wrap = document.getElementById('hero-wrap');
+          if (hero) hero.src = nextHero;
+          if (wrap) wrap.onclick = function() { openLightbox(nextHero); };
+          let activeThumb = null;
+          document.querySelectorAll('.gallery-thumbs img').forEach(function(t) {
+            t.classList.remove('active');
+            if (!activeThumb && t.getAttribute('src') === nextHero) activeThumb = t;
+          });
+          if (activeThumb) activeThumb.classList.add('active');
         }
       }
 
@@ -864,7 +880,7 @@
           name:     PRODUCT.name,
           price:    finalPrice,
           basePrice: selectedVariant ? (Number(selectedVariant.price) || PRODUCT.price) : PRODUCT.price,
-          imageUrl: PRODUCT.imageUrl
+          imageUrl: (selectedVariant && selectedVariant.imageUrl) ? selectedVariant.imageUrl : PRODUCT.imageUrl
         };
         if (selectedVariant) {
           p.variantId    = selectedVariant.id;

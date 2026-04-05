@@ -2511,6 +2511,20 @@ app.get('/', (req, res) => {
       } else {
         products = [];
       }
+    } else if (!config.theme || config.theme.presetId !== 'eukolakis_classic_diy') {
+      const homepageCfg = config.homepage || {};
+      const featuredIds = []
+        .concat(Array.isArray(homepageCfg.featuredPrimary) ? homepageCfg.featuredPrimary : [])
+        .concat(Array.isArray(homepageCfg.featuredIds) ? homepageCfg.featuredIds : [])
+        .concat(homepageCfg.featuredSecondaryId ? [homepageCfg.featuredSecondaryId] : [])
+        .map((id) => String(id || '').trim())
+        .filter(Boolean);
+      if (featuredIds.length) {
+        const featuredSet = new Set(featuredIds);
+        products = hydratedAllProducts.filter((p) => featuredSet.has(String(p.id || '').trim()));
+      } else {
+        products = hydratedAllProducts.slice(0, 8);
+      }
     }
 
     const viewLang = req.lang;
