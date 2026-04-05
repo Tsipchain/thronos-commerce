@@ -310,9 +310,39 @@
       <%# ══════════════════════════════════════════════════════════ %>
       <%#   TAB 1 – THEME / SETTINGS                                %>
       <%# ══════════════════════════════════════════════════════════ %>
+      <% const isEukolakisClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+      <% const isAistheticTenant = tenant && tenant.id === 'aisthetic'; %>
+      <% const supportedGroups = (activeThemeMeta && Array.isArray(activeThemeMeta.supportedSettings)) ? activeThemeMeta.supportedSettings : []; %>
+      <% const supportsColors = supportedGroups.includes('colors'); %>
+      <% const supportsMenu = supportedGroups.includes('menu'); %>
+      <% const supportsCursor = supportedGroups.includes('cursor'); %>
       <form id="tab-theme" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Branding & Εμφάνιση</h2>
         <p class="helper"><%= t('admin.themeHelper') %></p>
+        <p class="settings-info-note">Quick start για νέο merchant: <strong>1)</strong> ανέβασε logo, <strong>2)</strong> βάλε hero κείμενο/εικόνα στην Homepage, <strong>3)</strong> ανέβασε category εικόνες, <strong>4)</strong> πρόσθεσε πρώτα προϊόντα.</p>
+        <% if (isAistheticTenant) { %>
+        <div class="settings-info-note" style="background:#eefdf5;border-color:#bbf7d0;color:#166534;">
+          <strong>Aisthetic Stores – First Session Checklist</strong><br />
+          1) <a href="#tab-theme">Branding</a>: ανέβασε logo.<br />
+          2) <a href="#tab-homepage">Homepage</a>: γράψε τίτλο/κείμενο και ανέβασε hero image.<br />
+          3) <a href="#tab-categories">Categories</a>: ανέβασε εικόνα σε κάθε κατηγορία.<br />
+          4) <a href="#tab-products">Products</a>: πρόσθεσε τα πρώτα προϊόντα και τιμές.
+        </div>
+        <% } %>
+        <label><span>Ενεργό Theme</span>
+          <select name="themePresetId" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <% (allowedThemes || []).forEach(function(themeMeta) { %>
+              <option value="<%= themeMeta.key %>" <%= ((config.theme && config.theme.presetId) || 'core_default') === themeMeta.key ? 'selected' : '' %>>
+                <%= themeMeta.label %> (<%= themeMeta.key %>)
+              </option>
+            <% }) %>
+          </select>
+          <small class="helper">Ο tenant μπορεί να επιλέξει μόνο themes που έχουν επιτραπεί από το Root Admin.</small>
+        </label>
+        <p class="settings-info-note">
+          Active theme: <strong><%= (activeThemeMeta && activeThemeMeta.label) || ((config.theme && config.theme.presetId) || 'core_default') %></strong>.
+          Υποστηριζόμενες ομάδες ρυθμίσεων: <code><%= (activeThemeMeta && activeThemeMeta.supportedSettings ? activeThemeMeta.supportedSettings.join(', ') : 'general') %></code>.
+        </p>
 
         <h3 class="settings-section-heading">Ταυτότητα Καταστήματος</h3>
 
@@ -338,7 +368,7 @@
           <small class="helper">Αφήστε κενό αν δεν χρησιμοποιείτε Web3 domain. Εμφανίζεται δίπλα στο όνομα καταστήματος.</small>
         </label>
 
-        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία</h3>
+        <h3 class="settings-section-heading">Χρώματα & Τυπογραφία <% if (!supportsColors) { %><small style="color:#ca8a04;font-weight:600;">(περιορισμένη επίδραση στο τρέχον theme)</small><% } %></h3>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερή βιομηχανική παλέτα χρωμάτων. Τα παρακάτω χρώματα δεν εφαρμόζονται στο ενεργό θέμα — μπορείτε να τα αλλάξετε αν αλλάξετε θέμα.</p>
         <% } %>
@@ -413,7 +443,7 @@
         <% } %>
         <p class="settings-info-note">Το favicon (εικόνα στην καρτέλα browser) ανεβαίνει στην ενότητα <a href="#tab-upload">Media</a>.</p>
 
-        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης</h3>
+        <h3 class="settings-section-heading">Χρώματα Μενού Πλοήγησης <% if (!supportsMenu) { %><small style="color:#ca8a04;font-weight:600;">(preset-limited)</small><% } %></h3>
         <p class="helper" style="margin:0 0 8px;"><%= t('admin.menuColorsHelper') %></p>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;margin-bottom:10px;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό σκούρο header — αυτά τα χρώματα δεν εφαρμόζονται στο τρέχον θέμα.</p>
@@ -480,6 +510,19 @@
             <option value="centered" <%= ((config.theme && config.theme.headerLayout) || '') === 'centered' ? 'selected' : '' %>>Centered (logo + τίτλος κεντραρισμένα)</option>
           </select>
         </label>
+        <label><span>Θέση Login / Account</span>
+          <select name="themeAuthPosition" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="right" <%= ((config.theme && config.theme.authPosition) || 'right') === 'right' ? 'selected' : '' %>>Δεξιά</option>
+            <option value="left" <%= ((config.theme && config.theme.authPosition) || '') === 'left' ? 'selected' : '' %>>Αριστερά</option>
+          </select>
+        </label>
+        <label><span>Style κεντρικού menu</span>
+          <select name="themeMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="classic" <%= ((config.theme && config.theme.menuStyle) || 'classic') === 'classic' ? 'selected' : '' %>>Classic</option>
+            <option value="pills" <%= ((config.theme && config.theme.menuStyle) || '') === 'pills' ? 'selected' : '' %>>Pills</option>
+            <option value="compact" <%= ((config.theme && config.theme.menuStyle) || '') === 'compact' ? 'selected' : '' %>>Compact</option>
+          </select>
+        </label>
         <label><span>Τι εμφανίζεται στο header</span>
           <select name="themeBrandingMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="logo_name" <%= ((config.theme && config.theme.brandingMode) || 'logo_name') === 'logo_name' ? 'selected' : '' %>>Logo + Όνομα καταστήματος</option>
@@ -496,7 +539,7 @@
           </select>
         </label>
         <label><span>Φόντο πλαισίου logo</span>
-          <select name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+          <select id="themeLogoBgMode" name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>Χωρίς φόντο</option>
             <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Σκούρο badge</option>
             <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Ανοιχτό badge</option>
@@ -519,16 +562,16 @@
           </select>
         </label>
         <label><span>Μέγιστο ύψος logo στο header (px)</span>
-          <input type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 72)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Ύψος σε pixels (56–120px). <% if (tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
+          <input id="themeLogoMaxHeight" type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 88)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Ύψος σε pixels (56–120px). <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
         </label>
         <% if (config.logoPath) { %>
         <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
         <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
         <% const liveBrandingMode = (config.theme && config.theme.brandingMode) || 'logo_name'; %>
-        <% const liveIsClassic = tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
-        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 72)); %>
-        <% const livePreviewLogoHeight = Math.max(56, Math.min(120, liveRawHeight || (liveIsClassic ? 96 : 72))); %>
+        <% const liveIsClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
+        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 88)); %>
+        <% const livePreviewLogoHeight = Math.max(56, Math.min(120, liveRawHeight || (liveIsClassic ? 96 : 88))); %>
         <div class="branding-live-preview">
           <div class="title">Live preview (logo size + shadow)</div>
           <div class="logo-preview-frame <%= liveLogoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;box-shadow:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : '0 4px 12px rgba(15,23,42,.12)') %>;">
@@ -628,7 +671,11 @@
             <option value="text" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'text' ? 'selected' : '' %>>Μόνο κείμενο</option>
             <option value="image" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'image' ? 'selected' : '' %>>Μόνο εικόνα</option>
             <option value="image_label" <%= ((config.theme && config.theme.categoryMenuStyle) || 'image_label') === 'image_label' ? 'selected' : '' %>>Εικόνα + Τίτλος (συνιστάται)</option>
+            <option value="code_tabs" <%= ((config.theme && config.theme.categoryMenuStyle) || '') === 'code_tabs' ? 'selected' : '' %>>Industrial CSS tabs (Eukolaki)</option>
           </select>
+          <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
+          <small class="helper">Με <strong>Industrial CSS tabs</strong> ενεργοποιούνται badges/tabs με καθαρό CSS (χωρίς PNG plates) με ένα save.</small>
+          <% } %>
         </label>
         <label><span>Στυλ καρτών προϊόντων</span>
           <select name="themeCardStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
@@ -660,10 +707,10 @@
         <label class="checkbox-label">
           <input type="hidden" name="themeCursorEffect" value="0" />
           <input type="checkbox" name="themeCursorEffect" value="1" <%= (config.theme && config.theme.cursorEffect) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Custom cursor (μόνο desktop, προαιρετικό)</span>
+          <span>Custom cursor (μόνο desktop, προαιρετικό) <% if (!supportsCursor) { %><small style="color:#ca8a04;font-weight:600;">(limited support)</small><% } %></span>
         </label>
         <small class="helper">Αντικαθιστά τον κανονικό κέρσορα με προσαρμοσμένη εικόνα στο desktop. Αφήστε ανενεργό αν δεν χρησιμοποιείτε custom cursor.</small>
-        <% if (tenant.id === 'eukolakis') { %>
+        <% if (isEukolakisClassic) { %>
         <label><span>Cursor image URL (desktop only)</span>
           <input type="text" id="themeCursorImage-input" name="themeCursorImage" value="<%= (config.theme && config.theme.cursorImage) || '' %>" placeholder="/tenants/eukolakis/media/cursor/wrench.png" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
@@ -700,12 +747,110 @@
       <form id="tab-homepage" class="admin-block section-panel js-settings-save-form" method="POST" action="<%= withTenantLink('/admin/settings') %>">
         <h2>Homepage</h2>
         <p class="helper">Ρυθμίστε την αρχική σελίδα του καταστήματός σας — εικόνα banner, τίτλοι, προτεινόμενα προϊόντα και ορατότητα ενοτήτων.</p>
+        <% const homepageLabels = isEukolakisClassic ? {
+          featuredSectionTitle: 'Προτεινόμενα Προϊόντα',
+          featuredSectionHelper: 'Επιλέξτε ποια kits εμφανίζονται στα μεγάλα cards της αρχικής σελίδας.',
+          featuredPrimary1: 'Κύριο προϊόν / Kit #1',
+          featuredPrimary2: 'Κύριο προϊόν / Kit #2',
+          featuredPickerEmpty: '-- Επιλέξτε KIT --',
+          featuredSecondaryLabel: 'Επιπλέον προϊόν / block',
+          featuredSecondaryPlaceholder: 'π.χ. eukolaki-spare-pack',
+          featuredSecondaryHelper: 'ID ενός επιπλέον προϊόντος που εμφανίζεται σε μικρό block κάτω από τα κύρια kits. Βρείτε το ID στην ενότητα Προϊόντα.',
+          secondaryCardTitleLabel: 'Κάρτα Ανταλλακτικών — Τίτλος (EL / EN)',
+          secondaryCardTitlePlaceholderEl: 'π.χ. Ανταλλακτικά & Εργαλεία',
+          secondaryCardTitlePlaceholderEn: 'e.g. Spare Parts & Tools',
+          secondaryCardTitleHelper: 'Τίτλος της κάρτας ανταλλακτικών. Αφήστε κενό για τον αυτόματο τίτλο.',
+          secondaryCardTextLabel: 'Κάρτα Ανταλλακτικών — Περιγραφή (EL / EN)',
+          secondaryCardTextPlaceholderEl: 'π.χ. Βρες το κομμάτι που σου λείπει.',
+          secondaryCardTextPlaceholderEn: 'e.g. Find the part you need.',
+          secondaryCardLinkLabel: 'Κάρτα Ανταλλακτικών — Σύνδεσμος',
+          secondaryCardLinkPlaceholder: '/?category=spare-parts',
+          secondaryCardLinkHelper: 'Σχετικό URL — π.χ. /?category=spare-parts. Αφήστε κενό για αυτόματο σύνδεσμο στα ανταλλακτικά.',
+          subscriptionsToggle: 'Εμφάνιση ενότητας "Συνδρομές / Videos" στην αρχική σελίδα',
+          blockRowKits: 'DIY Kits (Προτεινόμενα)',
+          blockRowSpare: 'Ανταλλακτικά (Spare parts)',
+          blockRowSubscriptions: 'Συνδρομές / Videos',
+          blockShowKits: 'Εμφάνιση Kits',
+          blockShowSpare: 'Εμφάνιση Ανταλλακτικών',
+          blockShowSubscriptions: 'Εμφάνιση Συνδρομών',
+          blockKitsTitleLabel: 'Τίτλος ενότητας Kits',
+          blockKitsTitlePlaceholder: 'Κύρια DIY Kits',
+          blockSpareTitleLabel: 'Τίτλος ενότητας Ανταλλακτικών',
+          blockSpareTitlePlaceholder: 'Ανταλλακτικά & Εργαλεία',
+          blockSubscriptionsTitleLabel: 'Τίτλος ενότητας Συνδρομών',
+          blockSubscriptionsTitlePlaceholder: 'Συνδρομές / Videos'
+        } : {
+          featuredSectionTitle: 'Προτεινόμενα Προϊόντα',
+          featuredSectionHelper: 'Επιλέξτε ποια προϊόντα εμφανίζονται στα μεγάλα cards της αρχικής σελίδας.',
+          featuredPrimary1: 'Κύριο προϊόν #1',
+          featuredPrimary2: 'Κύριο προϊόν #2',
+          featuredPickerEmpty: '-- Επιλέξτε προϊόν --',
+          featuredSecondaryLabel: 'Επιπλέον προϊόν / κάρτα',
+          featuredSecondaryPlaceholder: 'π.χ. vase-premium',
+          featuredSecondaryHelper: 'ID ενός επιπλέον προϊόντος που εμφανίζεται σε μικρό block κάτω από τα κύρια προϊόντα. Βρείτε το ID στην ενότητα Προϊόντα.',
+          secondaryCardTitleLabel: 'Δευτερεύουσα κάρτα — Τίτλος (EL / EN)',
+          secondaryCardTitlePlaceholderEl: 'π.χ. Νέες αφίξεις & best sellers',
+          secondaryCardTitlePlaceholderEn: 'e.g. New arrivals & best sellers',
+          secondaryCardTitleHelper: 'Τίτλος της δευτερεύουσας κάρτας. Αφήστε κενό για τον αυτόματο τίτλο.',
+          secondaryCardTextLabel: 'Δευτερεύουσα κάρτα — Περιγραφή (EL / EN)',
+          secondaryCardTextPlaceholderEl: 'π.χ. Ανακάλυψε προϊόντα που ταιριάζουν στον χώρο σου.',
+          secondaryCardTextPlaceholderEn: 'e.g. Discover pieces that match your home.',
+          secondaryCardLinkLabel: 'Δευτερεύουσα κάρτα — Σύνδεσμος',
+          secondaryCardLinkPlaceholder: '/?category=living-room',
+          secondaryCardLinkHelper: 'Σχετικό URL — π.χ. /?category=living-room. Αφήστε κενό για αυτόματο σύνδεσμο.',
+          subscriptionsToggle: 'Εμφάνιση ενότητας "Ειδικές Προτάσεις / Video" στην αρχική σελίδα',
+          blockRowKits: 'Προτεινόμενα προϊόντα',
+          blockRowSpare: 'Συλλογές χώρου / κατηγορίες',
+          blockRowSubscriptions: 'Ειδικές προτάσεις / Video',
+          blockShowKits: 'Εμφάνιση προτεινόμενων προϊόντων',
+          blockShowSpare: 'Εμφάνιση συλλογών χώρου',
+          blockShowSubscriptions: 'Εμφάνιση ειδικών προτάσεων',
+          blockKitsTitleLabel: 'Τίτλος ενότητας προτεινόμενων προϊόντων',
+          blockKitsTitlePlaceholder: 'Προτεινόμενα για τον χώρο σου',
+          blockSpareTitleLabel: 'Τίτλος ενότητας συλλογών',
+          blockSpareTitlePlaceholder: 'Συλλογές ανά χώρο',
+          blockSubscriptionsTitleLabel: 'Τίτλος ενότητας ειδικών προτάσεων',
+          blockSubscriptionsTitlePlaceholder: 'Ειδικές προτάσεις & βίντεο'
+        }; %>
+        <% if (isEukolakisClassic) { %>
+        <% const audit = assetAudit || {}; %>
+        <% const navPlates = Array.isArray(audit.navMenuPlates) ? audit.navMenuPlates : []; %>
+        <% const categoryCardsAudit = Array.isArray(audit.categoryCards) ? audit.categoryCards : []; %>
+        <% const introAssetsAudit = Array.isArray(audit.introAssets) ? audit.introAssets : []; %>
+        <% const missingAssetCount = [audit.headerBanner].concat(navPlates, categoryCardsAudit, introAssetsAudit).filter(function(entry){ return entry && entry.url && !entry.exists; }).length; %>
+        <section style="margin:0 0 14px;padding:12px 14px;border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;">
+          <h3 style="margin:0 0 6px;font-size:.94rem;color:#92400e;">Asset mapping & truth audit (Eukolaki)</h3>
+          <p style="margin:0 0 8px;font-size:.8rem;color:#78350f;">
+            Τα παρακάτω δείχνουν τι είναι πραγματικά διαθέσιμο στον δίσκο και ποια ρύθμιση το οδηγεί.
+            Δεν γίνεται “εικονική” ενεργοποίηση αν λείπει αρχείο.
+          </p>
+          <ul style="margin:0;padding-left:18px;font-size:.78rem;color:#78350f;line-height:1.5;">
+            <li><strong>Header banner:</strong> <code><%= (audit.headerBanner && audit.headerBanner.url) || '—' %></code> · <%= (audit.headerBanner && audit.headerBanner.exists) ? 'OK' : 'MISSING' %> · driver: <code><%= (audit.headerBanner && audit.headerBanner.driver) || 'homepage.heroImage' %></code></li>
+            <li><strong>Τωρινή ταυτότητα header/intro:</strong> <%= (audit.headerBanner && audit.headerBanner.exists) ? 'Χρησιμοποιείται το Header banner asset.' : 'Χρησιμοποιείται fallback στο logoPath μέχρι να ανέβει πραγματικό banner asset.' %></li>
+            <li><strong>Nav/menu plates:</strong> <%= navPlates.length %> mapped από <code>categories[].image</code>.</li>
+            <li><strong>Category cards:</strong> <%= categoryCardsAudit.length %> mapped από <code>categories[].image</code>.</li>
+            <li><strong>Intro assets:</strong> logo/video/poster οδηγούνται από <code>config.logoPath</code> + <code>homepage.intro*</code>.</li>
+          </ul>
+          <% if (missingAssetCount > 0) { %>
+          <p style="margin:8px 0 0;font-size:.78rem;color:#b45309;">
+            ⚠ Βρέθηκαν <strong><%= missingAssetCount %></strong> δηλωμένα asset path(s) που δεν υπάρχουν τοπικά.
+            Το storefront θα χρησιμοποιεί τα κοντινότερα διαθέσιμα fallback στοιχεία όπου χρειάζεται.
+          </p>
+          <% } %>
+        </section>
+        <% if (rawConfig.theme && rawConfig.theme.presetId === 'eukolakis_classic_diy') { %>
+        <p style="margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;font-size:.78rem;color:#1e3a8a;">
+          ℹ️ Στο preset <strong>Eukolakis Classic</strong>, η εμφάνιση Header/Nav/Categories καθορίζεται κυρίως από το preset CSS.
+          Τα πεδία logo/banner/homepage εφαρμόζονται μόνο όπου αναφέρεται στο storefront και στο intro.
+        </p>
+        <% } %>
+        <% } %>
 
         <h3 class="settings-section-heading">Hero Banner</h3>
 
         <label><span>Τίτλος hero (EL / EN)</span>
-          <input type="text" name="heroTitle_el" value="<%= resolveField(rawConfig.heroTitle, 'el') %>" placeholder="Ελληνικά — π.χ. DIY Kit Ρολών" />
-          <input type="text" name="heroTitle_en" value="<%= resolveField(rawConfig.heroTitle, 'en') %>" placeholder="English — e.g. DIY Roller Kit" />
+          <input type="text" name="heroTitle_el" value="<%= resolveField(rawConfig.heroTitle, 'el') %>" placeholder="<%= isEukolakisClassic ? 'Ελληνικά — π.χ. DIY Kit Ρολών' : 'Ελληνικά — π.χ. Διακόσμηση που ζωντανεύει τον χώρο σου' %>" />
+          <input type="text" name="heroTitle_en" value="<%= resolveField(rawConfig.heroTitle, 'en') %>" placeholder="<%= isEukolakisClassic ? 'English — e.g. DIY Roller Kit' : 'English — e.g. Decor that elevates your home' %>" />
           <small class="helper">Μεγάλος τίτλος που εμφανίζεται πάνω στην εικόνα hero.</small>
         </label>
         <label><span>Υπότιτλος hero (EL / EN)</span>
@@ -714,7 +859,7 @@
           <small class="helper">Προαιρετικός υπότιτλος κάτω από τον τίτλο.</small>
         </label>
         <label><span>Εικόνα hero / banner</span>
-          <input type="text" id="homepageHeroImage" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/eukolakis/media/banner.png" />
+          <input type="text" id="homepageHeroImage" name="homepageHeroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroImage) || '' %>" placeholder="/tenants/<%= tenant.id %>/media/banner.png" />
           <% if (rawConfig.homepage && rawConfig.homepage.heroImage) { %>
           <div style="margin-top:6px;">
             <img id="homepage-hero-preview" src="<%= rawConfig.homepage.heroImage %>" alt="Hero preview" style="width:220px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
@@ -730,26 +875,26 @@
           </div>
           <small class="helper">Συνιστώμενο μέγεθος: <strong>1600 × 600 px</strong>. Κρατήστε το κείμενο στο κέντρο (το mobile κόβει τα άκρα).</small>
         </label>
-        <h3 class="settings-section-heading">Προτεινόμενα Προϊόντα</h3>
-        <p class="helper">Επιλέξτε ποια kits εμφανίζονται στα μεγάλα cards της αρχικής σελίδας.</p>
+        <h3 class="settings-section-heading"><%= homepageLabels.featuredSectionTitle %></h3>
+        <p class="helper"><%= homepageLabels.featuredSectionHelper %></p>
 
         <% const hpPrimary = (rawConfig.homepage && (rawConfig.homepage.featuredPrimary || rawConfig.homepage.featuredIds)) || []; %>
         <% const hpKitProducts = (rawProducts || []).filter(function(p){ return p.type === 'KIT'; }); %>
         <% const hpKitIds = hpKitProducts.map(function(p){ return p.id; }); %>
         <% const hpP1Missing = hpPrimary[0] && !hpKitIds.includes(hpPrimary[0]); %>
         <% const hpP2Missing = hpPrimary[1] && !hpKitIds.includes(hpPrimary[1]); %>
-        <label><span>Κύριο προϊόν / Kit #1 <small style="font-weight:400;color:#94a3b8;">(μεγάλο card αριστερά)</small></span>
+        <label><span><%= homepageLabels.featuredPrimary1 %> <small style="font-weight:400;color:#94a3b8;">(μεγάλο card αριστερά)</small></span>
           <select name="homepageFeaturedPrimary1" id="homepageFeaturedPrimary1">
-            <option value="">-- Επιλέξτε KIT --</option>
+            <option value=""><%= homepageLabels.featuredPickerEmpty %></option>
             <% hpKitProducts.forEach(function(p){ %>
               <option value="<%= p.id %>" <%= hpPrimary[0] === p.id ? 'selected' : '' %>><%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
             <% }) %>
           </select>
           <% if (hpP1Missing) { %><small style="color:#b91c1c;font-weight:700;">Το επιλεγμένο προϊόν δεν υπάρχει πλέον — επιλέξτε νέο.</small><% } %>
         </label>
-        <label><span>Κύριο προϊόν / Kit #2 <small style="font-weight:400;color:#94a3b8;">(μεγάλο card δεξιά)</small></span>
+        <label><span><%= homepageLabels.featuredPrimary2 %> <small style="font-weight:400;color:#94a3b8;">(μεγάλο card δεξιά)</small></span>
           <select name="homepageFeaturedPrimary2" id="homepageFeaturedPrimary2">
-            <option value="">-- Επιλέξτε KIT --</option>
+            <option value=""><%= homepageLabels.featuredPickerEmpty %></option>
             <% hpKitProducts.forEach(function(p){ %>
               <option value="<%= p.id %>" <%= hpPrimary[1] === p.id ? 'selected' : '' %>><%= resolveField(p.name, 'el') || resolveField(p.name, 'en') || p.id %></option>
             <% }) %>
@@ -757,22 +902,22 @@
           <% if (hpP2Missing) { %><small style="color:#b91c1c;font-weight:700;">Το επιλεγμένο προϊόν δεν υπάρχει πλέον — επιλέξτε νέο.</small><% } %>
           <% if (hpP1Missing || hpP2Missing) { %><button type="button" class="button" style="margin-top:8px;" onclick="window.location.hash='#tab-products'">Μεταβείτε στα Προϊόντα →</button><% } %>
         </label>
-        <label><span>Επιπλέον προϊόν / block <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="π.χ. eukolaki-spare-pack" />
-          <small class="helper">ID ενός επιπλέον προϊόντος που εμφανίζεται σε μικρό block κάτω από τα κύρια kits. Βρείτε το ID στην ενότητα Προϊόντα.</small>
+        <label><span><%= homepageLabels.featuredSecondaryLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageFeaturedSecondaryId" value="<%= (rawConfig.homepage && rawConfig.homepage.featuredSecondaryId) || '' %>" placeholder="<%= homepageLabels.featuredSecondaryPlaceholder %>" />
+          <small class="helper"><%= homepageLabels.featuredSecondaryHelper %></small>
         </label>
-        <label><span>Κάρτα Ανταλλακτικών — Τίτλος (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
-          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="π.χ. Ανταλλακτικά & Εργαλεία" />
-          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="e.g. Spare Parts & Tools" />
-          <small class="helper">Τίτλος της κάρτας ανταλλακτικών. Αφήστε κενό για τον αυτόματο τίτλο.</small>
+        <label><span><%= homepageLabels.secondaryCardTitleLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
+          <input type="text" name="homepageSecondaryTitle_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'el') %>" placeholder="<%= homepageLabels.secondaryCardTitlePlaceholderEl %>" />
+          <input type="text" name="homepageSecondaryTitle_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.title, 'en') %>" placeholder="<%= homepageLabels.secondaryCardTitlePlaceholderEn %>" />
+          <small class="helper"><%= homepageLabels.secondaryCardTitleHelper %></small>
         </label>
-        <label><span>Κάρτα Ανταλλακτικών — Περιγραφή (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="π.χ. Βρες το κομμάτι που σου λείπει." />
-          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="e.g. Find the part you need." />
+        <label><span><%= homepageLabels.secondaryCardTextLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSecondaryText_el" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'el') %>" placeholder="<%= homepageLabels.secondaryCardTextPlaceholderEl %>" />
+          <input type="text" name="homepageSecondaryText_en" value="<%= resolveField(rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.text, 'en') %>" placeholder="<%= homepageLabels.secondaryCardTextPlaceholderEn %>" />
         </label>
-        <label><span>Κάρτα Ανταλλακτικών — Σύνδεσμος <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
-          <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="/?category=spare-parts" />
-          <small class="helper">Σχετικό URL — π.χ. <code>/?category=spare-parts</code>. Αφήστε κενό για αυτόματο σύνδεσμο στα ανταλλακτικά.</small>
+        <label><span><%= homepageLabels.secondaryCardLinkLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="<%= homepageLabels.secondaryCardLinkPlaceholder %>" />
+          <small class="helper"><%= homepageLabels.secondaryCardLinkHelper %></small>
         </label>
 
         <h3 class="settings-section-heading">Ενότητες Αρχικής Σελίδας</h3>
@@ -781,7 +926,7 @@
         <label class="checkbox-label">
           <input type="hidden" name="homepageShowSubscriptionsCard" value="0" />
           <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
-          <span>Εμφάνιση ενότητας "Συνδρομές / Videos" στην αρχική σελίδα</span>
+          <span><%= homepageLabels.subscriptionsToggle %></span>
         </label>
 
         <%# Hidden raw block order input — managed by the drag UI below %>
@@ -869,49 +1014,49 @@
         <p class="helper">Αλλάξτε σειρά με τα βέλη ↑↓ και απενεργοποιήστε ενότητες που δεν χρειάζεστε.<% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %> Το <strong>Εμφάνιση Hero</strong> ελέγχει το βιομηχανικό hero banner της αρχικής σελίδας.<% } %></p>
         <div id="homepage-block-builder" style="border:1px solid #dbe2ea;border-radius:8px;padding:10px;background:#f8fafc;margin-bottom:10px;">
           <div data-key="hero" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Hero / Banner</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>DIY Kits (Προτεινόμενα)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span>Ανταλλακτικά (Spare parts)</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
-          <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span>Συνδρομές / Videos</span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="kits" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span><%= homepageLabels.blockRowKits %></span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="spare" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d1d5db;"><span><%= homepageLabels.blockRowSpare %></span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
+          <div data-key="subscriptions" class="hb-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;"><span><%= homepageLabels.blockRowSubscriptions %></span><span><button type="button" class="btn-xs hb-up">↑</button> <button type="button" class="btn-xs hb-down">↓</button></span></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
           <label class="checkbox-label"><input type="hidden" name="homepageBlockHero" value="0" /><input type="checkbox" name="homepageBlockHero" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.hero !== false) ? 'checked' : '' %> /><span>Εμφάνιση Hero</span></label>
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockKits" value="0" /><input type="checkbox" name="homepageBlockKits" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.kits !== false) ? 'checked' : '' %> /><span>Εμφάνιση Kits</span></label>
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockSpare" value="0" /><input type="checkbox" name="homepageBlockSpare" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.spare !== false) ? 'checked' : '' %> /><span>Εμφάνιση Ανταλλακτικών</span></label>
-          <label class="checkbox-label"><input type="hidden" name="homepageBlockSubscriptions" value="0" /><input type="checkbox" name="homepageBlockSubscriptions" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.subscriptions !== false) ? 'checked' : '' %> /><span>Εμφάνιση Συνδρομών</span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockKits" value="0" /><input type="checkbox" name="homepageBlockKits" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.kits !== false) ? 'checked' : '' %> /><span><%= homepageLabels.blockShowKits %></span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSpare" value="0" /><input type="checkbox" name="homepageBlockSpare" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.spare !== false) ? 'checked' : '' %> /><span><%= homepageLabels.blockShowSpare %></span></label>
+          <label class="checkbox-label"><input type="hidden" name="homepageBlockSubscriptions" value="0" /><input type="checkbox" name="homepageBlockSubscriptions" value="1" <%= (!rawConfig.homepage || !rawConfig.homepage.blockVisibility || rawConfig.homepage.blockVisibility.subscriptions !== false) ? 'checked' : '' %> /><span><%= homepageLabels.blockShowSubscriptions %></span></label>
         </div>
-        <label><span>Τίτλος ενότητας Kits <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
-          <input type="text" name="homepageKitsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsTitle) || '' %>" placeholder="Κύρια DIY Kits" />
+        <label><span><%= homepageLabels.blockKitsTitleLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
+          <input type="text" name="homepageKitsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsTitle) || '' %>" placeholder="<%= homepageLabels.blockKitsTitlePlaceholder %>" />
           <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
-        <label><span>Τίτλος ενότητας Ανταλλακτικών <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
-          <input type="text" name="homepageSpareTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareTitle) || '' %>" placeholder="Ανταλλακτικά & Εργαλεία" />
+        <label><span><%= homepageLabels.blockSpareTitleLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
+          <input type="text" name="homepageSpareTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareTitle) || '' %>" placeholder="<%= homepageLabels.blockSpareTitlePlaceholder %>" />
           <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
-        <label><span>Τίτλος ενότητας Συνδρομών <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
-          <input type="text" name="homepageSubscriptionsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsTitle) || '' %>" placeholder="Συνδρομές / Videos" />
+        <label><span><%= homepageLabels.blockSubscriptionsTitleLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
+          <input type="text" name="homepageSubscriptionsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsTitle) || '' %>" placeholder="<%= homepageLabels.blockSubscriptionsTitlePlaceholder %>" />
           <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
-        <h3 class=”settings-section-heading”>Επικοινωνία & Social Media</h3>
-        <p class=”helper”>Τα στοιχεία επικοινωνίας και τα social links εμφανίζονται στο footer του καταστήματος.</p>
+        <h3 class="settings-section-heading">Επικοινωνία & Social Media</h3>
+        <p class="helper">Τα στοιχεία επικοινωνίας και τα social links εμφανίζονται στο footer του καταστήματος.</p>
 
         <label><span>Email επικοινωνίας</span>
-          <input type=”email” name=”footerContactEmail” value=”<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>” placeholder=”info@katastima.gr” />
-          <small class=”helper”>Εμφανίζεται στο footer ως σύνδεσμος επικοινωνίας.</small>
+          <input type="email" name="footerContactEmail" value="<%= (rawConfig.footer && rawConfig.footer.contactEmail) || '' %>" placeholder="info@katastima.gr" />
+          <small class="helper">Εμφανίζεται στο footer ως σύνδεσμος επικοινωνίας.</small>
         </label>
         <label><span>Διεύθυνση παραλαβής / φυσικό κατάστημα</span>
-          <input type=”text” name=”footerPickupAddress” value=”<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>” placeholder=”π.χ. Αθήνα, Λεωφόρος Παπάγου 12” />
-          <small class=”helper”>Αφήστε κενό αν δεν υπάρχει φυσικό κατάστημα παραλαβής.</small>
+          <input type="text" name="footerPickupAddress" value="<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>" placeholder="π.χ. Αθήνα, Λεωφόρος Παπάγου 12" />
+          <small class="helper">Αφήστε κενό αν δεν υπάρχει φυσικό κατάστημα παραλαβής.</small>
         </label>
         <label><span>Facebook URL</span>
-          <input type=”text” name=”footerFacebookUrl” value=”<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>” placeholder=”https://facebook.com/yourpage” />
+          <input type="text" name="footerFacebookUrl" value="<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>" placeholder="https://facebook.com/yourpage" />
         </label>
         <label><span>Instagram URL</span>
-          <input type=”text” name=”footerInstagramUrl” value=”<%= (rawConfig.footer && rawConfig.footer.instagramUrl) || '' %>” placeholder=”https://instagram.com/yourhandle” />
+          <input type="text" name="footerInstagramUrl" value="<%= (rawConfig.footer && rawConfig.footer.instagramUrl) || '' %>" placeholder="https://instagram.com/yourhandle" />
         </label>
         <label><span>TikTok URL</span>
-          <input type=”text” name=”footerTiktokUrl” value=”<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>” placeholder=”https://tiktok.com/@yourhandle” />
+          <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@yourhandle" />
         </label>
-        <p class=”helper” style=”margin-top:4px;”>
+        <p class="helper" style="margin-top:4px;">
           Το “Powered by” του footer ρυθμίζεται από το Root Admin στο
           <code>/root/tenants</code>.
         </p>
@@ -1012,6 +1157,23 @@
             <% } %>
           </tbody>
         </table>
+
+        <% if (permissions.canEditCategories) { %>
+        <form method="POST" action="<%= withTenantLink('/admin/import/categories') %>" enctype="multipart/form-data" class="admin-subform">
+          <h3>Μαζικό import κατηγοριών (CSV)</h3>
+          <p class="helper">
+            Χρήσιμες στήλες: <code>id</code>, <code>name</code>, <code>slug</code>, <code>description</code>, <code>image</code>, <code>visible</code>, <code>showInMainNav</code>, <code>navOrder</code>.
+            Μπορείτε επίσης να δώσετε <code>name_el/name_en</code> και <code>description_el/description_en</code>.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="file" name="file" accept=".csv,text/csv" required />
+            <input type="password" name="password" placeholder="Κωδικός διαχειριστή (μόνο αν ζητηθεί)" required />
+            <button type="submit" class="button">Import categories</button>
+            <a class="button" style="background:#334155;" href="<%= withTenantLink('/admin/import/categories-template.csv') %>">Sample CSV</a>
+          </div>
+          <small class="helper">Το import κάνει create/update με ασφαλή normalisation. Στο αποτέλεσμα θα δείτε πόσα έγιναν create/update/skipped και τυχόν προβλήματα ανά γραμμή.</small>
+        </form>
+        <% } %>
 
         <% if (permissions.canEditCategories) { %>
         <form method="POST" action="<%= withTenantLink('/admin/categories/add') %>" class="admin-subform">
@@ -1855,10 +2017,19 @@
           <label class="full"><span><%= t('admin.modalSeoDescription') %></span>
             <input type="text" id="f-seoDescription" placeholder="<%= t('admin.modalSeoDescPlaceholder') %>" />
           </label>
-          <label class="full"><span><%= t('admin.modalGallery') %></span>
-            <textarea id="f-gallery" rows="3" placeholder="<%= t('admin.modalGalleryPlaceholder') %>"></textarea>
+          <div class="full">
+            <span><%= t('admin.modalGallery') %></span>
+            <input type="hidden" id="f-gallery" />
+            <div id="f-gallery-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+              <input type="text" id="f-gallery-new-url" placeholder="/tenants/.../media/product-extra.jpg" style="flex:1;min-width:220px;" />
+              <input type="file" id="f-gallery-new-file" accept="image/*" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
+              <button type="button" class="btn-xs" id="f-gallery-upload-btn">Upload</button>
+              <button type="button" class="btn-xs" id="f-gallery-add-btn">Add image</button>
+            </div>
+            <small id="f-gallery-status" style="color:#64748b;font-size:0.78rem;display:block;margin-top:4px;"></small>
             <small style="color:#888;font-size:0.78rem;"><%= t('admin.modalGalleryHelper') %></small>
-          </label>
+          </div>
           <div class="full">
             <span style="font-size:.86rem;font-weight:600;display:block;margin-bottom:6px;"><%= t('admin.modalSpecs') %></span>
             <small style="color:#888;font-size:.78rem;display:block;margin-bottom:8px;"><%= t('admin.modalSpecsHelper') %></small>
@@ -1922,7 +2093,7 @@
         <p class="helper" id="kit-builder-title"></p>
         <p class="helper" style="margin-top:-6px;">
           Storefront wizard mode:
-          <strong><%= ((config.theme && config.theme.kitWizardDisplay) || (tenant.id === 'eukolakis' ? 'cinematic' : 'sequential')) %></strong>
+          <strong><%= ((config.theme && config.theme.kitWizardDisplay) || ((config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'cinematic' : 'sequential')) %></strong>
           · change from <strong>Branding → KIT wizard display</strong>.
         </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1993,7 +2164,7 @@
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
-      const isEukolakisClassicPreset = <%= tenant.id === 'eukolakis' && config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
+      const isEukolakisClassicPreset = <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'true' : 'false' %>;
       let productFilter = 'all';
       let pendingKitCreate = null;
 
@@ -2039,6 +2210,14 @@
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
       }
+      async function parseJsonSafe(response) {
+        const raw = await response.text();
+        try {
+          return JSON.parse(raw);
+        } catch (_err) {
+          return { ok: false, error: 'Server returned non-JSON response.', raw };
+        }
+      }
 
       // ── Modal logic ─────────────────────────────────────────────
       let editingIdx = -1; // -1 = new product
@@ -2064,6 +2243,12 @@
       const fSeoTitle   = document.getElementById('f-seoTitle');
       const fSeoDesc    = document.getElementById('f-seoDescription');
       const fGallery    = document.getElementById('f-gallery');
+      const fGalleryList = document.getElementById('f-gallery-list');
+      const fGalleryNewUrl = document.getElementById('f-gallery-new-url');
+      const fGalleryNewFile = document.getElementById('f-gallery-new-file');
+      const fGalleryAddBtn = document.getElementById('f-gallery-add-btn');
+      const fGalleryUploadBtn = document.getElementById('f-gallery-upload-btn');
+      const fGalleryStatus = document.getElementById('f-gallery-status');
       const mTitle      = document.getElementById('modal-title');
 
       // ── Digital content fields (may be null if tier doesn't support) ──
@@ -2217,6 +2402,76 @@
         return result;
       }
 
+      let galleryImages = [];
+      function setGalleryStatus(message, tone) {
+        if (!fGalleryStatus) return;
+        fGalleryStatus.textContent = message || '';
+        fGalleryStatus.style.color = tone === 'error' ? '#b91c1c' : (tone === 'success' ? '#166534' : '#64748b');
+      }
+      function syncGalleryField() {
+        if (!fGallery) return;
+        fGallery.value = galleryImages.join('\n');
+      }
+      function renderGalleryRows() {
+        if (!fGalleryList) return;
+        if (!galleryImages.length) {
+          fGalleryList.innerHTML = '<small style="color:#64748b;">No extra gallery images yet.</small>';
+          syncGalleryField();
+          return;
+        }
+        fGalleryList.innerHTML = galleryImages.map(function(url, idx) {
+          return '<div style="display:grid;grid-template-columns:46px 1fr auto;gap:8px;align-items:center;border:1px solid #e5e7eb;border-radius:8px;padding:6px;">' +
+            '<img src="' + escHtml(url) + '" alt="" style="width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db;" onerror="this.style.opacity=.35;" />' +
+            '<input type="text" value="' + escHtml(url) + '" onchange="updateGalleryImage(' + idx + ', this.value)" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;" />' +
+            '<div style="display:flex;gap:4px;">' +
+              '<button type="button" class="btn-xs" onclick="moveGalleryImage(' + idx + ', -1)" ' + (idx === 0 ? 'disabled' : '') + '>↑</button>' +
+              '<button type="button" class="btn-xs" onclick="moveGalleryImage(' + idx + ', 1)" ' + (idx === galleryImages.length - 1 ? 'disabled' : '') + '>↓</button>' +
+              '<button type="button" class="btn-xs" style="background:#fee2e2;color:#b91c1c;" onclick="removeGalleryImage(' + idx + ')">Remove</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+        syncGalleryField();
+      }
+      function normalizeGalleryInput(url) {
+        return String(url || '').trim();
+      }
+      window.updateGalleryImage = function(idx, value) {
+        const next = normalizeGalleryInput(value);
+        if (!next) return;
+        galleryImages[idx] = next;
+        galleryImages = galleryImages.filter(function(url, i, arr) { return url && arr.indexOf(url) === i; });
+        renderGalleryRows();
+      };
+      window.moveGalleryImage = function(idx, dir) {
+        const target = idx + dir;
+        if (target < 0 || target >= galleryImages.length) return;
+        const tmp = galleryImages[idx];
+        galleryImages[idx] = galleryImages[target];
+        galleryImages[target] = tmp;
+        renderGalleryRows();
+      };
+      window.removeGalleryImage = function(idx) {
+        galleryImages.splice(idx, 1);
+        renderGalleryRows();
+      };
+      function setGalleryImages(list) {
+        galleryImages = (Array.isArray(list) ? list : [])
+          .map(normalizeGalleryInput)
+          .filter(function(url, idx, arr) { return url && arr.indexOf(url) === idx; });
+        renderGalleryRows();
+      }
+      function addGalleryImage(url) {
+        const clean = normalizeGalleryInput(url);
+        if (!clean) return;
+        if (galleryImages.includes(clean)) {
+          setGalleryStatus('Image already exists in gallery list.', 'error');
+          return;
+        }
+        galleryImages.push(clean);
+        renderGalleryRows();
+        setGalleryStatus('Gallery image added.', 'success');
+      }
+
       function clearDigitalFields() {
         if (fHasDigital)  fHasDigital.checked = false;
         if (fContentDesc) fContentDesc.value  = '';
@@ -2246,7 +2501,7 @@
         fd.append('categoryId', (fCat && fCat.value) ? fCat.value : '');
         fd.append('password', password || '');
         const response = await fetch('<%= withTenantLink("/admin/products/image-upload") %>', { method: 'POST', body: fd });
-        const json = await response.json();
+        const json = await parseJsonSafe(response);
         return { status: response.status, body: json };
       }
 
@@ -2290,6 +2545,29 @@
         fImgFile.value = '';
       }
 
+      async function handleGalleryImageUpload() {
+        const file = fGalleryNewFile && fGalleryNewFile.files && fGalleryNewFile.files[0];
+        if (!file) return;
+        setGalleryStatus('Uploading gallery image...', 'neutral');
+        let result = await uploadProductImage(file, '');
+        if (result.status === 401) {
+          const password = prompt('Session έληξε. Δώσε admin password για upload:') || '';
+          if (!password) {
+            setGalleryStatus('Απαιτείται κωδικός.', 'error');
+            fGalleryNewFile.value = '';
+            return;
+          }
+          result = await uploadProductImage(file, password);
+        }
+        if (!result.body || !result.body.ok) {
+          setGalleryStatus((result.body && result.body.error) || 'Gallery image upload failed.', 'error');
+          fGalleryNewFile.value = '';
+          return;
+        }
+        addGalleryImage(result.body.url || '');
+        fGalleryNewFile.value = '';
+      }
+
       function ensureVariantRowId(row) {
         if (!row) return '';
         let id = (row.dataset.vid || '').trim();
@@ -2323,13 +2601,13 @@
         const endpointBase = type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>';
         const endpoint = endpointBase + '?productId=' + encodeURIComponent(productId) + '&variantSku=' + encodeURIComponent(variantSku);
         let r = await fetch(endpoint, { method: 'POST', body: fd });
-        let j = await r.json();
+        let j = await parseJsonSafe(r);
         if (r.status === 401) {
           const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
           if (!pw) return;
           fd.set('password', pw);
           r = await fetch(endpoint, { method: 'POST', body: fd });
-          j = await r.json();
+          j = await parseJsonSafe(r);
         }
         if (!j.ok) {
           if (status) status.textContent = j.error || 'Upload failed.';
@@ -2467,6 +2745,10 @@
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
+        if (fGalleryNewUrl) fGalleryNewUrl.value = '';
+        if (fGalleryNewFile) fGalleryNewFile.value = '';
+        setGalleryStatus('', 'neutral');
+        setGalleryImages([]);
         renderSpecRows([]);
         renderVariantRows([]);
         clearDigitalFields();
@@ -2498,7 +2780,10 @@
         fDescEn.value     = getLocalizedForEdit(p.description, 'en');
         fSeoTitle.value   = p.seoTitle || '';
         fSeoDesc.value    = p.seoDescription || '';
-        fGallery.value    = Array.isArray(p.gallery) ? p.gallery.join('\n') : '';
+        if (fGalleryNewUrl) fGalleryNewUrl.value = '';
+        if (fGalleryNewFile) fGalleryNewFile.value = '';
+        setGalleryStatus('', 'neutral');
+        setGalleryImages(Array.isArray(p.galleryImages) ? p.galleryImages : (Array.isArray(p.gallery) ? p.gallery : []));
         renderSpecRows(Array.isArray(p.specs) ? p.specs : []);
         renderVariantRows(Array.isArray(p.variants) ? p.variants : []);
         fillDigitalFields(p);
@@ -2519,7 +2804,7 @@
           alert(i18nJs.nameRequired);
           return;
         }
-        const galleryRaw    = fGallery.value.split('\n').map(l => l.trim()).filter(Boolean);
+        const galleryRaw    = galleryImages.slice();
         const specsRows     = readSpecRows();
         const variantRows   = readVariantRows();
         const digitalFields = readDigitalFields();
@@ -2537,6 +2822,7 @@
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
+          galleryImages:  galleryRaw.length  ? galleryRaw  : undefined,
           gallery:        galleryRaw.length  ? galleryRaw  : undefined,
           specs:          specsRows.length   ? specsRows   : undefined,
           variants:       variantRows.length ? variantRows : undefined,
@@ -2578,6 +2864,12 @@
         if (fImg.value.trim()) { fImgPreview.src = fImg.value.trim(); fImgPreview.style.display = 'block'; }
         else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
       });
+      if (fGalleryAddBtn) fGalleryAddBtn.addEventListener('click', function() {
+        if (!fGalleryNewUrl) return;
+        addGalleryImage(fGalleryNewUrl.value);
+        fGalleryNewUrl.value = '';
+      });
+      if (fGalleryUploadBtn) fGalleryUploadBtn.addEventListener('click', handleGalleryImageUpload);
 
       async function uploadQuickPartImage(file, password) {
         const fd = new FormData();
@@ -3057,9 +3349,19 @@
           fd.append('image', file);
           fd.append('password', pass);
           const r = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
-          const j = await r.json();
+          const j = await parseJsonSafe(r);
           if (j.ok) {
             document.getElementById('logoPath-input').value = j.url;
+            const logoBgModeSelect = document.getElementById('themeLogoBgMode');
+            const logoMaxHeightInput = document.getElementById('themeLogoMaxHeight');
+            const activeThemeKey = '<%= (config.theme && config.theme.presetId) || "" %>';
+            if (logoBgModeSelect && activeThemeKey !== 'eukolakis_classic_diy' && (logoBgModeSelect.value === 'auto' || !logoBgModeSelect.value)) {
+              logoBgModeSelect.value = 'light_badge';
+            }
+            if (logoMaxHeightInput && activeThemeKey !== 'eukolakis_classic_diy') {
+              const current = Number(logoMaxHeightInput.value) || 0;
+              if (current < 88) logoMaxHeightInput.value = '88';
+            }
             logoUploadStatus.innerHTML = i18nJs.logoOk + '<code>' + j.url + '</code>';
           } else {
             logoUploadStatus.textContent = j.error || i18nJs.uploadErr;
