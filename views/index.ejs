@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+  <head>
+    <meta charset="UTF-8" />
+    <% const seoActiveCategory = (categories || []).find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+    <% const seoTitle = seoActiveCategory ? ((seoActiveCategory.name || '') + ' | ' + config.storeName) : config.storeName; %>
+    <% const seoDescription = seoActiveCategory
+      ? (lang === 'el' ? ('Προϊόντα κατηγορίας: ' + (seoActiveCategory.name || '') + ' με διαθεσιμότητα και τεχνικά φίλτρα.') : ('Browse ' + (seoActiveCategory.name || '') + ' with availability and technical filters.'))
+      : (lang === 'el' ? ('Εξειδικευμένο ηλεκτρονικό κατάστημα ' + config.storeName + ' για kits και ανταλλακτικά.') : ('Specialized e-commerce storefront for kits and spare parts.')); %>
+    <title><%= seoTitle %></title>
+    <meta name="description" content="<%= seoDescription %>" />
+    <meta property="og:title" content="<%= seoTitle %>" />
+    <meta property="og:description" content="<%= seoDescription %>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color: <%= config.accentColor %>;
+        --font-family: <%= config.fontFamily %>;
+        --menu-bg: <%= (config.theme && config.theme.menuBg) || '#111' %>;
+        --menu-text: <%= (config.theme && config.theme.menuText) || '#fff' %>;
+        --menu-active-bg: <%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>;
+        --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
+        --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
+        --product-thumb-aspect: <%= ((config.theme && config.theme.productThumbAspect) || '4:3').replace(':',' / ') %>;
+        --product-thumb-fit: <%= (config.theme && config.theme.productThumbFit) || 'cover' %>;
+        --product-thumb-bg: <%= (config.theme && config.theme.productThumbBg) || '#111111' %>;
+      }
+      .lang-switcher { padding: 8px 16px; background: rgba(0,0,0,.06); font-size: 0.8rem; display:flex; align-items:center; gap:8px; }
+      .lang-switcher select { padding: 4px 8px; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
+
+      /* ── Product grid ── */
+      .product-list {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        padding: 20px 0;
+      }
+      @media (max-width: 900px) { .product-list { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 560px) { .product-list { grid-template-columns: 1fr; } }
+
+      .product-card {
+        border: 1px solid #e8e8e8; border-radius: 8px;
+        overflow: hidden; background: #fff;
+        display: flex; flex-direction: column;
+        transition: box-shadow .22s ease, transform .22s ease, opacity .35s ease;
+        animation: cardReveal .38s ease both;
+      }
+      @keyframes cardReveal { from { opacity:.01; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+      .product-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.1); }
+      .product-card.hover-none:hover { box-shadow:none; transform:none; }
+      .product-card.hover-lift:hover { transform:translateY(-4px); box-shadow: 0 10px 24px rgba(15,23,42,.16); }
+      .product-card.hover-glow:hover { box-shadow: 0 0 0 2px rgba(14,165,233,.25), 0 12px 28px rgba(56,189,248,.18); }
+      .product-card .product-thumb {
+        width: 100%; aspect-ratio: var(--product-thumb-aspect, 4 / 3); overflow: hidden; background: var(--product-thumb-bg, #111111);
+        display:flex; align-items:center; justify-content:center;
+      }
+      .product-card .product-thumb.placeholder { background: var(--product-thumb-bg, #111111); color:#cbd5e1; }
+      .product-card .product-thumb img {
+        width: 100%; height: 100%; object-fit: var(--product-thumb-fit, cover); display: block;
+      }
+      .product-card-body { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; }
+      .product-card h2 { font-size: 0.95rem; margin: 0 0 6px; }
+      .product-card p  { font-size: 0.82rem; color: #555; margin: 0 0 8px; flex: 1;
+                         display: -webkit-box; -webkit-line-clamp: 3;
+                         -webkit-box-orient: vertical; overflow: hidden; }
+      .product-card p:empty { display:none; margin:0; }
+      .product-card .price { font-size: 1.1rem; font-weight: 700; color: var(--primary-color); margin: 0 0 12px; }
+      .product-card .button { align-self: flex-start; font-size: 0.85rem; padding: 7px 16px; }
+      .product-card .card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+      .btn-cart {
+        padding: 7px 14px; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer;
+        border-radius: var(--button-radius, 4px); background: var(--primary-color);
+        color: #fff; transition: opacity .15s;
+      }
+      .btn-cart:hover { opacity: .85; }
+      .btn-cart:disabled { opacity: .45; cursor: not-allowed; }
+      .featured-badge {
+        position: absolute; top: 8px; left: 8px;
+        background: #f59e0b; color: #fff; font-size: 0.68rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 20px; letter-spacing: .04em; pointer-events: none;
+      }
+      .product-thumb { position: relative; }
+      .featured-section { margin-bottom: 32px; }
+      .featured-section h2 {
+        font-size: 1.1rem; font-weight: 700; margin: 0 0 14px;
+        color: var(--primary-color); display: flex; align-items: center; gap: 8px;
+      }
+      .stock-pill {
+        font-size: 0.72rem; padding: 1px 7px; border-radius: 20px; margin-left: 4px;
+        font-weight: 600;
+      }
+      .stock-pill.ok  { background: #d1fae5; color: #065f46; }
+      .stock-pill.low { background: #fef3c7; color: #92400e; }
+      .stock-pill.out { background: #fee2e2; color: #991b1b; }
+      .spare-filters { border:1px solid #dbe2ea; border-radius:12px; background:linear-gradient(180deg,#ffffff,#f8fafc); padding:12px; display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:8px; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,23,42,.06); }
+      .spare-filters input, .spare-filters select { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:7px; font-size:.85rem; }
+      .spare-filters .filter-note { grid-column:1/-1; color:#64748b; font-size:.76rem; }
+      .spare-filters .reset-btn { border:none; background:#111827; color:#fff; border-radius:7px; padding:8px 10px; font-size:.82rem; cursor:pointer; }
+      .filter-results { font-size:.84rem; color:#334155; margin: -2px 0 10px; }
+      .filter-empty-state { border:1px dashed #cbd5e1; border-radius:10px; padding:22px; text-align:center; color:#64748b; background:#fff; display:none; }
+      .filter-empty-state strong { display:block; margin-bottom:6px; color:#0f172a; }
+      .filter-empty-state .button { margin-top:8px; display:inline-block; }
+      .product-card.filter-hidden { display:none !important; }
+      .kit-choice-grid.fade-step { opacity:.15; transform:translateY(6px); transition:opacity .2s ease, transform .2s ease; }
+      .kit-choice-grid.fade-step.ready { opacity:1; transform:translateY(0); }
+      body.card-density-compact .product-list { gap: 12px; }
+      body.card-density-compact .product-card .product-card-body { padding: 10px 12px; }
+      body.card-density-spacious .product-list { gap: 26px; }
+      body.card-density-spacious .product-card .product-card-body { padding: 16px 18px; }
+      .cat-logo { width:22px;height:22px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px; }
+      .category-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0 8px; }
+      .category-card { border:1px solid #e5e7eb;border-radius:10px;padding:8px;text-decoration:none;color:inherit;text-align:center;background:#fff; }
+      .category-card img { width:100%;height:60px;object-fit:cover;border-radius:8px;margin-bottom:6px; }
+      .logo-title.centered { width:100%; justify-content:center; text-align:center; }
+      .hero.strong { background:linear-gradient(130deg,#111827,#1f2937); color:#fff; border-radius:12px; padding:24px; }
+      .category-card.only-image div { display:none; }
+      body.cursor-tool { cursor: crosshair; }
+      .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1700; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
+      .hero .hero-title { margin: 0 0 8px; font-size: clamp(1.2rem, 2.2vw, 1.9rem); }
+      .hero .hero-actions { margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
+      .hero .hero-actions a { text-decoration:none; }
+      .hero .hero-actions .button { transition: transform .18s ease, box-shadow .2s ease; box-shadow: 0 8px 16px rgba(15,23,42,.16); }
+      .hero .hero-actions .button:hover { transform: translateY(-2px); box-shadow: 0 12px 22px rgba(15,23,42,.24); }
+      .category-card.featured { border-color: var(--accent-color); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
+      .category-card small { display:block; color:#6b7280; margin-top:3px; font-size:.74rem; }
+      .store-header { position: sticky; top: 0; z-index: 1300; transition: background .28s ease, box-shadow .28s ease, padding .22s ease; border-bottom: none !important; box-shadow:none !important; background: linear-gradient(135deg, rgba(15,23,42,.18), rgba(31,41,55,.16)); backdrop-filter: blur(3px); }
+      .store-header.is-scrolled { background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(31,41,55,.96)); box-shadow: 0 8px 22px rgba(2,6,23,.3) !important; }
+      .store-header.premium { border-bottom: none; }
+      .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
+      .logo-frame { display:inline-flex; align-items:center; justify-content:center; }
+      .logo-frame.logo-frame-dark { background: rgba(15,23,42,.88); }
+      .logo-frame.logo-frame-clean { background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.1); }
+      .logo-frame.logo-frame-floating { background: rgba(255,255,255,.08); backdrop-filter: blur(3px); }
+      .logo-frame img { display:block; max-width: 360px; }
+      .store-header.is-scrolled .logo-image-dynamic { transform: scale(.9); transform-origin: left center; }
+      .logo-frame.logo-transparent-safe { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      .logo-transparent-safe img { filter: drop-shadow(0 4px 12px rgba(15,23,42,.35)); }
+      .logo-image.cover { object-fit: cover; }
+      .logo-image.contain { object-fit: contain; }
+      .logo-image.clean_badge { object-fit: contain; filter: contrast(1.05) saturate(1.05); }
+      .logo-image.transparent_blend { object-fit: contain; mix-blend-mode: screen; opacity: .95; }
+      .logo-image-dynamic { height: auto !important; width: auto; }
+      .header-auth-actions { margin-left: auto; display:flex; gap:8px; align-items:center; }
+      .store-header.auth-pos-left .header-auth-actions { margin-left: 0; margin-right: auto; order: -1; }
+      .store-header.auth-pos-left .logo-title { margin-left: auto; }
+      .header-main-row { display:flex; align-items:center; gap:12px; }
+      .store-header.is-scrolled .header-main-row { padding-top: 2px; padding-bottom: 2px; }
+      .header-nav-row { display:flex; align-items:center; gap:12px; margin-top:10px; border-top: none; box-shadow:none; }
+      .header-nav-row .main-nav { flex: 1; }
+      .main-nav.menu-style-pills a { border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,.08); }
+      .main-nav.menu-style-compact ul { gap: 4px; }
+      .main-nav.menu-style-compact a { padding: 4px 8px; font-size: .82rem; }
+      .store-header.auth-pos-left .main-nav li.auth-link { order: -1; }
+      .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+      .pill-nav.compact a { padding:4px 10px; font-size:.8rem; opacity:.95; }
+      .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
+      .pill-nav a.active { background:#f59e0b; color:#111827; font-weight:700; }
+      .pill-nav a { position:relative; overflow:hidden; }
+      .pill-nav a::after { content:''; position:absolute; left:10px; right:10px; bottom:4px; height:2px; background:rgba(255,255,255,.9); transform:scaleX(0); transform-origin:left; transition:transform .24s ease; }
+      .pill-nav a:hover::after, .pill-nav a.active::after { transform:scaleX(1); }
+      .pill-nav .pill-item { display:inline-flex; align-items:center; gap:6px; }
+      .pill-nav .pill-item img { width:20px; height:20px; border-radius:999px; object-fit:cover; }
+      .home-secondary { border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff; }
+      main.home-layout-flow { display:flex; flex-direction:column; gap:0; }
+      .store-footer { margin-top:26px; padding:22px 0 28px; color: var(--footer-text-color, #6b7280); font-size:.9rem; border-top:1px solid #e5e7eb; text-align:center; position:relative; }
+      .store-footer .social-links { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+      .store-footer .social-links a { text-decoration:none; font-size:1.05rem; }
+      .store-footer .meta-line { margin-top:6px; }
+      .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
+      .featured-primary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+      body.home-layout-stacked .featured-primary-grid { grid-template-columns:1fr; }
+      .featured-kit-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
+      .featured-kit-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,.12); }
+      .featured-kit-card img { width:100%; height:220px; object-fit:cover; display:block; }
+      .featured-kit-card .body { padding:12px 14px; }
+      .kit-badge { display:inline-block; font-size:.72rem; font-weight:700; background:#0f766e; color:#fff; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
+      .kit-clickable { cursor: pointer; }
+      .kit-wizard-backdrop { position: fixed; inset: 0; background: rgba(2,6,23,.74); z-index: 2200; display: none; padding: 24px; }
+      .kit-wizard-backdrop.open { display: block; }
+      .kit-wizard-modal { max-width: 920px; width: 100%; margin: 0 auto; background: #f8fafc; border:1px solid #bfdbfe; border-radius: 14px; box-shadow: 0 22px 52px rgba(0,0,0,.35); max-height: calc(100vh - 48px); overflow: auto; }
+      .kit-wizard-head { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+      .kit-wizard-body { display:grid; grid-template-columns: 1.2fr .9fr; gap: 14px; padding: 14px 16px; }
+      .kit-choice-grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .kit-choice-grid.transitioning { opacity: .08; transform: translateY(14px) scale(.985); filter: blur(1.2px); transition: opacity .24s ease, transform .24s ease, filter .24s ease; }
+      .kit-choice { border:1px solid #d1d5db; border-radius:10px; padding:10px; display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
+      .kit-choice.selected { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.12); }
+      .kit-choice .kit-choice-thumb { width:72px; aspect-ratio: var(--product-thumb-aspect, 4 / 3); object-fit: var(--product-thumb-fit, cover); border-radius:8px; background: var(--product-thumb-bg, #111111); }
+      .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
+      .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
+      .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
+      .exposure-overlay {
+        position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
+        backdrop-filter: blur(5px);
+        transform: scale(1.03); transition: opacity .32s ease, transform .32s ease;
+      }
+      .exposure-overlay.open { opacity:1; transform: scale(1); }
+      .hero.has-parallax { position:relative; overflow:hidden; }
+      .hero.has-parallax::after { content:''; position:absolute; inset:-25% -15%; background: radial-gradient(circle at var(--hero-glow-x, 20%) var(--hero-glow-y, 20%), rgba(255,255,255,.18), rgba(255,255,255,0) 40%); pointer-events:none; transition: transform .15s linear; }
+      .kit-preview { border:1px solid #e5e7eb; border-radius:10px; padding:8px; min-height:140px; background:#f8fafc; }
+      .kit-preview img { width:100%; max-height:220px; object-fit:contain; border-radius:8px; background:#fff; }
+      .kit-summary-line { font-size:.84rem; color:#334155; margin:4px 0; }
+      .kit-wizard-foot { border-top:1px solid #e5e7eb; padding:12px 16px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+      .kit-total { font-weight:800; font-size:1.05rem; color:#0f172a; }
+      .kit-progress { font-size:.82rem; color:#475569; font-weight:600; }
+      /* ══════════════════════════════════════════════════════════════════════════
+         EUKOLAKIS INDUSTRIAL METALLIC THEME  —  tenant-scoped to .eukolakis-classic
+         ══════════════════════════════════════════════════════════════════════════ */
+
+      /* ── Design tokens ── */
+      body.eukolakis-classic {
+        --eko-bg:           #0b0d12;
+        --eko-surface:      #141820;
+        --eko-surface-2:    #1c2030;
+        --eko-border:       rgba(100,110,140,.28);
+        --eko-border-hover: rgba(184,137,42,.55);
+        --eko-accent:       #c4902e;
+        --eko-accent-light: #dba83c;
+        --eko-accent-dim:   rgba(196,144,46,.14);
+        --eko-text:         #d0d5e0;
+        --eko-text-muted:   #64707f;
+        --eko-text-strong:  #edf0f6;
+        background: var(--eko-bg);
+        color: var(--eko-text);
+      }
+      body.eukolakis-classic.eko-light {
+        --eko-bg:           #f2f3f6;
+        --eko-surface:      #ffffff;
+        --eko-surface-2:    #edeef2;
+        --eko-border:       rgba(40,50,70,.14);
+        --eko-border-hover: rgba(140,100,21,.5);
+        --eko-accent:       #8c6415;
+        --eko-accent-light: #b37f1d;
+        --eko-accent-dim:   rgba(140,100,21,.10);
+        --eko-text:         #1a1d2a;
+        --eko-text-muted:   #515c72;
+        --eko-text-strong:  #0d0f16;
+      }
+
+      /* ── Layout ── */
+      body.eukolakis-classic main {
+        max-width: 1180px; margin: 0 auto; padding: 20px 18px 48px;
+      }
+
+      /* ── Header: dark industrial bar, logo-left / auth-right ── */
+      body.eukolakis-classic .store-header {
+        background: #0b0d12 !important;
+        border-bottom: 2px solid rgba(196,144,46,.32) !important;
+        box-shadow: 0 2px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(196,144,46,.06) inset !important;
+        padding: 0 !important;
+      }
+      /* Thin gold accent strip at very top of header */
+      body.eukolakis-classic .store-header::before {
+        content: '';
+        display: block;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, var(--eko-accent) 30%, var(--eko-accent-light) 60%, transparent 100%);
+        opacity: .7;
+      }
+      body.eukolakis-classic.eko-light .store-header {
+        background: #fff !important;
+        border-bottom-color: rgba(140,100,21,.22) !important;
+        box-shadow: 0 2px 14px rgba(0,0,0,.09) !important;
+      }
+      body.eukolakis-classic.eko-light .store-header::before {
+        background: linear-gradient(90deg, transparent 0%, rgba(196,144,46,.55) 30%, rgba(219,168,60,.55) 60%, transparent 100%);
+      }
+      body.eukolakis-classic .header-main-row {
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 10px 20px 12px;
+        min-height: 96px;
+        max-width: 1180px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+        flex-wrap: nowrap;
+      }
+      body.eukolakis-classic .logo-title.classic-branding {
+        width: auto !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      body.eukolakis-classic .eko-brand-banner {
+        position: relative;
+        min-width: min(540px, 64vw);
+        border-radius: 12px;
+        padding: 10px 14px;
+        border: 1px solid rgba(196,144,46,.42);
+        background: linear-gradient(145deg, rgba(17,24,39,.88) 0%, rgba(12,16,24,.95) 100%);
+        box-shadow: 0 10px 28px rgba(0,0,0,.42), 0 0 0 1px rgba(196,144,46,.12) inset;
+      }
+      body.eukolakis-classic .eko-brand-banner::after {
+        content: '';
+        position: absolute; inset: 0;
+        border-radius: 12px;
+        background: linear-gradient(90deg, transparent, rgba(196,144,46,.08), transparent);
+        pointer-events: none;
+      }
+      body.eukolakis-classic .eko-brand-banner img {
+        width: 100%;
+        max-height: 62px;
+        object-fit: contain;
+        object-position: left center;
+        display: block;
+        filter: drop-shadow(0 8px 10px rgba(0,0,0,.35));
+      }
+      body.eukolakis-classic .eko-brand-caption {
+        margin-top: 4px;
+        font-size: .62rem;
+        font-weight: 800;
+        letter-spacing: .18em;
+        color: rgba(196,144,46,.86);
+        text-transform: uppercase;
+      }
+      /* Remove the white frame around logo */
+      body.eukolakis-classic .logo-frame {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        display: none !important;
+      }
+      body.eukolakis-classic .logo-image-dynamic {
+        /* max-height is set by inline style from admin config (80–120px range) */
+        max-width: 300px;
+        filter: brightness(1.08) !important;
+        width: auto;
+      }
+      body.eukolakis-classic .store-name-wrap h1 {
+        font-size: .9rem !important;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--eko-text-strong);
+        margin: 0;
+      }
+      body.eukolakis-classic .header-auth-actions {
+        margin-left: auto !important;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      body.eukolakis-classic .header-auth-actions a.button {
+        font-size: .76rem !important;
+        padding: 8px 14px !important;
+        border-radius: 9px !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+        line-height: 1 !important;
+      }
+      /* Primary (first) auth btn: gold fill */
+      body.eukolakis-classic .header-auth-actions a.button:first-child {
+        background: var(--eko-accent) !important;
+        border-color: var(--eko-accent) !important;
+        color: #fff !important;
+      }
+      /* Secondary auth btn: ghost */
+      body.eukolakis-classic .header-auth-actions a.button:last-child {
+        background: transparent !important;
+        border: 1px solid var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .header-auth-actions a.button:last-child:hover {
+        border-color: var(--eko-border-hover) !important;
+        color: var(--eko-accent) !important;
+      }
+
+      /* ── Nav row: horizontal tab bar ── */
+      body.eukolakis-classic .header-nav-row {
+        margin-top: 0 !important;
+        padding: 0 !important;
+        border-top: 1px solid rgba(196,144,46,.12);
+        background: rgba(0,0,0,.38);
+        backdrop-filter: blur(4px);
+      }
+      body.eukolakis-classic.eko-light .header-nav-row {
+        background: rgba(0,0,0,.03);
+        border-top-color: rgba(140,100,21,.1);
+        backdrop-filter: none;
+      }
+      body.eukolakis-classic .header-nav-row .main-nav {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      body.eukolakis-classic .header-nav-row ul {
+        display: flex; gap: 0; list-style: none; margin: 0; padding: 0 4px;
+        overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        align-items: center;
+      }
+      body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
+      body.eukolakis-classic .header-nav-row ul li a {
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 14px; height: 40px;
+        color: var(--eko-text-muted);
+        text-decoration: none; font-size: .78rem; font-weight: 700;
+        letter-spacing: .06em; white-space: nowrap; text-transform: uppercase;
+        border: 1px solid rgba(196,144,46,.18);
+        border-radius: 4px;
+        background: linear-gradient(180deg, #1e2435 0%, #161b27 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.3);
+        margin: 6px 3px;
+        transition: color .14s, border-color .14s, background .14s, box-shadow .14s;
+      }
+      body.eukolakis-classic .eko-nav-plate-thumb {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        object-fit: cover; border: 1px solid rgba(196,144,46,.26);
+        background: linear-gradient(135deg, #1b2233 0%, #121722 100%);
+      }
+      body.eukolakis-classic .eko-nav-plate-fallback {
+        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
+        border: 1px solid rgba(196,144,46,.26); background: rgba(196,144,46,.08);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .56rem; letter-spacing: .06em; color: var(--eko-accent); font-weight: 800;
+      }
+      body.eukolakis-classic .header-nav-row ul li a:hover {
+        color: var(--eko-accent);
+        border-color: rgba(196,144,46,.4);
+        background: linear-gradient(180deg, #24293c 0%, #1a1f2e 100%);
+        box-shadow: inset 0 1px 0 rgba(196,144,46,.12), 0 3px 10px rgba(0,0,0,.4);
+      }
+      body.eukolakis-classic .header-nav-row ul li.active a {
+        color: var(--eko-accent);
+        border-color: rgba(196,144,46,.55);
+        border-top-color: var(--eko-accent);
+        background: linear-gradient(180deg, #2a2410 0%, #1c1a10 100%);
+        box-shadow: inset 0 1px 0 rgba(196,144,46,.2), 0 4px 14px rgba(0,0,0,.4);
+      }
+      body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
+      body.eukolakis-classic .menu-toggle { display: none; }
+      body.eukolakis-classic .pill-nav { display: none !important; }
+      body.eukolakis-classic .hero .hero-actions { display: none; }
+
+      /* ── Preview mode banner — adapt to dark theme ── */
+      body.eukolakis-classic .preview-banner {
+        background: rgba(196,144,46,.12) !important;
+        border-bottom: 1px solid rgba(196,144,46,.25) !important;
+        color: var(--eko-accent) !important;
+        font-size: .8rem;
+        padding: 6px 20px !important;
+      }
+      body.eukolakis-classic .preview-banner strong { color: var(--eko-accent); }
+
+      /* ── Lang switcher: hidden for eukolakis-classic (moved into nav-row) ── */
+      body.eukolakis-classic .lang-switcher { display: none !important; }
+
+      /* ── Integrated nav lang selector ── */
+      .eko-nav-lang { display: none; }
+      body.eukolakis-classic .eko-nav-lang {
+        display: flex; align-items: stretch; flex-shrink: 0;
+      }
+      body.eukolakis-classic .eko-nav-lang select {
+        background: transparent; border: none;
+        border-left: 1px solid var(--eko-border);
+        color: var(--eko-text-muted); font-size: .73rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        padding: 0 14px; height: 40px; cursor: pointer;
+        outline: none; -webkit-appearance: none; appearance: none;
+        transition: color .14s, background .14s;
+      }
+      body.eukolakis-classic .eko-nav-lang select:hover {
+        color: var(--eko-accent);
+        background: rgba(196,144,46,.06);
+      }
+      body.eukolakis-classic.eko-light .eko-nav-lang select {
+        color: var(--eko-text-muted);
+        border-left-color: var(--eko-border);
+      }
+
+      /* ── Category view header breadcrumb ── */
+      .eko-cat-header {
+        display: flex; align-items: center; gap: 16px;
+        margin: 0 0 20px; padding-bottom: 16px;
+        border-bottom: 1px solid var(--eko-border);
+      }
+      .eko-cat-header-img {
+        width: 56px; height: 56px; object-fit: cover;
+        border-radius: 10px; border: 1px solid var(--eko-border); flex-shrink: 0;
+      }
+      .eko-cat-header-icon {
+        width: 56px; height: 56px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+        color: var(--eko-accent);
+        background: rgba(196,144,46,.08);
+        border: 1px solid rgba(196,144,46,.22);
+        border-radius: 10px;
+      }
+      .eko-cat-header-text { flex: 1; min-width: 0; }
+      .eko-cat-header-eyebrow {
+        margin: 0 0 2px; font-size: .66rem; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .18em; color: var(--eko-accent);
+      }
+      .eko-cat-header-title {
+        margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--eko-text-strong);
+        letter-spacing: -.01em;
+      }
+      .eko-cat-header-desc {
+        margin: 3px 0 0; font-size: .78rem; color: var(--eko-text-muted); line-height: 1.45;
+      }
+      .eko-cat-header-back {
+        margin-left: auto; flex-shrink: 0;
+        font-size: .8rem; font-weight: 700; color: var(--eko-accent);
+        text-decoration: none; padding: 6px 12px;
+        border: 1px solid rgba(196,144,46,.25); border-radius: 7px;
+        transition: background .14s, border-color .14s;
+      }
+      .eko-cat-header-back:hover {
+        background: rgba(196,144,46,.08); border-color: var(--eko-accent);
+      }
+
+      /* ── Industrial hero banner ── */
+      .eko-hero {
+        position: relative; border-radius: 16px; overflow: hidden;
+        margin: 0 0 24px; background: var(--eko-surface);
+        border: 1px solid var(--eko-border);
+      }
+      .eko-hero-img {
+        width: 100%; height: clamp(220px, 30vw, 340px);
+        object-fit: cover; display: block;
+      }
+      .eko-hero-overlay {
+        position: absolute; inset: 0;
+        /* gradient up from bottom for strong text contrast */
+        background: linear-gradient(
+          to top,
+          rgba(11,13,18,.97) 0%,
+          rgba(11,13,18,.72) 38%,
+          rgba(11,13,18,.28) 65%,
+          transparent 100%
+        );
+        display: flex; flex-direction: column; justify-content: flex-end;
+        padding: clamp(18px, 3vw, 36px);
+      }
+      .eko-hero-no-img {
+        padding: clamp(32px, 6vw, 60px) clamp(20px, 4vw, 44px);
+        background: #0d1018;
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg,  rgba(196,144,46,.03) 0px, rgba(196,144,46,.03) 1px, transparent 1px, transparent 48px),
+          linear-gradient(145deg, #14182a 0%, #0d1018 55%, #0b0d12 100%);
+      }
+      body.eukolakis-classic.eko-light .eko-hero-no-img {
+        background: #eef0f6;
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(140,100,21,.04) 0px, rgba(140,100,21,.04) 1px, transparent 1px, transparent 48px),
+          repeating-linear-gradient(90deg,  rgba(140,100,21,.04) 0px, rgba(140,100,21,.04) 1px, transparent 1px, transparent 48px),
+          linear-gradient(145deg, #e8eaf4 0%, #eef0f6 55%, #f2f3f8 100%);
+      }
+      .eko-hero-eyebrow {
+        font-size: .68rem; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .22em; color: var(--eko-accent); margin: 0 0 7px;
+      }
+      .eko-hero-title {
+        font-size: clamp(1.55rem, 3.8vw, 2.6rem); font-weight: 900;
+        color: #fff; letter-spacing: -.02em; line-height: 1.12;
+        margin: 0 0 8px; max-width: 560px;
+        text-shadow: 0 3px 16px rgba(0,0,0,.6);
+      }
+      .eko-hero-subtitle {
+        font-size: clamp(.82rem, 1.5vw, .96rem);
+        color: rgba(208,213,224,.78); margin: 0 0 18px;
+        max-width: 440px; line-height: 1.55;
+      }
+      .eko-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .eko-hero-cta {
+        text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        border-radius: 8px; padding: 10px 20px;
+        font-weight: 700; font-size: .88rem; cursor: pointer; border: none;
+        transition: opacity .14s, transform .12s;
+      }
+      .eko-hero-cta:hover { opacity: .9; transform: translateY(-1px); }
+      .eko-hero-cta-primary { background: var(--eko-accent); color: #fff; }
+      .eko-hero-cta-secondary {
+        background: rgba(255,255,255,.1); color: #fff;
+        border: 1px solid rgba(255,255,255,.25);
+      }
+      /* Secondary CTA on light mode needs visible background */
+      body.eukolakis-classic.eko-light .eko-hero-cta-secondary {
+        background: rgba(0,0,0,.12);
+        border-color: rgba(0,0,0,.22);
+        color: var(--eko-text-strong);
+      }
+
+      /* ── Category tile grid ── */
+      .eko-cat-section { margin: 0 0 24px; }
+      .eko-cat-section-title {
+        font-size: .68rem; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .2em; color: var(--eko-text-muted); margin: 0 0 12px;
+      }
+      .eko-cat-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .eko-cat-tile {
+        position: relative; display: flex; flex-direction: column;
+        text-decoration: none; border-radius: 12px; overflow: hidden;
+        border: 1px solid var(--eko-border);
+        border-top: 2px solid rgba(196,144,46,.28);
+        background: linear-gradient(165deg, #181d2c 0%, #141820 60%, #10131b 100%);
+        min-height: 176px;
+        transition: border-color .16s, box-shadow .16s, transform .18s;
+      }
+      .eko-cat-tile:hover {
+        border-color: var(--eko-accent);
+        border-top-color: var(--eko-accent);
+        box-shadow: 0 0 0 1px rgba(196,144,46,.15), 0 16px 40px rgba(0,0,0,.55);
+        transform: translateY(-4px);
+      }
+      .eko-cat-tile-img {
+        width: 100%; height: 124px; object-fit: contain;
+        display: block; flex-shrink: 0;
+        transition: transform .22s;
+        background: radial-gradient(circle at 20% 20%, rgba(255,255,255,.06), rgba(255,255,255,0) 48%);
+      }
+      .eko-cat-tile:hover .eko-cat-tile-img { transform: scale(1.04); }
+      /* Richer placeholder */
+      .eko-cat-tile-img-placeholder {
+        width: 100%; height: 140px; display: flex; align-items: center;
+        justify-content: center; flex-shrink: 0;
+        position: relative; overflow: hidden;
+      }
+      /* Per-category placeholder colors via data-cat-id */
+      .eko-cat-tile[data-cat-id="diy-rolla"] .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #7c3a00 0%, #3d1a00 60%, #1c1008 100%);
+      }
+      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #0a2a5e 0%, #051428 60%, #020c1c 100%);
+      }
+      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #0a3028 0%, #061a14 60%, #040f0a 100%);
+      }
+      .eko-cat-tile-img-placeholder::before {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+          repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 28px),
+          repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 28px);
+      }
+      .eko-cat-tile-placeholder-icon {
+        position: relative; z-index: 1;
+        font-size: 2.2rem; font-weight: 900; letter-spacing: .04em;
+        color: rgba(255,255,255,.18); line-height: 1;
+        font-family: system-ui, sans-serif;
+        text-transform: uppercase;
+      }
+      /* Colored badge body */
+      .eko-cat-tile-body {
+        padding: 0; flex-shrink: 0;
+        display: flex; align-items: stretch;
+      }
+      .eko-cat-tile-badge {
+        flex: 1; padding: 10px 14px 11px;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .eko-cat-tile[data-cat-id="diy-rolla"] .eko-cat-tile-badge { background: #c25a00; }
+      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-badge { background: #1a4a9e; }
+      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-badge { background: #1a6b50; }
+      .eko-cat-tile-badge-text {
+        flex: 1;
+      }
+      .eko-cat-tile-name {
+        font-size: .84rem; font-weight: 900; letter-spacing: .04em;
+        color: #fff; margin: 0; line-height: 1.2; text-transform: uppercase;
+      }
+      .eko-cat-tile-desc {
+        font-size: .7rem; color: rgba(255,255,255,.7);
+        margin: 2px 0 0; line-height: 1.3;
+      }
+      /* Circular arrow button */
+      .eko-cat-tile-arrow {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: rgba(0,0,0,.28); border: none;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 1rem; font-weight: 700;
+        flex-shrink: 0; transition: background .14s;
+        text-decoration: none;
+      }
+      .eko-cat-tile:hover .eko-cat-tile-arrow { background: rgba(0,0,0,.45); }
+      /* Remove the old eko-cat-bar (now replaced by badge) */
+      .eko-cat-bar { display: none; }
+      /* Light mode tile */
+      body.eukolakis-classic.eko-light .eko-cat-tile {
+        background: linear-gradient(165deg, #f0f2f8 0%, #fff 100%);
+        border-color: rgba(40,50,70,.14);
+        border-top-color: rgba(140,100,21,.25);
+      }
+      body.eukolakis-classic.eko-light .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #e8eaf2 0%, #f0f2f8 100%);
+        background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.03) 0px, rgba(0,0,0,.03) 1px, transparent 1px, transparent 20px),
+                          repeating-linear-gradient(90deg, rgba(0,0,0,.03) 0px, rgba(0,0,0,.03) 1px, transparent 1px, transparent 20px),
+                          linear-gradient(135deg, #e8eaf2 0%, #f0f2f8 100%);
+      }
+
+      /* ── Product cards — dark theme adaptation ── */
+      body.eukolakis-classic .product-card {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.2) !important;
+        color: var(--eko-text) !important;
+        transition: box-shadow .18s, border-color .18s, transform .18s !important;
+      }
+      body.eukolakis-classic .product-card:hover {
+        box-shadow: 0 10px 32px rgba(0,0,0,.45) !important;
+        border-color: var(--eko-accent) !important;
+        border-top-color: var(--eko-accent) !important;
+        transform: translateY(-3px) !important;
+      }
+      body.eukolakis-classic .product-card h2 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic .product-card p  { color: var(--eko-text-muted) !important; }
+      body.eukolakis-classic .product-card .price { color: var(--eko-accent) !important; }
+      body.eukolakis-classic .product-card .product-thumb { background: #090b0f !important; }
+      body.eukolakis-classic .btn-cart { background: var(--eko-accent) !important; color: #fff !important; }
+      body.eukolakis-classic .btn-cart:hover { background: var(--eko-accent-light) !important; }
+
+      /* ── Featured kit cards ── */
+      body.eukolakis-classic .featured-kit-card {
+        border: 1px solid var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.3) !important;
+        background: var(--eko-surface-2) !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        transition: box-shadow .2s, border-color .2s, transform .2s !important;
+        cursor: pointer !important;
+      }
+      body.eukolakis-classic .featured-kit-card:hover {
+        border-color: var(--eko-accent) !important;
+        border-top-color: var(--eko-accent) !important;
+        box-shadow: 0 16px 44px rgba(0,0,0,.5) !important;
+        transform: translateY(-4px) !important;
+      }
+      body.eukolakis-classic .featured-kit-card img {
+        width: 100% !important; height: 200px !important;
+        object-fit: cover !important; display: block !important;
+      }
+      body.eukolakis-classic .featured-kit-card .kit-badge {
+        background: var(--eko-accent) !important;
+        color: #fff !important;
+        font-size: .7rem !important; font-weight: 800 !important;
+        letter-spacing: .08em !important; text-transform: uppercase !important;
+        padding: 3px 8px !important; border-radius: 5px !important;
+      }
+      body.eukolakis-classic .featured-kit-card .body h3,
+      body.eukolakis-classic .featured-kit-card .body .product-name,
+      body.eukolakis-classic .featured-kit-card .body p { color: var(--eko-text) !important; }
+      body.eukolakis-classic .featured-primary-grid { gap: 20px; }
+      body.eukolakis-classic .featured-kit-card .body { padding: 16px; }
+      body.eukolakis-classic .featured-kit-card .body small {
+        display: inline-block; margin-top: 10px;
+        font-size: .76rem; font-weight: 600; color: var(--eko-accent) !important;
+        letter-spacing: .04em;
+      }
+
+      /* ── Featured kit card — no-image placeholder ── */
+      body.eukolakis-classic .featured-kit-card-no-img {
+        width: 100%; height: 200px; display: block; flex-shrink: 0;
+        background: linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+        background-image:
+          repeating-linear-gradient(0deg,   rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 36px),
+          repeating-linear-gradient(90deg,  rgba(196,144,46,.025) 0px, rgba(196,144,46,.025) 1px, transparent 1px, transparent 36px),
+          linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+      }
+
+      /* ── Buttons (global override for eukolakis-classic) ── */
+      body.eukolakis-classic .button, body.eukolakis-classic .btn-primary {
+        background: var(--eko-accent) !important;
+        border-color: var(--eko-accent) !important;
+        color: #fff !important;
+      }
+      body.eukolakis-classic .button:hover, body.eukolakis-classic .btn-primary:hover {
+        background: var(--eko-accent-light) !important;
+        border-color: var(--eko-accent-light) !important;
+      }
+
+      /* ── Spare tools / home-secondary cards ── */
+      body.eukolakis-classic .home-secondary {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .spare-tools-card {
+        background: var(--eko-surface) !important;
+        border: 1px solid var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.25) !important;
+        color: var(--eko-text) !important;
+        border-radius: 12px !important;
+        transition: border-color .18s, box-shadow .18s !important;
+      }
+      body.eukolakis-classic .spare-tools-card:hover {
+        border-color: var(--eko-accent) !important;
+        border-top-color: var(--eko-accent) !important;
+        box-shadow: 0 8px 26px rgba(0,0,0,.35) !important;
+      }
+      body.eukolakis-classic .spare-tools-card h3 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic .spare-tools-card p   { color: var(--eko-text-muted) !important; }
+      body.eukolakis-classic .spare-tools-card img { background: transparent !important; padding: 0 !important; }
+      /* Subscriptions section */
+      body.eukolakis-classic [data-home-block="subscriptions"] {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        border-top: 2px solid rgba(196,144,46,.18) !important;
+        border-radius: 12px !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic [data-home-block="subscriptions"] h3 { color: var(--eko-text-strong) !important; }
+      body.eukolakis-classic [data-home-block="subscriptions"] p  { color: var(--eko-text-muted) !important; }
+
+      /* ── Featured section title ── */
+      body.eukolakis-classic .featured-section { margin-bottom: 28px; }
+      body.eukolakis-classic .featured-section h2 {
+        color: var(--eko-text-strong) !important;
+        font-size: 1rem !important;
+        font-weight: 800 !important;
+        letter-spacing: .12em !important;
+        text-transform: uppercase !important;
+        padding-bottom: 10px !important;
+        border-bottom: 1px solid var(--eko-border) !important;
+        margin-bottom: 16px !important;
+        display: flex !important; align-items: center !important; gap: 10px !important;
+      }
+      body.eukolakis-classic .featured-section h2::before {
+        content: '';
+        display: inline-block; width: 3px; height: 1em;
+        background: var(--eko-accent); border-radius: 2px; flex-shrink: 0;
+      }
+
+      /* ── Featured kit card product name (shown for eukolakis-classic) ── */
+      body.eukolakis-classic .featured-kit-card-name {
+        font-size: .97rem; font-weight: 800; color: var(--eko-text-strong);
+        margin: 0 0 6px; line-height: 1.3;
+      }
+
+      /* ── Warning/hint boxes — dark theme adaptation ── */
+      body.eukolakis-classic .eko-hint-box {
+        background: rgba(196,144,46,.12) !important;
+        border: 1px solid rgba(196,144,46,.28) !important;
+        border-radius: 10px; padding: 10px 14px;
+        color: var(--eko-accent) !important;
+        font-size: .84rem;
+        margin-top: 10px;
+      }
+      body.eukolakis-classic .eko-hint-box p { margin: 0; color: inherit !important; }
+      /* Light mode: keep standard amber tone */
+      body.eukolakis-classic.eko-light .eko-hint-box {
+        background: #fff7ed !important;
+        border-color: #fed7aa !important;
+        color: #9a3412 !important;
+      }
+
+      /* ── Quick back button — eukolakis adaptation ── */
+      body.eukolakis-classic .quick-back-btn {
+        background: var(--eko-surface-2) !important;
+        color: var(--eko-text) !important;
+        border: 1px solid var(--eko-border) !important;
+      }
+
+      /* ── Filter UI ── */
+      body.eukolakis-classic .spare-filters {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+        box-shadow: none !important;
+      }
+      body.eukolakis-classic .spare-filters input,
+      body.eukolakis-classic .spare-filters select {
+        background: var(--eko-surface-2) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text) !important;
+      }
+      body.eukolakis-classic .filter-empty-state {
+        background: var(--eko-surface) !important;
+        border-color: var(--eko-border) !important;
+        color: var(--eko-text-muted) !important;
+      }
+
+      /* ── Footer ── */
+      body.eukolakis-classic .store-footer {
+        border-top-color: var(--eko-border) !important;
+        color: var(--eko-text-muted) !important;
+      }
+      body.eukolakis-classic .store-footer a { color: var(--eko-accent) !important; }
+
+      /* ── Color mode toggle ── */
+      .eko-mode-btn {
+        position: fixed; bottom: 68px; right: 14px; z-index: 900;
+        border: 1px solid var(--eko-border); border-radius: 999px;
+        padding: 7px 13px; background: var(--eko-surface); color: var(--eko-text);
+        cursor: pointer; font-size: .75rem; font-weight: 700; opacity: .8;
+        box-shadow: 0 4px 18px rgba(0,0,0,.28); transition: opacity .14s;
+        display: none;
+      }
+      body.eukolakis-classic .eko-mode-btn { display: inline-block; }
+      .eko-mode-btn:hover { opacity: 1; }
+
+      /* ── Responsive ── */
+      @media (max-width: 860px) {
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      }
+      @media (max-width: 600px) {
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
+        body.eukolakis-classic .eko-cat-tile-img,
+        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 80px; }
+        body.eukolakis-classic .eko-cat-tile-name { font-size: .72rem; }
+        body.eukolakis-classic .eko-cat-tile-badge { padding: 6px 8px 7px; }
+        body.eukolakis-classic .eko-cat-tile-arrow { width: 24px; height: 24px; font-size: .84rem; }
+        body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
+        body.eukolakis-classic .header-main-row { padding: 8px 12px; min-height: 84px; }
+        body.eukolakis-classic .eko-brand-banner { min-width: 100%; }
+        body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
+        body.eukolakis-classic main { padding: 14px 12px 36px; }
+      }
+      @media (max-width: 400px) {
+        body.eukolakis-classic .header-auth-actions { gap: 6px; }
+        body.eukolakis-classic .header-auth-actions a.button {
+          font-size: .76rem !important; padding: 6px 10px !important;
+        }
+      }
+
+      /* ── Shared non-eukolakis responsive ── */
+      body.device-mobile main { padding-left: 10px; padding-right: 10px; }
+      body.device-mobile .pill-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      body.device-mobile .pill-nav .pill-item { flex: 0 0 auto; }
+      body.device-mobile .hero { padding: 18px; }
+      body.os-ios input, body.os-ios select, body.os-ios button { font-size: 16px; }
+      .spare-tools-card.prominent { border-width:2px !important; border-color:#cbd5e1 !important; border-radius:14px !important; }
+      .spare-tools-card.prominent img { height:128px !important; max-width:320px !important; margin: 0 auto 10px !important; display:block; }
+      @media (max-width: 760px) { .featured-primary-grid { grid-template-columns:1fr; } }
+      @media (max-width: 640px) {
+        .store-header.is-scrolled .logo-image-dynamic { transform: scale(.92); transform-origin: center; }
+        .quick-back-btn { left: 10px; bottom: 10px; padding:9px 12px; font-size:.84rem; }
+        .logo-image-dynamic { max-height: var(--logo-max-height-mobile, 64px) !important; }
+        .branding-mode-logo_only .store-name-wrap.logo-only-fallback { display:block; margin-top:6px; font-size:.92rem; color:#e2e8f0; font-weight:700; }
+        .category-cards { display:flex; overflow-x:auto; gap:10px; padding-bottom:4px; }
+        .category-card { min-width: 150px; }
+        .header-auth-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
+        .header-main-row, .header-nav-row { flex-wrap: wrap; }
+        .pill-nav { overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+        .pill-nav .pill-item { flex: 0 0 auto; }
+        .kit-wizard-backdrop { padding: 0; }
+        .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
+        .kit-wizard-body { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
+    <% const theme = config.theme || {}; %>
+    <% const homepage = config.homepage || {}; %>
+    <% const assetAudit = storefrontAssetAudit || {}; %>
+    <% const headerBannerAudit = assetAudit.headerBanner || null; %>
+    <% const headerBrandAssetSrc = (headerBannerAudit && headerBannerAudit.exists && headerBannerAudit.url) ? headerBannerAudit.url : (config.logoPath || ''); %>
+    <% const navMenuPlateAudit = Array.isArray(assetAudit.navMenuPlates) ? assetAudit.navMenuPlates : []; %>
+    <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
+    <% const homeBlockVisibility = Object.assign({ hero: true, kits: true, spare: true, subscriptions: true }, (homepage && homepage.blockVisibility) || {}); %>
+    <% const homeBlockContent = Object.assign({ kitsTitle: '', spareTitle: '', subscriptionsTitle: '' }, (homepage && homepage.blockContent) || {}); %>
+    <% const topFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+    <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
+    <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
+    <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const useCodeTabs = isEukolakisClassic && String(theme.categoryMenuStyle || '').trim().toLowerCase() === 'code_tabs'; %>
+    <% const hideMenuForHeroFocus = false; %>
+    <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
+    <% const brandingMode = theme.brandingMode || 'logo_name'; %>
+    <% const logoBgMode = theme.logoBgMode || 'auto'; %>
+    <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
+    <% const logoDisplayMode = theme.logoDisplayMode || 'contain'; %>
+    <% const transparentBlendMode = logoDisplayMode === 'transparent_blend'; %>
+    <% const effectiveLogoFrameClass = (transparentBlendMode ? 'logo-transparent-safe' : logoFrameClass); %>
+    <% const logoDefaultHeight = isEukolakisClassic ? 96 : 88; %>
+    <% const logoRequestedHeight = Number(theme.logoMaxHeight || logoDefaultHeight); %>
+    <% const logoMaxHeight = Math.max(56, Math.min(120, logoRequestedHeight || logoDefaultHeight)); %>
+    <% const logoMobileHeight = Math.max(40, Math.min(86, Math.round(logoMaxHeight * 0.72))); %>
+    <% const logoPadding = Math.max(0, Math.min(24, Number(theme.logoPadding || 6))); %>
+    <% const logoRadius = Math.max(0, Math.min(36, Number(theme.logoRadius || 10))); %>
+    <% const logoShadowMode = (theme.logoShadow === 'none' || theme.logoShadow === 'floating') ? theme.logoShadow : 'soft'; %>
+    <% const hasLogoBg = !!effectiveLogoFrameClass; %>
+    <% const logoFilterShadow = logoShadowMode === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (logoShadowMode === 'soft' ? 'drop-shadow(0 6px 10px rgba(15,23,42,.22))' : 'none'); %>
+    <% const logoBoxShadow = hasLogoBg ? (logoShadowMode === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (logoShadowMode === 'soft' ? '0 4px 12px rgba(15,23,42,.12)' : 'none')) : 'none'; %>
+    <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
+    <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
+    <% const authPosition = (theme.authPosition === 'left') ? 'left' : 'right'; %>
+    <% const menuStyle = ['classic', 'pills', 'compact'].includes(theme.menuStyle) ? theme.menuStyle : 'classic'; %>
+    <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
+    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> auth-pos-<%= authPosition %> branding-mode-<%= brandingMode %>">
+      <div class="header-main-row">
+      <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
+        <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
+          <div class="eko-brand-banner">
+            <img src="<%= headerBrandAssetSrc %>" alt="<%= config.storeName %>" />
+            <div class="eko-brand-caption"><%= lang === 'el' ? 'Industrial Systems' : 'Industrial Systems' %></div>
+          </div>
+        <% } else if (config.logoPath && brandingMode !== 'name_only') { %>
+          <span class="logo-frame <%= effectiveLogoFrameClass %>" style="padding:<%= logoPadding %>px;border-radius:<%= logoRadius %>px;box-shadow:<%= logoBoxShadow %>;--logo-max-height-desktop:<%= logoMaxHeight %>px;--logo-max-height-mobile:<%= logoMobileHeight %>px;">
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo logo-image logo-image-dynamic <%= logoDisplayMode %>" style="max-height:<%= logoMaxHeight %>px;filter:<%= logoFilterShadow %>;" />
+          </span>
+        <% } %>
+        <% if (brandingMode !== 'logo_only' && !hideStoreNameForClassicBanner) { %>
+        <div class="store-name-wrap">
+          <h1><%= config.storeName %></h1>
+          <% if (config.web3Domain) { %>
+            <p class="subtitle"><%= t('storefront.web3Domain') %>: <%= config.web3Domain %></p>
+          <% } %>
+        </div>
+        <% } %>
+        <% if (brandingMode === 'logo_only') { %>
+        <div class="store-name-wrap logo-only-fallback"><%= config.storeName %></div>
+        <% } %>
+      </div>
+      <% if (isEukolakisClassic) { %>
+      <div class="header-auth-actions">
+        <% if (!user) { %>
+          <a class="button" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
+          <a class="button" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Εγγραφή' : 'Signup' %></a>
+        <% } else { %>
+          <a class="button" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο Λογαριασμός μου' : 'My Account' %></a>
+          <a class="button" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
+        <% } %>
+      </div>
+      <% } %>
+      </div>
+      <% if (!hideMenuForHeroFocus) { %>
+      <div class="header-nav-row">
+      <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
+      <nav class="main-nav menu-style-<%= menuStyle %>" id="main-nav">
+        <ul>
+          <% if (!isEukolakisClassic) { %>
+          <li class="<%= !activeCategory ? 'active' : '' %>">
+            <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
+          </li>
+          <% } %>
+          <% (isEukolakisClassic ? navCategories : categories).forEach(function(cat) { %>
+            <% if (!isEukolakisClassic && theme.categoryMenuStyle && theme.categoryMenuStyle !== 'text') { return; } %>
+            <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
+              <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+                <% if (isEukolakisClassic && !useCodeTabs) { %>
+                  <% if (cat.image && navPlateExistsByUrl[cat.image]) { %>
+                    <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy" />
+                  <% } else { %>
+                    <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
+                  <% } %>
+                <% } else if (isEukolakisClassic && useCodeTabs) { %>
+                  <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
+                <% } else if (cat.image) { %>
+                  <img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" />
+                <% } %>
+                <%= cat.name %>
+              </a>
+            </li>
+          <% }); %>
+          <% if (!isEukolakisClassic && !user) { %>
+            <li class="auth-link"><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
+            <li class="auth-link"><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
+          <% } else if (!isEukolakisClassic) { %>
+            <li class="auth-link"><a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>">My Account</a></li>
+            <li class="auth-link"><a href="<%= withTenantLink('/my-orders', lang !== 'el' ? { lang } : {}) %>">My Orders</a></li>
+            <li class="auth-link"><a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>">Logout</a></li>
+          <% } %>
+        </ul>
+      </nav>
+      <% if (isEukolakisClassic) { %>
+      <div class="eko-nav-lang">
+        <select onchange="window.location.href=this.value" aria-label="<%= lang === 'el' ? 'Γλώσσα' : 'Language' %>">
+          <% (contentLangs || ['el','en']).forEach(function(l) { %>
+            <% var _lUrl = withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, l !== 'el' ? { lang: l } : {})); %>
+            <option value="<%= _lUrl %>" <%= lang === l ? 'selected' : '' %>><%= l === 'el' ? 'ΕΛ' : 'EN' %></option>
+          <% }) %>
+        </select>
+      </div>
+      <% } %>
+      </div>
+      <% } %>
+      <% if (isEukolakisClassic) { %>
+      <div class="pill-nav <%= isEukolakisClassic && activeCategory ? 'compact' : '' %>">
+        <% if (isEukolakisClassic) { %>
+          <% if (topPrimaryKit1) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><span>Roll Kit</span></a><% } %>
+          <% if (topPrimaryKit2) { %><a class="pill-item" href="#" data-kit-launch="<%= topPrimaryKit2.id %>"><span>Slide Door Kit</span></a><% } %>
+          <a class="pill-item <%= activeCategory === 'spare-parts' ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><span><%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare parts' %></span></a>
+          <% if (subscriptionsEnabled) { %>
+          <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+          <% } %>
+        <% } else { %>
+          <% const navHomepage = config.homepage || {}; %>
+          <% navCategories.forEach(function(cat){ %>
+            <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+              <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+              <span><%= cat.name %></span>
+            </a>
+          <% }) %>
+          <% const subscriptionCategory = categories.find(function(c){ return c.slug === 'subscriptions'; }); %>
+          <% if (subscriptionCategory && subscriptionsEnabled) { %>
+            <a class="pill-item <%= activeCategory === subscriptionCategory.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: subscriptionCategory.slug }, lang !== 'el' ? { lang } : {})) %>"><span><%= subscriptionCategory.name %></span></a>
+          <% } else if (subscriptionsEnabled) { %>
+            <a class="pill-item" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><span><%= lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos' %></span></a>
+          <% } %>
+        <% } %>
+      </div>
+      <% } %>
+    </header>
+
+    <% if (isPreviewMode) { %>
+    <div class="preview-banner" style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
+      <strong>Preview Mode</strong> – this store is not live yet. Tenant: <strong><%= tenantId %></strong>
+    </div>
+    <% } %>
+
+    <div class="lang-switcher">
+      <label for="lang-switch"><%= t('storefront.langLabel') %>:</label>
+      <select id="lang-switch" onchange="window.location.href=this.value">
+        <% (contentLangs || ['el','en']).forEach(function(l) { %>
+          <% const optionUrl = withTenantLink('/', Object.assign(activeCategory ? { category: activeCategory } : {}, { lang: l })); %>
+          <option value="<%= optionUrl %>" <%= lang === l ? 'selected' : '' %>><%= l === 'el' ? 'Ελληνικά' : 'English' %></option>
+        <% }) %>
+      </select>
+    </div>
+    <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
+
+    <main class="home-layout-flow">
+      <% if (subscription && (subscription.isExpiringSoon || subscription.isInGrace)) { %>
+<div style="background:<%= subscription.isInGrace ? '#7f1d1d' : '#713f12' %>;color:#fff;padding:10px 20px;text-align:center;font-size:.84rem;font-weight:700;border-bottom:2px solid <%= subscription.isInGrace ? '#dc2626' : '#ca8a04' %>;">
+  <% if (subscription.isInGrace) { %>
+    ⚠️ Η συνδρομή σας έχει λήξει. Ανανεώστε την άμεσα για να αποφύγετε τη διακοπή. (<%= subscription.daysOverdue %> μέρες μετά τη λήξη)
+  <% } else { %>
+    ⏰ Η συνδρομή σας λήγει σε <%= subscription.daysLeft %> μέρες. <a href="<%= withTenantLink('/admin') %>" style="color:#fef08a;">Ανανεώστε εδώ →</a>
+  <% } %>
+</div>
+<% } %>
+      <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary.slice(0,2) : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
+      <% const featuredPrimaryProducts = hpFeaturedPrimary.map(function(id){ return (allProducts || products).find(function(p){ return p.id === id; }); }).filter(Boolean); %>
+      <% const missingConfiguredPrimary = hpFeaturedPrimary.length < 2 || featuredPrimaryProducts.length < 2; %>
+      <% const fallbackKitProducts = (allProducts || products).filter(function(p){ return p.type === 'KIT' && !featuredPrimaryProducts.some(function(fp){ return fp.id === p.id; }); }); %>
+      <% const featuredHomeProducts = featuredPrimaryProducts.concat(fallbackKitProducts).slice(0, 2); %>
+      <% const heroPrimaryProduct = featuredPrimaryProducts[0] || featuredHomeProducts[0]; %>
+      <% const featuredSecondary = (allProducts || products).find(function(p){ return p.id === homepage.featuredSecondaryId; }); %>
+      <% const secondaryCard = homepage.secondaryCard || {}; %>
+      <% const isEukolakisLanding = isEukolakisClassic && !activeCategory; %>
+      <% const activeCategoryObj = categories.find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+      <% const spareCategory = categories.find(function(c){ return c.slug === 'spare-parts' || c.id === 'spare-parts'; }); %>
+      <% const sparePartsHref = withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})); %>
+      <% const secondaryCardHref = isEukolakisClassic ? sparePartsHref : (secondaryCard.link || sparePartsHref); %>
+      <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
+      <%/* ── Eukolaki Classic industrial hero banner — visibility controlled solely by homeBlockVisibility.hero ── */%>
+      <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false) { %>
+      <section class="eko-hero">
+        <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
+        <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
+        <% const hasRealHeroImage = homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists); %>
+        <% if (hasRealHeroImage) { %>
+          <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
+          <div class="eko-hero-overlay">
+        <% } else { %>
+          <div class="eko-hero-no-img">
+        <% } %>
+            <p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p>
+            <h2 class="eko-hero-title"><%= heroTitleText %></h2>
+            <% if (heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
+            <div class="eko-hero-actions">
+              <% if (topPrimaryKit1) { %>
+              <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>">
+                <%= lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →' %>
+              </a>
+              <% } %>
+              <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= sparePartsHref %>">
+                <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
+              </a>
+            </div>
+          </div>
+      </section>
+      <% } %>
+      <%/* ── Eukolaki Classic industrial category tile grid ── */%>
+      <% if (isEukolakisClassic && !activeCategory) { %>
+      <section class="eko-cat-section">
+        <p class="eko-cat-section-title"><%= lang === 'el' ? 'Κατηγορίες' : 'Categories' %></p>
+        <div class="eko-cat-grid">
+          <% navCategories.forEach(function(cat) { %>
+          <a class="eko-cat-tile" data-cat-id="<%= cat.id %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% const hasRealCategoryImage = !!(cat.image && navPlateExistsByUrl[cat.image]); %>
+            <% if (hasRealCategoryImage) { %>
+              <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy" />
+            <% } else { %>
+              <div class="eko-cat-tile-img-placeholder">
+                <div class="eko-cat-tile-placeholder-icon">
+                  <% if (cat.id === 'diy-rolla') { %>ROLL<% } else if (cat.id === 'diy-sliding') { %>SLIDE<% } else if (cat.id === 'spare-parts') { %>PARTS<% } else { %><%= (cat.name || 'CAT').slice(0,5).toUpperCase() %><% } %>
+                </div>
+              </div>
+            <% } %>
+            <div class="eko-cat-tile-body">
+              <div class="eko-cat-tile-badge">
+                <div class="eko-cat-tile-badge-text">
+                  <p class="eko-cat-tile-name"><%= cat.name %></p>
+                  <% if (cat.shortDescription) { %><p class="eko-cat-tile-desc"><%= cat.shortDescription %></p><% } %>
+                </div>
+                <span class="eko-cat-tile-arrow">›</span>
+              </div>
+            </div>
+            <div class="eko-cat-bar"></div>
+          </a>
+          <% }); %>
+        </div>
+      </section>
+      <% } %>
+
+      <% if (!isEukolakisClassic) { %>
+      <section class="category-cards">
+        <% categories.forEach(function(cat) { %>
+          <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <div><%= cat.name %></div>
+            <% if (cat.shortDescription && config.theme && config.theme.categoryMenuStyle !== 'image') { %><small><%= cat.shortDescription %></small><% } %>
+          </a>
+        <% }) %>
+      </section>
+      <% } %>
+      <% const dynamicHeroByCategory = {
+        'diy-rolla': { el: { title: 'DIY Kit Ρολών', subtitle: 'Σχεδίασε βήμα-βήμα το σωστό roll kit για την πόρτα σου.' }, en: { title: 'DIY Roller Kits', subtitle: 'Build the right roller kit with guided configuration.' } },
+        'diy-sliding': { el: { title: 'DIY Συρόμενα Συστήματα', subtitle: 'Βρες οδηγούς, ράουλα και στηρίγματα για ομαλή κύλιση.' }, en: { title: 'DIY Sliding Systems', subtitle: 'Find rails, wheels and supports for smooth sliding.' } },
+        'spare-parts': { el: { title: 'Ανταλλακτικά & Εργαλεία', subtitle: 'SKU αναζήτηση και φίλτρα για γρήγορο εντοπισμό τεχνικών εξαρτημάτων.' }, en: { title: 'Spare Parts & Tools', subtitle: 'Use SKU search and filters to quickly find technical parts.' } }
+      }; %>
+      <% const dynamicHeroEntry = activeCategory && dynamicHeroByCategory[activeCategory] ? dynamicHeroByCategory[activeCategory][lang] : null; %>
+      <%/* Standard hero: hidden for eukolakis-classic (uses eko-hero instead) */%>
+      <% if (!isEukolakisClassic && homeBlockVisibility.hero !== false && (!config.theme || config.theme.bannerVisible !== false)) { %>
+      <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
+        <% if (homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists)) { %>
+          <div style="margin-bottom:14px;">
+            <% const heroClickHref = (homepage.secondaryCard && homepage.secondaryCard.link) || (categories && categories[0] && categories[0].slug ? withTenantLink('/', Object.assign({ category: categories[0].slug }, lang !== 'el' ? { lang } : {})) : withTenantLink('/', lang !== 'el' ? { lang } : {})); %>
+            <% if (heroPrimaryProduct) { %>
+              <a href="<%= heroClickHref %>" data-exposure-link style="display:block;">
+                <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:320px;object-fit:contain;background:rgba(255,255,255,.82);border-radius:10px;" />
+              </a>
+            <% } else { %>
+              <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:320px;object-fit:contain;background:rgba(255,255,255,.82);border-radius:10px;" />
+            <% } %>
+          </div>
+        <% } %>
+        <% if (config.heroText) { %><p><%= config.heroText %></p><% } %>
+        <% if (isEukolakisClassic) { %>
+          <div class="hero-actions">
+            <% if (isEukolakisClassic && topPrimaryKit1) { %>
+            <a
+              class="button"
+              href="#"
+              data-kit-launch="<%= topPrimaryKit1.id %>"
+            ><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
+            <% } else { %>
+            <a class="button" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Δείτε DIY Kits' : 'Explore DIY Kits' %></a>
+            <% } %>
+            <a class="button" style="background:#111827;" href="<%= withTenantLink('/', Object.assign({ category: 'spare-parts' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'Ανταλλακτικά / Εργαλεία' : 'Spare Parts / Tools' %></a>
+            <% if (theme.enableDiyQuickScenario && topPrimaryKit1) { %>
+            <a class="button" href="#" data-kit-launch="<%= topPrimaryKit1.id %>" style="background:#0f766e;"><%= lang === 'el' ? 'DIY Εύκολο Σενάριο' : 'DIY Quick Scenario' %></a>
+            <% } %>
+          </div>
+        <% } %>
+      </section>
+      <% } %>
+
+      <% if (activeCategory && activeCategoryObj) { %>
+      <% if (isEukolakisClassic) { %>
+      <div class="eko-cat-header">
+        <% if (activeCategoryObj.image) { %>
+          <img class="eko-cat-header-img" src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" />
+        <% } else { %>
+          <div class="eko-cat-header-icon"><% if (activeCategoryObj.id === 'diy-rolla') { %>KIT<% } else if (activeCategoryObj.id === 'diy-sliding') { %>SLD<% } else if (activeCategoryObj.id === 'spare-parts') { %>SPN<% } else { %><%= (activeCategoryObj.name || 'CAT').slice(0,3).toUpperCase() %><% } %></div>
+        <% } %>
+        <div class="eko-cat-header-text">
+          <p class="eko-cat-header-eyebrow"><%= lang === 'el' ? 'Κατηγορία' : 'Category' %></p>
+          <h2 class="eko-cat-header-title"><%= activeCategoryObj.name %></h2>
+          <% if (activeCategoryObj.shortDescription) { %>
+            <p class="eko-cat-header-desc"><%= activeCategoryObj.shortDescription %></p>
+          <% } %>
+        </div>
+        <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" class="eko-cat-header-back">← <%= lang === 'el' ? 'Αρχική' : 'Home' %></a>
+      </div>
+      <% } else { %>
+      <section class="home-secondary" style="margin-top:10px;display:flex;align-items:center;gap:12px;">
+        <% if (activeCategoryObj.image) { %><img src="<%= activeCategoryObj.image %>" alt="<%= activeCategoryObj.name %>" style="width:58px;height:58px;object-fit:cover;border-radius:10px;" /><% } %>
+        <div>
+          <h2 style="margin:0 0 4px;"><%= activeCategoryObj.name %></h2>
+        </div>
+      </section>
+      <% } %>
+      <% } %>
+
+      <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
+      <section class="featured-section" data-home-block="kits">
+        <h2><%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
+        <% if (featuredHomeProducts.length) { %>
+        <div class="featured-primary-grid">
+          <% featuredHomeProducts.forEach(function (product) { %>
+            <article class="featured-kit-card kit-clickable" data-kit-product-id="<%= product.id %>">
+              <% if (product.imageUrl) { %>
+                <img src="<%= product.imageUrl %>" alt="<%= product.name %>" />
+              <% } else if (isEukolakisClassic) { %>
+                <div class="featured-kit-card-no-img"></div>
+              <% } %>
+              <div class="body">
+                <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
+                <% if (isEukolakisClassic) { %>
+                <p class="featured-kit-card-name"><%= resolveField(product.name, lang) || product.name %></p>
+                <% } else { %>
+                <h3 style="margin:0 0 8px;"><%= product.name %></h3>
+                <% } %>
+                <% if (product.description) { %><p style="margin:0 0 10px;"><%= product.description %></p><% } %>
+                <small style="font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+        <% if (missingConfiguredPrimary) { %>
+        <div class="home-secondary eko-hint-box" style="margin-top:10px;">
+          <p><%= lang === 'el' ? 'Hint: Έλεγξε Homepage → Primary Product #1 / #2 για σωστό KIT mapping.' : 'Hint: Check Homepage → Primary Product #1 / #2 mapping.' %></p>
+        </div>
+        <% } %>
+        <% } else { %>
+        <div class="home-secondary eko-hint-box">
+          <h3 style="margin-top:0;"><%= lang === 'el' ? 'Δεν υπάρχουν ακόμη 2 KIT για τη landing σελίδα' : 'No 2 KIT products configured yet for the landing page' %></h3>
+          <p style="margin-bottom:0;"><%= lang === 'el' ? 'Πήγαινε Admin → Products → Make this a KIT / Edit KIT wizard.' : 'Go to Admin → Products → Make this a KIT / Edit KIT wizard.' %></p>
+        </div>
+        <% } %>
+      </section>
+      <% if (homeBlockVisibility.spare !== false && (isEukolakisClassic || secondaryCard.title || secondaryCard.text || featuredSecondary)) { %>
+      <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
+      <section class="hero spare-tools-card <%= spareToolsCardMode %>" data-home-block="spare" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
+        <h3 style="margin-top:0;"><%= homeBlockContent.spareTitle || resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
+        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
+        <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
+        <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
+      </section>
+      </a>
+      <% } %>
+      <% if (subscriptionsEnabled && homeBlockVisibility.subscriptions !== false) { %>
+      <section class="home-secondary" data-home-block="subscriptions" style="margin-top:10px;">
+        <h3 style="margin-top:0;"><%= homeBlockContent.subscriptionsTitle || (lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos') %></h3>
+        <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
+        <a class="button" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες συνδρομές' : 'View subscriptions' %></a>
+      </section>
+      <% } %>
+      <% } %>
+
+      <% if (!(isEukolakisClassic && !activeCategory && featuredHomeProducts.length)) { %>
+      <%# ── Featured products ── %>
+      <% const featuredProducts = products.filter(function(p){ return p.featured; }); %>
+      <% if (featuredProducts.length > 0) { %>
+      <section class="featured-section">
+        <h2><%= t('storefront.featuredTitle') %></h2>
+        <div class="product-list">
+          <% featuredProducts.forEach(function (product) { %>
+            <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
+          <% }); %>
+        </div>
+      </section>
+      <% } %>
+
+      <% const spareFilterTags = activeCategory === 'spare-parts'
+        ? Array.from(new Set(products.reduce(function(acc, p){
+            if (Array.isArray(p.tags)) p.tags.forEach(function(tag){ if (String(tag || '').trim()) acc.push(String(tag).trim()); });
+            return acc;
+          }, []))).slice(0, 60)
+        : []; %>
+      <% if (activeCategory === 'spare-parts') { %>
+      <section class="spare-filters" id="spare-filters">
+        <input type="search" id="spare-filter-search" placeholder="<%= lang === 'el' ? 'Αναζήτηση SKU ή ονόματος' : 'Search SKU or name' %>" />
+        <select id="spare-filter-tag">
+          <option value=""><%= lang === 'el' ? 'Συμβατότητα: όλες' : 'Compatibility: all' %></option>
+          <% spareFilterTags.forEach(function(tag){ %><option value="<%= String(tag).toLowerCase() %>"><%= tag %></option><% }) %>
+        </select>
+        <input type="range" id="spare-filter-price" min="0" max="<%= Math.max(10, Math.ceil(Math.max.apply(null, products.map(function(p){ return Number(p.price) || 0; })) || 0)) %>" value="<%= Math.max(10, Math.ceil(Math.max.apply(null, products.map(function(p){ return Number(p.price) || 0; })) || 0)) %>" />
+        <button type="button" id="spare-filter-reset" class="reset-btn"><%= lang === 'el' ? 'Reset' : 'Reset' %></button>
+        <div class="filter-note"><%= lang === 'el' ? 'Τιμή έως:' : 'Price up to:' %> <strong id="spare-filter-price-value"></strong> €</div>
+      </section>
+      <div id="spare-filter-results" class="filter-results"></div>
+      <% } %>
+      <section class="product-list" id="product-list-grid">
+        <% if (products.length === 0) { %>
+          <p><%= t('storefront.noProducts') %></p>
+        <% } %>
+
+        <% products.forEach(function (product) { %>
+          <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
+        <% }); %>
+      </section>
+      <div id="spare-filter-empty" class="filter-empty-state">
+        <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
+        <div><%= lang === 'el' ? 'Δοκίμασε άλλο SKU ή κάνε reset.' : 'Try another SKU or reset filters.' %></div>
+        <button type="button" id="spare-filter-empty-reset" class="button"><%= lang === 'el' ? 'Καθαρισμός φίλτρων' : 'Reset filters' %></button>
+      </div>
+      <% } %>
+
+      <% if (isEukolakisClassic && !activeCategory && featuredSecondary && !(secondaryCard.title || secondaryCard.text)) { %>
+      <section class="home-secondary">
+        <h3 style="margin-top:0;"><%= featuredSecondary.name %></h3>
+        <p><%= featuredSecondary.description || '' %></p>
+        <a class="button" href="<%= withTenantLink('/product/' + featuredSecondary.id, lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δείτε προϊόν' : 'View product' %></a>
+      </section>
+      <% } %>
+    </main>
+    <% if (isEukolakisClassic) { %>
+    <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" data-wizard-display="<%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') %>" aria-hidden="true">
+      <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Οδηγός kit' : 'Kit wizard' %>">
+        <div class="kit-wizard-head">
+          <div>
+            <strong id="kit-wizard-title"></strong>
+            <div id="kit-wizard-progress" class="kit-progress"></div>
+          </div>
+          <button type="button" id="kit-wizard-close" class="btn-cart" style="background:#1f2937;">✕</button>
+        </div>
+        <div class="kit-wizard-body">
+          <div>
+            <h3 id="kit-group-title" style="margin:0 0 8px;"></h3>
+            <p id="kit-group-required" class="helper" style="margin:0 0 8px;"></p>
+            <div id="kit-choice-grid" class="kit-choice-grid"></div>
+            <div id="kit-summary" style="display:none;"></div>
+            <label id="kit-add-linked-wrap" class="checkbox-label" style="display:none;margin-top:8px;">
+              <input type="checkbox" id="kit-add-linked-parts" />
+              <span><%= lang === 'el' ? 'Προσθήκη επιλεγμένων parts και ως ξεχωριστά είδη' : 'Add selected parts as separate items too' %></span>
+            </label>
+          </div>
+          <div>
+            <div class="kit-preview" id="kit-preview"></div>
+            <p style="margin:10px 0 0;font-size:.84rem;"><a id="kit-full-link" href="#"><%= lang === 'el' ? 'View full page' : 'View full page' %></a></p>
+          </div>
+        </div>
+        <div class="kit-wizard-foot">
+          <div class="kit-total" id="kit-total"></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" id="kit-new-flow" class="btn-cart" style="background:#475569;"><%= lang === 'el' ? 'Νέο kit' : 'New kit' %></button>
+            <button type="button" id="kit-back" class="btn-cart" style="background:#334155;"><%= lang === 'el' ? 'Πίσω' : 'Back' %></button>
+            <button type="button" id="kit-skip" class="btn-cart" style="background:#64748b;display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
+            <button type="button" id="kit-next" class="btn-cart"><%= lang === 'el' ? 'Επόμενο' : 'Next' %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="kit-full-image-modal" class="kit-wizard-backdrop" aria-hidden="true">
+      <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Πλήρης εικόνα προϊόντος' : 'Full product image' %>" style="max-width:1100px;background:#020617;color:#fff;">
+        <div class="kit-wizard-head" style="border-bottom-color:rgba(255,255,255,.15);">
+          <strong id="kit-full-image-title"><%= lang === 'el' ? 'Πλήρης εικόνα προϊόντος' : 'Full product image' %></strong>
+          <button type="button" id="kit-full-image-close" class="btn-cart" style="background:#1f2937;">✕</button>
+        </div>
+        <div style="padding:14px 16px;">
+          <img id="kit-full-image-el" src="" alt="" style="display:block;width:100%;max-height:78vh;object-fit:contain;border-radius:10px;background:#0f172a;" />
+        </div>
+      </div>
+    </div>
+    <script id="kit-products-json" type="application/json"><%- safeJson((allProducts || products).filter(function(p){ return p && p.type === 'KIT'; })) %></script>
+    <script id="catalog-products-json" type="application/json"><%- safeJson((allProducts || products).map(function(p){
+      return {
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        variants: Array.isArray(p.variants) ? p.variants.map(function(v){
+          const variantLabel = (v.label && typeof v.label === 'object') ? (v.label[lang] || v.label.el || v.label.en || v.id) : (v.label || v.id);
+          return { id: v.id, label: variantLabel, price: v.price, imageUrl: v.imageUrl, sku: v.sku, stock: v.stock };
+        }) : []
+      };
+    })) %></script>
+    <% } %>
+    <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
+      <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
+      <div class="social-links" style="justify-content:center;">
+        <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
+        <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
+        <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
+      </div>
+      <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
+      <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
+      <% } %>
+    <% if (isEukolakisClassic && homepage && homepage.introEnabled) { %>
+    <div style="text-align:center;padding:8px 0 20px;margin-top:4px;">
+      <a href="#" onclick="
+        var k=document.cookie.match(/(?:^|; )(intro_seen[^=]*)=/);
+        if(k){document.cookie=k[1]+'=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'}
+        try{Object.keys(localStorage).filter(function(x){return x.indexOf('intro_seen')===0}).forEach(function(k){localStorage.removeItem(k)})}catch(e){}
+        window.location.href='<%= withTenantLink(\'/intro\', lang !== \'el\' ? { lang } : {}) %>';
+        return false;
+      " style="font-size:.72rem;color:var(--eko-text-muted);text-decoration:none;opacity:.6;"
+      onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.6'">
+        <%= lang === 'el' ? '↺ Εισαγωγή' : '↺ Intro' %>
+      </a>
+    </div>
+    <% } %>
+    </footer>
+
+    <%# ── Floating draggable cart (shared partial) ── %>
+    <%- include('_cart') %>
+    <div id="exposure-overlay" class="exposure-overlay" aria-hidden="true"></div>
+
+    <script>
+      // Defensive footer de-duplication (in case upstream/theme injections replicate footer blocks).
+      (function ensureSingleFooterBlock() {
+        const footers = Array.from(document.querySelectorAll('footer.store-footer'));
+        if (footers.length > 1) {
+          footers.slice(1).forEach(function(footerEl){ footerEl.remove(); });
+        }
+        const firstFooter = footers[0];
+        if (!firstFooter) return;
+        const seenMetaLines = new Set();
+        Array.from(firstFooter.querySelectorAll('.meta-line')).forEach(function(lineEl){
+          const key = String(lineEl.textContent || '').trim().replace(/\s+/g, ' ');
+          if (!key) return;
+          if (seenMetaLines.has(key)) {
+            lineEl.remove();
+            return;
+          }
+          seenMetaLines.add(key);
+        });
+      })();
+      // ── Menu toggle ────────────────────────────────────────────────
+      const menuToggle = document.getElementById("menu-toggle");
+      const mainNav = document.getElementById("main-nav");
+      if (menuToggle && mainNav) {
+        menuToggle.addEventListener("click", () => {
+          mainNav.classList.toggle("open");
+        });
+      }
+      const isEukolakis = <%= isEukolakisClassic ? 'true' : 'false' %>;
+      const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
+      const productPreOpenEffect = <%- safeJson((config.theme && config.theme.productPreOpenEffect) || 'none') %>;
+      if (isEukolakis && isDesktopDevice && <%= config.theme && config.theme.cursorEffect ? 'true' : 'false' %>) {
+        const cursorImage = <%- JSON.stringify((config.theme && config.theme.cursorImage) || '') %>;
+        const cursorTargets = 'a,button,input,select,textarea,label,[role="button"],.button,.btn-cart';
+        const isDevHost = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+        const applyCursorRule = function(cursorRule) {
+          let styleEl = document.getElementById('thrc-cursor-style');
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'thrc-cursor-style';
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = 'html,body,a,button,input,select,textarea,label,[role=\"button\"],.button,.btn-cart{cursor:' + cursorRule + ' !important;}';
+        };
+        const applyCrosshair = function() {
+          document.body.classList.add('cursor-tool');
+          applyCursorRule('crosshair');
+        };
+        if (cursorImage && (/^\//).test(cursorImage)) {
+          const testImg = new Image();
+          testImg.onload = function() {
+            const safeCursor = cursorImage.replace(/"/g, '\\"');
+            const cursorRule = 'url("' + safeCursor + '") 16 16, auto';
+            applyCursorRule(cursorRule);
+          };
+          testImg.onerror = function() {
+            if (isDevHost) console.warn('[cursor] preload failed, falling back to crosshair:', cursorImage);
+            applyCrosshair();
+          };
+          testImg.src = cursorImage;
+        } else applyCrosshair();
+      }
+
+      if (isEukolakis) {
+        const KIT_T = {
+          previewPrompt: <%- safeJson(lang === 'el' ? 'Επιλέξτε επιλογή για προεπισκόπηση.' : 'Select an option to preview.') %>,
+          noSelections: <%- safeJson(lang === 'el' ? 'Δεν υπάρχουν επιλογές.' : 'No selected options.') %>,
+          summary: <%- safeJson(lang === 'el' ? 'Σύνοψη' : 'Summary') %>,
+          total: <%- safeJson(lang === 'el' ? 'Σύνολο' : 'Total') %>,
+          addToCart: <%- safeJson(lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to cart') %>,
+          next: <%- safeJson(lang === 'el' ? 'Συνέχεια' : 'Continue') %>,
+          optionSummary: <%- safeJson(lang === 'el' ? 'Σύνοψη επιλογών' : 'Option summary') %>,
+          addSelected: <%- safeJson(lang === 'el' ? 'Προσθήκη επιλεγμένων στο καλάθι' : 'Add selected to cart') %>,
+          multiSelect: <%- safeJson(lang === 'el' ? '• πολλαπλές επιλογές' : '• multi-select') %>,
+          singleSelect: <%- safeJson(lang === 'el' ? '• μία επιλογή' : '• single-select') %>,
+          required: <%- safeJson(lang === 'el' ? 'Υποχρεωτική επιλογή' : 'Required selection') %>,
+          optional: <%- safeJson(lang === 'el' ? 'Προαιρετική επιλογή' : 'Optional selection') %>,
+          variant: <%- safeJson(lang === 'el' ? 'Παραλλαγή' : 'Variant') %>,
+          requiredAlert: <%- safeJson(lang === 'el' ? 'Η επιλογή είναι υποχρεωτική για να συνεχίσετε.' : 'Please complete required selection.') %>
+        };
+        const KIT_PRODUCT_BASE_URL = <%- safeJson(withTenantLink('/product/', lang !== 'el' ? { lang } : {})) %>;
+        const kitDataEl = document.getElementById('kit-products-json');
+        const catalogDataEl = document.getElementById('catalog-products-json');
+        const wizard = document.getElementById('kit-wizard-backdrop');
+        if (!kitDataEl || !catalogDataEl || !wizard) {
+          // no-op
+        } else {
+        const kitProducts = JSON.parse(kitDataEl.textContent || '[]');
+        const catalogProducts = JSON.parse(catalogDataEl.textContent || '[]');
+        const catalogById = Object.fromEntries(catalogProducts.map(function(p){ return [p.id, p]; }));
+        const kitById = Object.fromEntries(kitProducts.map(function(p){ return [p.id, p]; }));
+        const state = { product: null, step: 0, selections: {}, selectedVariants: {}, flowId: '' };
+        const wizardDisplay = wizard.getAttribute('data-wizard-display') || 'sequential';
+        const tenantIdForStorage = <%- safeJson(tenant.id || 'tenant') %>;
+        const stateStoragePrefix = 'thrc-kit-wizard-state::' + tenantIdForStorage + '::';
+        const MAX_FLOW_IDLE_MS = 2 * 60 * 60 * 1000;
+        const titleEl = document.getElementById('kit-wizard-title');
+        const progressEl = document.getElementById('kit-wizard-progress');
+        const groupTitleEl = document.getElementById('kit-group-title');
+        const groupReqEl = document.getElementById('kit-group-required');
+        const choiceGrid = document.getElementById('kit-choice-grid');
+        const previewEl = document.getElementById('kit-preview');
+        const totalEl = document.getElementById('kit-total');
+        const summaryEl = document.getElementById('kit-summary');
+        const addLinkedWrapEl = document.getElementById('kit-add-linked-wrap');
+        const addLinkedEl = document.getElementById('kit-add-linked-parts');
+        const fullLinkEl = document.getElementById('kit-full-link');
+        const fullImageModalEl = document.getElementById('kit-full-image-modal');
+        const fullImageEl = document.getElementById('kit-full-image-el');
+        const fullImageTitleEl = document.getElementById('kit-full-image-title');
+        const fullImageCloseBtn = document.getElementById('kit-full-image-close');
+        const btnBack = document.getElementById('kit-back');
+        const btnSkip = document.getElementById('kit-skip');
+        const btnNext = document.getElementById('kit-next');
+        const btnNewFlow = document.getElementById('kit-new-flow');
+        const kitWizardSkipRule = <%- safeJson((config.theme && config.theme.kitWizardSkipRule) || 'none') %>;
+        function buildStateKey(productId) {
+          return stateStoragePrefix + String(productId || '');
+        }
+        function createFlowId(productId) {
+          return String(productId || 'kit') + '::' + Date.now().toString(36) + '::' + Math.random().toString(36).slice(2, 10);
+        }
+        function clearPersistedState(productId) {
+          if (!productId) return;
+          try { sessionStorage.removeItem(buildStateKey(productId)); } catch (_) {}
+        }
+        function resetFlow(product, options) {
+          state.step = 0;
+          state.selections = {};
+          state.selectedVariants = {};
+          state.flowId = createFlowId(product && product.id);
+          if (options && options.persist && product && product.id) persistState();
+        }
+        function esc(v) {
+          return String(v || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        function getSelectionArray(group) {
+          const raw = state.selections[group.id];
+          if (group.inputType === 'checkbox') return Array.isArray(raw) ? raw : [];
+          return raw ? [raw] : [];
+        }
+        function selectedEntries() {
+          const out = [];
+          (state.product.kitOptions || []).forEach(function(g){
+            const sel = getSelectionArray(g);
+            sel.forEach(function(cid){
+              const c = (g.choices || []).find(function(ch){ return ch.id === cid; });
+              if (!c) return;
+              const variantKey = g.id + '::' + c.id;
+              const variantId = (c.linkedVariantId || state.selectedVariants[variantKey] || '');
+              const variants = Array.isArray(c.linkedVariants) ? c.linkedVariants : [];
+              const variant = variants.find(function(v){ return v.id === variantId; });
+              const priceDelta = variant && variant.price !== undefined && !Number.isNaN(Number(variant.price))
+                ? Number(variant.price)
+                : (Number(c.priceDelta) || 0);
+              out.push({
+                groupId: g.id,
+                groupLabel: g.label,
+                choiceId: c.id,
+                choiceLabel: c.label,
+                priceDelta: priceDelta,
+                linkedProductId: c.linkedProductId || '',
+                selectedVariantId: variant ? variant.id : '',
+                selectedVariantLabel: variant ? variant.label : ''
+              });
+            });
+          });
+          return out;
+        }
+        function totalPrice() {
+          const delta = selectedEntries().reduce(function(s,o){ return s + (Number(o.priceDelta)||0); }, 0);
+          if (state.product.kitPayMode === 'parts_only') return delta;
+          return (Number(state.product.price)||0) + delta;
+        }
+        function renderPreview(group) {
+          const sel = getSelectionArray(group);
+          const imgs = sel.map(function(cid){
+            const c = (group.choices||[]).find(function(choice){ return choice.id === cid; });
+            if (!c) return null;
+            const variantKey = group.id + '::' + c.id;
+            const variantId = (c.linkedVariantId || state.selectedVariants[variantKey] || '');
+            const variant = (Array.isArray(c.linkedVariants) ? c.linkedVariants : []).find(function(v){ return v.id === variantId; });
+            return {
+              label: c.label,
+              image: (variant && variant.imageUrl) || c.image || c.linkedImageUrl || '',
+              price: variant && variant.price !== undefined && !Number.isNaN(Number(variant.price)) ? Number(variant.price) : (Number(c.priceDelta) || 0),
+              variantLabel: variant ? variant.label : ''
+            };
+          }).filter(Boolean).filter(function(c){ return c.image; });
+          if (!imgs.length) { previewEl.innerHTML = '<p style="margin:0;color:#64748b;font-size:.84rem;">' + esc(KIT_T.previewPrompt) + '</p>'; return; }
+          previewEl.innerHTML = imgs.map(function(c){
+            return '<div style="margin-bottom:8px;"><img src=\"' + esc(c.image) + '\" alt=\"\" /><p style=\"margin:4px 0 0;font-size:.82rem;\"><strong>' + esc(c.label) + '</strong>' +
+              (c.variantLabel ? (' · ' + esc(c.variantLabel)) : '') + ' — ' + c.price.toFixed(2) + '€</p></div>';
+          }).join('');
+        }
+        function renderSummary() {
+          const entries = selectedEntries();
+          summaryEl.innerHTML = entries.length ? entries.map(function(e){
+            return '<p class=\"kit-summary-line\">' + esc(e.groupLabel) + ': <strong>' + esc(e.choiceLabel) + '</strong>' +
+              (e.selectedVariantLabel ? (' · ' + esc(e.selectedVariantLabel)) : '') +
+              ' (' + (e.priceDelta>=0?'+':'') + e.priceDelta.toFixed(2) + '€)</p>';
+          }).join('') : '<p class="kit-summary-line">' + esc(KIT_T.noSelections) + '</p>';
+        }
+        function groupDone(group) {
+          const sel = getSelectionArray(group);
+          return !group.required || sel.length > 0;
+        }
+        function persistState() {
+          if (!state.product || !state.product.id) return;
+          const payload = {
+            flowId: state.flowId || createFlowId(state.product.id),
+            active: true,
+            updatedAt: Date.now(),
+            step: state.step,
+            selections: state.selections,
+            selectedVariants: state.selectedVariants
+          };
+          try {
+            sessionStorage.setItem(buildStateKey(state.product.id), JSON.stringify(payload));
+          } catch (_) {}
+        }
+        function restoreState(product) {
+          if (!product || !product.id) return false;
+          try {
+            const raw = sessionStorage.getItem(buildStateKey(product.id));
+            if (!raw) return false;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return false;
+            if (parsed.active === false) {
+              clearPersistedState(product.id);
+              return false;
+            }
+            const updatedAt = Number(parsed.updatedAt) || 0;
+            if (updatedAt && (Date.now() - updatedAt) > MAX_FLOW_IDLE_MS) {
+              clearPersistedState(product.id);
+              return false;
+            }
+            const maxStep = Array.isArray(product.kitOptions) ? product.kitOptions.length : 0;
+            state.step = Math.max(0, Math.min(Number(parsed.step) || 0, maxStep));
+            state.selections = (parsed.selections && typeof parsed.selections === 'object') ? parsed.selections : {};
+            state.selectedVariants = (parsed.selectedVariants && typeof parsed.selectedVariants === 'object') ? parsed.selectedVariants : {};
+            state.flowId = String(parsed.flowId || createFlowId(product.id));
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+        function animateStepTransition() {
+          if (wizardDisplay !== 'cinematic') return;
+          choiceGrid.classList.add('transitioning');
+          setTimeout(function(){ choiceGrid.classList.remove('transitioning'); }, 230);
+        }
+        function renderStep() {
+          animateStepTransition();
+          const groups = state.product.kitOptions || [];
+          const summaryStep = state.step >= groups.length;
+          titleEl.textContent = state.product.name || 'KIT';
+          progressEl.textContent = summaryStep ? KIT_T.summary : ((state.step + 1) + '/' + groups.length);
+          totalEl.textContent = KIT_T.total + ': ' + totalPrice().toFixed(2) + '€';
+          fullLinkEl.href = KIT_PRODUCT_BASE_URL + state.product.id;
+          btnBack.disabled = state.step === 0;
+          btnNext.disabled = false;
+          btnNext.textContent = summaryStep ? KIT_T.addSelected : KIT_T.next;
+          if (btnSkip) btnSkip.style.display = 'none';
+          choiceGrid.innerHTML = '';
+          summaryEl.style.display = summaryStep ? 'block' : 'none';
+          addLinkedWrapEl.style.display = summaryStep && state.product.kitPayMode !== 'parts_only' ? 'inline-flex' : 'none';
+          if (summaryStep) {
+            groupTitleEl.textContent = KIT_T.optionSummary;
+            groupReqEl.textContent = '';
+            previewEl.innerHTML = '';
+            renderSummary();
+            persistState();
+            return;
+          }
+          const group = groups[state.step];
+          groupTitleEl.textContent = group.label || group.id;
+          const selectionModeLabel = group.inputType === 'checkbox' ? KIT_T.multiSelect : KIT_T.singleSelect;
+          groupReqEl.textContent = (group.required ? KIT_T.required : KIT_T.optional) + ' ' + selectionModeLabel;
+          btnNext.disabled = group.required && !groupDone(group);
+          if (btnSkip) {
+            const allowSkip = kitWizardSkipRule === 'all' || (kitWizardSkipRule === 'optional' && !group.required);
+            btnSkip.style.display = allowSkip ? '' : 'none';
+          }
+          (group.choices || []).forEach(function(choice){
+            const sel = getSelectionArray(group);
+            const checked = sel.includes(choice.id);
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'kit-choice' + (checked ? ' selected' : '');
+            const variantKey = group.id + '::' + choice.id;
+            const fixedVariantId = choice.linkedVariantId || '';
+            const variantId = fixedVariantId || state.selectedVariants[variantKey] || '';
+            const choiceVariants = Array.isArray(choice.linkedVariants) ? choice.linkedVariants : [];
+            const selectedVariant = choiceVariants.find(function(v){ return v.id === variantId; });
+            const choiceImage = (selectedVariant && selectedVariant.imageUrl) || choice.image || choice.linkedImageUrl || '';
+            const choicePrice = selectedVariant && selectedVariant.price !== undefined && !Number.isNaN(Number(selectedVariant.price))
+              ? Number(selectedVariant.price)
+              : (Number(choice.priceDelta)||0);
+            const checkboxHtml = group.inputType === 'checkbox'
+              ? '<input type="checkbox" ' + (checked ? 'checked' : '') + ' tabindex="-1" aria-hidden="true" style="margin-right:6px;pointer-events:none;" />'
+              : '';
+            const variantSelectHtml = checked && choiceVariants.length && !fixedVariantId
+              ? ('<div style="margin-top:6px;"><label style="display:block;font-size:.72rem;color:#475569;margin-bottom:3px;">' + esc(KIT_T.variant) + '</label>' +
+                  '<select class="kit-variant-select" data-group-id="' + esc(group.id) + '" data-choice-id="' + esc(choice.id) + '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:7px;">' +
+                  choiceVariants.map(function(v){
+                    const vPrice = !Number.isNaN(Number(v.price)) ? Number(v.price).toFixed(2) : (Number(choice.priceDelta)||0).toFixed(2);
+                    return '<option value="' + esc(v.id) + '"' + (v.id === variantId ? ' selected' : '') + '>' + esc(v.label || v.id) + ' (' + vPrice + '€)</option>';
+                  }).join('') +
+                  '</select></div>')
+              : '';
+            card.innerHTML = (choiceImage ? ('<img class="kit-choice-thumb" src="' + esc(choiceImage) + '" alt="">') : '<div class="kit-choice-thumb placeholder">🖼️</div>') +
+              '<div style="text-align:left;">' + checkboxHtml + '<strong>' + esc(choice.label || choice.id) + '</strong>' +
+              '<div style="font-size:.82rem;color:#0f766e;">' + choicePrice.toFixed(2) + '€</div>' +
+              (choice.description ? ('<div style="font-size:.78rem;color:#64748b;margin-top:2px;">' + esc(choice.description) + '</div>') : '') +
+              variantSelectHtml + '</div>';
+            card.addEventListener('click', function(event){
+              if (event && event.target && event.target.closest('select,option,label,input,textarea,a')) return;
+              if (group.inputType === 'checkbox') {
+                state.selections[group.id] = Array.isArray(state.selections[group.id]) ? state.selections[group.id] : [];
+                if (state.selections[group.id].includes(choice.id)) state.selections[group.id] = state.selections[group.id].filter(function(v){ return v !== choice.id; });
+                else state.selections[group.id].push(choice.id);
+              } else {
+                state.selections[group.id] = choice.id;
+              }
+              const nowSelected = getSelectionArray(group).includes(choice.id);
+              if (!nowSelected) {
+                delete state.selectedVariants[variantKey];
+              } else if (fixedVariantId) {
+                state.selectedVariants[variantKey] = fixedVariantId;
+              } else if (choiceVariants.length && !state.selectedVariants[variantKey]) {
+                state.selectedVariants[variantKey] = choiceVariants[0].id;
+              }
+              renderStep();
+            });
+            choiceGrid.appendChild(card);
+          });
+          choiceGrid.querySelectorAll('.kit-variant-select').forEach(function(selectEl){
+            selectEl.addEventListener('click', function(e){ e.stopPropagation(); });
+            selectEl.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+            selectEl.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+            selectEl.addEventListener('touchstart', function(e){ e.stopPropagation(); }, { passive: true });
+            selectEl.addEventListener('change', function(e){
+              const key = (e.target.getAttribute('data-group-id') || '') + '::' + (e.target.getAttribute('data-choice-id') || '');
+              state.selectedVariants[key] = e.target.value || '';
+              renderStep();
+            });
+          });
+          renderPreview(group);
+          persistState();
+        }
+        function openWizard(productId, options) {
+          const p = kitById[productId];
+          if (!p || p.type !== 'KIT') return;
+          state.product = p;
+          const wantsFreshFlow = !!(options && options.newFlow);
+          if (wantsFreshFlow || !restoreState(p)) {
+            resetFlow(p, { persist: false });
+          }
+          wizard.classList.add('open');
+          wizard.setAttribute('aria-hidden', 'false');
+          renderStep();
+        }
+        function closeWizard() {
+          wizard.classList.remove('open');
+          wizard.setAttribute('aria-hidden', 'true');
+        }
+        document.querySelectorAll('[data-kit-launch]').forEach(function(el){
+          el.addEventListener('click', function(e){
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWizard(el.getAttribute('data-kit-launch'));
+          });
+        });
+        document.querySelectorAll('.kit-clickable').forEach(function(card){
+          card.addEventListener('click', function(e){
+            if (e.target.closest('a,button,input,textarea,select,label')) return;
+            openWizard(card.getAttribute('data-kit-product-id'));
+          });
+        });
+        document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
+        wizard.addEventListener('click', function(e){ if (e.target === wizard) closeWizard(); });
+        if (fullLinkEl) {
+          fullLinkEl.addEventListener('click', function(e){
+            e.preventDefault();
+            if (!state.product || !fullImageModalEl || !fullImageEl) return;
+            const heroImage = (state.product && state.product.imageUrl) || '';
+            if (!heroImage) return;
+            fullImageEl.src = heroImage;
+            fullImageEl.alt = state.product.name || 'product';
+            if (fullImageTitleEl) fullImageTitleEl.textContent = state.product.name || 'Product';
+            fullImageModalEl.classList.add('open');
+            fullImageModalEl.setAttribute('aria-hidden', 'false');
+          });
+        }
+        if (fullImageCloseBtn) {
+          fullImageCloseBtn.addEventListener('click', function(){
+            fullImageModalEl.classList.remove('open');
+            fullImageModalEl.setAttribute('aria-hidden', 'true');
+          });
+        }
+        if (fullImageModalEl) {
+          fullImageModalEl.addEventListener('click', function(e){
+            if (e.target === fullImageModalEl) {
+              fullImageModalEl.classList.remove('open');
+              fullImageModalEl.setAttribute('aria-hidden', 'true');
+            }
+          });
+        }
+        document.addEventListener('keydown', function(e){
+          if (e.key === 'Escape' && wizard.classList.contains('open')) closeWizard();
+          if (e.key === 'Escape' && fullImageModalEl && fullImageModalEl.classList.contains('open')) {
+            fullImageModalEl.classList.remove('open');
+            fullImageModalEl.setAttribute('aria-hidden', 'true');
+          }
+        });
+        window.openKitWizard = openWizard;
+        btnBack.addEventListener('click', function(){ if (state.step > 0) { state.step -= 1; renderStep(); } });
+        if (btnNewFlow) {
+          btnNewFlow.addEventListener('click', function(){
+            if (!state.product) return;
+            resetFlow(state.product, { persist: true });
+            renderStep();
+          });
+        }
+        btnNext.addEventListener('click', function(){
+          const groups = state.product.kitOptions || [];
+          if (state.step < groups.length) {
+            const g = groups[state.step];
+            if (!groupDone(g)) { alert(KIT_T.requiredAlert); return; }
+            state.step += 1;
+            renderStep();
+            return;
+          }
+          const selected = selectedEntries();
+          const finalPrice = totalPrice();
+          const optionSummary = selected.map(function(o){
+            return o.groupLabel + ': ' + o.choiceLabel + (o.selectedVariantLabel ? (' [' + o.selectedVariantLabel + ']') : '');
+          }).join(' | ');
+          const cartKey = state.product.id + '::' + selected.map(function(o){
+            return o.groupId + '=' + o.choiceId + (o.selectedVariantId ? (':' + o.selectedVariantId) : '');
+          }).sort().join('&');
+          if (window.thrcAddToCart) {
+            if (state.product.kitPayMode === 'parts_only') {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                const linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  const variant = opt.selectedVariantId && Array.isArray(linked.variants)
+                    ? linked.variants.find(function(v){ return v.id === opt.selectedVariantId; })
+                    : null;
+                  window.thrcAddToCart({
+                    id: linked.id,
+                    name: variant ? (linked.name + ' - ' + (variant.label || variant.id)) : linked.name,
+                    price: variant && variant.price !== undefined && !Number.isNaN(Number(variant.price)) ? Number(variant.price) : (Number(linked.price) || 0),
+                    imageUrl: (variant && variant.imageUrl) || linked.imageUrl || '',
+                    variantId: variant ? variant.id : undefined,
+                    variantLabel: variant ? (variant.label || variant.id) : undefined,
+                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId + (opt.selectedVariantId ? (':' + opt.selectedVariantId) : '')
+                  });
+                }
+              });
+              window.thrcAddToCart({
+                id: state.product.id,
+                name: (state.product.name || 'KIT') + ' (summary)',
+                price: 0,
+                imageUrl: state.product.imageUrl || '',
+                selectedOptions: selected,
+                optionSummary: optionSummary || undefined,
+                finalUnitPrice: 0,
+                cartKey: cartKey + '::summary',
+                isKitSummary: true
+              });
+            } else {
+              window.thrcAddToCart({
+                id: state.product.id,
+                name: state.product.name,
+                price: finalPrice,
+                imageUrl: state.product.imageUrl || '',
+                selectedOptions: selected,
+                optionSummary: optionSummary || undefined,
+                finalUnitPrice: finalPrice,
+                cartKey: cartKey
+              });
+            }
+            if (state.product.kitPayMode !== 'parts_only' && addLinkedEl && addLinkedEl.checked) {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                const linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  window.thrcAddToCart({
+                    id: linked.id,
+                    name: linked.name,
+                    price: Number(linked.price) || 0,
+                    imageUrl: linked.imageUrl || ''
+                  });
+                }
+              });
+            }
+          }
+          if (state.product && state.product.id) clearPersistedState(state.product.id);
+          resetFlow(state.product, { persist: false });
+          closeWizard();
+        });
+        if (btnSkip) {
+          btnSkip.addEventListener('click', function(){
+            const groups = state.product.kitOptions || [];
+            if (state.step >= groups.length) return;
+            const g = groups[state.step];
+            const allowSkip = kitWizardSkipRule === 'all' || (kitWizardSkipRule === 'optional' && !g.required);
+            if (!allowSkip) return;
+            state.step += 1;
+            renderStep();
+          });
+        }
+        const wizardParam = new URLSearchParams(window.location.search).get('wizard');
+        if (wizardParam && kitById[wizardParam]) {
+          openWizard(wizardParam);
+        }
+        }
+      }
+      if (productPreOpenEffect === 'exposure') {
+        const exposureOverlay = document.getElementById('exposure-overlay');
+        const openWithExposure = function(href) {
+          if (!href || !exposureOverlay) return window.location.href = href;
+          exposureOverlay.classList.add('open');
+          setTimeout(function(){ window.location.href = href; }, 320);
+        };
+        document.querySelectorAll('.product-card[data-product-open-url]').forEach(function(card){
+          card.addEventListener('click', function(e){
+            if (e.target.closest('a,button,input,textarea,select,label,[role="button"]')) return;
+            const href = card.getAttribute('data-product-open-url');
+            openWithExposure(href);
+          });
+        });
+        document.querySelectorAll('a[data-exposure-link]').forEach(function(link) {
+          link.addEventListener('click', function(e){
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+            e.preventDefault();
+            openWithExposure(link.getAttribute('href'));
+          });
+        });
+      }
+      (function() {
+        const blockOrder = <%- safeJson((homepage && Array.isArray(homepage.blockOrder)) ? homepage.blockOrder : ['hero','kits','spare','subscriptions']) %>;
+        if (!Array.isArray(blockOrder) || !blockOrder.length) return;
+        const orderMap = {};
+        blockOrder.forEach(function(key, idx){ orderMap[String(key || '').toLowerCase()] = idx + 1; });
+        document.querySelectorAll('[data-home-block]').forEach(function(el){
+          const key = String(el.getAttribute('data-home-block') || '').toLowerCase();
+          if (orderMap[key]) el.style.order = String(orderMap[key]);
+        });
+      })();
+      (function() {
+        const headerEl = document.querySelector('.store-header');
+        if (!headerEl) return;
+        const onScroll = function() {
+          headerEl.classList.toggle('is-scrolled', window.scrollY > 16);
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+      })();
+      (function() {
+        const hero = document.querySelector('.hero.has-parallax');
+        if (!hero) return;
+        hero.addEventListener('mousemove', function(e) {
+          const rect = hero.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 100;
+          const y = ((e.clientY - rect.top) / Math.max(1, rect.height)) * 100;
+          hero.style.setProperty('--hero-glow-x', x.toFixed(2) + '%');
+          hero.style.setProperty('--hero-glow-y', y.toFixed(2) + '%');
+        });
+      })();
+      (function() {
+        const filtersRoot = document.getElementById('spare-filters');
+        const grid = document.getElementById('product-list-grid');
+        if (!filtersRoot || !grid) return;
+        const searchEl = document.getElementById('spare-filter-search');
+        const tagEl = document.getElementById('spare-filter-tag');
+        const priceEl = document.getElementById('spare-filter-price');
+        const priceValueEl = document.getElementById('spare-filter-price-value');
+        const resetBtn = document.getElementById('spare-filter-reset');
+        const emptyResetBtn = document.getElementById('spare-filter-empty-reset');
+        const resultEl = document.getElementById('spare-filter-results');
+        const emptyStateEl = document.getElementById('spare-filter-empty');
+        const cards = Array.from(grid.querySelectorAll('.product-card'));
+        const renderResultText = function(count) {
+          if (!resultEl) return;
+          resultEl.textContent = count + ' ' + <%- safeJson(lang === 'el' ? 'προϊόντα βρέθηκαν' : 'products found') %>;
+        };
+        const updateFilters = function() {
+          const q = (searchEl && searchEl.value || '').trim().toLowerCase();
+          const tag = (tagEl && tagEl.value || '').trim().toLowerCase();
+          const maxPrice = Number(priceEl && priceEl.value || 0);
+          if (priceValueEl) priceValueEl.textContent = maxPrice.toFixed(0);
+          let visibleCount = 0;
+          cards.forEach(function(card) {
+            const nameText = (card.querySelector('h2') && card.querySelector('h2').textContent || '').toLowerCase();
+            const sku = String(card.getAttribute('data-product-sku') || '').toLowerCase();
+            const tags = String(card.getAttribute('data-product-tags') || '').toLowerCase();
+            const price = Number(card.getAttribute('data-product-price') || 0);
+            const okQuery = !q || nameText.includes(q) || sku.includes(q);
+            const okTag = !tag || tags.split(',').includes(tag);
+            const okPrice = !maxPrice || price <= maxPrice;
+            const visible = okQuery && okTag && okPrice;
+            if (visible) visibleCount += 1;
+            card.classList.toggle('filter-hidden', !visible);
+          });
+          renderResultText(visibleCount);
+          if (emptyStateEl) emptyStateEl.style.display = visibleCount === 0 ? 'block' : 'none';
+        };
+        [searchEl, tagEl, priceEl].forEach(function(el){ if (el) el.addEventListener('input', updateFilters); });
+        const resetFilters = function() {
+          if (searchEl) searchEl.value = '';
+          if (tagEl) tagEl.value = '';
+          if (priceEl) priceEl.value = priceEl.max || priceEl.value;
+          updateFilters();
+        };
+        if (resetBtn) resetBtn.addEventListener('click', resetFilters);
+        if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetFilters);
+        updateFilters();
+      })();
+      (function() {
+        const grid = document.getElementById('kit-choice-grid');
+        if (!grid) return;
+        const pulse = function() {
+          grid.classList.remove('fade-step', 'ready');
+          void grid.offsetWidth;
+          grid.classList.add('fade-step');
+          requestAnimationFrame(function(){ grid.classList.add('ready'); });
+        };
+        pulse();
+        const observer = new MutationObserver(pulse);
+        observer.observe(grid, { childList: true, subtree: true });
+      })();
+      (function() {
+        const key = 'thrc_nav_last_url';
+        const homeUrl = <%- safeJson(withTenantLink('/', lang !== 'el' ? { lang } : {})) %>;
+        const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+        try {
+          const prev = sessionStorage.getItem(key);
+          if (prev !== currentUrl) sessionStorage.setItem(key, currentUrl);
+        } catch (err) {}
+        const backBtn = document.getElementById('quick-back-btn');
+        if (!backBtn) return;
+        backBtn.addEventListener('click', function() {
+          const ref = document.referrer || '';
+          let hasStoreReferrer = false;
+          try {
+            if (ref) {
+              const refUrl = new URL(ref);
+              hasStoreReferrer = refUrl.origin === window.location.origin && !/^\/admin(?:\/|$)/.test(refUrl.pathname);
+            }
+          } catch (err) {}
+          if (window.history.length > 1 && hasStoreReferrer) return window.history.back();
+          try {
+            const fallback = sessionStorage.getItem(key) || '';
+            if (fallback && fallback !== currentUrl) return window.location.href = fallback;
+          } catch (err) {}
+          window.location.href = homeUrl;
+        });
+      })();
+      /* ── Eukolaki industrial color mode toggle ── */
+      (function() {
+        var body = document.getElementById('eko-body');
+        if (!body || !body.classList.contains('eukolakis-classic')) return;
+        var STORAGE_KEY = 'eko_color_mode';
+        var saved;
+        try { saved = localStorage.getItem(STORAGE_KEY); } catch(_) {}
+        var serverDefault = <%- JSON.stringify((config.theme && config.theme.colorMode) || 'dark') %>;
+        var current = saved || serverDefault;
+        function applyMode(mode) {
+          if (mode === 'light') { body.classList.add('eko-light'); }
+          else { body.classList.remove('eko-light'); }
+          try { localStorage.setItem(STORAGE_KEY, mode); } catch(_) {}
+          if (btn) btn.textContent = mode === 'light'
+            ? (<%- JSON.stringify(lang) %> === 'el' ? '🌙 Σκοτεινό' : '🌙 Dark')
+            : (<%- JSON.stringify(lang) %> === 'el' ? '☀️ Φωτεινό' : '☀️ Light');
+        }
+        var btn = document.createElement('button');
+        btn.className = 'eko-mode-btn';
+        btn.type = 'button';
+        document.body.appendChild(btn);
+        applyMode(current);
+        btn.addEventListener('click', function() {
+          current = body.classList.contains('eko-light') ? 'dark' : 'light';
+          applyMode(current);
+        });
+      })();
+    </script>
+  </body>
+</html>
