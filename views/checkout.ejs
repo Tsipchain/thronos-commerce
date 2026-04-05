@@ -96,15 +96,68 @@
         border: 1px solid #fed7aa;
         color: #9a3412;
       }
+      .store-header {
+        position: sticky;
+        top: 0;
+        z-index: 1300;
+        border-bottom: none !important;
+        box-shadow:none !important;
+      }
+      .store-header.premium {
+        background: #0b0d12 !important;
+        border-bottom: 2px solid rgba(196,144,46,.32) !important;
+        box-shadow: 0 2px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(196,144,46,.06) inset !important;
+      }
+      .store-header.premium::before {
+        content: '';
+        display: block;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, #c4902e 30%, #dba83c 60%, transparent 100%);
+        opacity: .7;
+      }
+      .checkout-nav {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        flex-wrap:wrap;
+        padding: 8px 16px 12px;
+      }
+      .checkout-nav-links { display:flex; gap:8px; flex-wrap:wrap; }
+      .checkout-nav-links a {
+        text-decoration:none;
+        color: var(--menu-text, #fff);
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: .82rem;
+      }
+      .store-footer { margin-top:26px; padding:22px 16px 28px; color: var(--footer-text-color, #6b7280); font-size:.9rem; border-top:1px solid #e5e7eb; text-align:center; position:relative; }
+      .store-footer .social-links { display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:8px; }
+      .store-footer .social-links a { text-decoration:none; font-size:1.05rem; }
+      .store-footer .meta-line { margin-top:6px; }
+      .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
     </style>
   </head>
-  <body>
-    <header>
+  <body class="<%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
+    <header class="store-header <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'premium' : '' %>">
       <div class="logo-title">
         <% if (config.logoPath) { %>
           <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
         <% } %>
         <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+      </div>
+      <div class="checkout-nav">
+        <div class="checkout-nav-links">
+          <a href="<%= withTenantLink('/') %>"><%= lang === 'el' ? 'Αρχική' : 'Home' %></a>
+          <a href="<%= withTenantLink('/checkout') %>"><%= lang === 'el' ? 'Ολοκλήρωση' : 'Checkout' %></a>
+          <% if (user) { %>
+          <a href="<%= withTenantLink('/account') %>"><%= lang === 'el' ? 'Λογαριασμός' : 'Account' %></a>
+          <% } else { %>
+          <a href="<%= withTenantLink('/login') %>">Login</a>
+          <% } %>
+        </div>
       </div>
       <% if (isPreviewMode) { %>
       <div style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
@@ -189,7 +242,7 @@
               <%= t('checkout.shippingMethod') %> *
               <select name="shippingMethodId" id="sel-shipping" required onchange="recalc()">
                 <% (config.shippingOptions || []).forEach(function(opt) { %>
-                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>">
+                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>" data-allowed="<%= Array.isArray(opt.allowedPaymentMethods) ? opt.allowedPaymentMethods.join(',') : '' %>">
                     <%= opt.label %><% if (opt.base > 0) { %> (+<%= Number(opt.base).toFixed(2) %> €)<% } %>
                   </option>
                 <% }); %>
@@ -275,8 +328,9 @@
     </div>
 
     <script>
-      const CART_KEY = 'thrc_cart';
-      const CART_SESSION_KEY = 'thrc_cart_session';
+      const CART_SCOPE = '<%= (tenant && tenant.id) ? tenant.id : "default" %>';
+      const CART_KEY = 'thrc_cart:' + CART_SCOPE;
+      const CART_SESSION_KEY = 'thrc_cart_session:' + CART_SCOPE;
       const cartJsonInput = document.getElementById('cart-json-input');
       const cartSnapshotApi = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
 
@@ -351,7 +405,30 @@
       const DEFAULT_SUBMIT_TEXT = '<%= t("checkout.submit") %>';
 
       // ── Live price calculation ────────────────────────────────────
+      function syncAllowedPaymentOptions() {
+        const shipSel = document.getElementById('sel-shipping');
+        const paySel = document.getElementById('sel-payment');
+        if (!shipSel || !paySel) return;
+        const shipOpt = shipSel.options[shipSel.selectedIndex];
+        const allowedRaw = shipOpt ? String(shipOpt.dataset.allowed || '').trim() : '';
+        const allowed = allowedRaw
+          ? allowedRaw.split(',').map(function(v) { return String(v || '').trim().toUpperCase(); }).filter(Boolean)
+          : [];
+        const allowedSet = new Set(allowed);
+        let firstEnabledValue = '';
+        Array.from(paySel.options).forEach(function(opt) {
+          const optId = String(opt.value || '').trim().toUpperCase();
+          const enabled = !allowedSet.size || allowedSet.has(optId);
+          opt.hidden = !enabled;
+          opt.disabled = !enabled;
+          if (enabled && !firstEnabledValue) firstEnabledValue = opt.value;
+        });
+        const selected = paySel.options[paySel.selectedIndex];
+        if ((!selected || selected.disabled) && firstEnabledValue) paySel.value = firstEnabledValue;
+      }
+
       function recalc() {
+        syncAllowedPaymentOptions();
         const subtotalRaw = cart.reduce(function(s, i) { return s + (i.price || 0) * (i.qty || 1); }, 0);
         const qtyDiscount = cart.reduce(function(s, i) {
           const qty = Number(i.qty) || 1;
@@ -459,5 +536,20 @@
         });
       })();
     </script>
+    <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
+      <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl)) { %>
+      <div class="social-links">
+        <% if (config.footer.facebookUrl) { %><a href="<%= config.footer.facebookUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Facebook">📘</a><% } %>
+        <% if (config.footer.instagramUrl) { %><a href="<%= config.footer.instagramUrl %>" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📸</a><% } %>
+        <% if (config.footer.tiktokUrl) { %><a href="<%= config.footer.tiktokUrl %>" target="_blank" rel="noopener noreferrer" aria-label="TikTok">🎵</a><% } %>
+      </div>
+      <% } %>
+      <div class="meta-line"><strong><%= config.storeName %></strong> · All rights reserved Thronos Team 2026</div>
+      <% if (config.footer && config.footer.contactEmail) { %><div class="meta-line">Email: <a href="mailto:<%= config.footer.contactEmail %>"><%= config.footer.contactEmail %></a></div><% } %>
+      <% if (config.footer && config.footer.pickupAddress) { %><div class="meta-line"><%= lang === 'el' ? 'Παραλαβή από' : 'Pickup at' %>: <%= config.footer.pickupAddress %></div><% } %>
+      <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
+      <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
+      <% } %>
+    </footer>
   </body>
 </html>
