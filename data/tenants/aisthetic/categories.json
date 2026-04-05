@@ -1,0 +1,7 @@
+[
+  { "id": "fountains", "name": { "el": "Διακοσμητικά Συντριβάνια", "en": "Decorative Fountains" }, "slug": "fountains", "showInMainNav": true, "navOrder": 1, "image": "" },
+  { "id": "artificial-flowers", "name": { "el": "Τεχνητά Λουλούδια", "en": "Artificial Flowers" }, "slug": "artificial-flowers", "showInMainNav": true, "navOrder": 2, "image": "" },
+  { "id": "cherry-blossom-decor", "name": { "el": "Cherry Blossom Decor", "en": "Cherry Blossom Decor" }, "slug": "cherry-blossom-decor", "showInMainNav": true, "navOrder": 3, "image": "" },
+  { "id": "home-decoration", "name": { "el": "Home Decoration", "en": "Home Decoration" }, "slug": "home-decoration", "showInMainNav": true, "navOrder": 4, "image": "" },
+  { "id": "gifts-seasonal", "name": { "el": "Δώρα & Seasonal Decor", "en": "Gifts & Seasonal Decor" }, "slug": "gifts-seasonal", "showInMainNav": true, "navOrder": 5, "image": "" }
+]
