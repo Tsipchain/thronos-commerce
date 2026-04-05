@@ -1175,12 +1175,13 @@
       <section class="hero has-parallax <%= config.theme && config.theme.heroStyle === 'strong' ? 'strong' : '' %>" data-home-block="hero">
         <% if (homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists)) { %>
           <div style="margin-bottom:14px;">
+            <% const heroClickHref = (homepage.secondaryCard && homepage.secondaryCard.link) || (categories && categories[0] && categories[0].slug ? withTenantLink('/', Object.assign({ category: categories[0].slug }, lang !== 'el' ? { lang } : {})) : withTenantLink('/', lang !== 'el' ? { lang } : {})); %>
             <% if (heroPrimaryProduct) { %>
-              <a href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>" data-exposure-link style="display:block;">
-                <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" />
+              <a href="<%= heroClickHref %>" data-exposure-link style="display:block;">
+                <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:320px;object-fit:contain;background:rgba(255,255,255,.82);border-radius:10px;" />
               </a>
             <% } else { %>
-              <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;" />
+              <img src="<%= homepage.heroImage %>" alt="<%= config.storeName %>" style="width:100%;max-height:320px;object-fit:contain;background:rgba(255,255,255,.82);border-radius:10px;" />
             <% } %>
           </div>
         <% } %>

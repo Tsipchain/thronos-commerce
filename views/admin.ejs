@@ -526,7 +526,7 @@
           </select>
         </label>
         <label><span>Φόντο πλαισίου logo</span>
-          <select name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+          <select id="themeLogoBgMode" name="themeLogoBgMode" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="none" <%= ((config.theme && config.theme.logoBgMode) || '') === 'none' ? 'selected' : '' %>>Χωρίς φόντο</option>
             <option value="dark_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'dark_badge' ? 'selected' : '' %>>Σκούρο badge</option>
             <option value="light_badge" <%= ((config.theme && config.theme.logoBgMode) || '') === 'light_badge' ? 'selected' : '' %>>Ανοιχτό badge</option>
@@ -549,7 +549,7 @@
           </select>
         </label>
         <label><span>Μέγιστο ύψος logo στο header (px)</span>
-          <input type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 72)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input id="themeLogoMaxHeight" type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 88)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <small class="helper">Ύψος σε pixels (56–120px). <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
         </label>
         <% if (config.logoPath) { %>
@@ -557,8 +557,8 @@
         <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
         <% const liveBrandingMode = (config.theme && config.theme.brandingMode) || 'logo_name'; %>
         <% const liveIsClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
-        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 72)); %>
-        <% const livePreviewLogoHeight = Math.max(56, Math.min(120, liveRawHeight || (liveIsClassic ? 96 : 72))); %>
+        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 88)); %>
+        <% const livePreviewLogoHeight = Math.max(56, Math.min(120, liveRawHeight || (liveIsClassic ? 96 : 88))); %>
         <div class="branding-live-preview">
           <div class="title">Live preview (logo size + shadow)</div>
           <div class="logo-preview-frame <%= liveLogoPreviewBgClass %>" style="padding:<%= Number((config.theme && config.theme.logoPadding) || 6) %>px;border-radius:<%= Number((config.theme && config.theme.logoRadius) || 10) %>px;box-shadow:<%= ((config.theme && config.theme.logoShadow) || 'soft') === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (((config.theme && config.theme.logoShadow) || 'soft') === 'none' ? 'none' : '0 4px 12px rgba(15,23,42,.12)') %>;">
@@ -2197,6 +2197,14 @@
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
       }
+      async function parseJsonSafe(response) {
+        const raw = await response.text();
+        try {
+          return JSON.parse(raw);
+        } catch (_err) {
+          return { ok: false, error: 'Server returned non-JSON response.', raw };
+        }
+      }
 
       // ── Modal logic ─────────────────────────────────────────────
       let editingIdx = -1; // -1 = new product
@@ -2480,7 +2488,7 @@
         fd.append('categoryId', (fCat && fCat.value) ? fCat.value : '');
         fd.append('password', password || '');
         const response = await fetch('<%= withTenantLink("/admin/products/image-upload") %>', { method: 'POST', body: fd });
-        const json = await response.json();
+        const json = await parseJsonSafe(response);
         return { status: response.status, body: json };
       }
 
@@ -2580,13 +2588,13 @@
         const endpointBase = type === 'image' ? '<%= withTenantLink("/admin/variants/image-upload") %>' : '<%= withTenantLink("/admin/variants/video-upload") %>';
         const endpoint = endpointBase + '?productId=' + encodeURIComponent(productId) + '&variantSku=' + encodeURIComponent(variantSku);
         let r = await fetch(endpoint, { method: 'POST', body: fd });
-        let j = await r.json();
+        let j = await parseJsonSafe(r);
         if (r.status === 401) {
           const pw = prompt('Session έληξε. Δώσε admin password για upload:') || '';
           if (!pw) return;
           fd.set('password', pw);
           r = await fetch(endpoint, { method: 'POST', body: fd });
-          j = await r.json();
+          j = await parseJsonSafe(r);
         }
         if (!j.ok) {
           if (status) status.textContent = j.error || 'Upload failed.';
@@ -3328,9 +3336,19 @@
           fd.append('image', file);
           fd.append('password', pass);
           const r = await fetch('<%= withTenantLink("/admin/upload-image") %>', { method: 'POST', body: fd });
-          const j = await r.json();
+          const j = await parseJsonSafe(r);
           if (j.ok) {
             document.getElementById('logoPath-input').value = j.url;
+            const logoBgModeSelect = document.getElementById('themeLogoBgMode');
+            const logoMaxHeightInput = document.getElementById('themeLogoMaxHeight');
+            const activeThemeKey = '<%= (config.theme && config.theme.presetId) || "" %>';
+            if (logoBgModeSelect && activeThemeKey !== 'eukolakis_classic_diy' && (logoBgModeSelect.value === 'auto' || !logoBgModeSelect.value)) {
+              logoBgModeSelect.value = 'light_badge';
+            }
+            if (logoMaxHeightInput && activeThemeKey !== 'eukolakis_classic_diy') {
+              const current = Number(logoMaxHeightInput.value) || 0;
+              if (current < 88) logoMaxHeightInput.value = '88';
+            }
             logoUploadStatus.innerHTML = i18nJs.logoOk + '<code>' + j.url + '</code>';
           } else {
             logoUploadStatus.textContent = j.error || i18nJs.uploadErr;

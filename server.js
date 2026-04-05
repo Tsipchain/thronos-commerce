@@ -1014,7 +1014,7 @@ function loadTenantConfig(req) {
       logoPadding: 6,
       logoRadius: 10,
       logoShadow: 'soft',
-      logoMaxHeight: 72,
+      logoMaxHeight: 88,
       productThumbAspect: '4:3',
       productThumbFit: 'cover',
       productThumbBg: '#111111',
@@ -1998,7 +1998,8 @@ const variantImageUpload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const { productId, variantSku } = getVariantMediaMeta(req);
-      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
+      const mediaBase = (req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads');
+      const dir = path.join(mediaBase, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
@@ -2016,7 +2017,8 @@ const variantVideoUpload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const { productId, variantSku } = getVariantMediaMeta(req);
-      const dir = path.join(req.tenantPaths.media, 'variants', productId, variantSku);
+      const mediaBase = (req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads');
+      const dir = path.join(mediaBase, 'variants', productId, variantSku);
       ensureDir(dir);
       cb(null, dir);
     },
@@ -4183,7 +4185,7 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.logoRadius = Math.max(0, Math.min(36, Number(themeLogoRadius) || Number(config.theme.logoRadius) || 10));
   const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
   config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
-  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 72));
+  config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 88));
   config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
   config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
   const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
