@@ -120,9 +120,35 @@
       .quick-back-btn { position: fixed; left: 12px; bottom: 18px; z-index: 1200; border:none; border-radius:999px; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 24px rgba(2,6,23,.28); }
       @media (max-width: 900px) { .kit-layout { grid-template-columns: 1fr; } }
       /* ── Header structure (shared) ── */
+      .store-header {
+        position: sticky;
+        top: 0;
+        z-index: 1300;
+        border-bottom: none !important;
+        box-shadow:none !important;
+        background: linear-gradient(135deg, rgba(15,23,42,.18), rgba(31,41,55,.16));
+        backdrop-filter: blur(3px);
+        transition: background .28s ease, box-shadow .28s ease, padding .22s ease;
+      }
+      .store-header.is-scrolled {
+        background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(31,41,55,.96));
+        box-shadow: 0 8px 22px rgba(2,6,23,.3) !important;
+      }
       .header-main-row { display:flex; align-items:center; gap:12px; }
+      .store-header .header-main-row { padding: 8px 16px 12px; flex-wrap: wrap; }
       .header-nav-row  { display:flex; align-items:center; gap:12px; margin-top:0; }
       .header-auth-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+      .header-auth-links { margin-left: auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+      .header-auth-links a {
+        text-decoration:none;
+        color: var(--menu-text, #fff);
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: .82rem;
+      }
+      .header-auth-links a:hover { background: rgba(255,255,255,.2); }
       .branding-mode-logo_only .store-name-wrap, .branding-mode-name_only .logo-frame { display:none; }
       .store-header.premium { background: linear-gradient(135deg,#0f172a,#1f2937); border-bottom: 1px solid rgba(255,255,255,.08); }
 
@@ -461,7 +487,7 @@
           <% } %>
         </div>
         <% } else { %>
-        <div style="font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;padding:0 8px;">
+        <div class="header-auth-links">
           <% if (!user) { %>
             <a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a>
             <a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a>
@@ -538,10 +564,16 @@
         <%# ── Variant selector ── %>
         <% if (Array.isArray(product.variants) && product.variants.length) { %>
           <div class="variant-selector">
-            <p><%= t('product.variantsTitle') %>: <strong id="variant-label"><%= product.variants[0].label %></strong></p>
+            <p><%= t('product.variantsTitle') %>: <strong id="variant-label"><%= lang === 'el' ? 'Κύριο προϊόν' : 'Main product' %></strong></p>
             <div class="variant-pills">
+              <button class="variant-pill selected"
+                      data-vid="__base__"
+                      onclick="selectVariant(this)">
+                <%= lang === 'el' ? 'Κύριο προϊόν' : 'Main product' %>
+                <span style="font-size:.76rem;opacity:.82;"> &ndash; <%= Number(product.price).toFixed(2) %> &euro;</span>
+              </button>
               <% product.variants.forEach(function(v, vi) { %>
-                <button class="variant-pill <%= vi === 0 ? 'selected' : '' %>"
+                <button class="variant-pill"
                         data-vid="<%= v.id %>"
                         <%= v.stock === 0 ? 'disabled' : '' %>
                         onclick="selectVariant(this)">
@@ -716,7 +748,7 @@
       const IN_STOCK     = '<%= t("checkout.inStock") %>';
       const BASE_GALLERY = <%- JSON.stringify([product.imageUrl].concat(Array.isArray(product.galleryImages) ? product.galleryImages : (Array.isArray(product.gallery) ? product.gallery : [])).filter(Boolean)) %>;
 
-      let selectedVariant = VARIANTS.length ? VARIANTS[0] : null;
+      let selectedVariant = null;
       let selectedKitOptions = [];
 
       if (IS_EUKOLAKIS_CLASSIC && IS_KIT) {
@@ -728,6 +760,31 @@
         document.querySelectorAll('.variant-pill').forEach(function(b) { b.classList.remove('selected'); });
         btn.classList.add('selected');
         const vid = btn.dataset.vid;
+        if (vid === '__base__') {
+          selectedVariant = null;
+          const lbl = document.getElementById('variant-label');
+          if (lbl) lbl.textContent = '<%= lang === "el" ? "Κύριο προϊόν" : "Main product" %>';
+          const priceEl = document.getElementById('product-price');
+          if (priceEl) priceEl.textContent = (Number(PRODUCT.price) || 0).toFixed(2);
+          updateStockBadge(<%= product.stock !== undefined ? Number(product.stock) : -1 %>);
+          const btnCart = document.getElementById('btn-add-cart');
+          if (btnCart) btnCart.disabled = (<%= product.stock !== undefined ? Number(product.stock) : 1 %> === 0);
+          if (HAS_DIGITAL) updateContentPreview(BASE_VIDEO, BASE_DESC, BASE_MANUAL);
+          const defaultHero = (BASE_GALLERY[0] || PRODUCT.imageUrl || '').trim();
+          if (defaultHero) {
+            const hero = document.getElementById('hero-img');
+            const wrap = document.getElementById('hero-wrap');
+            if (hero) hero.src = defaultHero;
+            if (wrap) wrap.onclick = function() { openLightbox(defaultHero); };
+            let activeThumb = null;
+            document.querySelectorAll('.gallery-thumbs img').forEach(function(t) {
+              t.classList.remove('active');
+              if (!activeThumb && t.getAttribute('src') === defaultHero) activeThumb = t;
+            });
+            if (activeThumb) activeThumb.classList.add('active');
+          }
+          return;
+        }
         const v   = VARIANTS.find(function(vv) { return vv.id === vid; });
         if (!v) return;
         selectedVariant = v;
@@ -1048,6 +1105,16 @@
           } catch (err) {}
           window.location.href = homeUrl;
         });
+      })();
+      (function bindProductHeaderScrollState() {
+        const headerEl = document.querySelector('.store-header');
+        if (!headerEl) return;
+        const sync = function() {
+          if (window.scrollY > 8) headerEl.classList.add('is-scrolled');
+          else headerEl.classList.remove('is-scrolled');
+        };
+        sync();
+        window.addEventListener('scroll', sync, { passive: true });
       })();
     </script>
   </body>
