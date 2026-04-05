@@ -58,8 +58,9 @@
 
 <script>
   (function() {
-    const CART_KEY   = 'thrc_cart';
-    const CART_SESSION_KEY = 'thrc_cart_session';
+    const CART_SCOPE = '<%= (tenant && tenant.id) ? tenant.id : "default" %>';
+    const CART_KEY   = 'thrc_cart:' + CART_SCOPE;
+    const CART_SESSION_KEY = 'thrc_cart_session:' + CART_SCOPE;
     const CART_SNAPSHOT_API = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
     const POS_KEY    = 'thrc_cart_position';
     const widget     = document.getElementById('floating-cart');
