@@ -42,6 +42,20 @@
     text-decoration: none; font-size: .88rem; font-weight: 600;
   }
   #cart-checkout-btn:hover { opacity: .88; }
+  #cart-clear-all-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    border-radius: var(--button-radius, 4px);
+    padding: 8px 10px;
+    font-size: .84rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #cart-clear-all-btn:hover { background: #fee2e2; }
 </style>
 
 <div id="floating-cart" title="<%= t('storefront.cartTitle') %>">
@@ -53,7 +67,8 @@
   <ul id="cart-items"></ul>
   <p id="cart-empty-msg"><%= t('storefront.cartEmpty') %></p>
   <p id="cart-subtotal" style="display:none;"></p>
-    <a id="cart-checkout-btn" href="<%= withTenantLink('/checkout') %>" style="display:none;"><%= t('storefront.cartCheckout') %></a>
+  <a id="cart-checkout-btn" href="<%= withTenantLink('/checkout') %>" style="display:none;"><%= t('storefront.cartCheckout') %></a>
+  <button id="cart-clear-all-btn" type="button" style="display:none;"><%= lang === 'el' ? 'Καθαρισμός καλαθιού' : 'Clear cart' %></button>
 </div>
 
 <script>
@@ -70,6 +85,7 @@
     const emptyMsg   = document.getElementById('cart-empty-msg');
     const subtotalEl = document.getElementById('cart-subtotal');
     const checkoutBtn= document.getElementById('cart-checkout-btn');
+    const clearAllBtn= document.getElementById('cart-clear-all-btn');
 
     // ── Position persistence ──────────────────────────────────────────
     (function applyPos() {
@@ -161,6 +177,10 @@
       saveCart(cart);
       renderCart();
     }
+    function clearCart() {
+      saveCart([]);
+      renderCart();
+    }
 
     function renderCart() {
       const cart = loadCart();
@@ -173,6 +193,7 @@
         emptyMsg.style.display = '';
         subtotalEl.style.display = 'none';
         checkoutBtn.style.display = 'none';
+        if (clearAllBtn) clearAllBtn.style.display = 'none';
       } else {
         emptyMsg.style.display = 'none';
         itemsEl.innerHTML = cart.map(function(item) {
@@ -188,6 +209,7 @@
         subtotalEl.textContent = '<%= t("storefront.cartSubtotal") %>: ' + total.toFixed(2) + ' \u20ac';
         subtotalEl.style.display = '';
         checkoutBtn.style.display = 'block';
+        if (clearAllBtn) clearAllBtn.style.display = 'block';
       }
     }
 
@@ -206,5 +228,13 @@
     };
 
     window.thrcRemoveFromCart = function(id) { removeItem(id); };
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', function() {
+        if (!loadCart().length) return;
+        const msg = '<%= lang === "el" ? "Να αδειάσει όλο το καλάθι;" : "Clear all items from cart?" %>';
+        if (!window.confirm(msg)) return;
+        clearCart();
+      });
+    }
   })();
 </script>
