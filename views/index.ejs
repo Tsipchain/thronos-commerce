@@ -1475,18 +1475,34 @@
       <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
       <% } %>
     <% if (isEukolakisClassic && homepage && homepage.introEnabled) { %>
+    <% const _introResetHref = withTenantLink('/intro', lang !== 'el' ? { lang } : {}); %>
     <div style="text-align:center;padding:8px 0 20px;margin-top:4px;">
-      <a href="#" onclick="
-        var k=document.cookie.match(/(?:^|; )(intro_seen[^=]*)=/);
-        if(k){document.cookie=k[1]+'=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'}
-        try{Object.keys(localStorage).filter(function(x){return x.indexOf('intro_seen')===0}).forEach(function(k){localStorage.removeItem(k)})}catch(e){}
-        window.location.href='<%= withTenantLink(\'/intro\', lang !== \'el\' ? { lang } : {}) %>';
-        return false;
-      " style="font-size:.72rem;color:var(--eko-text-muted);text-decoration:none;opacity:.6;"
-      onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.6'">
+      <a href="<%- _introResetHref %>" id="intro-reset-link"
+        style="font-size:.72rem;color:var(--eko-text-muted);text-decoration:none;opacity:.6;"
+        onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.6'">
         <%= lang === 'el' ? '↺ Εισαγωγή' : '↺ Intro' %>
       </a>
     </div>
+    <script>
+    (function(){
+      var lnk = document.getElementById('intro-reset-link');
+      if (!lnk) return;
+      lnk.addEventListener('click', function(e){
+        e.preventDefault();
+        try {
+          document.cookie.split(';').forEach(function(c){
+            var n = c.trim().split('=')[0];
+            if (n.indexOf('intro_seen') === 0) {
+              document.cookie = n + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            }
+          });
+          Object.keys(localStorage).filter(function(k){ return k.indexOf('intro_seen') === 0; })
+            .forEach(function(k){ localStorage.removeItem(k); });
+        } catch(_) {}
+        window.location.href = this.href;
+      });
+    })();
+    </script>
     <% } %>
     </footer>
 
