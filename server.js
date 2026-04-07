@@ -1,4 +1,3 @@
-// ── Fatal error handlers — must be first ─────────────────────────────────────
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.message);
   console.error(err.stack);
@@ -6305,6 +6304,57 @@ app.post('/root/hosting/update', (req, res) => {
   return res.render('root-hosting', { rows, unresolvedCount, message: `Hosting status ενημερώθηκε για ${tenantId}.`, error: null });
 });
 
+// ── VA Chat proxy (storefront) ────────────────────────────────────────────────
+app.post('/api/chat', async (req, res) => {
+  if (!req.tenant || req.isPlatformRequest) {
+    return res.status(404).json({ error: 'not found' });
+  }
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  if (!assistant.vaEnabled || !['customer', 'both'].includes(assistant.vaMode)) {
+    return res.status(403).json({ error: 'Chat assistant not available for this store.' });
+  }
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || '').replace(/\/$/, '');
+  if (!vaUrl) {
+    return res.status(503).json({ error: 'Assistant service not configured.' });
+  }
+  const { message, context } = req.body || {};
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required.' });
+  }
+  try {
+    const tokenRes = await axios.post(
+      `${vaUrl}/api/v1/auth/customer-token`,
+      {
+        commerce_tenant_id: req.tenantId,
+        customer_id: (req.session && req.session.user && req.session.user.id)
+          ? String(req.session.user.id) : null,
+        customer_email: (req.session && req.session.user && req.session.user.email)
+          ? String(req.session.user.email) : null,
+      },
+      { timeout: 5000 }
+    );
+    const token = tokenRes.data && tokenRes.data.access_token;
+    if (!token) throw new Error('No token received from VA');
+    const chatRes = await axios.post(
+      `${vaUrl}/api/v1/assistant/chat`,
+      {
+        message: String(message).trim().slice(0, 2000),
+        role: 'customer',
+        context: (context && typeof context === 'object') ? context : null,
+      },
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
+    );
+    return res.json(chatRes.data);
+  } catch (err) {
+    console.error('[VA chat] proxy error:', err.message);
+    const httpStatus = (err.response && err.response.status) || 502;
+    const detail = (err.response && err.response.data && err.response.data.detail)
+      || 'Assistant temporarily unavailable.';
+    return res.status(httpStatus >= 500 ? 502 : httpStatus).json({ error: detail });
+  }
+});
+
 // ── Global error handler ──────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
@@ -6337,6 +6387,7 @@ console.log('[boot] Env audit:', {
   STRIPE: !!(process.env.STRIPE_SECRET_KEY),
   STRIPE_WEBHOOK: !!(process.env.STRIPE_WEBHOOK_SECRET),
   THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
+  THRONOS_ASSISTANT_URL: !!process.env.THRONOS_ASSISTANT_URL,
   THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });
