@@ -16,25 +16,52 @@
         --menu-active-text: <%= (config.theme && config.theme.menuActiveText) || '#fff' %>;
         --button-radius: <%= (config.theme && config.theme.buttonRadius) || '4px' %>;
       }
+      .store-header {
+        position: sticky;
+        top: 0;
+        z-index: 1300;
+        border-bottom: none !important;
+        box-shadow:none !important;
+        background: linear-gradient(135deg, rgba(15,23,42,.18), rgba(31,41,55,.16));
+        backdrop-filter: blur(3px);
+        transition: background .28s ease, box-shadow .28s ease, padding .22s ease;
+      }
+      .store-header.is-scrolled {
+        background: linear-gradient(135deg, rgba(15,23,42,.97), rgba(31,41,55,.96));
+        box-shadow: 0 8px 22px rgba(2,6,23,.3) !important;
+      }
+      .store-header .header-main-row { padding: 8px 16px 12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+      .header-auth-links { margin-left: auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+      .header-auth-links a {
+        text-decoration:none;
+        color: var(--menu-text, #fff);
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: .82rem;
+      }
     </style>
   </head>
   <body>
-    <header>
-      <div class="logo-title">
-        <% if (config.logoPath) { %>
-          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
-        <% } %>
-        <h1><%= config.storeName %></h1>
-      </div>
-      <div style="padding:8px 16px;font-size:.85rem;display:flex;gap:12px;flex-wrap:wrap;">
-        <% if (!user) { %>
-          <a href="<%= withTenantLink('/login') %>">Login</a>
-          <a href="<%= withTenantLink('/signup') %>">Signup</a>
-        <% } else { %>
-          <a href="<%= withTenantLink('/account') %>">My Account</a>
-          <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
-          <a href="<%= withTenantLink('/logout') %>">Logout</a>
-        <% } %>
+    <header class="store-header">
+      <div class="header-main-row">
+        <div class="logo-title">
+          <% if (config.logoPath) { %>
+            <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+          <% } %>
+          <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
+        </div>
+        <div class="header-auth-links">
+          <% if (!user) { %>
+            <a href="<%= withTenantLink('/login') %>">Login</a>
+            <a href="<%= withTenantLink('/signup') %>">Signup</a>
+          <% } else { %>
+            <a href="<%= withTenantLink('/account') %>">My Account</a>
+            <a href="<%= withTenantLink('/my-orders') %>">My Orders</a>
+            <a href="<%= withTenantLink('/logout') %>">Logout</a>
+          <% } %>
+        </div>
       </div>
     </header>
 
@@ -105,8 +132,9 @@
     <% if (locals.clearCart) { %>
     <script>
       // Clear cart after successful order
-      try { localStorage.removeItem('thrc_cart'); } catch(e) {}
-      try { sessionStorage.removeItem('thrc_cart_session'); } catch(e) {}
+      const cartScope = '<%= (tenant && tenant.id) ? tenant.id : "default" %>';
+      try { localStorage.removeItem('thrc_cart:' + cartScope); } catch(e) {}
+      try { sessionStorage.removeItem('thrc_cart_session:' + cartScope); } catch(e) {}
     </script>
     <% } %>
     <script>
@@ -125,6 +153,16 @@
           } catch (err) {}
           window.location.href = homeUrl;
         });
+      })();
+      (function bindThanksHeaderScrollState() {
+        const headerEl = document.querySelector('.store-header');
+        if (!headerEl) return;
+        const sync = function() {
+          if (window.scrollY > 8) headerEl.classList.add('is-scrolled');
+          else headerEl.classList.remove('is-scrolled');
+        };
+        sync();
+        window.addEventListener('scroll', sync, { passive: true });
       })();
     </script>
   </body>

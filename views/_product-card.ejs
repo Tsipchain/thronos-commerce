@@ -1,7 +1,7 @@
-<% const isEukolakisTenant = (typeof tenantId !== 'undefined' && tenantId === 'eukolakis'); %>
+<% const isEukolakisClassicTheme = (config && config.theme && config.theme.presetId === 'eukolakis_classic_diy'); %>
 <% const productSkuValue = String(product.sku || '').trim().toLowerCase(); %>
 <% const productTagsValue = Array.isArray(product.tags) ? product.tags.map(function(tag){ return String(tag || '').trim().toLowerCase(); }).filter(Boolean).join(',') : ''; %>
-<article class="product-card hover-<%= (config && config.theme && config.theme.productCardHoverEffect) || 'lift' %> <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %> <%= isEukolakisTenant && product.type === 'KIT' ? 'kit-clickable' : '' %>" data-product-id="<%= product.id %>" data-product-price="<%= Number(product.price) || 0 %>" data-product-sku="<%= productSkuValue %>" data-product-tags="<%= productTagsValue %>" <%= isEukolakisTenant && product.type === 'KIT' ? 'data-kit-product-id="' + product.id + '"' : '' %> <%- product.type !== 'KIT' ? ('data-product-open-url="' + withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) + '"') : '' %>>
+<article class="product-card hover-<%= (config && config.theme && config.theme.productCardHoverEffect) || 'lift' %> <%= config && config.theme && config.theme.cardStyle === 'bold' ? 'bold' : '' %> <%= isEukolakisClassicTheme && product.type === 'KIT' ? 'kit-clickable' : '' %>" data-product-id="<%= product.id %>" data-product-price="<%= Number(product.price) || 0 %>" data-product-sku="<%= productSkuValue %>" data-product-tags="<%= productTagsValue %>" <%= isEukolakisClassicTheme && product.type === 'KIT' ? 'data-kit-product-id="' + product.id + '"' : '' %> <%- product.type !== 'KIT' ? ('data-product-open-url="' + withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) + '"') : '' %>>
   <% if (product.imageUrl) { %>
     <div class="product-thumb">
       <img src="<%= product.imageUrl %>" alt="<%= product.name %>" loading="lazy" />
@@ -35,7 +35,7 @@
     <% const deliveryEstimateLabel = product.deliveryEstimate || (Number(product.stock) === 0 ? (lang === 'el' ? 'Παράδοση 4-7 ημέρες' : 'Delivery in 4-7 days') : (lang === 'el' ? 'Παράδοση 1-3 ημέρες' : 'Delivery in 1-3 days')); %>
     <p style="margin:0 0 10px;font-size:.76rem;color:#64748b;">🚚 <%= deliveryEstimateLabel %></p>
     <div class="card-actions">
-      <% if (isEukolakisTenant && product.type === 'KIT') { %>
+      <% if (isEukolakisClassicTheme && product.type === 'KIT') { %>
         <a class="btn-cart" href="#" data-kit-launch="<%= product.id %>" style="text-decoration:none;display:inline-block;"><%= lang === 'el' ? 'Ξεκίνα Roll Kit' : 'Start Roll Kit' %></a>
       <% } else if (product.type === 'KIT') { %>
         <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
