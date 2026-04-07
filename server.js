@@ -1,4 +1,3 @@
-// ── Fatal error handlers — must be first ─────────────────────────────────────
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.message);
   console.error(err.stack);
@@ -10,6 +9,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const express = require('express');
+const { normalizeAssistantConfig } = require('./lib/assistant-config');
 const path = require('path');
 const fs = require('fs');
 const ejs = require('ejs');
@@ -73,13 +73,17 @@ function getSubscriptionInfo(tenant) {
     return fallback;
   }
   const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / 86400000);
+  const daysOverdue = daysLeft < 0 ? Math.abs(daysLeft) : 0;
   return {
     plan: tenant.subscriptionPlan || tenant.supportTier || 'SELF_SERVICE',
     status: daysLeft <= 0 ? 'expired' : 'active',
     expiryStr: expiry.toLocaleDateString('el-GR'),
     daysLeft: Math.max(0, daysLeft),
+    daysOverdue,
     isExpired: daysLeft <= 0,
-    isExpiringSoon: daysLeft > 0 && daysLeft <= 7
+    isExpiringSoon: daysLeft > 0 && daysLeft <= 5,
+    isInGrace: daysLeft <= 0 && daysOverdue < 10,
+    isGraceExpired: daysOverdue >= 10
   };
 }
 
@@ -1054,6 +1058,7 @@ function loadTenantConfig(req) {
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
   cfg.favicon = Object.assign({}, fallback.favicon, cfg.favicon || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
+  cfg.assistant = normalizeAssistantConfig(cfg.assistant);
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
@@ -2275,6 +2280,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── Subscription enforcement ──────────────────────────────────────────────
+const SUBSCRIPTION_GRACE_DAYS = 10;
+const SUBSCRIPTION_EXEMPT_PATHS = ['/admin', '/root', '/login', '/logout', '/signup', '/api', '/checkout', '/cart', '/my-orders', '/account', '/favicon.ico', '/styles.css', '/manifest', '/sitemap'];
+
+app.use((req, res, next) => {
+  // Never enforce on platform preview requests or exempt paths
+  if (req.isPlatformRequest) return next();
+  const p = req.path || '/';
+  if (SUBSCRIPTION_EXEMPT_PATHS.some(ep => p === ep || p.startsWith(ep + '/'))) return next();
+  if (p.startsWith('/tenants/') || p.match(/\.(js|css|ico|png|jpg|svg|webp|woff|ttf|eot)$/i)) return next();
+
+  const subInfo = getSubscriptionInfo(req.tenant);
+  // Only enforce if isGraceExpired (> 10 days overdue)
+  if (!subInfo.isGraceExpired) return next();
+
+  // Grace period exceeded — storefront suspended
+  const storeName = (req.tenant && req.tenant.id) || 'Store';
+  return res.status(402).send(`<!doctype html><html lang="el"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Κατάστημα προσωρινά μη διαθέσιμο</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0b0d12;color:#d0d5e0;min-height:100vh;display:grid;place-items:center;padding:20px}.card{background:#141820;border:1px solid rgba(100,110,140,.28);border-top:2px solid #c4902e;border-radius:16px;padding:40px 32px;max-width:480px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}h1{font-size:1.4rem;font-weight:900;color:#edf0f6;margin-bottom:10px}p{color:#64707f;line-height:1.6;margin-bottom:18px}.badge{display:inline-block;background:#c4902e;color:#fff;font-size:.78rem;font-weight:800;border-radius:6px;padding:4px 12px;margin-bottom:22px;letter-spacing:.04em}a{color:#c4902e;text-decoration:none;font-weight:600}a:hover{text-decoration:underline}</style></head><body><div class="card"><div class="badge">ΣΥΝΔΡΟΜΗ ΛΗΞΗ</div><h1>Το κατάστημα δεν είναι διαθέσιμο αυτή τη στιγμή.</h1><p>Η συνδρομή αυτού του καταστήματος έχει λήξει. Επικοινωνήστε με τον ιδιοκτήτη ή δοκιμάστε ξανά αργότερα.</p><p style="font-size:.82rem;color:#94a3b8;">Αν είστε ο ιδιοκτήτης, <a href="${req.tenantBasePath || ''}/admin">συνδεθείτε στο admin</a> για να ανανεώσετε τη συνδρομή σας.</p></div></body></html>`);
+});
+
 // Root admin auth guard
 app.use('/root', (req, res, next) => {
   if (req.path === '/login' || req.path === '/logout') return next();
@@ -2551,7 +2576,8 @@ app.get('/', (req, res) => {
       allProducts: localizedAllProducts,
       activeCategory: catSlug || null,
       tenant: req.tenant,
-      storefrontAssetAudit
+      storefrontAssetAudit,
+      subscription: getSubscriptionInfo(req.tenant),
     });
   } catch (err) {
     console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
@@ -6280,6 +6306,61 @@ app.post('/root/hosting/update', (req, res) => {
   return res.render('root-hosting', { rows, unresolvedCount, message: `Hosting status ενημερώθηκε για ${tenantId}.`, error: null });
 });
 
+// ── VA Chat proxy (storefront) ────────────────────────────────────────────────
+app.post('/api/chat', async (req, res) => {
+  if (!req.tenant || req.isPlatformRequest) {
+    return res.status(404).json({ error: 'not found' });
+  }
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  if (!assistant.vaEnabled || !['customer', 'both'].includes(assistant.vaMode)) {
+    return res.status(403).json({ error: 'Chat assistant not available for this store.' });
+  }
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || '').replace(/\/$/, '');
+  if (!vaUrl) {
+    return res.status(503).json({ error: 'Assistant service not configured.' });
+  }
+  const { message, context } = req.body || {};
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required.' });
+  }
+  try {
+    const commerceKey = (process.env.THRONOS_COMMERCE_API_KEY || '').trim();
+    const tokenRes = await axios.post(
+      `${vaUrl}/api/v1/auth/customer-token`,
+      {
+        commerce_tenant_id: req.tenantId,
+        customer_id: (req.session && req.session.user && req.session.user.id)
+          ? String(req.session.user.id) : null,
+        customer_email: (req.session && req.session.user && req.session.user.email)
+          ? String(req.session.user.email) : null,
+      },
+      {
+        headers: commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
+        timeout: 5000,
+      }
+    );
+    const token = tokenRes.data && tokenRes.data.access_token;
+    if (!token) throw new Error('No token received from VA');
+    const chatRes = await axios.post(
+      `${vaUrl}/api/v1/assistant/chat`,
+      {
+        message: String(message).trim().slice(0, 2000),
+        role: 'customer',
+        context: (context && typeof context === 'object') ? context : null,
+      },
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
+    );
+    return res.json(chatRes.data);
+  } catch (err) {
+    console.error('[VA chat] proxy error:', err.message);
+    const httpStatus = (err.response && err.response.status) || 502;
+    const detail = (err.response && err.response.data && err.response.data.detail)
+      || 'Assistant temporarily unavailable.';
+    return res.status(httpStatus >= 500 ? 502 : httpStatus).json({ error: detail });
+  }
+});
+
 // ── Global error handler ──────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
@@ -6312,6 +6393,8 @@ console.log('[boot] Env audit:', {
   STRIPE: !!(process.env.STRIPE_SECRET_KEY),
   STRIPE_WEBHOOK: !!(process.env.STRIPE_WEBHOOK_SECRET),
   THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
+  THRONOS_COMMERCE_API_KEY: !!process.env.THRONOS_COMMERCE_API_KEY,
+  THRONOS_ASSISTANT_URL: !!process.env.THRONOS_ASSISTANT_URL,
   THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });

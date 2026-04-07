@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="<%= lang %>">
   <head>
     <meta charset="UTF-8" />
@@ -389,19 +388,23 @@
         padding: 0 20px;
       }
       body.eukolakis-classic .header-nav-row ul {
-        display: flex; gap: 0; list-style: none; margin: 0; padding: 0;
+        display: flex; gap: 0; list-style: none; margin: 0; padding: 0 4px;
         overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        align-items: center;
       }
       body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row ul li a {
         display: flex; align-items: center; gap: 8px;
-        padding: 0 16px; height: 48px;
+        padding: 0 14px; height: 40px;
         color: var(--eko-text-muted);
-        text-decoration: none; font-size: .82rem; font-weight: 600;
-        letter-spacing: .02em; white-space: nowrap; text-transform: uppercase;
-        border-bottom: 2px solid transparent;
+        text-decoration: none; font-size: .78rem; font-weight: 700;
+        letter-spacing: .06em; white-space: nowrap; text-transform: uppercase;
+        border: 1px solid rgba(196,144,46,.18);
+        border-radius: 4px;
+        background: linear-gradient(180deg, #1e2435 0%, #161b27 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.3);
+        margin: 6px 3px;
         transition: color .14s, border-color .14s, background .14s, box-shadow .14s;
-        border-left: 1px solid rgba(196,144,46,.14);
       }
       body.eukolakis-classic .eko-nav-plate-thumb {
         width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
@@ -416,14 +419,16 @@
       }
       body.eukolakis-classic .header-nav-row ul li a:hover {
         color: var(--eko-accent);
-        background: linear-gradient(180deg, rgba(196,144,46,.12), rgba(196,144,46,.04));
-        box-shadow: inset 0 0 0 1px rgba(196,144,46,.18);
+        border-color: rgba(196,144,46,.4);
+        background: linear-gradient(180deg, #24293c 0%, #1a1f2e 100%);
+        box-shadow: inset 0 1px 0 rgba(196,144,46,.12), 0 3px 10px rgba(0,0,0,.4);
       }
       body.eukolakis-classic .header-nav-row ul li.active a {
         color: var(--eko-accent);
-        border-bottom-color: var(--eko-accent);
-        background: linear-gradient(180deg, rgba(196,144,46,.18), rgba(196,144,46,.06));
-        box-shadow: inset 0 0 0 1px rgba(196,144,46,.28), 0 6px 20px rgba(0,0,0,.25);
+        border-color: rgba(196,144,46,.55);
+        border-top-color: var(--eko-accent);
+        background: linear-gradient(180deg, #2a2410 0%, #1c1a10 100%);
+        box-shadow: inset 0 1px 0 rgba(196,144,46,.2), 0 4px 14px rgba(0,0,0,.4);
       }
       body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
       body.eukolakis-classic .menu-toggle { display: none; }
@@ -595,64 +600,107 @@
       .eko-cat-tile {
         position: relative; display: flex; flex-direction: column;
         text-decoration: none; border-radius: 12px; overflow: hidden;
-        border: 1px solid var(--eko-border);
-        border-top: 2px solid rgba(196,144,46,.28);
-        background: linear-gradient(165deg, #181d2c 0%, #141820 60%, #10131b 100%);
+        border: 1px solid #e0e0e0;
+        border-top: 3px solid transparent;
+        background: #fff;
         min-height: 176px;
         transition: border-color .16s, box-shadow .16s, transform .18s;
       }
       .eko-cat-tile:hover {
-        border-color: var(--eko-accent);
-        border-top-color: var(--eko-accent);
-        box-shadow: 0 0 0 1px rgba(196,144,46,.15), 0 16px 40px rgba(0,0,0,.55);
+        border-color: #d0d0d0;
+        box-shadow: 0 8px 28px rgba(0,0,0,.13);
         transform: translateY(-4px);
       }
       .eko-cat-tile-img {
-        width: 100%; height: 124px; object-fit: contain;
+        width: 100%; height: 168px; object-fit: cover;
         display: block; flex-shrink: 0;
         transition: transform .22s;
-        background: radial-gradient(circle at 20% 20%, rgba(255,255,255,.06), rgba(255,255,255,0) 48%);
+        background: #f5f5f5;
       }
       .eko-cat-tile:hover .eko-cat-tile-img { transform: scale(1.04); }
+      /* Richer placeholder */
       .eko-cat-tile-img-placeholder {
-        width: 100%; height: 112px; display: flex; align-items: center;
+        width: 100%; height: 168px; display: flex; align-items: center;
         justify-content: center; flex-shrink: 0;
-        background: linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
-        /* subtle metal mesh pattern */
-        background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 20px),
-                          repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 20px),
-                          linear-gradient(135deg, #1c2235 0%, #252d42 50%, #1c2235 100%);
+        position: relative; overflow: hidden;
+        background: #f0f2f5;
+      }
+      /* Per-category placeholder colors via data-cat-id */
+      .eko-cat-tile[data-cat-id="diy-rolla"] .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #7c3a00 0%, #3d1a00 60%, #1c1008 100%);
+      }
+      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #0a2a5e 0%, #051428 60%, #020c1c 100%);
+      }
+      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-img-placeholder {
+        background: linear-gradient(135deg, #0a3028 0%, #061a14 60%, #040f0a 100%);
+      }
+      .eko-cat-tile-img-placeholder::before {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+          repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 28px),
+          repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 28px);
       }
       .eko-cat-tile-placeholder-icon {
-        width: 44px; height: 44px;
-        border: 1.5px solid rgba(196,144,46,.35);
-        border-radius: 10px;
-        background: rgba(196,144,46,.08);
-        display: flex; align-items: center; justify-content: center;
-        font-size: .62rem; font-weight: 800; letter-spacing: .06em;
-        color: var(--eko-accent); line-height: 1;
+        position: relative; z-index: 1;
+        font-size: 2.2rem; font-weight: 900; letter-spacing: .04em;
+        color: rgba(0,0,0,.1); line-height: 1;
+        font-family: system-ui, sans-serif;
+        text-transform: uppercase;
       }
-      .eko-cat-tile-body { padding: 11px 14px 13px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+      /* Colored badge body */
+      .eko-cat-tile-body {
+        padding: 0; flex-shrink: 0;
+        display: flex; align-items: stretch;
+      }
+      .eko-cat-tile-badge {
+        flex: 1; padding: 9px 14px 9px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .eko-cat-tile[data-cat-id="diy-rolla"]   .eko-cat-tile-badge { background: #d95f00; }
+      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-badge { background: #1655b5; }
+      .eko-cat-tile[data-cat-id="main-doors"]  .eko-cat-tile-badge { background: #c0392b; }
+      .eko-cat-tile[data-cat-id="tools"]       .eko-cat-tile-badge { background: #37474f; }
+      .eko-cat-tile[data-cat-id="diy-tools"]   .eko-cat-tile-badge { background: #37474f; }
+      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-badge { background: #1a6b50; }
+      .eko-cat-tile-badge-text {
+        flex: 1;
+      }
       .eko-cat-tile-name {
-        font-size: .94rem; font-weight: 800; letter-spacing: .01em;
-        color: var(--eko-text-strong); margin: 0; line-height: 1.28;
+        font-size: .85rem; font-weight: 900; letter-spacing: .06em;
+        color: #fff; margin: 0; line-height: 1.2; text-transform: uppercase;
+        text-align: center;
       }
       .eko-cat-tile-desc {
-        font-size: .72rem; color: var(--eko-text-muted);
-        margin: 4px 0 0; line-height: 1.42;
+        font-size: .74rem; color: #555;
+        margin: 0; line-height: 1.3;
+        text-align: center;
       }
+      .eko-cat-tile-subtitle {
+        padding: 7px 12px 8px; background: #fff;
+        display: flex; align-items: center; justify-content: space-between;
+        border-top: 1px solid #f0f0f0;
+        flex-shrink: 0;
+      }
+      /* Circular arrow button */
       .eko-cat-tile-arrow {
-        display: inline-block; margin-top: 6px;
-        font-size: .72rem; color: var(--eko-accent);
-        opacity: 0; transition: opacity .16s;
+        width: 30px; height: 30px; border-radius: 50%;
+        border: none;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 1.05rem; font-weight: 700;
+        flex-shrink: 0; transition: opacity .14s;
+        text-decoration: none; background: #888;
       }
-      .eko-cat-tile:hover .eko-cat-tile-arrow { opacity: 1; }
-      .eko-cat-bar {
-        position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-        background: linear-gradient(90deg, var(--eko-accent), var(--eko-accent-light));
-        opacity: 0; transition: opacity .16s;
-      }
-      .eko-cat-tile:hover .eko-cat-bar { opacity: 1; }
+      .eko-cat-tile[data-cat-id="diy-rolla"]   .eko-cat-tile-arrow { background: #d95f00; }
+      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-arrow { background: #1655b5; }
+      .eko-cat-tile[data-cat-id="main-doors"]  .eko-cat-tile-arrow { background: #c0392b; }
+      .eko-cat-tile[data-cat-id="tools"]       .eko-cat-tile-arrow { background: #37474f; }
+      .eko-cat-tile[data-cat-id="diy-tools"]   .eko-cat-tile-arrow { background: #37474f; }
+      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-arrow { background: #1a6b50; }
+      .eko-cat-tile:hover .eko-cat-tile-arrow { opacity: .82; }
+      /* Remove the old eko-cat-bar (now replaced by badge) */
+      .eko-cat-bar { display: none; }
       /* Light mode tile */
       body.eukolakis-classic.eko-light .eko-cat-tile {
         background: linear-gradient(165deg, #f0f2f8 0%, #fff 100%);
@@ -874,9 +922,10 @@
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
         body.eukolakis-classic .eko-cat-tile-img,
-        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 62px; }
-        body.eukolakis-classic .eko-cat-tile-name { font-size: .76rem; }
-        body.eukolakis-classic .eko-cat-tile-body { padding: 7px 8px 9px; }
+        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 80px; }
+        body.eukolakis-classic .eko-cat-tile-name { font-size: .72rem; }
+        body.eukolakis-classic .eko-cat-tile-badge { padding: 6px 8px 7px; }
+        body.eukolakis-classic .eko-cat-tile-arrow { width: 24px; height: 24px; font-size: .84rem; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
         body.eukolakis-classic .header-main-row { padding: 8px 12px; min-height: 84px; }
         body.eukolakis-classic .eko-brand-banner { min-width: 100%; }
@@ -1006,8 +1055,10 @@
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
                 <% if (isEukolakisClassic && !useCodeTabs) { %>
-                  <% if (cat.image && navPlateExistsByUrl[cat.image]) { %>
-                    <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy" />
+                  <% if (cat.image) { %>
+                    <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy"
+                      onerror="this.style.display='none';var nx=this.nextElementSibling;if(nx)nx.style.display='inline-flex';" />
+                    <span class="eko-nav-plate-fallback" style="display:none;"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
                   <% } else { %>
                     <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
                   <% } %>
@@ -1088,6 +1139,15 @@
     <button type="button" id="quick-back-btn" class="quick-back-btn"><%= lang === 'el' ? '← Επιστροφή' : '← Back' %></button>
 
     <main class="home-layout-flow">
+      <% if (subscription && (subscription.isExpiringSoon || subscription.isInGrace)) { %>
+<div style="background:<%= subscription.isInGrace ? '#7f1d1d' : '#713f12' %>;color:#fff;padding:10px 20px;text-align:center;font-size:.84rem;font-weight:700;border-bottom:2px solid <%= subscription.isInGrace ? '#dc2626' : '#ca8a04' %>;">
+  <% if (subscription.isInGrace) { %>
+    ⚠️ Η συνδρομή σας έχει λήξει. Ανανεώστε την άμεσα για να αποφύγετε τη διακοπή. (<%= subscription.daysOverdue %> μέρες μετά τη λήξη)
+  <% } else { %>
+    ⏰ Η συνδρομή σας λήγει σε <%= subscription.daysLeft %> μέρες. <a href="<%= withTenantLink('/admin') %>" style="color:#fef08a;">Ανανεώστε εδώ →</a>
+  <% } %>
+</div>
+<% } %>
       <% const hpFeaturedPrimary = Array.isArray(homepage.featuredPrimary) ? homepage.featuredPrimary.slice(0,2) : (Array.isArray(homepage.featuredIds) ? homepage.featuredIds.slice(0,2) : []); %>
       <% const featuredPrimaryProducts = hpFeaturedPrimary.map(function(id){ return (allProducts || products).find(function(p){ return p.id === id; }); }).filter(Boolean); %>
       <% const missingConfiguredPrimary = hpFeaturedPrimary.length < 2 || featuredPrimaryProducts.length < 2; %>
@@ -1136,25 +1196,28 @@
         <p class="eko-cat-section-title"><%= lang === 'el' ? 'Κατηγορίες' : 'Categories' %></p>
         <div class="eko-cat-grid">
           <% navCategories.forEach(function(cat) { %>
-          <a class="eko-cat-tile" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% const hasRealCategoryImage = !!(cat.image && navPlateExistsByUrl[cat.image]); %>
-            <% if (hasRealCategoryImage) { %>
-              <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy" />
+          <a class="eko-cat-tile" data-cat-id="<%= cat.id %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
+            <% const _catBadgeLabel = {'diy-rolla':'ROLL KITS','diy-sliding':'SLIDING DOORS','main-doors':'MAIN DOORS','tools':'TOOLS','diy-tools':'TOOLS','spare-parts':'SOLO PARTS'}[cat.id] || (cat.name || 'CAT').toUpperCase(); %>
+            <% if (cat.image) { %>
+              <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy"
+                onerror="this.style.display='none';var nx=this.nextElementSibling;if(nx)nx.style.display='flex';" />
+              <div class="eko-cat-tile-img-placeholder" style="display:none;">
+                <div class="eko-cat-tile-placeholder-icon"><%- _catBadgeLabel.slice(0,6) %></div>
+              </div>
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">
-                <div class="eko-cat-tile-placeholder-icon">
-                  <% if (cat.id === 'diy-rolla') { %>KIT<% } else if (cat.id === 'diy-sliding') { %>SLD<% } else if (cat.id === 'spare-parts') { %>SPN<% } else { %><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %><% } %>
-                </div>
+                <div class="eko-cat-tile-placeholder-icon"><%- _catBadgeLabel.slice(0,6) %></div>
               </div>
             <% } %>
             <div class="eko-cat-tile-body">
-              <div>
-                <p class="eko-cat-tile-name"><%= cat.name %></p>
-                <% if (cat.shortDescription) { %><p class="eko-cat-tile-desc"><%= cat.shortDescription %></p><% } %>
+              <div class="eko-cat-tile-badge">
+                <p class="eko-cat-tile-name"><%- _catBadgeLabel %></p>
               </div>
-              <span class="eko-cat-tile-arrow"><%= lang === 'el' ? 'Δείτε →' : 'View →' %></span>
             </div>
-            <div class="eko-cat-bar"></div>
+            <div class="eko-cat-tile-subtitle">
+              <span class="eko-cat-tile-desc"><%= cat.shortDescription || cat.name %></span>
+              <span class="eko-cat-tile-arrow">&#8250;</span>
+            </div>
           </a>
           <% }); %>
         </div>
@@ -1430,6 +1493,36 @@
       <% if (tenant && tenant.allowPoweredBy === true && (!config.footer || config.footer.poweredByEnabled !== false)) { %>
       <a class="thronos-sign" href="<%= (config.footer && config.footer.poweredByUrl) || 'https://thronoscommerce.thronoschain.org/' %>" target="_blank" rel="noopener noreferrer"><%= (config.footer && config.footer.poweredByText) || 'Powered by Thronos Commerce ↗' %></a>
       <% } %>
+    <% if (isEukolakisClassic && homepage && homepage.introEnabled) { %>
+    <% const _introResetHref = withTenantLink('/intro', lang !== 'el' ? { lang } : {}); %>
+    <div style="text-align:center;padding:8px 0 20px;margin-top:4px;">
+      <a href="<%- _introResetHref %>" id="intro-reset-link"
+        style="font-size:.72rem;color:var(--eko-text-muted);text-decoration:none;opacity:.6;"
+        onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.6'">
+        <%= lang === 'el' ? '↺ Εισαγωγή' : '↺ Intro' %>
+      </a>
+    </div>
+    <script>
+    (function(){
+      var lnk = document.getElementById('intro-reset-link');
+      if (!lnk) return;
+      lnk.addEventListener('click', function(e){
+        e.preventDefault();
+        try {
+          document.cookie.split(';').forEach(function(c){
+            var n = c.trim().split('=')[0];
+            if (n.indexOf('intro_seen') === 0) {
+              document.cookie = n + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            }
+          });
+          Object.keys(localStorage).filter(function(k){ return k.indexOf('intro_seen') === 0; })
+            .forEach(function(k){ localStorage.removeItem(k); });
+        } catch(_) {}
+        window.location.href = this.href;
+      });
+    })();
+    </script>
+    <% } %>
     </footer>
 
     <%# ── Floating draggable cart (shared partial) ── %>
@@ -2129,5 +2222,170 @@
         });
       })();
     </script>
+
+<%
+  const _vaCfg = (config && config.assistant) ? config.assistant : {};
+  const _vaLangEff = (_vaCfg.vaLanguage === 'auto') ? lang : (_vaCfg.vaLanguage || 'el');
+%>
+<% if (_vaCfg.vaEnabled && ['customer','both'].includes(_vaCfg.vaMode)) { %>
+<style>
+  #thrc-chat-fab {
+    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--eko-accent, #c4902e); color: #fff;
+    border: none; cursor: pointer; font-size: 24px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, box-shadow .15s;
+  }
+  #thrc-chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
+  #thrc-chat-panel {
+    position: fixed; bottom: 96px; right: 28px; z-index: 9999;
+    width: 340px; max-height: 480px;
+    background: var(--eko-surface, #1a1a1a); border: 1px solid var(--eko-border, #333);
+    border-radius: 16px; overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    font-family: system-ui, sans-serif;
+    transition: opacity .2s, transform .2s;
+  }
+  #thrc-chat-panel[hidden] { display: none; }
+  #thrc-chat-header {
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    background: var(--eko-accent, #c4902e); color: #fff; font-weight: 700; font-size: .88rem;
+  }
+  #thrc-chat-header button {
+    background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; line-height: 1;
+  }
+  #thrc-chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--eko-bg, #111);
+  }
+  .thrc-msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: .82rem; line-height: 1.4; }
+  .thrc-msg-bot {
+    align-self: flex-start;
+    background: var(--eko-surface, #222); color: var(--eko-text, #eee);
+    border-bottom-left-radius: 4px;
+  }
+  .thrc-msg-user {
+    align-self: flex-end;
+    background: var(--eko-accent, #c4902e); color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .thrc-msg-error { align-self: center; color: #f87171; font-size: .78rem; font-style: italic; }
+  #thrc-chat-typing { align-self: flex-start; padding: 8px 12px; font-size: .75rem; color: var(--eko-text-muted, #888); }
+  #thrc-chat-input-row {
+    display: flex; gap: 6px; padding: 10px 12px;
+    border-top: 1px solid var(--eko-border, #333);
+    background: var(--eko-surface, #1a1a1a);
+  }
+  #thrc-chat-input {
+    flex: 1; background: var(--eko-bg, #111); border: 1px solid var(--eko-border, #333);
+    color: var(--eko-text, #eee); border-radius: 8px;
+    padding: 7px 10px; font-size: .82rem; outline: none;
+  }
+  #thrc-chat-input:focus { border-color: var(--eko-accent, #c4902e); }
+  #thrc-chat-send {
+    background: var(--eko-accent, #c4902e); color: #fff;
+    border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer; font-size: .85rem;
+  }
+  #thrc-chat-send:disabled { opacity: .5; cursor: default; }
+  @media (max-width: 420px) {
+    #thrc-chat-panel { width: calc(100vw - 24px); right: 12px; }
+  }
+</style>
+
+<button id="thrc-chat-fab" aria-label="Βοηθός" title="Εικονικός Βοηθός">💬</button>
+
+<div id="thrc-chat-panel" hidden>
+  <div id="thrc-chat-header">
+    <span><%- _vaLangEff === 'en' ? 'Virtual Assistant' : 'Εικονικός Βοηθός' %></span>
+    <button id="thrc-chat-close" aria-label="Κλείσιμο">✕</button>
+  </div>
+  <div id="thrc-chat-messages">
+    <div class="thrc-msg thrc-msg-bot"><%- _vaLangEff === 'en' ? 'Hello! How can I help you today?' : 'Γεια σας! Πώς μπορώ να σας βοηθήσω σήμερα;' %></div>
+  </div>
+  <div id="thrc-chat-input-row">
+    <input id="thrc-chat-input" type="text"
+      placeholder="<%- _vaLangEff === 'en' ? 'Type a message…' : 'Γράψτε ένα μήνυμα…' %>"
+      maxlength="500" autocomplete="off" />
+    <button id="thrc-chat-send">&#10148;</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  var fab = document.getElementById('thrc-chat-fab');
+  var panel = document.getElementById('thrc-chat-panel');
+  var closeBtn = document.getElementById('thrc-chat-close');
+  var messages = document.getElementById('thrc-chat-messages');
+  var input = document.getElementById('thrc-chat-input');
+  var sendBtn = document.getElementById('thrc-chat-send');
+  var chatApiUrl = <%- JSON.stringify(withTenantLink('/api/chat')) %>;
+  var isLoading = false;
+
+  function appendMsg(text, cls) {
+    var div = document.createElement('div');
+    div.className = 'thrc-msg ' + cls;
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
+  fab.addEventListener('click', function() {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) { input.focus(); }
+  });
+
+  closeBtn.addEventListener('click', function() { panel.hidden = true; });
+
+  function sendMessage() {
+    var msg = input.value.trim();
+    if (!msg || isLoading) return;
+    input.value = '';
+    appendMsg(msg, 'thrc-msg-user');
+    isLoading = true;
+    sendBtn.disabled = true;
+    var typingEl = document.createElement('div');
+    typingEl.id = 'thrc-chat-typing';
+    typingEl.textContent = '…';
+    messages.appendChild(typingEl);
+    messages.scrollTop = messages.scrollHeight;
+
+    fetch(chatApiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (typingEl.parentNode) typingEl.parentNode.removeChild(typingEl);
+      if (data && data.response) {
+        appendMsg(data.response, 'thrc-msg-bot');
+      } else if (data && data.error) {
+        appendMsg(data.error, 'thrc-msg-error');
+      }
+    })
+    .catch(function() {
+      if (typingEl.parentNode) typingEl.parentNode.removeChild(typingEl);
+      appendMsg('Σφάλμα σύνδεσης. Δοκιμάστε ξανά.', 'thrc-msg-error');
+    })
+    .finally(function() {
+      isLoading = false;
+      sendBtn.disabled = false;
+      input.focus();
+    });
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendMessage();
+  });
+})();
+</script>
+<% } %>
+
   </body>
 </html>
