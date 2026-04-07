@@ -1,1 +1,16 @@
-PLACEHOLDER
+<html lang="<%= lang %>">
+  <head>
+    <meta charset="UTF-8" />
+    <% const seoActiveCategory = (categories || []).find(function(c){ return c.slug === activeCategory || c.id === activeCategory; }); %>
+    <% const seoTitle = seoActiveCategory ? ((seoActiveCategory.name || '') + ' | ' + config.storeName) : config.storeName; %>
+    <% const seoDescription = seoActiveCategory
+      ? (lang === 'el' ? ('Προϊόντα κατηγορίας: ' + (seoActiveCategory.name || '') + ' με διαθεσιμότητα και τεχνικά φίλτρα.') : ('Browse ' + (seoActiveCategory.name || '') + ' with availability and technical filters.'))
+      : (lang === 'el' ? ('Εξειδικευμένο ηλεκτρονικό κατάστημα ' + config.storeName + ' για kits και ανταλλακτικά.') : ('Specialized e-commerce storefront for kits and spare parts.')); %>
+    <title><%= seoTitle %></title>
+    <meta name="description" content="<%= seoDescription %>" />
+    <meta property="og:title" content="<%= seoTitle %>" />
+    <meta property="og:description" content="<%= seoDescription %>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
+    <link rel="stylesheet" href="/styles.css" />
+    PLACEHOLDER_LARGE_FILE_USE_API_DIRECTLY
