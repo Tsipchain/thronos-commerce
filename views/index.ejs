@@ -394,41 +394,69 @@
       }
       body.eukolakis-classic .header-nav-row ul::-webkit-scrollbar { display: none; }
       body.eukolakis-classic .header-nav-row ul li a {
-        display: flex; align-items: center; gap: 8px;
-        padding: 0 14px; height: 40px;
-        color: var(--eko-text-muted);
-        text-decoration: none; font-size: .78rem; font-weight: 700;
-        letter-spacing: .06em; white-space: nowrap; text-transform: uppercase;
-        border: 1px solid rgba(196,144,46,.18);
-        border-radius: 4px;
-        background: linear-gradient(180deg, #1e2435 0%, #161b27 100%);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.3);
-        margin: 6px 3px;
+        position: relative;
+        display: inline-flex; align-items: center; justify-content: center; gap: 0;
+        padding: 0 22px; min-width: 110px; height: 52px;
+        background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 45%, #0e0e0e 100%);
+        border: 2px solid #0a0a0a;
+        border-radius: 6px;
+        color: #c8c8c8;
+        text-decoration: none; font-size: .78rem; font-weight: 900;
+        letter-spacing: .12em; white-space: nowrap; text-transform: uppercase;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.07),
+          inset 0 -1px 0 rgba(0,0,0,.5),
+          0 4px 16px rgba(0,0,0,.6);
+        margin: 6px 4px;
+        overflow: visible;
         transition: color .14s, border-color .14s, background .14s, box-shadow .14s;
       }
-      body.eukolakis-classic .eko-nav-plate-thumb {
-        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
-        object-fit: cover; border: 1px solid rgba(196,144,46,.26);
-        background: linear-gradient(135deg, #1b2233 0%, #121722 100%);
+      /* LED inner-glow frame */
+      body.eukolakis-classic .header-nav-row ul li a::before {
+        content: '';
+        position: absolute; inset: 4px;
+        border: 1.5px solid rgba(255,125,0,.48);
+        border-radius: 3px;
+        box-shadow: 0 0 7px rgba(255,125,0,.32), inset 0 0 6px rgba(255,125,0,.07);
+        pointer-events: none;
+        transition: border-color .14s, box-shadow .14s;
+        z-index: 0;
       }
-      body.eukolakis-classic .eko-nav-plate-fallback {
-        width: 28px; height: 20px; border-radius: 4px; flex-shrink: 0;
-        border: 1px solid rgba(196,144,46,.26); background: rgba(196,144,46,.08);
-        display: inline-flex; align-items: center; justify-content: center;
-        font-size: .56rem; letter-spacing: .06em; color: var(--eko-accent); font-weight: 800;
+      /* Corner rivets via background radial-gradients */
+      body.eukolakis-classic .header-nav-row ul li a::after {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+          radial-gradient(circle, #777 40%, #444 100%),
+          radial-gradient(circle, #777 40%, #444 100%),
+          radial-gradient(circle, #777 40%, #444 100%),
+          radial-gradient(circle, #777 40%, #444 100%);
+        background-size: 5px 5px, 5px 5px, 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+        background-position: 5px 5px, calc(100% - 5px) 5px, 5px calc(100% - 5px), calc(100% - 5px) calc(100% - 5px);
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 0;
       }
+      /* Hide thumbnail and fallback — plates are text-only */
+      body.eukolakis-classic .header-nav-row .eko-nav-plate-thumb,
+      body.eukolakis-classic .header-nav-row .eko-nav-plate-fallback { display: none !important; }
       body.eukolakis-classic .header-nav-row ul li a:hover {
-        color: var(--eko-accent);
-        border-color: rgba(196,144,46,.4);
-        background: linear-gradient(180deg, #24293c 0%, #1a1f2e 100%);
-        box-shadow: inset 0 1px 0 rgba(196,144,46,.12), 0 3px 10px rgba(0,0,0,.4);
+        color: #fff;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.1), inset 0 -1px 0 rgba(0,0,0,.6), 0 6px 22px rgba(0,0,0,.7);
+      }
+      body.eukolakis-classic .header-nav-row ul li a:hover::before {
+        border-color: rgba(255,138,0,.92);
+        box-shadow: 0 0 14px rgba(255,122,0,.72), inset 0 0 10px rgba(255,122,0,.17);
       }
       body.eukolakis-classic .header-nav-row ul li.active a {
-        color: var(--eko-accent);
-        border-color: rgba(196,144,46,.55);
-        border-top-color: var(--eko-accent);
-        background: linear-gradient(180deg, #2a2410 0%, #1c1a10 100%);
-        box-shadow: inset 0 1px 0 rgba(196,144,46,.2), 0 4px 14px rgba(0,0,0,.4);
+        color: #fff;
+        background: linear-gradient(180deg, #251d0a 0%, #1a1408 45%, #0e0d06 100%);
+        box-shadow: inset 0 1px 0 rgba(255,200,50,.07), 0 4px 18px rgba(0,0,0,.6);
+      }
+      body.eukolakis-classic .header-nav-row ul li.active a::before {
+        border-color: rgba(255,148,0,1);
+        box-shadow: 0 0 18px rgba(255,132,0,.88), inset 0 0 12px rgba(255,132,0,.22);
       }
       body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
       body.eukolakis-classic .menu-toggle { display: none; }

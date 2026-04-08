@@ -987,7 +987,7 @@ function loadTenantConfig(req) {
       /* Virtual Assistant store-facing settings */
       vaEnabled: false,
       vaMode: 'disabled',          /* disabled | customer | merchant | both */
-      vaLanguage: 'el',            /* el | en | auto */
+      vaLanguage: 'auto',           /* el | en | auto */
       vaTone: 'friendly',          /* friendly | professional | technical */
       vaBrandVoice: '',
       vaStoreInstructions: '',
@@ -1052,7 +1052,12 @@ function loadTenantConfig(req) {
     (cfg.homepage && cfg.homepage.blockVisibility) || {}
   );
   cfg.homepage.blockContent = Object.assign(
-    { kitsTitle: '', spareTitle: '', subscriptionsTitle: '' },
+    {
+      kitsTitle: '', spareTitle: '', subscriptionsTitle: '',
+      kitsCtaLabel: '', kitsCtaHref: '',
+      spareCtaLabel: '', spareCtaHref: '',
+      subscriptionsCtaLabel: '', subscriptionsCtaHref: ''
+    },
     (cfg.homepage && cfg.homepage.blockContent) || {}
   );
   cfg.footer = Object.assign({}, fallback.footer, cfg.footer || {});
@@ -4425,15 +4430,18 @@ app.post('/admin/notifications', async (req, res) => {
   const config = loadTenantConfig(req);
   // New notifications config contract — platform SMTP, tenant branding only.
   if (!config.notifications) config.notifications = {};
-  config.notifications.enabled       = req.body.emailNotificationsEnabled === 'on';
+  config.notifications.enabled          = req.body.emailNotificationsEnabled === 'on';
   config.notifications.notificationEmail = (req.body.notificationEmail || '').trim();
-  config.notifications.replyToEmail  = (req.body.replyToEmail || '').trim();
-  config.notifications.supportEmail  = (req.body.supportEmail || '').trim();
+  config.notifications.replyToEmail     = (req.body.replyToEmail || '').trim();
+  config.notifications.supportEmail     = (req.body.supportEmail || '').trim();
+  // Top-level legacy fields still read by email-sending code
+  config.notificationCcCustomer  = req.body.notificationCcCustomer === 'on';
+  config.notificationFromName    = (req.body.notificationFromName || '').trim();
   // Keep legacy notificationEmails in sync for backward compatibility
   if (config.notifications.notificationEmail) {
     config.notificationEmails = [config.notifications.notificationEmail];
   }
-  config.notificationWebhookUrl = (req.body.notificationWebhookUrl || '').trim();
+  config.notificationWebhookUrl    = (req.body.notificationWebhookUrl || '').trim();
   config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
   saveTenantConfig(req, config);
 

@@ -1028,14 +1028,38 @@
           <input type="text" name="homepageKitsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsTitle) || '' %>" placeholder="<%= homepageLabels.blockKitsTitlePlaceholder %>" />
           <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <label><span>CTA κουμπί — κείμενο <small style="font-weight:400;color:#94a3b8;">(kits)</small></span>
+            <input type="text" name="homepageKitsCtaLabel" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsCtaLabel) || '' %>" placeholder="π.χ. Δείτε τα kits" />
+          </label>
+          <label><span>CTA κουμπί — σύνδεσμος <small style="font-weight:400;color:#94a3b8;">(kits)</small></span>
+            <input type="text" name="homepageKitsCtaHref" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.kitsCtaHref) || '' %>" placeholder="/products?cat=kits" />
+          </label>
+        </div>
         <label><span><%= homepageLabels.blockSpareTitleLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
           <input type="text" name="homepageSpareTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareTitle) || '' %>" placeholder="<%= homepageLabels.blockSpareTitlePlaceholder %>" />
           <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <label><span>CTA κουμπί — κείμενο <small style="font-weight:400;color:#94a3b8;">(ανταλλακτικά)</small></span>
+            <input type="text" name="homepageSpareCtaLabel" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareCtaLabel) || '' %>" placeholder="π.χ. Ανταλλακτικά & εργαλεία" />
+          </label>
+          <label><span>CTA κουμπί — σύνδεσμος <small style="font-weight:400;color:#94a3b8;">(ανταλλακτικά)</small></span>
+            <input type="text" name="homepageSpareCtaHref" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.spareCtaHref) || '' %>" placeholder="/products?cat=spare" />
+          </label>
+        </div>
         <label><span><%= homepageLabels.blockSubscriptionsTitleLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό override)</small></span>
           <input type="text" name="homepageSubscriptionsTitle" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsTitle) || '' %>" placeholder="<%= homepageLabels.blockSubscriptionsTitlePlaceholder %>" />
           <small class="helper">Αφήστε κενό για τον προεπιλεγμένο τίτλο.</small>
         </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <label><span>CTA κουμπί — κείμενο <small style="font-weight:400;color:#94a3b8;">(συνδρομές)</small></span>
+            <input type="text" name="homepageSubscriptionsCtaLabel" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsCtaLabel) || '' %>" placeholder="π.χ. Δείτε τα πλάνα" />
+          </label>
+          <label><span>CTA κουμπί — σύνδεσμος <small style="font-weight:400;color:#94a3b8;">(συνδρομές)</small></span>
+            <input type="text" name="homepageSubscriptionsCtaHref" value="<%= (rawConfig.homepage && rawConfig.homepage.blockContent && rawConfig.homepage.blockContent.subscriptionsCtaHref) || '' %>" placeholder="/products?cat=subscriptions" />
+          </label>
+        </div>
         <h3 class="settings-section-heading">Επικοινωνία & Social Media</h3>
         <p class="helper">Τα στοιχεία επικοινωνίας και τα social links εμφανίζονται στο footer του καταστήματος.</p>
 
@@ -1456,21 +1480,48 @@
 
         <h3 class="settings-section-heading">Email ειδοποιήσεων</h3>
 
+        <label class="checkbox-label">
+          <input type="checkbox" name="emailNotificationsEnabled"
+                 <%= (config.notifications && config.notifications.enabled) ? 'checked' : '' %>
+                 <%= permissions.canEditSettings ? '' : 'disabled' %> />
+          <span>Ενεργοποίηση ειδοποιήσεων email παραγγελιών</span>
+        </label>
+        <small class="helper" style="display:block;margin:-4px 0 10px 28px;">Όταν ενεργό, ο merchant λαμβάνει email για κάθε νέα παραγγελία.</small>
+
         <label>
-          <span>Email(s) παραλήπτη <small style="font-weight:400;color:#94a3b8;">(ένα ανά γραμμή)</small></span>
-          <textarea name="notificationEmails" rows="3"
-                    placeholder="owner@myshop.gr&#10;backup@myshop.gr"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= (config.notificationEmails || []).join('\n') %></textarea>
-          <small class="helper">Αυτά τα email θα λαμβάνουν ειδοποίηση για κάθε νέα παραγγελία. Μπορείτε να βάλετε πολλά, ένα ανά γραμμή.</small>
+          <span>Email παραλήπτη (merchant)</span>
+          <input type="email" name="notificationEmail"
+                 value="<%= (config.notifications && config.notifications.notificationEmail) || (config.notificationEmails && config.notificationEmails[0]) || '' %>"
+                 placeholder="owner@myshop.gr"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Το email του καταστηματάρχη που λαμβάνει ειδοποίηση για κάθε νέα παραγγελία.</small>
+        </label>
+
+        <label>
+          <span>Reply-To email <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="email" name="replyToEmail"
+                 value="<%= (config.notifications && config.notifications.replyToEmail) || '' %>"
+                 placeholder="noreply@myshop.gr"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αν ορίσετε αυτό, τα emails θα έχουν αυτό το Reply-To αντί του from address.</small>
+        </label>
+
+        <label>
+          <span>Support email <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται στον πελάτη)</small></span>
+          <input type="email" name="supportEmail"
+                 value="<%= (config.notifications && config.notifications.supportEmail) || '' %>"
+                 placeholder="support@myshop.gr"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Εμφανίζεται στο email επιβεβαίωσης παραγγελίας ως επαφή υποστήριξης.</small>
         </label>
 
         <label class="checkbox-label">
           <input type="checkbox" name="notificationCcCustomer"
-                 <%= (config.notificationCcCustomer) ? 'checked' : '' %>
+                 <%= config.notificationCcCustomer ? 'checked' : '' %>
                  <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Αποστολή επιβεβαίωσης παραγγελίας και στον πελάτη (CC)</span>
+          <span>Αποστολή επιβεβαίωσης παραγγελίας και στον πελάτη</span>
         </label>
-        <small class="helper" style="display:block;margin:-4px 0 10px 28px;">Αν ενεργοποιηθεί, ο πελάτης λαμβάνει αντίγραφο του email επιβεβαίωσης.</small>
+        <small class="helper" style="display:block;margin:-4px 0 10px 28px;">Αν ενεργοποιηθεί, ο πελάτης λαμβάνει email επιβεβαίωσης μετά την παραγγελία του.</small>
 
         <label>
           <span>Εμφανιζόμενο όνομα αποστολέα</span>
@@ -1478,7 +1529,7 @@
                  value="<%= config.notificationFromName || '' %>"
                  placeholder="π.χ. Eukolakis Store"
                  <%= permissions.canEditSettings ? '' : 'readonly' %> />
-          <small class="helper">Αυτό φαίνεται ως «Από:» στα email που λαμβάνουν οι πελάτες και ο διαχειριστής. Χρησιμοποιήστε το όνομα του καταστήματός σας.</small>
+          <small class="helper">Φαίνεται ως «Από:» στα emails προς τον πελάτη και τον merchant.</small>
         </label>
 
         <details style="margin:10px 0 14px;">
@@ -1518,7 +1569,7 @@
       <% const _va = (rawConfig.assistant) || {}; %>
       <% const _vaEnabled = !!_va.vaEnabled; %>
       <% const _vaMode    = _va.vaMode    || 'disabled'; %>
-      <% const _vaLang    = _va.vaLanguage || 'el'; %>
+      <% const _vaLang    = _va.vaLanguage || 'auto'; %>
       <% const _vaTone    = _va.vaTone    || 'friendly'; %>
       <form id="tab-assistant" class="admin-block section-panel" method="POST" action="<%= withTenantLink('/admin/assistant') %>">
         <h2>🤖 Εικονικός Βοηθός</h2>
