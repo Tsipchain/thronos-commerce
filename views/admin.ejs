@@ -370,7 +370,7 @@
 
         <h3 class="settings-section-heading">Χρώματα & Τυπογραφία <% if (!supportsColors) { %><small style="color:#ca8a04;font-weight:600;">(περιορισμένη επίδραση στο τρέχον theme)</small><% } %></h3>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
-        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερή βιομηχανική παλέτα χρωμάτων. Τα παρακάτω χρώματα δεν εφαρμόζονται στο ενεργό θέμα — μπορείτε να τα αλλάξετε αν αλλάξετε θέμα.</p>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό βιομηχανικό header. Τα <strong>χρώματα μενού</strong> δεν εφαρμόζονται (βλ. παρακάτω). Το <strong>Primary & Accent color</strong> επηρεάζουν κουμπιά, links και δευτερεύοντα στοιχεία — εφαρμόζονται κανονικά.</p>
         <% } %>
 
         <label><span><%= t('admin.primaryColor') %></span>
@@ -453,10 +453,10 @@
           <div class="color-field">
             <input type="text" name="themeMenuBg" id="txt-themeMenuBg"
                    value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                   <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'readonly' : '' %> />
             <input type="color" id="cp-themeMenuBg"
                    value="<%= (config.theme && config.theme.menuBg) || '#111111' %>"
-                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+                   title="Επιλογή χρώματος" <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'disabled' : '' %> />
           </div>
         </label>
 
@@ -464,10 +464,10 @@
           <div class="color-field">
             <input type="text" name="themeMenuText" id="txt-themeMenuText"
                    value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                   <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'readonly' : '' %> />
             <input type="color" id="cp-themeMenuText"
                    value="<%= (config.theme && config.theme.menuText) || '#ffffff' %>"
-                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+                   title="Επιλογή χρώματος" <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'disabled' : '' %> />
           </div>
         </label>
 
@@ -475,10 +475,10 @@
           <div class="color-field">
             <input type="text" name="themeMenuActiveBg" id="txt-themeMenuActiveBg"
                    value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                   <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'readonly' : '' %> />
             <input type="color" id="cp-themeMenuActiveBg"
                    value="<%= (config.theme && config.theme.menuActiveBg) || '#f06292' %>"
-                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+                   title="Επιλογή χρώματος" <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'disabled' : '' %> />
           </div>
         </label>
 
@@ -486,10 +486,10 @@
           <div class="color-field">
             <input type="text" name="themeMenuActiveText" id="txt-themeMenuActiveText"
                    value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
-                   <%= permissions.canEditSettings ? '' : 'readonly' %> />
+                   <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'readonly' : '' %> />
             <input type="color" id="cp-themeMenuActiveText"
                    value="<%= (config.theme && config.theme.menuActiveText) || '#ffffff' %>"
-                   title="Επιλογή χρώματος" <%= permissions.canEditSettings ? '' : 'disabled' %> />
+                   title="Επιλογή χρώματος" <%= (isEukolakisClassic || !permissions.canEditSettings) ? 'disabled' : '' %> />
           </div>
         </label>
 
@@ -562,7 +562,7 @@
           </select>
         </label>
         <label><span>Μέγιστο ύψος logo στο header (px)</span>
-          <input id="themeLogoMaxHeight" type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= Number((config.theme && config.theme.logoMaxHeight) || (config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 96 : 88)) %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <input id="themeLogoMaxHeight" type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= config.theme.logoMaxHeight %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <small class="helper">Ύψος σε pixels (56–120px). <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
         </label>
         <% if (config.logoPath) { %>
@@ -570,7 +570,7 @@
         <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
         <% const liveBrandingMode = (config.theme && config.theme.brandingMode) || 'logo_name'; %>
         <% const liveIsClassic = config.theme && config.theme.presetId === 'eukolakis_classic_diy'; %>
-        <% const liveRawHeight = Number((config.theme && config.theme.logoMaxHeight) || (liveIsClassic ? 96 : 88)); %>
+        <% const liveRawHeight = config.theme.logoMaxHeight; %>
         <% const livePreviewLogoHeight = Math.max(56, Math.min(120, liveRawHeight || (liveIsClassic ? 96 : 88))); %>
         <div class="branding-live-preview">
           <div class="title">Live preview (logo size + shadow)</div>
@@ -918,6 +918,10 @@
         <label><span><%= homepageLabels.secondaryCardLinkLabel %> <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="homepageSecondaryLink" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.link) || '' %>" placeholder="<%= homepageLabels.secondaryCardLinkPlaceholder %>" />
           <small class="helper"><%= homepageLabels.secondaryCardLinkHelper %></small>
+        </label>
+        <label><span>Εικόνα secondary card <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSecondaryImage" value="<%= (rawConfig.homepage && rawConfig.homepage.secondaryCard && rawConfig.homepage.secondaryCard.image) || '' %>" placeholder="/tenants/TENANT/media/secondary-card.jpg" />
+          <small class="helper">Σχετική ή απόλυτη διαδρομή εικόνας για το secondary card της αρχικής σελίδας.</small>
         </label>
 
         <h3 class="settings-section-heading">Ενότητες Αρχικής Σελίδας</h3>
