@@ -1000,6 +1000,12 @@ function loadTenantConfig(req) {
       vaAvoidTopics: '',
       vaMerchantGoals: ''
     },
+    notifications: {
+      enabled: false,
+      notificationEmail: '',
+      replyToEmail: '',
+      supportEmail: ''
+    },
     theme: {
       presetId: DEFAULT_THEME_KEY,
       menuBg: '#111111',
@@ -1068,6 +1074,7 @@ function loadTenantConfig(req) {
   cfg.favicon = Object.assign({}, fallback.favicon, cfg.favicon || {});
   cfg.assistant = Object.assign({}, fallback.assistant, cfg.assistant || {});
   cfg.assistant = normalizeAssistantConfig(cfg.assistant);
+  cfg.notifications = Object.assign({}, fallback.notifications, cfg.notifications || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
@@ -2365,10 +2372,6 @@ app.use('/admin', (req, res, next) => {
 });
 
 function buildAdminViewModel(req, extra) {
-  console.log('[tenant-admin] build-view-model:start', JSON.stringify({
-    tenantId: req && req.tenant ? req.tenant.id : null,
-    path: req ? (req.originalUrl || req.url) : null
-  }));
   const config = loadTenantConfig(req);
   const faviconPath = (
     config &&
@@ -2378,10 +2381,6 @@ function buildAdminViewModel(req, extra) {
       : ''
   );
   const hasConfiguredFavicon = Boolean(faviconPath);
-  console.log('[tenant-admin] favicon-config', JSON.stringify({
-    tenantId: req && req.tenant ? req.tenant.id : null,
-    hasConfiguredFavicon
-  }));
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
   const categories = loadTenantCategories(req);
   const assetAudit = buildTenantAssetAudit(req, config, categories);
@@ -4521,9 +4520,9 @@ app.post('/admin/notifications', async (req, res) => {
   config.notificationCcCustomer  = req.body.notificationCcCustomer === 'on';
   config.notificationFromName    = (req.body.notificationFromName || '').trim();
   // Keep legacy notificationEmails in sync for backward compatibility
-  if (config.notifications.notificationEmail) {
-    config.notificationEmails = [config.notifications.notificationEmail];
-  }
+  config.notificationEmails = config.notifications.notificationEmail
+    ? [config.notifications.notificationEmail]
+    : [];
   config.notificationWebhookUrl    = (req.body.notificationWebhookUrl || '').trim();
   config.notificationWebhookSecret = (req.body.notificationWebhookSecret || '').trim();
   saveTenantConfig(req, config);
@@ -4558,7 +4557,7 @@ app.post('/admin/assistant', async (req, res) => {
 
   config.assistant.vaEnabled          = b.vaEnabled === '1';
   config.assistant.vaMode             = _validModes.includes(b.vaMode)     ? b.vaMode     : 'disabled';
-  config.assistant.vaLanguage         = _validLangs.includes(b.vaLanguage) ? b.vaLanguage : 'el';
+  config.assistant.vaLanguage         = _validLangs.includes(b.vaLanguage) ? b.vaLanguage : 'auto';
   config.assistant.vaTone             = _validTones.includes(b.vaTone)     ? b.vaTone     : 'friendly';
   config.assistant.vaBrandVoice       = _str(b.vaBrandVoice);
   config.assistant.vaStoreInstructions= _str(b.vaStoreInstructions);
