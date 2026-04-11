@@ -1802,6 +1802,39 @@ async function sendOrderWebhook({ tenant, config, order }) {
   console.log(`[Thronos Commerce] Webhook sent for order ${order.id} → ${url}`);
 }
 
+/**
+ * Fire-and-forget: POST a properly-structured commerce event to the VA service.
+ *
+ * The VA expects:
+ *   POST <THRONOS_ASSISTANT_URL>/api/v1/webhooks/commerce
+ *   Header: X-Thronos-Signature: sha256=<hmac-sha256 of body>
+ *   Body:   { event: "order.placed"|"order.status_changed"|"product.updated",
+ *              tenant_id: <string>, data: { ... } }
+ *
+ * Signing key: COMMERCE_WEBHOOK_SECRET env var (must match VA's COMMERCE_WEBHOOK_SECRET).
+ * If the env var is absent, the signature header is omitted (VA will allow it in dev mode).
+ */
+async function fireVASync(tenantId, event, data) {
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || '').replace(/\/$/, '');
+  if (!vaUrl) return;
+
+  const body = JSON.stringify({ event, tenant_id: tenantId, data });
+  const headers = { 'Content-Type': 'application/json' };
+
+  const secret = (process.env.COMMERCE_WEBHOOK_SECRET || '').trim();
+  if (secret) {
+    headers['X-Thronos-Signature'] =
+      'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex');
+  }
+
+  try {
+    await axios.post(`${vaUrl}/api/v1/webhooks/commerce`, body, { headers, timeout: 4000 });
+    console.log(`[va-sync] ${event} → ${tenantId}`);
+  } catch (err) {
+    console.warn(`[va-sync] ${event} failed (${tenantId}):`, err.message);
+  }
+}
+
 async function dispatchAssistantEvent(req, eventType, payload) {
   const config = loadTenantConfig(req);
   const assistant = (config && config.assistant) || {};
@@ -3058,6 +3091,29 @@ app.post('/checkout', async (req, res) => {
     paymentStatus: order.paymentStatus,
     items: Array.isArray(order.items) ? order.items.length : 0
   });
+  fireVASync(req.tenant.id, 'order.placed', {
+    order_number: order.id,
+    customer_id: order.email || 'guest',
+    status: order.fulfillmentStatus || 'pending',
+    total: order.total,
+    shipping_cost: order.shippingCost || 0,
+    currency: 'EUR',
+    shipping_method: order.shippingMethod || '',
+    payment_method: order.paymentMethod || 'COD',
+    payment_status: order.paymentStatus || 'pending',
+    shipping_address: {
+      name: order.customerName,
+      city: order.city || '',
+    },
+    notes: order.notes || '',
+    items: Array.isArray(order.items) ? order.items.map((ci) => ({
+      sku: ci.id,
+      name: ci.name,
+      quantity: ci.qty,
+      unit_price: ci.price,
+      total_price: (ci.price || 0) * (ci.qty || 1),
+    })) : [],
+  });
   if (lowStockAlerts.length && config.assistant && config.assistant.notifyLowStock !== false) {
     dispatchAssistantEvent(req, 'low_stock', { alerts: lowStockAlerts, orderId });
   }
@@ -3175,6 +3231,23 @@ app.get('/checkout/stripe-success', async (req, res) => {
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
+  fireVASync(req.tenant.id, 'order.placed', {
+    order_number: order.id,
+    customer_id: order.email || 'guest',
+    status: order.fulfillmentStatus || 'pending',
+    total: order.total,
+    shipping_cost: order.shippingCost || 0,
+    currency: 'EUR',
+    shipping_method: order.shippingMethod || '',
+    payment_method: 'CARD',
+    payment_status: 'paid',
+    shipping_address: { name: order.customerName, city: order.city || '' },
+    notes: order.notes || '',
+    items: Array.isArray(order.items) ? order.items.map((ci) => ({
+      sku: ci.id, name: ci.name, quantity: ci.qty,
+      unit_price: ci.price, total_price: (ci.price || 0) * (ci.qty || 1),
+    })) : [],
+  });
 
   if (req.session) {
     req.session.lastCompletedOrder = {
@@ -4093,6 +4166,11 @@ app.post('/admin/orders/tracking', async (req, res) => {
     trackingCarrier,
     fulfillmentStatus: next.fulfillmentStatus
   }));
+  fireVASync(req.tenant.id, 'order.status_changed', {
+    order_number: orderId,
+    status: next.fulfillmentStatus,
+    tracking_number: trackingNumber || undefined,
+  });
   return res.redirect(buildTenantLink(req, '/admin/orders', { message: 'Tracking ενημερώθηκε.' }));
 });
 
@@ -4853,6 +4931,21 @@ app.post('/admin/products', async (req, res) => {
       if (typeof p.active !== 'boolean') p.active = true;
     });
     saveTenantProducts(req, parsed);
+    // Sync each product to the VA in the background
+    parsed.forEach((p) => {
+      const name = resolveTranslatable(p.name, DEFAULT_CONTENT_LANG);
+      fireVASync(req.tenant.id, 'product.updated', {
+        sku: p.id,
+        name,
+        description: resolveTranslatable(p.description || '', DEFAULT_CONTENT_LANG),
+        category: p.categoryId || '',
+        price: Number(p.price) || 0,
+        stock: Number(p.stock) || 0,
+        active: p.active !== false,
+        low_stock_threshold: Number(p.lowStockThreshold) || 5,
+        imageUrl: p.imageUrl || '',
+      });
+    });
     res.render(
       'admin',
       buildAdminViewModel(req, {
@@ -6402,6 +6495,7 @@ console.log('[boot] Env audit:', {
   STRIPE_WEBHOOK: !!(process.env.STRIPE_WEBHOOK_SECRET),
   THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
   THRONOS_COMMERCE_API_KEY: !!process.env.THRONOS_COMMERCE_API_KEY,
+  COMMERCE_WEBHOOK_SECRET: !!process.env.COMMERCE_WEBHOOK_SECRET,
   THRONOS_ASSISTANT_URL: !!process.env.THRONOS_ASSISTANT_URL,
   THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
