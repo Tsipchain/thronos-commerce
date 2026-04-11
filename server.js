@@ -445,7 +445,11 @@ function loadJson(filePath, fallback) {
 }
 
 function saveJson(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  // Atomic write: write to a temp file then rename so a crash during write
+  // never produces a partially-written file.
+  const tmp = filePath + '.tmp.' + process.pid;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(tmp, filePath);
 }
 
 function listThemeCatalog() {
@@ -3085,25 +3089,21 @@ app.post('/checkout', async (req, res) => {
   } catch (err) {
     console.error('[Thronos Commerce] sendOrderWebhook failed:', err.message);
   }
-  dispatchAssistantEvent(req, 'new_order', {
-    orderId: order.id,
-    total: order.total,
-    paymentStatus: order.paymentStatus,
-    items: Array.isArray(order.items) ? order.items.length : 0
-  });
   fireVASync(req.tenant.id, 'order.placed', {
     order_number: order.id,
     customer_id: order.email || 'guest',
     status: order.fulfillmentStatus || 'pending',
     total: order.total,
     shipping_cost: order.shippingCost || 0,
-    currency: 'EUR',
-    shipping_method: order.shippingMethod || '',
-    payment_method: order.paymentMethod || 'COD',
+    currency: order.currency || 'EUR',
+    shipping_method: order.shippingMethodLabel || order.shippingMethodId || '',
+    payment_method: order.paymentMethodLabel || order.paymentMethodId || 'COD',
     payment_status: order.paymentStatus || 'pending',
     shipping_address: {
       name: order.customerName,
+      street: order.address || '',
       city: order.city || '',
+      postal: order.tk || '',
     },
     notes: order.notes || '',
     items: Array.isArray(order.items) ? order.items.map((ci) => ({
@@ -3237,11 +3237,16 @@ app.get('/checkout/stripe-success', async (req, res) => {
     status: order.fulfillmentStatus || 'pending',
     total: order.total,
     shipping_cost: order.shippingCost || 0,
-    currency: 'EUR',
-    shipping_method: order.shippingMethod || '',
-    payment_method: 'CARD',
+    currency: order.currency || 'EUR',
+    shipping_method: order.shippingMethodLabel || order.shippingMethodId || '',
+    payment_method: order.paymentMethodLabel || 'CARD',
     payment_status: 'paid',
-    shipping_address: { name: order.customerName, city: order.city || '' },
+    shipping_address: {
+      name: order.customerName,
+      street: order.address || '',
+      city: order.city || '',
+      postal: order.tk || '',
+    },
     notes: order.notes || '',
     items: Array.isArray(order.items) ? order.items.map((ci) => ({
       sku: ci.id, name: ci.name, quantity: ci.qty,
