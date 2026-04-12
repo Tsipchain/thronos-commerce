@@ -1826,7 +1826,7 @@ async function sendOrderWebhook({ tenant, config, order }) {
  * If the env var is absent, the signature header is omitted (VA will allow it in dev mode).
  */
 async function fireVASync(tenantId, event, data) {
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || '').replace(/\/$/, '');
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
   if (!vaUrl) return;
 
   const body = JSON.stringify({ event, tenant_id: tenantId, data });
@@ -6421,7 +6421,7 @@ app.post('/api/chat', async (req, res) => {
   if (!assistant.vaEnabled || !['customer', 'both'].includes(assistant.vaMode)) {
     return res.status(403).json({ error: 'Chat assistant not available for this store.' });
   }
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || '').replace(/\/$/, '');
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
   if (!vaUrl) {
     return res.status(503).json({ error: 'Assistant service not configured.' });
   }
@@ -6500,7 +6500,7 @@ console.log('[boot] Env audit:', {
   THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
   THRONOS_COMMERCE_API_KEY: !!process.env.THRONOS_COMMERCE_API_KEY,
   COMMERCE_WEBHOOK_SECRET: !!process.env.COMMERCE_WEBHOOK_SECRET,
-  THRONOS_ASSISTANT_URL: !!process.env.THRONOS_ASSISTANT_URL,
+  THRONOS_ASSISTANT_URL: !!(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL),
   THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });
