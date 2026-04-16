@@ -1569,7 +1569,12 @@ async function verifyAdminAction(req, providedPassword) {
 }
 
 // Root operator auth
-const ROOT_ADMIN_PASSWORD = process.env.THRONOS_ROOT_ADMIN_PASSWORD || '';
+// SECURITY: Root admin password fail-fast — Phase 0 hardening
+const ROOT_ADMIN_PASSWORD = process.env.THRONOS_ROOT_ADMIN_PASSWORD;
+if (!ROOT_ADMIN_PASSWORD) {
+    console.error('FATAL: THRONOS_ROOT_ADMIN_PASSWORD environment variable is required');
+    process.exit(1);
+}
 
 function verifyRootPassword(plain) {
   if (!ROOT_ADMIN_PASSWORD) return false;
@@ -2221,11 +2226,14 @@ app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set('trust proxy', 1);
-if (!process.env.SESSION_SECRET) {
-  console.warn('[boot] SESSION_SECRET not set — using insecure default. Set SESSION_SECRET in production!');
+// SECURITY: Hardcoded session secret removed — Phase 0 hardening
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+    console.error('FATAL: SESSION_SECRET environment variable is required');
+    process.exit(1);
 }
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'thronos-secret-change-in-production',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
