@@ -4095,10 +4095,13 @@ app.get('/admin/hosting', (req, res) => {
     const config = loadTenantConfig(req);
     const tenantHosting = req.tenant.hosting && typeof req.tenant.hosting === 'object'
       ? req.tenant.hosting : {};
+    const _previewSub = String(req.tenant.previewSubdomain || req.tenant.id || '').trim();
     const hosting = {
-      primaryDomain: tenantHosting.primaryDomain || req.tenant.customDomain || '',
-      aliases: Array.isArray(tenantHosting.aliases) ? tenantHosting.aliases : [],
-      previewHost: tenantHosting.previewHost || '',
+      primaryDomain: tenantHosting.primaryDomain || req.tenant.primaryDomain || req.tenant.domain || req.tenant.customDomain || '',
+      aliases: (Array.isArray(tenantHosting.aliases) && tenantHosting.aliases.length)
+        ? tenantHosting.aliases
+        : (Array.isArray(req.tenant.domains) ? req.tenant.domains : []),
+      previewHost: tenantHosting.previewHost || (_previewSub ? `${_previewSub}.thonoscommerce.thronoschain.org` : ''),
       domainStatus: tenantHosting.domainStatus || req.tenant.domainStatus || 'pending_dns',
       canonicalToWww: !!tenantHosting.canonicalToWww,
       sslStatus: tenantHosting.sslStatus || 'pending',
