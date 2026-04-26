@@ -26,18 +26,14 @@
       "label": "Courier με αντικαταβολή",
       "base": 4,
       "codFee": 2,
-      "allowedPaymentMethods": [
-        "COD"
-      ]
+      "allowedPaymentMethods": ["COD"]
     },
     {
       "id": "standard_card",
       "label": "Courier με κάρτα",
       "base": 3,
       "codFee": 0,
-      "allowedPaymentMethods": [
-        "CARD"
-      ]
+      "allowedPaymentMethods": ["CARD"]
     }
   ],
   "paymentOptions": [
@@ -81,15 +77,9 @@
   "homepage": {
     "presetId": "eukolakis_classic_diy",
     "heroImage": "",
-    "featuredPrimary": [
-      "eukolaki-diy-roll-kit",
-      "eukolaki-diy-slide-door-kit"
-    ],
+    "featuredPrimary": ["eukolaki-diy-roll-kit", "eukolaki-diy-slide-door-kit"],
     "featuredSecondaryId": "",
-    "featuredIds": [
-      "eukolaki-diy-roll-kit",
-      "eukolaki-diy-slide-door-kit"
-    ],
+    "featuredIds": ["eukolaki-diy-roll-kit", "eukolaki-diy-slide-door-kit"],
     "secondaryCard": {
       "title": {
         "el": "DIY υποστήριξη & ανταλλακτικά",
@@ -108,5 +98,19 @@
     "introTagline": "Industrial DIY kits & ανταλλακτικά για ρολά και συρόμενα.",
     "introVideoUrl": "",
     "introPosterUrl": ""
+  },
+  "assistant": {
+    "vaEnabled": false,
+    "vaMode": "disabled",
+    "vaLanguage": "el",
+    "vaTone": "friendly",
+    "vaBrandVoice": "Φιλικός, πρακτικός και εξειδικευμένος στα DIY προϊόντα.",
+    "vaStoreInstructions": "Βοήθα τους πελάτες να επιλέξουν το σωστό kit για την κατασκευή τους.",
+    "vaProductGuidance": "",
+    "vaCustomerSupport": "",
+    "vaAvoidTopics": "",
+    "vaMerchantGoals": "",
+    "webhookUrl": "",
+    "apiKey": ""
   }
 }

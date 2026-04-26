@@ -134,16 +134,73 @@
   },
   {
     "id": "part-guide-basic",
-    "name": {
-      "el": "Guide Basic 40mm",
-      "en": "Guide Basic 40mm"
-    },
-    "description": {
-      "el": "Ανταλλακτικός οδηγός",
-      "en": "Spare guide rail"
-    },
+    "name": { "el": "Guide Basic 40mm", "en": "Guide Basic 40mm" },
+    "description": { "el": "Ανταλλακτικός οδηγός ρολού 40mm.", "en": "Spare roller guide rail 40mm." },
     "price": 2,
     "imageUrl": "/tenants/eukolakis/media/parts/guide-basic.jpg",
+    "categoryId": "spare-parts",
+    "stock": 100
+  },
+  {
+    "id": "part-guide-pro",
+    "name": { "el": "Guide Pro 55mm", "en": "Guide Pro 55mm" },
+    "description": { "el": "Επαγγελματικός οδηγός ρολού 55mm για μεγαλύτερες κατασκευές.", "en": "Professional roller guide rail 55mm for larger installations." },
+    "price": 4.5,
+    "imageUrl": "/tenants/eukolakis/media/parts/guide-pro.jpg",
+    "categoryId": "spare-parts",
+    "stock": 80
+  },
+  {
+    "id": "part-color-white",
+    "name": { "el": "Πάνελ Χρώματος — Λευκό", "en": "Color Panel — White" },
+    "description": { "el": "Ανταλλακτικό πάνελ χρώματος λευκό για Roll Kit.", "en": "Spare white color panel for Roll Kit." },
+    "price": 0,
+    "imageUrl": "/tenants/eukolakis/media/options/white.png",
+    "categoryId": "spare-parts",
+    "stock": 200
+  },
+  {
+    "id": "part-color-brown",
+    "name": { "el": "Πάνελ Χρώματος — Καφέ", "en": "Color Panel — Brown" },
+    "description": { "el": "Ανταλλακτικό πάνελ χρώματος καφέ για Roll Kit.", "en": "Spare brown color panel for Roll Kit." },
+    "price": 1.5,
+    "imageUrl": "/tenants/eukolakis/media/options/brown.png",
+    "categoryId": "spare-parts",
+    "stock": 150
+  },
+  {
+    "id": "part-motor-ready",
+    "name": { "el": "Motor-Ready Βάση", "en": "Motor-Ready Base" },
+    "description": { "el": "Βάση συμβατή με κινητήρα αυτοματισμού ρολών.", "en": "Motor-compatible base bracket for automated roller shutters." },
+    "price": 3,
+    "imageUrl": "/tenants/eukolakis/media/options/motor-ready.png",
+    "categoryId": "spare-parts",
+    "stock": 60
+  },
+  {
+    "id": "part-silent",
+    "name": { "el": "Silent Kit — Αντικραδασμικό", "en": "Silent Kit — Anti-vibration" },
+    "description": { "el": "Σετ αντικραδασμικών για αθόρυβη λειτουργία ρολού.", "en": "Anti-vibration set for quiet roller shutter operation." },
+    "price": 2.2,
+    "imageUrl": "/tenants/eukolakis/media/options/silent-kit.png",
+    "categoryId": "spare-parts",
+    "stock": 90
+  },
+  {
+    "id": "part-finish-inox",
+    "name": { "el": "Φινίρισμα Inox", "en": "Inox Finish" },
+    "description": { "el": "Ανοξείδωτο φινίρισμα για Slide Door Kit.", "en": "Stainless steel finish for Slide Door Kit." },
+    "price": 0,
+    "imageUrl": "/tenants/eukolakis/media/options/inox.png",
+    "categoryId": "spare-parts",
+    "stock": 120
+  },
+  {
+    "id": "part-finish-black",
+    "name": { "el": "Φινίρισμα Μαύρο Ματ", "en": "Matte Black Finish" },
+    "description": { "el": "Matte μαύρο φινίρισμα για Slide Door Kit.", "en": "Matte black finish for Slide Door Kit." },
+    "price": 2.5,
+    "imageUrl": "/tenants/eukolakis/media/options/matte-black.png",
     "categoryId": "spare-parts",
     "stock": 100
   }
