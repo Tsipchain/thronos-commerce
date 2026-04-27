@@ -562,6 +562,16 @@ function getTenantHostingSnapshot(tenant, req) {
   const previewSubdomain = String(t.previewSubdomain || t.id || '').trim();
   const previewHost = previewSubdomain ? `${previewSubdomain}.thonoscommerce.thronoschain.org` : '';
   const config = req ? loadTenantConfig(req) : {};
+  const vaAssistant = (config && config.assistant) || {};
+  const vaBackendAvailable = !!(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
+  const vaEnabled = !!vaAssistant.vaEnabled;
+  const vaMode = vaAssistant.vaMode || 'disabled';
+  const vaWarning = vaEnabled && ['customer', 'both'].includes(vaMode) && !vaBackendAvailable
+    ? 'Widget enabled but THRONOS_ASSISTANT_URL env var is not set — chat will fail.'
+    : null;
+  const domainType = (t.primaryDomain || t.domain) ? 'custom' : 'platform';
+
+  const _poweredByMode = t.poweredByMode || (t.allowPoweredBy === true ? 'always' : 'disabled');
   return {
     primaryDomain,
     aliases,
@@ -574,6 +584,8 @@ function getTenantHostingSnapshot(tenant, req) {
     sslValidUntil: hosting.sslValidUntil || '',
     dnsVerifiedAt: hosting.dnsVerifiedAt || '',
     lastCheckedAt: hosting.lastCheckedAt || '',
+    lastCheckError: hosting.lastCheckError || '',
+    aliasResults: hosting.aliasResults || [],
     issueFlag: hosting.issueFlag === true,
     internalNotes: hosting.internalNotes || '',
     tenantNotes: hosting.tenantNotes || '',
@@ -584,7 +596,15 @@ function getTenantHostingSnapshot(tenant, req) {
     introConfigured: !!(config && config.homepage && config.homepage.introEnabled),
     introAssetConfigured: !!(config && config.homepage && (config.homepage.introVideoUrl || config.homepage.introPosterUrl)),
     dnsCheckResult: hosting.dnsCheckResult || null,
-    domainType: (t.primaryDomain || t.domain) ? 'custom' : 'platform'
+    domainType,
+    vaEnabled,
+    vaMode,
+    vaBackendAvailable,
+    vaWarning,
+    poweredByMode: _poweredByMode,
+    poweredByLabel: t.poweredByLabel || '',
+    poweredByHref: t.poweredByHref || '',
+    allowPoweredBy: t.allowPoweredBy === true
   };
 }
 
@@ -5822,24 +5842,11 @@ app.get('/root/tenants', (req, res) => {
 });
 
 app.get('/root/hosting', (req, res) => {
-  const tenants = loadTenantsRegistry();
-  const hostingRows = tenants.map((tenant) => ({
-    tenantId: tenant.id,
-    supportTier: tenant.supportTier,
-    active: tenant.active !== false,
-    ...getTenantHostingSnapshot(tenant, { tenant, tenantPaths: tenantPaths(tenant.id) })
-  }));
-  const unresolvedCount = hostingRows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
-  console.log('[root-hosting] render', JSON.stringify({
-    rows: hostingRows.length,
-    unresolvedCount
-  }));
-  res.render('root-hosting', {
-    rows: hostingRows,
-    unresolvedCount,
-    message: null,
-    error: null
-  });
+  const rows = _buildHostingRows(loadTenantsRegistry());
+  const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
+  const vaUrlMissing = !(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
+  console.log('[root-hosting] render', JSON.stringify({ rows: rows.length, unresolvedCount, vaUrlMissing }));
+  res.render('root-hosting', { rows, unresolvedCount, vaUrlMissing, message: null, error: null });
 });
 
 app.get('/root/login', (req, res) => {
@@ -6021,6 +6028,12 @@ app.post('/root/tenants/update', (req, res) => {
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
   tenants[idx].active = active === 'true' || active === '1' || active === 'on';
   tenants[idx].allowPoweredBy = allowPoweredBy === 'true' || allowPoweredBy === '1' || allowPoweredBy === 'on';
+  const { poweredByMode } = req.body;
+  if (poweredByMode !== undefined) {
+    const allowedModes = new Set(['always', 'free_only', 'disabled']);
+    tenants[idx].poweredByMode = allowedModes.has(String(poweredByMode || '').trim()) ? String(poweredByMode).trim() : 'disabled';
+    tenants[idx].allowPoweredBy = tenants[idx].poweredByMode !== 'disabled';
+  }
 
   const { subscriptionExpiry } = req.body;
   if (subscriptionExpiry) {
@@ -6366,103 +6379,191 @@ app.post('/root/finance/settlements/update', (req, res) => {
 });
 
 app.post('/root/hosting/update', (req, res) => {
-  const {
-    rootPassword,
-    tenantId,
-    domainStatus,
-    sslStatus,
-    sslProvider,
-    sslValidUntil,
-    dnsVerifiedAt,
-    issueFlag,
-    internalNotes,
-    tenantNotes,
-    backupStatus
-  } = req.body;
+  const { rootPassword, tenantId, section } = req.body;
   if (!verifyRootPassword(rootPassword)) {
     return res.status(401).render('root-hosting', { rows: [], unresolvedCount: 0, message: null, error: 'Λάθος root κωδικός.' });
   }
-  const allowedDomain = new Set(['pending_dns', 'ssl_validating', 'active', 'failed']);
-  const allowedSsl = new Set(['pending', 'validating', 'active', 'failed']);
-  const allowedBackup = new Set(['unknown', 'healthy', 'warning', 'failed']);
   const tenants = loadTenantsRegistry();
   const idx = tenants.findIndex((t) => t.id === String(tenantId || '').trim());
   if (idx < 0) {
     return res.status(404).render('root-hosting', { rows: [], unresolvedCount: 0, message: null, error: 'Tenant δεν βρέθηκε.' });
   }
-  const now = new Date().toISOString();
-  const nextDomainStatus = allowedDomain.has(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns';
-  const nextSslStatus = allowedSsl.has(String(sslStatus || '').trim()) ? String(sslStatus).trim() : 'pending';
-  const nextBackupStatus = allowedBackup.has(String(backupStatus || '').trim()) ? String(backupStatus).trim() : 'unknown';
-  tenants[idx].hosting = {
-    ...(tenants[idx].hosting || {}),
-    domainStatus: nextDomainStatus,
-    sslStatus: nextSslStatus,
-    sslProvider: String(sslProvider || '').trim(),
-    sslValidUntil: String(sslValidUntil || '').trim(),
-    dnsVerifiedAt: String(dnsVerifiedAt || '').trim(),
-    issueFlag: String(issueFlag || '') === '1',
-    internalNotes: String(internalNotes || '').trim(),
-    tenantNotes: String(tenantNotes || '').trim(),
-    backupStatus: nextBackupStatus,
-    lastCheckedAt: now
-  };
+
+  const sec = String(section || 'dns').trim();
+
+  if (sec === 'dns' || sec === 'general') {
+    const allowedDomain = new Set(['pending_dns', 'ssl_validating', 'active', 'failed']);
+    const { domainStatus, dnsVerifiedAt } = req.body;
+    const nextDomainStatus = allowedDomain.has(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns';
+    tenants[idx].hosting = {
+      ...(tenants[idx].hosting || {}),
+      domainStatus: nextDomainStatus,
+      dnsVerifiedAt: String(dnsVerifiedAt || '').trim()
+    };
+    tenants[idx].domainStatus = nextDomainStatus;
+  }
+
+  if (sec === 'ssl') {
+    const allowedSsl = new Set(['pending', 'validating', 'active', 'failed']);
+    const { sslStatus, sslProvider, sslValidUntil } = req.body;
+    const nextSslStatus = allowedSsl.has(String(sslStatus || '').trim()) ? String(sslStatus).trim() : 'pending';
+    tenants[idx].hosting = {
+      ...(tenants[idx].hosting || {}),
+      sslStatus: nextSslStatus,
+      sslProvider: String(sslProvider || '').trim(),
+      sslValidUntil: String(sslValidUntil || '').trim()
+    };
+  }
+
+  if (sec === 'footer') {
+    const { poweredByMode, poweredByLabel, poweredByHref } = req.body;
+    const allowedModes = new Set(['always', 'free_only', 'disabled']);
+    const nextMode = allowedModes.has(String(poweredByMode || '').trim()) ? String(poweredByMode).trim() : 'disabled';
+    tenants[idx].poweredByMode  = nextMode;
+    tenants[idx].poweredByLabel = String(poweredByLabel || '').trim().slice(0, 120);
+    tenants[idx].poweredByHref  = String(poweredByHref || '').trim().slice(0, 500);
+    tenants[idx].allowPoweredBy = nextMode !== 'disabled';
+  }
+
+  if (sec === 'advanced') {
+    const allowedBackup = new Set(['unknown', 'healthy', 'warning', 'failed']);
+    const { issueFlag, internalNotes, tenantNotes, backupStatus } = req.body;
+    const nextBackupStatus = allowedBackup.has(String(backupStatus || '').trim()) ? String(backupStatus).trim() : 'unknown';
+    tenants[idx].hosting = {
+      ...(tenants[idx].hosting || {}),
+      issueFlag: String(issueFlag || '') === '1',
+      internalNotes: String(internalNotes || '').trim().slice(0, 1000),
+      tenantNotes: String(tenantNotes || '').trim().slice(0, 1000),
+      backupStatus: nextBackupStatus
+    };
+  }
+
   saveTenantsRegistry(tenants);
-  console.log('[root-hosting] status-update', JSON.stringify({
-    tenantId: tenants[idx].id,
-    domainStatus: nextDomainStatus,
-    sslStatus: nextSslStatus,
-    issueFlag: tenants[idx].hosting.issueFlag
-  }));
-  const refreshed = loadTenantsRegistry();
-  const rows = refreshed.map((tenant) => ({
-    tenantId: tenant.id,
-    supportTier: tenant.supportTier,
-    active: tenant.active !== false,
-    ...getTenantHostingSnapshot(tenant, { tenant, tenantPaths: tenantPaths(tenant.id) })
-  }));
+  console.log('[root-hosting] update', JSON.stringify({ tenantId, section: sec }));
+
+  const rows = _buildHostingRows(loadTenantsRegistry());
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
-  return res.render('root-hosting', { rows, unresolvedCount, message: `Hosting status ενημερώθηκε για ${tenantId}.`, error: null });
+  return res.render('root-hosting', { rows, unresolvedCount, message: `[${sec}] ενημερώθηκε για ${tenantId}.`, error: null });
 });
 
+// ── HTTP smoke test helper ────────────────────────────────────────────────────
+// GET <domain>/ and verify it's not Railway's own 404 page.
+// Used to gate domain auto-promotion after DNS checks pass.
+async function httpSmoke(domain) {
+  const RAILWAY_404_MARKER = 'The train has not arrived';
+  for (const proto of ['https', 'http']) {
+    try {
+      const resp = await axios.get(`${proto}://${domain}/`, {
+        headers: { 'User-Agent': 'ThronosVerify/1.0' },
+        timeout: 8000,
+        maxRedirects: 5,
+        validateStatus: null
+      });
+      const body = typeof resp.data === 'string' ? resp.data : '';
+      if (body.includes(RAILWAY_404_MARKER)) {
+        return { ok: false, statusCode: resp.status, proto, note: 'Railway 404 — domain not configured in Railway dashboard' };
+      }
+      return { ok: resp.status < 500, statusCode: resp.status, proto };
+    } catch (e) {
+      if (proto === 'http') {
+        return { ok: false, statusCode: 0, proto: 'none', note: String(e.code || e.message) };
+      }
+      // https failed — try http next
+    }
+  }
+  return { ok: false, statusCode: 0, proto: 'none', note: 'unreachable' };
+}
+
 // ── DNS recheck endpoint ──────────────────────────────────────────────────────
+function _buildHostingRows(tenants) {
+  return tenants.map(t => ({
+    tenantId: t.id,
+    supportTier: t.supportTier,
+    active: t.active !== false,
+    ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) })
+  }));
+}
+
 app.post('/root/hosting/recheck', async (req, res) => {
   const { rootPassword, tenantId } = req.body;
   if (!verifyRootPassword(rootPassword)) {
-    const tenants = loadTenantsRegistry();
-    const rows = tenants.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    const rows = _buildHostingRows(loadTenantsRegistry());
     return res.status(401).render('root-hosting', { rows, unresolvedCount: rows.filter(r => r.issueFlag || r.domainStatus !== 'active').length, message: null, error: 'Λάθος root κωδικός.' });
   }
   const tenants = loadTenantsRegistry();
   const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
   if (idx < 0) {
-    const rows = tenants.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    const rows = _buildHostingRows(tenants);
     return res.status(404).render('root-hosting', { rows, unresolvedCount: 0, message: null, error: 'Tenant δεν βρέθηκε.' });
   }
   try {
-    const checkResult = await runDomainCheck(tenants[idx]);
-    const now = checkResult.checkedAt;
+    const check = await runDomainCheck(tenants[idx]);
+    const now = check.checkedAt;
+    const prevHosting = tenants[idx].hosting || {};
+    const prevSslStatus = prevHosting.sslStatus || tenants[idx].sslStatus || 'pending';
+
+    // ── HTTP smoke tests ─────────────────────────────────────────────────────
+    // Run only when DNS looks viable; skip when domain is obviously not wired.
+    const smokeResults = {};
+    let allSmokeOk = false;
+    if (check.domain && (check.cnameOk || check.flattenedApex)) {
+      const smokeTargets = [check.domain, ...check.aliases.map(a => a.domain)];
+      const smokeChecks = await Promise.allSettled(smokeTargets.map(d => httpSmoke(d)));
+      smokeTargets.forEach((d, i) => {
+        smokeResults[d] = smokeChecks[i].status === 'fulfilled'
+          ? smokeChecks[i].value
+          : { ok: false, note: smokeChecks[i].reason?.message };
+      });
+      allSmokeOk = Object.values(smokeResults).every(s => s.ok);
+    }
+
+    // ── Auto-promotion gate ──────────────────────────────────────────────────
+    // Require: root TXT passes + all aliases CNAME pass + HTTP smoke passes.
+    const dnsVerified = check.cnameOk && check.txtOk && check.allAliasesOk;
+    const fullyVerified = dnsVerified && allSmokeOk;
+
+    let nextDomainStatus;
+    if (fullyVerified) {
+      nextDomainStatus = prevSslStatus === 'active' ? 'active' : 'ssl_validating';
+    } else if (dnsVerified) {
+      nextDomainStatus = 'ssl_validating'; // DNS ok but HTTP smoke not yet passing
+    } else if (check.cnameOk) {
+      nextDomainStatus = 'ssl_validating'; // CNAME ok, TXT/aliases pending
+    } else {
+      nextDomainStatus = 'pending_dns';
+    }
+
     tenants[idx].hosting = {
-      ...(tenants[idx].hosting || {}),
+      ...prevHosting,
       lastCheckedAt: now,
-      dnsVerifiedAt: checkResult.cnameOk && checkResult.txtOk ? now : (tenants[idx].hosting && tenants[idx].hosting.dnsVerifiedAt) || '',
-      domainStatus: checkResult.cnameOk
-        ? ((tenants[idx].hosting && tenants[idx].hosting.sslStatus) === 'active' ? 'active' : 'ssl_validating')
-        : 'pending_dns',
-      dnsCheckResult: JSON.stringify({ cname: checkResult.cname, txt: checkResult.txt })
+      lastCheckError: '',
+      dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
+      domainStatus: nextDomainStatus,
+      dnsCheckResult: JSON.stringify({ cname: check.cname, txt: check.txt, aliases: check.aliases, smoke: smokeResults }),
+      aliasResults: check.aliases || []
     };
-    if (checkResult.cnameOk && !tenants[idx].domainStatus) {
-      tenants[idx].domainStatus = 'active';
+    if (fullyVerified) {
+      tenants[idx].domainStatus = nextDomainStatus;
     }
     saveTenantsRegistry(tenants);
+
     const refreshed = loadTenantsRegistry();
-    const rows = refreshed.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    const rows = _buildHostingRows(refreshed);
     const unresolvedCount = rows.filter(r => r.issueFlag || r.domainStatus !== 'active' || r.sslStatus !== 'active').length;
-    const summary = `DNS check για ${tenants[idx].id}: CNAME=${checkResult.cnameOk ? '✓' : '✗'} TXT thronos-verify=${checkResult.txtOk ? '✓' : '✗'}`;
+    const apexNote  = check.flattenedApex ? ' (apex-A/Cloudflare)' : '';
+    const aliasNote = check.aliases && check.aliases.length ? ` · Aliases=${check.allAliasesOk ? '✓' : '✗'}` : '';
+    const smokeNote = Object.keys(smokeResults).length ? ` · Smoke=${allSmokeOk ? '✓' : '✗'}` : '';
+    const summary = `DNS check για ${tenants[idx].id}: CNAME=${check.cnameOk ? '✓' : '✗'}${apexNote} TXT=${check.txtOk ? '✓' : '✗'} (${check.txt && check.txt.source || '?'})${aliasNote}${smokeNote}`;
     return res.render('root-hosting', { rows, unresolvedCount, message: summary, error: null });
   } catch (err) {
     console.error('[root/hosting/recheck] error:', err.message);
-    const rows = tenants.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    const tenants2 = loadTenantsRegistry();
+    const idx2 = tenants2.findIndex(t => t.id === String(tenantId || '').trim());
+    if (idx2 >= 0) {
+      tenants2[idx2].hosting = { ...(tenants2[idx2].hosting || {}), lastCheckError: err.message, lastCheckedAt: new Date().toISOString() };
+      saveTenantsRegistry(tenants2);
+    }
+    const rows = _buildHostingRows(loadTenantsRegistry());
     return res.render('root-hosting', { rows, unresolvedCount: 0, message: null, error: `DNS check απέτυχε: ${err.message}` });
   }
 });
