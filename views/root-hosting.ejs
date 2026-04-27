@@ -5,6 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Root Hosting Panel</title>
   <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .tenant-card { border:1px solid #e5e7eb; border-radius:10px; margin:0 0 14px; overflow:hidden; }
+    .tenant-card summary {
+      cursor:pointer; padding:12px 16px; background:#f8fafc; list-style:none;
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .tenant-card summary::-webkit-details-marker { display:none; }
+    .tenant-card summary .arrow { font-size:.8rem; color:#94a3b8; margin-left:auto; }
+    .tenant-card[open] summary { border-bottom:1px solid #e5e7eb; background:#f1f5f9; }
+    .chip { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.72rem; font-weight:700; }
+    .chip.ok   { background:#dcfce7; color:#15803d; }
+    .chip.warn { background:#fef9c3; color:#a16207; }
+    .chip.pend { background:#e0e7ef; color:#475569; }
+    .chip.err  { background:#fee2e2; color:#991b1b; }
+    .chip.info { background:#e0f2fe; color:#0369a1; }
+    .tab-bar { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin:12px 16px 0; flex-wrap:wrap; }
+    .tab-btn {
+      padding:7px 14px; font-size:.8rem; font-weight:600; color:#64748b;
+      border:none; background:none; cursor:pointer; border-bottom:2px solid transparent;
+      margin-bottom:-2px; border-radius:6px 6px 0 0;
+    }
+    .tab-btn.active { color:#0f172a; border-bottom-color:#2563eb; background:#eff6ff; }
+    .tab-btn:hover:not(.active) { background:#f1f5f9; }
+    .tab-panel { display:none; padding:16px; }
+    .tab-panel.active { display:block; }
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+    .form-grid label { display:flex; flex-direction:column; gap:4px; font-size:.82rem; color:#374151; font-weight:600; }
+    .form-grid label select, .form-grid label input[type=text],
+    .form-grid label input[type=password] {
+      padding:5px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:.83rem; color:#111;
+    }
+    .form-grid .full { grid-column:1/-1; }
+    .pw-row { display:flex; align-items:center; gap:8px; }
+    .pw-row label { font-size:.8rem; font-weight:600; color:#374151; }
+    .pw-row input { padding:5px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:.83rem; width:140px; }
+    .save-row { display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
+    .btn-save { background:#2563eb; color:#fff; border:none; border-radius:6px; padding:6px 18px; font-size:.82rem; font-weight:600; cursor:pointer; }
+    .btn-recheck { background:#0ea5e9; color:#fff; border:none; border-radius:6px; padding:6px 16px; font-size:.82rem; font-weight:600; cursor:pointer; }
+    .status-row { display:flex; align-items:baseline; gap:10px; margin:6px 0; font-size:.85rem; }
+    .status-label { color:#64748b; min-width:140px; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+    .dns-result-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin:10px 0; font-size:.8rem; }
+    .dns-ok   { color:#15803d; font-weight:700; }
+    .dns-fail { color:#dc2626; font-weight:700; }
+    .warn-box { background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:8px 12px; font-size:.8rem; color:#78350f; margin:8px 0; }
+    .info-box { background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 12px; font-size:.8rem; color:#1e40af; margin:8px 0; }
+    .muted { color:#94a3b8; font-size:.76rem; }
+  </style>
 </head>
 <body>
   <header>
@@ -15,87 +62,225 @@
     <% const safeRows = Array.isArray(rows) ? rows : []; %>
     <% if (message) { %><div class="flash ok"><%= message %></div><% } %>
     <% if (error) { %><div class="flash err"><%= error %></div><% } %>
+    <% if (typeof vaUrlMissing !== 'undefined' && vaUrlMissing) { %>
+    <div class="warn-box"><strong>⚠ THRONOS_ASSISTANT_URL</strong> not set — tenants with VA enabled will fail chat requests.</div>
+    <% } %>
+
     <section class="admin-block">
       <h2>Overview</h2>
-      <p>Tenants listed: <strong><%= safeRows.length %></strong> · Unresolved hosting issues: <strong><%= Number(unresolvedCount || 0) %></strong></p>
+      <p>Tenants: <strong><%= safeRows.length %></strong> &nbsp;·&nbsp; Unresolved issues: <strong><%= Number(unresolvedCount || 0) %></strong></p>
+      <p class="muted">Tabs per tenant save independently. DNS Recheck runs live DNS queries and auto-promotes domain status when CNAME + TXT pass.</p>
     </section>
-    <section class="admin-block" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
-      <strong>ℹ️ Χειροκίνητη παρακολούθηση μόνο</strong>
-      <p style="margin:4px 0 0;font-size:.88rem;color:#78350f;">
-        Τα πεδία Domain status, SSL status και Backup status είναι <strong>operator metadata</strong>.
-        Δεν ενεργοποιούν αυτόματα DNS αλλαγές, SSL provisioning ή Railway deployments.
-        Ενημερώστε τα χειροκίνητα μόνο αφού επιβεβαιώσετε την πραγματική κατάσταση σε DNS provider και Railway.
-      </p>
-    </section>
-    <section class="admin-block">
-      <h2>Tenant Hosting Operations</h2>
-      <% if (!safeRows.length) { %>
-        <p>No tenants.</p>
-      <% } %>
-      <% safeRows.forEach(function(row){ %>
-        <details style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin:0 0 10px;">
-          <summary style="cursor:pointer;"><strong><%= row.tenantId %></strong> · <%= row.primaryDomain || '-' %> · domain=<%= row.domainStatus %> · ssl=<%= row.sslStatus %> <% if (row.issueFlag) { %>· ⚠ issue<% } %></summary>
-          <div style="margin-top:10px;">
-            <p>Preview: <code><%= row.previewHost || '-' %></code></p>
-            <p>Aliases: <%= Array.isArray(row.aliases) && row.aliases.length ? row.aliases.join(', ') : '-' %></p>
-            <p>Canonical www: <strong><%= row.canonicalToWww ? 'on' : 'off' %></strong></p>
-            <p>Assets: logo=<%= row.logoConfigured ? 'ok' : 'missing' %> · favicon=<%= row.faviconConfigured ? 'ok' : 'missing' %></p>
-            <% let dnsResult = null; try { dnsResult = row.dnsCheckResult ? JSON.parse(row.dnsCheckResult) : null; } catch(e){} %>
-            <% if (dnsResult) { %>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:.82rem;">
-              <strong>Τελευταίος DNS check:</strong>
-              CNAME <span style="color:<%= dnsResult.cname && dnsResult.cname.ok ? '#15803d' : '#dc2626' %>"><%= dnsResult.cname && dnsResult.cname.ok ? '✓' : '✗' %></span>
-              (<%= dnsResult.cname && dnsResult.cname.cnames ? dnsResult.cname.cnames.join(', ') : (dnsResult.cname && dnsResult.cname.note || '—') %>)
-              · TXT thronos-verify <span style="color:<%= dnsResult.txt && dnsResult.txt.ok ? '#15803d' : '#dc2626' %>"><%= dnsResult.txt && dnsResult.txt.ok ? '✓' : '✗' %></span>
-              <% if (dnsResult.txt && !dnsResult.txt.ok) { %>
-              <br/><small style="color:#64748b;">Πρόσθεσε TXT <code>_thronos-verify.<%= row.primaryDomain || 'yourdomain' %></code> → <code>thronos-verify=<%= row.tenantId %></code></small>
-              <% } %>
-            </div>
-            <% } %>
-            <form method="POST" action="/root/hosting/recheck" style="display:inline-block;margin:0 0 8px;">
-              <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
-              <label style="font-size:.8rem;">Root pw: <input type="password" name="rootPassword" required style="width:120px;" /></label>
-              <button type="submit" class="button" style="background:#0ea5e9;color:#fff;font-size:.8rem;padding:4px 10px;">⟳ DNS Recheck</button>
-            </form>
-          <form method="POST" action="/root/hosting/update" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
-              <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
-              <label>Domain status
-                <select name="domainStatus">
-                  <% ['pending_dns','ssl_validating','active','failed'].forEach(function(st){ %>
-                    <option value="<%= st %>" <%= row.domainStatus === st ? 'selected' : '' %>><%= st %></option>
-                  <% }) %>
-                </select>
-              </label>
-              <label>SSL status
-                <select name="sslStatus">
-                  <% ['pending','validating','active','failed'].forEach(function(st){ %>
-                    <option value="<%= st %>" <%= row.sslStatus === st ? 'selected' : '' %>><%= st %></option>
-                  <% }) %>
-                </select>
-              </label>
-              <label>SSL provider <input type="text" name="sslProvider" value="<%= row.sslProvider || '' %>" /></label>
-              <label>SSL valid until <input type="text" name="sslValidUntil" value="<%= row.sslValidUntil || '' %>" placeholder="YYYY-MM-DD" /></label>
-              <label>DNS verified at <input type="text" name="dnsVerifiedAt" value="<%= row.dnsVerifiedAt || '' %>" placeholder="ISO datetime" /></label>
-              <label>Backup status
-                <select name="backupStatus">
-                  <% ['unknown','healthy','warning','failed'].forEach(function(st){ %>
-                    <option value="<%= st %>" <%= row.backupStatus === st ? 'selected' : '' %>><%= st %></option>
-                  <% }) %>
-                </select>
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;padding-top:24px;">
-                <input type="checkbox" name="issueFlag" value="1" <%= row.issueFlag ? 'checked' : '' %> />
-                Issue flag
-              </label>
-              <label>Tenant-visible note <input type="text" name="tenantNotes" value="<%= row.tenantNotes || '' %>" /></label>
-              <label>Internal note <input type="text" name="internalNotes" value="<%= row.internalNotes || '' %>" /></label>
-              <label>Root password <input type="password" name="rootPassword" required /></label>
-              <div style="display:flex;align-items:end;"><button class="button" type="submit">Update hosting</button></div>
-            </form>
+
+    <% safeRows.forEach(function(row, ri) { %>
+    <%
+      const ds = row.domainStatus || 'pending_dns';
+      const ss = row.sslStatus || 'pending';
+      const dsChip = ds === 'active' ? 'ok' : (ds === 'ssl_validating' ? 'warn' : ds.startsWith('pending') ? 'pend' : 'err');
+      const ssChip = ss === 'active' ? 'ok' : ss === 'pending' ? 'pend' : 'err';
+    %>
+    <details class="tenant-card" id="tc-<%= row.tenantId %>">
+      <summary>
+        <strong><%= row.tenantId %></strong>
+        <span class="muted"><%= row.primaryDomain || '(platform only)' %></span>
+        <span class="chip <%= dsChip %>">domain: <%= ds %></span>
+        <span class="chip <%= ssChip %>">ssl: <%= ss %></span>
+        <% if (row.issueFlag) { %><span class="chip err">⚠ issue</span><% } %>
+        <% if (row.vaEnabled && !row.vaBackendAvailable) { %><span class="chip warn">VA: no backend URL</span><% } %>
+        <span class="arrow">▼</span>
+      </summary>
+
+      <div class="tab-bar" id="tabs-<%= ri %>">
+        <button class="tab-btn active" data-tab="<%= ri %>-dns" onclick="switchTab(this,'<%= ri %>')">DNS &amp; Domain</button>
+        <button class="tab-btn" data-tab="<%= ri %>-ssl" onclick="switchTab(this,'<%= ri %>')">SSL</button>
+        <button class="tab-btn" data-tab="<%= ri %>-footer" onclick="switchTab(this,'<%= ri %>')">Footer</button>
+        <button class="tab-btn" data-tab="<%= ri %>-assistant" onclick="switchTab(this,'<%= ri %>')">Assistant</button>
+        <button class="tab-btn" data-tab="<%= ri %>-advanced" onclick="switchTab(this,'<%= ri %>')">Advanced</button>
+      </div>
+
+      <%# ── DNS & Domain tab ── %>
+      <div class="tab-panel active" id="<%= ri %>-dns">
+        <p class="muted">
+          Preview host: <code><%= row.previewHost || '—' %></code>
+          &nbsp;·&nbsp; Canonical www: <%= row.canonicalToWww ? 'on' : 'off' %>
+          &nbsp;·&nbsp; Type: <span class="chip info"><%= row.domainType %></span>
+        </p>
+        <div class="status-row"><span class="status-label">Primary domain</span><code><%= row.primaryDomain || '—' %></code></div>
+        <div class="status-row"><span class="status-label">Aliases</span><code><%= Array.isArray(row.aliases) && row.aliases.length ? row.aliases.join(', ') : '—' %></code></div>
+
+        <% let dnsResult = null; try { dnsResult = row.dnsCheckResult ? JSON.parse(row.dnsCheckResult) : null; } catch(e){} %>
+        <% if (dnsResult) { %>
+        <div class="dns-result-box">
+          <strong>Last DNS check</strong> <span class="muted"><%= row.lastCheckedAt || '—' %></span><br/>
+          CNAME <span class="<%= dnsResult.cname && dnsResult.cname.ok ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.cname && dnsResult.cname.ok ? '✓' : '✗' %></span>
+          <% if (dnsResult.cname && dnsResult.cname.cnames) { %><span class="muted">→ <%= dnsResult.cname.cnames.join(', ') %></span><% } %>
+          <% if (dnsResult.cname && dnsResult.cname.note) { %><span class="muted">(<%= dnsResult.cname.note %>)</span><% } %>
+          <span class="muted">[<%= dnsResult.cname && dnsResult.cname.resolver ? dnsResult.cname.resolver : '?' %>]</span>
+          &nbsp;&nbsp;
+          TXT verify <span class="<%= dnsResult.txt && dnsResult.txt.ok ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.txt && dnsResult.txt.ok ? '✓' : '✗' %></span>
+          <span class="muted">[<%= dnsResult.txt && dnsResult.txt.resolver ? dnsResult.txt.resolver : '?' %>]</span>
+          <% if (dnsResult.txt && !dnsResult.txt.ok) { %>
+          <div class="warn-box" style="margin-top:6px;">
+            Add TXT record: <code>_thronos-verify.<%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code>
           </div>
-        </details>
-      <% }) %>
-    </section>
+          <% } %>
+          <% if (Array.isArray(dnsResult.aliases) && dnsResult.aliases.length) { %>
+          <div style="margin-top:8px;"><strong>Aliases:</strong>
+            <% dnsResult.aliases.forEach(function(a){ %>
+            <div style="margin:3px 0;font-size:.8rem;">
+              <code><%= a.domain %></code>: <span class="<%= a.ok ? 'dns-ok' : 'dns-fail' %>"><%= a.ok ? '✓' : '✗' %></span>
+              <% if (a.cnames) { %><span class="muted">→ <%= a.cnames.join(', ') %></span><% } %>
+              <% if (a.note) { %><span class="muted">(<%= a.note %>)</span><% } %>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+        <% } else { %>
+        <div class="info-box">No DNS check result yet. Click Recheck below.</div>
+        <% } %>
+        <% if (row.lastCheckError) { %><div class="warn-box">Last error: <%= row.lastCheckError %></div><% } %>
+
+        <form method="POST" action="/root/hosting/recheck" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+          <button type="submit" class="btn-recheck">⟳ DNS Recheck (primary + aliases)</button>
+        </form>
+
+        <form method="POST" action="/root/hosting/update">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="hidden" name="section" value="dns" />
+          <div class="form-grid">
+            <label>Domain status
+              <select name="domainStatus">
+                <% ['pending_dns','ssl_validating','active','failed'].forEach(function(st){ %>
+                  <option value="<%= st %>" <%= row.domainStatus === st ? 'selected' : '' %>><%= st %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>DNS verified at <input type="text" name="dnsVerifiedAt" value="<%= row.dnsVerifiedAt || '' %>" placeholder="ISO datetime" /></label>
+          </div>
+          <div class="save-row">
+            <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+            <button type="submit" class="btn-save">Save DNS status</button>
+          </div>
+        </form>
+      </div>
+
+      <%# ── SSL tab ── %>
+      <div class="tab-panel" id="<%= ri %>-ssl">
+        <form method="POST" action="/root/hosting/update">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="hidden" name="section" value="ssl" />
+          <div class="form-grid">
+            <label>SSL status
+              <select name="sslStatus">
+                <% ['pending','validating','active','failed'].forEach(function(st){ %>
+                  <option value="<%= st %>" <%= (row.sslStatus || 'pending') === st ? 'selected' : '' %>><%= st %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>SSL provider <input type="text" name="sslProvider" value="<%= row.sslProvider || '' %>" placeholder="Railway, Let's Encrypt…" /></label>
+            <label>Valid until <input type="text" name="sslValidUntil" value="<%= row.sslValidUntil || '' %>" placeholder="YYYY-MM-DD" /></label>
+          </div>
+          <div class="save-row">
+            <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+            <button type="submit" class="btn-save">Save SSL</button>
+          </div>
+        </form>
+      </div>
+
+      <%# ── Footer tab ── %>
+      <div class="tab-panel" id="<%= ri %>-footer">
+        <p class="muted" style="margin-bottom:10px;">Controls the "Powered by" attribution link in the storefront footer.</p>
+        <form method="POST" action="/root/hosting/update">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="hidden" name="section" value="footer" />
+          <div class="form-grid">
+            <label>Powered by mode
+              <select name="poweredByMode">
+                <option value="disabled"  <%= (row.poweredByMode || 'disabled') === 'disabled'  ? 'selected' : '' %>>disabled — never show</option>
+                <option value="always"    <%= row.poweredByMode === 'always'    ? 'selected' : '' %>>always — always show</option>
+                <option value="free_only" <%= row.poweredByMode === 'free_only' ? 'selected' : '' %>>free_only — only non-paid tenants</option>
+              </select>
+            </label>
+            <label>Label override <input type="text" name="poweredByLabel" value="<%= row.poweredByLabel || '' %>" placeholder="Powered by Thronos Chain" /></label>
+            <label>Href override <input type="text" name="poweredByHref" value="<%= row.poweredByHref || '' %>" placeholder="https://thronoschain.org" /></label>
+          </div>
+          <div class="save-row">
+            <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+            <button type="submit" class="btn-save">Save Footer</button>
+          </div>
+        </form>
+      </div>
+
+      <%# ── Assistant tab ── %>
+      <div class="tab-panel" id="<%= ri %>-assistant">
+        <div class="status-row"><span class="status-label">VA widget</span> <span class="chip <%= row.vaEnabled ? 'ok' : 'pend' %>"><%= row.vaEnabled ? 'enabled' : 'disabled' %></span></div>
+        <div class="status-row"><span class="status-label">VA mode</span> <code><%= row.vaMode || 'disabled' %></code></div>
+        <div class="status-row"><span class="status-label">Backend URL</span> <span class="chip <%= row.vaBackendAvailable ? 'ok' : 'err' %>"><%= row.vaBackendAvailable ? 'configured' : 'MISSING' %></span></div>
+        <% if (row.vaWarning) { %><div class="warn-box">⚠ <%= row.vaWarning %></div><% } %>
+        <% if (!row.vaEnabled) { %><p class="muted">Widget disabled — tenant enables via Admin → Assistant.</p><% } %>
+        <% if (row.vaEnabled && ['customer','both'].includes(row.vaMode) && row.vaBackendAvailable) { %>
+        <div class="info-box">✓ VA widget is live and backend is configured.</div>
+        <% } %>
+        <p class="muted" style="margin-top:12px;">Backend URL is the global env var THRONOS_ASSISTANT_URL / ASSISTANT_API_URL. No per-tenant URL needed.</p>
+      </div>
+
+      <%# ── Advanced tab ── %>
+      <div class="tab-panel" id="<%= ri %>-advanced">
+        <div class="status-row"><span class="status-label">Branding</span>
+          logo <span class="chip <%= row.logoConfigured ? 'ok' : 'warn' %>"><%= row.logoConfigured ? 'ok' : 'missing' %></span>
+          favicon <span class="chip <%= row.faviconConfigured ? 'ok' : 'pend' %>"><%= row.faviconConfigured ? 'ok' : 'not set' %></span>
+        </div>
+        <div class="status-row"><span class="status-label">Intro</span>
+          <span class="chip <%= row.introConfigured ? 'ok' : 'pend' %>"><%= row.introConfigured ? 'enabled' : 'off' %></span>
+          asset <span class="chip <%= row.introAssetConfigured ? 'ok' : 'pend' %>"><%= row.introAssetConfigured ? 'set' : 'none' %></span>
+        </div>
+        <div class="status-row"><span class="status-label">Storage</span> <%= Number.isFinite(row.storageUsageMb) ? row.storageUsageMb + ' MB' : 'N/A' %></div>
+        <form method="POST" action="/root/hosting/update" style="margin-top:12px;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="hidden" name="section" value="advanced" />
+          <div class="form-grid">
+            <label>Backup status
+              <select name="backupStatus">
+                <% ['unknown','healthy','warning','failed'].forEach(function(st){ %>
+                  <option value="<%= st %>" <%= (row.backupStatus || 'unknown') === st ? 'selected' : '' %>><%= st %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label style="flex-direction:row;align-items:center;padding-top:22px;gap:8px;">
+              <input type="checkbox" name="issueFlag" value="1" <%= row.issueFlag ? 'checked' : '' %> />
+              Issue flag
+            </label>
+            <label class="full">Tenant note <input type="text" name="tenantNotes" value="<%= row.tenantNotes || '' %>" /></label>
+            <label class="full">Internal note <input type="text" name="internalNotes" value="<%= row.internalNotes || '' %>" /></label>
+          </div>
+          <div class="save-row">
+            <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+            <button type="submit" class="btn-save">Save Advanced</button>
+          </div>
+        </form>
+      </div>
+    </details>
+    <% }) %>
   </main>
+  <script>
+  function switchTab(btn, ri) {
+    var tabId = btn.getAttribute('data-tab');
+    document.getElementById('tabs-' + ri).querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    btn.closest('details').querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    var panel = document.getElementById(tabId);
+    if (panel) panel.classList.add('active');
+  }
+  (function(){
+    var h = location.hash;
+    if (h && h.startsWith('#tc-')) {
+      var el = document.querySelector('details' + h);
+      if (el) { el.open = true; el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    }
+  })();
+  </script>
 </body>
 </html>
