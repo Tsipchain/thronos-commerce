@@ -112,16 +112,27 @@
         <% if (dnsResult) { %>
         <div class="dns-result-box">
           <strong>Last DNS check</strong> <span class="muted"><%= row.lastCheckedAt || '—' %></span><br/>
-          CNAME <span class="<%= dnsResult.cname && dnsResult.cname.ok ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.cname && dnsResult.cname.ok ? '✓' : '✗' %></span>
-          <% if (dnsResult.cname && dnsResult.cname.cnames) { %><span class="muted">→ <%= dnsResult.cname.cnames.join(', ') %></span><% } %>
-          <% if (dnsResult.cname && dnsResult.cname.note) { %><span class="muted">(<%= dnsResult.cname.note %>)</span><% } %>
-          <span class="muted">[<%= dnsResult.cname && dnsResult.cname.resolver ? dnsResult.cname.resolver : '?' %>]</span>
+          <%
+            var _cname = dnsResult.cname || {};
+            var _txt   = dnsResult.txt   || {};
+            var _cnameEffective = _cname.effectiveOk !== undefined ? _cname.effectiveOk : _cname.ok;
+          %>
+          CNAME <span class="<%= _cnameEffective ? 'dns-ok' : 'dns-fail' %>"><%= _cnameEffective ? '✓' : '✗' %></span>
+          <% if (_cname.cnames) { %><span class="muted">→ <%= _cname.cnames.join(', ') %></span><% } %>
+          <% if (_cname.type === 'apex-a') { %><span class="chip warn" style="font-size:.7rem;">Cloudflare apex-A</span><% } %>
+          <% if (_cname.note) { %><span class="muted">(<%= _cname.note.slice(0,80) %>)</span><% } %>
+          <span class="muted">[<%= _cname.resolver || '?' %>]</span>
           &nbsp;&nbsp;
-          TXT verify <span class="<%= dnsResult.txt && dnsResult.txt.ok ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.txt && dnsResult.txt.ok ? '✓' : '✗' %></span>
-          <span class="muted">[<%= dnsResult.txt && dnsResult.txt.resolver ? dnsResult.txt.resolver : '?' %>]</span>
-          <% if (dnsResult.txt && !dnsResult.txt.ok) { %>
+          TXT <span class="<%= _txt.ok ? 'dns-ok' : 'dns-fail' %>"><%= _txt.ok ? '✓' : '✗' %></span>
+          <% if (_txt.source) { %><span class="muted">via <%= _txt.source %></span><% } %>
+          <span class="muted">[<%= _txt.resolver || '?' %>]</span>
+          <% if (_txt.ok && _txt.source === 'legacy_subdomain') { %>
+          <span class="chip warn" style="font-size:.7rem;">legacy TXT — migrate to root</span>
+          <% } %>
+          <% if (!_txt.ok) { %>
           <div class="warn-box" style="margin-top:6px;">
-            Add TXT record: <code>_thronos-verify.<%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code>
+            Add root TXT: <code><%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code><br/>
+            <span class="muted">(legacy: <code>_thronos-verify.<%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code> also accepted)</span>
           </div>
           <% } %>
           <% if (Array.isArray(dnsResult.aliases) && dnsResult.aliases.length) { %>
@@ -131,6 +142,17 @@
               <code><%= a.domain %></code>: <span class="<%= a.ok ? 'dns-ok' : 'dns-fail' %>"><%= a.ok ? '✓' : '✗' %></span>
               <% if (a.cnames) { %><span class="muted">→ <%= a.cnames.join(', ') %></span><% } %>
               <% if (a.note) { %><span class="muted">(<%= a.note %>)</span><% } %>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+          <% if (dnsResult.smoke && Object.keys(dnsResult.smoke).length) { %>
+          <div style="margin-top:8px;"><strong>HTTP smoke:</strong>
+            <% Object.entries(dnsResult.smoke).forEach(function(e){ var d=e[0], s=e[1]; %>
+            <div style="margin:3px 0;font-size:.8rem;">
+              <code><%= d %></code>: <span class="<%= s.ok ? 'dns-ok' : 'dns-fail' %>"><%= s.ok ? '✓' : '✗' %></span>
+              <% if (s.statusCode) { %><span class="muted"><%= s.proto %> <%= s.statusCode %></span><% } %>
+              <% if (s.note) { %><span class="muted">(<%= s.note.slice(0,80) %>)</span><% } %>
             </div>
             <% }) %>
           </div>

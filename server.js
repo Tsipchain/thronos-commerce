@@ -6446,6 +6446,34 @@ app.post('/root/hosting/update', (req, res) => {
   return res.render('root-hosting', { rows, unresolvedCount, message: `[${sec}] ενημερώθηκε για ${tenantId}.`, error: null });
 });
 
+// ── HTTP smoke test helper ────────────────────────────────────────────────────
+// GET <domain>/ and verify it's not Railway's own 404 page.
+// Used to gate domain auto-promotion after DNS checks pass.
+async function httpSmoke(domain) {
+  const RAILWAY_404_MARKER = 'The train has not arrived';
+  for (const proto of ['https', 'http']) {
+    try {
+      const resp = await axios.get(`${proto}://${domain}/`, {
+        headers: { 'User-Agent': 'ThronosVerify/1.0' },
+        timeout: 8000,
+        maxRedirects: 5,
+        validateStatus: null
+      });
+      const body = typeof resp.data === 'string' ? resp.data : '';
+      if (body.includes(RAILWAY_404_MARKER)) {
+        return { ok: false, statusCode: resp.status, proto, note: 'Railway 404 — domain not configured in Railway dashboard' };
+      }
+      return { ok: resp.status < 500, statusCode: resp.status, proto };
+    } catch (e) {
+      if (proto === 'http') {
+        return { ok: false, statusCode: 0, proto: 'none', note: String(e.code || e.message) };
+      }
+      // https failed — try http next
+    }
+  }
+  return { ok: false, statusCode: 0, proto: 'none', note: 'unreachable' };
+}
+
 // ── DNS recheck endpoint ──────────────────────────────────────────────────────
 function _buildHostingRows(tenants) {
   return tenants.map(t => ({
@@ -6473,11 +6501,34 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const now = check.checkedAt;
     const prevHosting = tenants[idx].hosting || {};
     const prevSslStatus = prevHosting.sslStatus || tenants[idx].sslStatus || 'pending';
-    const allOk = check.cnameOk && check.txtOk && check.allAliasesOk;
+
+    // ── HTTP smoke tests ─────────────────────────────────────────────────────
+    // Run only when DNS looks viable; skip when domain is obviously not wired.
+    const smokeResults = {};
+    let allSmokeOk = false;
+    if (check.domain && (check.cnameOk || check.flattenedApex)) {
+      const smokeTargets = [check.domain, ...check.aliases.map(a => a.domain)];
+      const smokeChecks = await Promise.allSettled(smokeTargets.map(d => httpSmoke(d)));
+      smokeTargets.forEach((d, i) => {
+        smokeResults[d] = smokeChecks[i].status === 'fulfilled'
+          ? smokeChecks[i].value
+          : { ok: false, note: smokeChecks[i].reason?.message };
+      });
+      allSmokeOk = Object.values(smokeResults).every(s => s.ok);
+    }
+
+    // ── Auto-promotion gate ──────────────────────────────────────────────────
+    // Require: root TXT passes + all aliases CNAME pass + HTTP smoke passes.
+    const dnsVerified = check.cnameOk && check.txtOk && check.allAliasesOk;
+    const fullyVerified = dnsVerified && allSmokeOk;
 
     let nextDomainStatus;
-    if (check.cnameOk && check.txtOk) {
+    if (fullyVerified) {
       nextDomainStatus = prevSslStatus === 'active' ? 'active' : 'ssl_validating';
+    } else if (dnsVerified) {
+      nextDomainStatus = 'ssl_validating'; // DNS ok but HTTP smoke not yet passing
+    } else if (check.cnameOk) {
+      nextDomainStatus = 'ssl_validating'; // CNAME ok, TXT/aliases pending
     } else {
       nextDomainStatus = 'pending_dns';
     }
@@ -6486,23 +6537,23 @@ app.post('/root/hosting/recheck', async (req, res) => {
       ...prevHosting,
       lastCheckedAt: now,
       lastCheckError: '',
-      dnsVerifiedAt: allOk ? now : (prevHosting.dnsVerifiedAt || ''),
+      dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
       domainStatus: nextDomainStatus,
-      dnsCheckResult: JSON.stringify({ cname: check.cname, txt: check.txt, aliases: check.aliases }),
+      dnsCheckResult: JSON.stringify({ cname: check.cname, txt: check.txt, aliases: check.aliases, smoke: smokeResults }),
       aliasResults: check.aliases || []
     };
-    if (allOk && tenants[idx].domainStatus !== 'active') {
-      tenants[idx].domainStatus = 'active';
+    if (fullyVerified) {
+      tenants[idx].domainStatus = nextDomainStatus;
     }
     saveTenantsRegistry(tenants);
 
     const refreshed = loadTenantsRegistry();
     const rows = _buildHostingRows(refreshed);
     const unresolvedCount = rows.filter(r => r.issueFlag || r.domainStatus !== 'active' || r.sslStatus !== 'active').length;
-    const aliasInfo = check.aliases && check.aliases.length
-      ? ` · Aliases=${check.allAliasesOk ? '✓' : '✗'}`
-      : '';
-    const summary = `DNS check για ${tenants[idx].id}: CNAME=${check.cnameOk ? '✓' : '✗'} TXT=${check.txtOk ? '✓' : '✗'}${aliasInfo}`;
+    const apexNote  = check.flattenedApex ? ' (apex-A/Cloudflare)' : '';
+    const aliasNote = check.aliases && check.aliases.length ? ` · Aliases=${check.allAliasesOk ? '✓' : '✗'}` : '';
+    const smokeNote = Object.keys(smokeResults).length ? ` · Smoke=${allSmokeOk ? '✓' : '✗'}` : '';
+    const summary = `DNS check για ${tenants[idx].id}: CNAME=${check.cnameOk ? '✓' : '✗'}${apexNote} TXT=${check.txtOk ? '✓' : '✗'} (${check.txt && check.txt.source || '?'})${aliasNote}${smokeNote}`;
     return res.render('root-hosting', { rows, unresolvedCount, message: summary, error: null });
   } catch (err) {
     console.error('[root/hosting/recheck] error:', err.message);
