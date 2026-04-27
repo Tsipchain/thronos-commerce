@@ -100,8 +100,8 @@
     "introPosterUrl": ""
   },
   "assistant": {
-    "vaEnabled": false,
-    "vaMode": "disabled",
+    "vaEnabled": true,
+    "vaMode": "customer",
     "vaLanguage": "el",
     "vaTone": "friendly",
     "vaBrandVoice": "Φιλικός, πρακτικός και εξειδικευμένος στα DIY προϊόντα.",

@@ -40,7 +40,24 @@
             <p>Aliases: <%= Array.isArray(row.aliases) && row.aliases.length ? row.aliases.join(', ') : '-' %></p>
             <p>Canonical www: <strong><%= row.canonicalToWww ? 'on' : 'off' %></strong></p>
             <p>Assets: logo=<%= row.logoConfigured ? 'ok' : 'missing' %> · favicon=<%= row.faviconConfigured ? 'ok' : 'missing' %></p>
-            <form method="POST" action="/root/hosting/update" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <% let dnsResult = null; try { dnsResult = row.dnsCheckResult ? JSON.parse(row.dnsCheckResult) : null; } catch(e){} %>
+            <% if (dnsResult) { %>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:.82rem;">
+              <strong>Τελευταίος DNS check:</strong>
+              CNAME <span style="color:<%= dnsResult.cname && dnsResult.cname.ok ? '#15803d' : '#dc2626' %>"><%= dnsResult.cname && dnsResult.cname.ok ? '✓' : '✗' %></span>
+              (<%= dnsResult.cname && dnsResult.cname.cnames ? dnsResult.cname.cnames.join(', ') : (dnsResult.cname && dnsResult.cname.note || '—') %>)
+              · TXT thronos-verify <span style="color:<%= dnsResult.txt && dnsResult.txt.ok ? '#15803d' : '#dc2626' %>"><%= dnsResult.txt && dnsResult.txt.ok ? '✓' : '✗' %></span>
+              <% if (dnsResult.txt && !dnsResult.txt.ok) { %>
+              <br/><small style="color:#64748b;">Πρόσθεσε TXT <code>_thronos-verify.<%= row.primaryDomain || 'yourdomain' %></code> → <code>thronos-verify=<%= row.tenantId %></code></small>
+              <% } %>
+            </div>
+            <% } %>
+            <form method="POST" action="/root/hosting/recheck" style="display:inline-block;margin:0 0 8px;">
+              <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+              <label style="font-size:.8rem;">Root pw: <input type="password" name="rootPassword" required style="width:120px;" /></label>
+              <button type="submit" class="button" style="background:#0ea5e9;color:#fff;font-size:.8rem;padding:4px 10px;">⟳ DNS Recheck</button>
+            </form>
+          <form method="POST" action="/root/hosting/update" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
               <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
               <label>Domain status
                 <select name="domainStatus">

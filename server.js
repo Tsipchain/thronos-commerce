@@ -19,6 +19,7 @@ const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
+const { runDomainCheck } = require('./utils/dns-check');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -567,8 +568,8 @@ function getTenantHostingSnapshot(tenant, req) {
     previewSubdomain,
     previewHost,
     canonicalToWww: t.canonicalToWww === true,
-    domainStatus: hosting.domainStatus || 'pending_dns',
-    sslStatus: hosting.sslStatus || 'pending',
+    domainStatus: hosting.domainStatus || t.domainStatus || 'pending_dns',
+    sslStatus: hosting.sslStatus || t.sslStatus || 'pending',
     sslProvider: hosting.sslProvider || 'unknown',
     sslValidUntil: hosting.sslValidUntil || '',
     dnsVerifiedAt: hosting.dnsVerifiedAt || '',
@@ -581,7 +582,9 @@ function getTenantHostingSnapshot(tenant, req) {
     logoConfigured: !!(config && config.logoPath),
     faviconConfigured: !!(config && config.favicon && config.favicon.path),
     introConfigured: !!(config && config.homepage && config.homepage.introEnabled),
-    introAssetConfigured: !!(config && config.homepage && (config.homepage.introVideoUrl || config.homepage.introPosterUrl))
+    introAssetConfigured: !!(config && config.homepage && (config.homepage.introVideoUrl || config.homepage.introPosterUrl)),
+    dnsCheckResult: hosting.dnsCheckResult || null,
+    domainType: (t.primaryDomain || t.domain) ? 'custom' : 'platform'
   };
 }
 
@@ -6420,6 +6423,48 @@ app.post('/root/hosting/update', (req, res) => {
   }));
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
   return res.render('root-hosting', { rows, unresolvedCount, message: `Hosting status ενημερώθηκε για ${tenantId}.`, error: null });
+});
+
+// ── DNS recheck endpoint ──────────────────────────────────────────────────────
+app.post('/root/hosting/recheck', async (req, res) => {
+  const { rootPassword, tenantId } = req.body;
+  if (!verifyRootPassword(rootPassword)) {
+    const tenants = loadTenantsRegistry();
+    const rows = tenants.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    return res.status(401).render('root-hosting', { rows, unresolvedCount: rows.filter(r => r.issueFlag || r.domainStatus !== 'active').length, message: null, error: 'Λάθος root κωδικός.' });
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    const rows = tenants.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    return res.status(404).render('root-hosting', { rows, unresolvedCount: 0, message: null, error: 'Tenant δεν βρέθηκε.' });
+  }
+  try {
+    const checkResult = await runDomainCheck(tenants[idx]);
+    const now = checkResult.checkedAt;
+    tenants[idx].hosting = {
+      ...(tenants[idx].hosting || {}),
+      lastCheckedAt: now,
+      dnsVerifiedAt: checkResult.cnameOk && checkResult.txtOk ? now : (tenants[idx].hosting && tenants[idx].hosting.dnsVerifiedAt) || '',
+      domainStatus: checkResult.cnameOk
+        ? ((tenants[idx].hosting && tenants[idx].hosting.sslStatus) === 'active' ? 'active' : 'ssl_validating')
+        : 'pending_dns',
+      dnsCheckResult: JSON.stringify({ cname: checkResult.cname, txt: checkResult.txt })
+    };
+    if (checkResult.cnameOk && !tenants[idx].domainStatus) {
+      tenants[idx].domainStatus = 'active';
+    }
+    saveTenantsRegistry(tenants);
+    const refreshed = loadTenantsRegistry();
+    const rows = refreshed.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    const unresolvedCount = rows.filter(r => r.issueFlag || r.domainStatus !== 'active' || r.sslStatus !== 'active').length;
+    const summary = `DNS check για ${tenants[idx].id}: CNAME=${checkResult.cnameOk ? '✓' : '✗'} TXT thronos-verify=${checkResult.txtOk ? '✓' : '✗'}`;
+    return res.render('root-hosting', { rows, unresolvedCount, message: summary, error: null });
+  } catch (err) {
+    console.error('[root/hosting/recheck] error:', err.message);
+    const rows = tenants.map(t => ({ tenantId: t.id, supportTier: t.supportTier, active: t.active !== false, ...getTenantHostingSnapshot(t, { tenant: t, tenantPaths: tenantPaths(t.id) }) }));
+    return res.render('root-hosting', { rows, unresolvedCount: 0, message: null, error: `DNS check απέτυχε: ${err.message}` });
+  }
 });
 
 // ── VA Chat proxy (storefront) ────────────────────────────────────────────────
