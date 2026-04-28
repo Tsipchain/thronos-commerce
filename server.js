@@ -20,6 +20,7 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
 const { runDomainCheck } = require('./utils/dns-check');
+const RailwayRegistry = require('./utils/railway-registry');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -416,6 +417,9 @@ const REFERRAL_EARNINGS_FILE = path.join(DATA_ROOT, 'referral_earnings.json');
 const REFERRAL_LEDGER_FILE   = path.join(DATA_ROOT, 'referral_ledger.json');
 const SETTLEMENT_LEDGER_FILE = path.join(DATA_ROOT, 'settlement_ledger.json');
 const THEME_GOVERNANCE_FILE  = path.join(DATA_ROOT, 'theme-governance.json');
+const RAILWAY_REGISTRY_FILE  = path.join(DATA_ROOT, 'railway-registry.json');
+
+let railwayRegistry = null;
 
 const THEME_CATALOG = Object.freeze({
   core_default: {
@@ -6908,6 +6912,14 @@ try {
   console.log('[boot] Tenant provisioning schema migration completed');
 } catch (e) {
   console.error('[boot] Migration error:', e.message);
+}
+
+// Initialize Railway Registry
+try {
+  railwayRegistry = new RailwayRegistry(RAILWAY_REGISTRY_FILE);
+  console.log('[boot] Railway registry loaded');
+} catch (e) {
+  console.error('[boot] Railway registry error:', e.message);
 }
 
 app.listen(PORT, () => {
