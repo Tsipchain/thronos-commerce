@@ -300,6 +300,10 @@
         <div class="info-box">✓ VA widget is live and backend is configured.</div>
         <% } %>
         <p class="muted" style="margin-top:12px;">Backend URL is the global env var THRONOS_ASSISTANT_URL / ASSISTANT_API_URL. No per-tenant URL needed.</p>
+
+        <div style="margin:12px 0;"><strong>Backend Health Check</strong></div>
+        <button class="btn-recheck" onclick="checkAssistantHealth(<%= ri %>)">🏥 Check Health</button>
+        <div id="health-<%= ri %>" style="margin:8px 0;"></div>
       </div>
 
       <%# ── Advanced tab ── %>
@@ -356,6 +360,29 @@
       if (el) { el.open = true; el.scrollIntoView({ behavior:'smooth', block:'start' }); }
     }
   })();
+
+  async function checkAssistantHealth(ri) {
+    var resultDiv = document.getElementById('health-' + ri);
+    resultDiv.innerHTML = '<p class="muted" style="font-style:italic;">Checking...</p>';
+    try {
+      var response = await fetch('/root/hosting/assistant-health', { method: 'POST' });
+      var data = await response.json();
+      var html = '';
+      if (data.ok) {
+        html = '<div class="info-box" style="background:#dcfce7;border-color:#86efac;"><strong style="color:#15803d;">✓ Healthy</strong><br/>' +
+               'Status: ' + (data.status || '?') + '<br/>' +
+               (data.responseTime ? 'Response time: ' + data.responseTime + 'ms<br/>' : '') +
+               'Message: ' + (data.message || '') + '</div>';
+      } else {
+        html = '<div class="warn-box"><strong style="color:#991b1b;">✗ Unhealthy</strong><br/>' +
+               'Status: ' + (data.status || '?') + '<br/>' +
+               'Message: ' + (data.message || 'Unknown error') + '</div>';
+      }
+      resultDiv.innerHTML = html;
+    } catch (err) {
+      resultDiv.innerHTML = '<div class="warn-box"><strong>Error:</strong> ' + err.message + '</div>';
+    }
+  }
   </script>
 </body>
 </html>

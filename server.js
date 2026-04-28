@@ -6682,6 +6682,38 @@ app.post('/root/hosting/update', (req, res) => {
 // ── HTTP smoke test helper ────────────────────────────────────────────────────
 // GET <domain>/ and verify it's not Railway's own 404 page.
 // Used to gate domain auto-promotion after DNS checks pass.
+// Health check for VA assistant backend
+async function checkAssistantHealth() {
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  if (!vaUrl) {
+    return { ok: false, status: 'not_configured', message: 'VA backend URL not configured', responseTime: null };
+  }
+
+  try {
+    const start = Date.now();
+    const resp = await axios.get(`${vaUrl}/api/v1/health`, {
+      timeout: 5000,
+      validateStatus: (status) => status < 500
+    });
+    const responseTime = Date.now() - start;
+    const ok = resp.status === 200;
+    return {
+      ok,
+      status: ok ? 'healthy' : 'unhealthy',
+      statusCode: resp.status,
+      responseTime,
+      message: ok ? 'Assistant backend is responsive' : `Assistant returned HTTP ${resp.status}`
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 'unreachable',
+      message: String(err.code || err.message),
+      responseTime: null
+    };
+  }
+}
+
 async function httpSmoke(domain) {
   const RAILWAY_404_MARKER = 'The train has not arrived';
   for (const proto of ['https', 'http']) {
@@ -6864,6 +6896,17 @@ app.post('/root/hosting/railway', (req, res) => {
     setRootFlash(req, { error: `Railway registration failed: ${err.message}` });
   }
   return res.redirect('/root/hosting');
+});
+
+// ── Assistant health check ───────────────────────────────────────────────────
+app.post('/root/hosting/assistant-health', async (req, res) => {
+  try {
+    const health = await checkAssistantHealth();
+    return res.json(health);
+  } catch (err) {
+    console.error('[assistant-health] error:', err.message);
+    return res.status(500).json({ ok: false, status: 'error', message: err.message });
+  }
 });
 
 // ── VA Chat proxy (storefront) ────────────────────────────────────────────────
