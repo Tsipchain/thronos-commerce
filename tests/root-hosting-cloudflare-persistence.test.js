@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { getCloudflareClient } = require('../utils/cloudflare-api');
 
 const serverPath = path.resolve(__dirname, '..', 'server.js');
 const serverSource = fs.readFileSync(serverPath, 'utf8');
@@ -12,7 +13,21 @@ function extractFunctionSource(name) {
   const start = serverSource.indexOf(marker);
   if (start < 0) throw new Error(`Function not found: ${name}`);
 
-  const braceStart = serverSource.indexOf('{', start);
+  const paramsStart = serverSource.indexOf('(', start);
+  let parenDepth = 0;
+  let braceStart = -1;
+  for (let i = paramsStart; i < serverSource.length; i += 1) {
+    const ch = serverSource[i];
+    if (ch === '(') parenDepth += 1;
+    else if (ch === ')') {
+      parenDepth -= 1;
+      if (parenDepth === 0) {
+        braceStart = serverSource.indexOf('{', i);
+        break;
+      }
+    }
+  }
+  if (braceStart < 0) throw new Error(`Could not locate body start for: ${name}`);
   let depth = 0;
   for (let i = braceStart; i < serverSource.length; i += 1) {
     const ch = serverSource[i];
@@ -86,4 +101,96 @@ test('DNS recheck flow depends on tenant-hosting zone path and never reads proce
     'runDomainCheckFull should read tenant.hosting.cloudflareZoneId');
   assert.doesNotMatch(dnsCheckSource, /process\.env\.CLOUDFLARE_ZONE_ID/,
     'runDomainCheckFull must never use global CLOUDFLARE_ZONE_ID');
+});
+
+test('tenant with old cloudflareApiToken continues to use per-tenant token', () => {
+  const savedToken = process.env.CLOUDFLARE_API_TOKEN;
+  process.env.CLOUDFLARE_API_TOKEN = 'env-global-token';
+  try {
+    const tenant = { hosting: { cloudflareApiToken: 'tenant-override-token' } };
+    const client = getCloudflareClient(tenant);
+    assert.ok(client, 'expected Cloudflare client instance');
+    assert.equal(client.apiToken, 'tenant-override-token');
+  } finally {
+    if (savedToken !== undefined) process.env.CLOUDFLARE_API_TOKEN = savedToken;
+    else delete process.env.CLOUDFLARE_API_TOKEN;
+  }
+});
+
+test('clearing override removes cloudflareApiToken and falls back to env token', () => {
+  const applyTenantCloudflareConfig = instantiateFunction('applyTenantCloudflareConfig', {});
+  const savedToken = process.env.CLOUDFLARE_API_TOKEN;
+  process.env.CLOUDFLARE_API_TOKEN = 'env-global-token';
+  try {
+    const tenant = {
+      id: 'eukolakis',
+      hosting: {
+        cloudflareZoneId: 'zone-eukolaki-gr',
+        cloudflareApiToken: 'old-tenant-token'
+      }
+    };
+    const updatedTenant = applyTenantCloudflareConfig(tenant, {
+      cfZoneId: 'zone-eukolaki-gr',
+      cfApiToken: '',
+      clearTokenOverride: '1'
+    });
+    assert.equal(updatedTenant.hosting.cloudflareApiToken, undefined);
+
+    const client = getCloudflareClient(updatedTenant);
+    assert.ok(client, 'expected env fallback client');
+    assert.equal(client.apiToken, 'env-global-token');
+  } finally {
+    if (savedToken !== undefined) process.env.CLOUDFLARE_API_TOKEN = savedToken;
+    else delete process.env.CLOUDFLARE_API_TOKEN;
+  }
+});
+
+test('empty token field preserves existing override unless clearTokenOverride is set', () => {
+  const applyTenantCloudflareConfig = instantiateFunction('applyTenantCloudflareConfig', {});
+  const tenant = {
+    id: 'eukolakis',
+    hosting: {
+      cloudflareZoneId: 'zone-eukolaki-gr',
+      cloudflareApiToken: 'existing-tenant-token'
+    }
+  };
+
+  const unchanged = applyTenantCloudflareConfig(tenant, {
+    cfZoneId: 'zone-eukolaki-gr',
+    cfApiToken: '',
+    clearTokenOverride: ''
+  });
+  assert.equal(unchanged.hosting.cloudflareApiToken, 'existing-tenant-token');
+});
+
+test('after override is cleared, hosting snapshot reports token source env', () => {
+  const applyTenantCloudflareConfig = instantiateFunction('applyTenantCloudflareConfig', {});
+  const getTenantHostingSnapshot = instantiateFunction('getTenantHostingSnapshot', {
+    loadTenantConfig: () => ({}),
+    railwayRegistry: { getForTenant: () => ({}) }
+  });
+  const savedToken = process.env.CLOUDFLARE_API_TOKEN;
+  process.env.CLOUDFLARE_API_TOKEN = 'env-global-token';
+  try {
+    const tenant = {
+      id: 'eukolakis',
+      primaryDomain: 'eukolaki.gr',
+      domains: ['www.eukolaki.gr'],
+      hosting: {
+        cloudflareZoneId: 'zone-eukolaki-gr',
+        cloudflareApiToken: 'old-tenant-token'
+      }
+    };
+    const updatedTenant = applyTenantCloudflareConfig(tenant, {
+      cfZoneId: 'zone-eukolaki-gr',
+      cfApiToken: '',
+      clearTokenOverride: '1'
+    });
+
+    const snapshot = getTenantHostingSnapshot(updatedTenant, null);
+    assert.equal(snapshot.cloudflareTokenSource, 'env');
+  } finally {
+    if (savedToken !== undefined) process.env.CLOUDFLARE_API_TOKEN = savedToken;
+    else delete process.env.CLOUDFLARE_API_TOKEN;
+  }
 });

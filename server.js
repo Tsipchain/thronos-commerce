@@ -699,6 +699,25 @@ function getTenantHostingSnapshot(tenant, req) {
   };
 }
 
+function applyTenantCloudflareConfig(tenant, { cfZoneId, cfApiToken, clearTokenOverride }) {
+  const nextTenant = tenant || {};
+  const nextHosting = (nextTenant.hosting && typeof nextTenant.hosting === 'object')
+    ? { ...nextTenant.hosting }
+    : {};
+
+  const cleanZoneId = String(cfZoneId || '').trim();
+  const cleanToken = String(cfApiToken || '').trim();
+  const shouldClearToken = clearTokenOverride === true
+    || String(clearTokenOverride || '').trim() === '1'
+    || String(clearTokenOverride || '').trim().toLowerCase() === 'true';
+
+  if (cleanZoneId) nextHosting.cloudflareZoneId = cleanZoneId;
+  if (shouldClearToken) delete nextHosting.cloudflareApiToken;
+  else if (cleanToken) nextHosting.cloudflareApiToken = cleanToken;
+
+  return { ...nextTenant, hosting: nextHosting };
+}
+
 // ── Referral helpers ──────────────────────────────────────────────────────────
 function loadReferralAccounts() {
   const data = loadJson(REFERRAL_ACCOUNTS_FILE, {});
@@ -6917,7 +6936,7 @@ app.post('/root/hosting/recheck', async (req, res) => {
 
 // ── Cloudflare configuration (per-tenant zone ID; token from env or per-tenant override) ──
 app.post('/root/hosting/cloudflare', (req, res) => {
-  const { tenantId, cfApiToken, cfZoneId } = req.body;
+  const { tenantId, cfApiToken, cfZoneId, clearTokenOverride } = req.body;
   if (!verifyRootPassword(req.body.rootPassword || '')) {
     setRootFlash(req, { error: 'Λάθος root κωδικός.' });
     return res.redirect('/root/hosting');
@@ -6929,17 +6948,17 @@ app.post('/root/hosting/cloudflare', (req, res) => {
     return res.redirect('/root/hosting');
   }
 
-  // Zone ID is per-tenant only. API token: per-tenant override if provided, otherwise
-  // falls back to global env CLOUDFLARE_API_TOKEN at runtime. Never a global zone ID.
-  if (!tenants[idx].hosting) tenants[idx].hosting = {};
-  const cleanZoneId = (cfZoneId || '').trim();
-  const cleanToken = (cfApiToken || '').trim();
-  if (cleanZoneId) tenants[idx].hosting.cloudflareZoneId = cleanZoneId;
-  if (cleanToken)  tenants[idx].hosting.cloudflareApiToken = cleanToken;
+  // Zone ID is per-tenant only. API token behavior:
+  // - clearTokenOverride=true => delete per-tenant token so env fallback is used
+  // - non-empty cfApiToken    => save per-tenant override
+  // - empty cfApiToken        => keep existing token as-is
+  tenants[idx] = applyTenantCloudflareConfig(tenants[idx], { cfZoneId, cfApiToken, clearTokenOverride });
   saveTenantsRegistry(tenants);
 
   const zoneStored = tenants[idx].hosting.cloudflareZoneId || '(not set)';
-  const tokenSource = cleanToken ? 'per-tenant' : 'env fallback';
+  const tokenSource = (tenants[idx].hosting.cloudflareApiToken || '').trim()
+    ? 'per-tenant'
+    : (process.env.CLOUDFLARE_API_TOKEN ? 'env' : 'none');
   const message = `Cloudflare config updated for ${tenantId}: zone=${zoneStored}, token=${tokenSource}`;
   setRootFlash(req, { message });
   return res.redirect('/root/hosting');
