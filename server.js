@@ -6699,7 +6699,8 @@ app.post('/root/hosting/update', (req, res) => {
 
   const rows = _buildHostingRows(loadTenantsRegistry());
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
-  return res.render('root-hosting', { rows, unresolvedCount, message: `[${sec}] ενημερώθηκε για ${tenantId}.`, error: null });
+  const navCounts = getRootNavCounts();
+  return res.render('root-hosting', { ...navCounts, rows, unresolvedCount, message: `[${sec}] ενημερώθηκε για ${tenantId}.`, error: null });
 });
 
 // ── HTTP smoke test helper ────────────────────────────────────────────────────
@@ -6849,7 +6850,8 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const aliasNote = check.aliases && check.aliases.length ? ` · Aliases=${check.allAliasesOk ? '✓' : '✗'}` : '';
     const smokeNote = Object.keys(smokeResults).length ? ` · Smoke=${allSmokeOk ? '✓' : '✗'}` : '';
     const summary = `DNS check για ${tenants[idx].id}: CNAME=${check.cnameOk ? '✓' : '✗'}${apexNote} TXT=${check.txtOk ? '✓' : '✗'} (${check.txt && check.txt.source || '?'})${aliasNote}${smokeNote}`;
-    return res.render('root-hosting', { rows, unresolvedCount, message: summary, error: null });
+    const navCounts = getRootNavCounts();
+    return res.render('root-hosting', { ...navCounts, rows, unresolvedCount, message: summary, error: null });
   } catch (err) {
     console.error('[root/hosting/recheck] error:', err.message);
     const tenants2 = loadTenantsRegistry();
@@ -6859,7 +6861,8 @@ app.post('/root/hosting/recheck', async (req, res) => {
       saveTenantsRegistry(tenants2);
     }
     const rows = _buildHostingRows(loadTenantsRegistry());
-    return res.render('root-hosting', { rows, unresolvedCount: 0, message: null, error: `DNS check απέτυχε: ${err.message}` });
+    const navCounts = getRootNavCounts();
+    return res.render('root-hosting', { ...navCounts, rows, unresolvedCount: 0, message: null, error: `DNS check απέτυχε: ${err.message}` });
   }
 });
 

@@ -54,7 +54,7 @@
   </style>
 </head>
 <body>
-  <%- include('_root-nav', { page: 'hosting', openTicketCount: openTicketCount || 0, unresolvedFinanceCount: unresolvedFinanceCount || 0 }) %>
+  <%- include('_root-nav', { page: 'hosting', openTicketCount: typeof openTicketCount !== 'undefined' ? openTicketCount : 0, unresolvedFinanceCount: typeof unresolvedFinanceCount !== 'undefined' ? unresolvedFinanceCount : 0 }) %>
   <main class="admin-layout">
     <% const safeRows = Array.isArray(rows) ? rows : []; %>
     <% if (message) { %><div class="flash ok"><%= message %></div><% } %>
