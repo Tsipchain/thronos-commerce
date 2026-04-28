@@ -6658,6 +6658,29 @@ app.post('/root/hosting/update', (req, res) => {
     tenants[idx].allowPoweredBy = nextMode !== 'disabled';
   }
 
+  if (sec === 'mail') {
+    const { mailProvider, mxRecords, spfRecord, dkimRecords, dmarcRecord } = req.body;
+    if (!tenants[idx].mailHosting) tenants[idx].mailHosting = {};
+    tenants[idx].mailHosting = {
+      mailProvider: String(mailProvider || '').trim() || null,
+      mxRecords: String(mxRecords || '').split(',').map(s => s.trim()).filter(Boolean),
+      spfRecord: String(spfRecord || '').trim() || null,
+      dkimRecords: String(dkimRecords || '').split(',').map(s => s.trim()).filter(Boolean),
+      dmarcRecord: String(dmarcRecord || '').trim() || null
+    };
+  }
+
+  if (sec === 'web3') {
+    const { web3Enabled, web3Host, ipfsGateway, dnslinkTxt } = req.body;
+    if (!tenants[idx].web3Config) tenants[idx].web3Config = {};
+    tenants[idx].web3Config = {
+      web3Enabled: String(web3Enabled || '') === '1',
+      web3Host: String(web3Host || '').trim() || null,
+      ipfsGateway: String(ipfsGateway || '').trim() || null,
+      dnslinkTxt: String(dnslinkTxt || '').trim() || null
+    };
+  }
+
   if (sec === 'advanced') {
     const allowedBackup = new Set(['unknown', 'healthy', 'warning', 'failed']);
     const { issueFlag, internalNotes, tenantNotes, backupStatus } = req.body;
