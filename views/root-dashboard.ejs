@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Root Dashboard | Thronos</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background:#f4f6fb; color:#1a1a2e; margin:0; }
+    .page-layout { max-width:1200px; margin:28px auto; padding:0 20px 60px; }
+    .flash { padding:12px 18px; border-radius:6px; margin-bottom:20px; font-size:.9rem; }
+    .flash.success { background:#d4edda; border:1px solid #b8dfc4; color:#155724; }
+    .flash.error   { background:#f8d7da; border:1px solid #f1b0b7; color:#721c24; }
+    .page-title { font-size:1.4rem; font-weight:700; margin:0 0 6px; }
+    .page-sub   { font-size:.85rem; color:#64748b; margin:0 0 24px; }
+
+    /* Stats grid */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:16px; margin-bottom:28px; }
+    .stat-card { background:#fff; border-radius:10px; padding:18px 20px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+    .stat-card .stat-label { font-size:.75rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:2rem; font-weight:800; color:#0f172a; line-height:1; }
+    .stat-card .stat-sub   { font-size:.75rem; color:#94a3b8; margin-top:5px; }
+    .stat-card.alert { border-left:4px solid #ef4444; }
+    .stat-card.warn  { border-left:4px solid #f59e0b; }
+    .stat-card.ok    { border-left:4px solid #22c55e; }
+    .stat-card.info  { border-left:4px solid #3b82f6; }
+
+    /* Section cards */
+    .card { background:#fff; border-radius:10px; padding:22px 26px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:22px; }
+    .card h2 { margin:0 0 4px; font-size:1.02rem; font-weight:700; }
+    .card .helper { font-size:.82rem; color:#666; margin:0 0 16px; }
+
+    /* Quick links */
+    .quick-links { display:flex; gap:12px; flex-wrap:wrap; }
+    .quick-link { display:flex; align-items:center; gap:8px; padding:12px 18px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-decoration:none; color:#1e293b; font-size:.88rem; font-weight:600; transition:background .12s,border-color .12s; }
+    .quick-link:hover { background:#eff6ff; border-color:#93c5fd; }
+    .quick-link .ql-icon { font-size:1.1rem; }
+
+    /* Ticket list */
+    .ticket-item { border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:10px; }
+    .ticket-header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+    .ticket-title { font-size:.88rem; font-weight:600; }
+    .ticket-meta  { font-size:.75rem; color:#94a3b8; }
+    .status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.73rem; font-weight:600; }
+    .st-open    { background:#fef3c7; color:#92400e; }
+    .st-replied { background:#dbeafe; color:#1e40af; }
+
+    /* Domain issues table */
+    .issues-table { width:100%; border-collapse:collapse; font-size:.84rem; }
+    .issues-table th, .issues-table td { padding:8px 10px; text-align:left; border-bottom:1px solid #eee; }
+    .issues-table th { background:#f0f2fa; font-weight:600; }
+    .chip { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.72rem; font-weight:700; }
+    .chip-ok   { background:#dcfce7; color:#15803d; }
+    .chip-warn { background:#fef9c3; color:#a16207; }
+    .chip-err  { background:#fee2e2; color:#991b1b; }
+    .chip-pend { background:#e0e7ef; color:#475569; }
+  </style>
+</head>
+<body>
+  <%- include('_root-nav', { page: 'dashboard', openTicketCount: openTicketCount || 0, unresolvedFinanceCount: unresolvedFinanceCount || 0 }) %>
+
+  <div class="page-layout">
+    <% if (message) { %><div class="flash success"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-sub">Σύνοψη κατάστασης πλατφόρμας — <%= new Date().toLocaleDateString('el-GR', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) %></p>
+
+    <%
+      const _hostingIssues = (tenants || []).filter(function(t) {
+        return t.domainStatus !== 'active' || t.issueFlag;
+      });
+    %>
+
+    <!-- Stats grid -->
+    <div class="stats-grid">
+      <div class="stat-card info">
+        <div class="stat-label">Σύνολο tenants</div>
+        <div class="stat-value"><%= tenantCount || 0 %></div>
+        <div class="stat-sub"><%= activeTenantCount || 0 %> ενεργά</div>
+      </div>
+      <div class="stat-card <%= (openTicketCount || 0) > 0 ? 'alert' : 'ok' %>">
+        <div class="stat-label">Ανοιχτά tickets</div>
+        <div class="stat-value"><%= openTicketCount || 0 %></div>
+        <div class="stat-sub"><a href="/root/tickets" style="color:inherit;">Δείτε tickets →</a></div>
+      </div>
+      <div class="stat-card <%= (unresolvedFinanceCount || 0) > 0 ? 'warn' : 'ok' %>">
+        <div class="stat-label">Finance εκκρεμότητες</div>
+        <div class="stat-value"><%= unresolvedFinanceCount || 0 %></div>
+        <div class="stat-sub">Referral + Settlement</div>
+      </div>
+      <div class="stat-card <%= (_hostingIssues.length) > 0 ? 'warn' : 'ok' %>">
+        <div class="stat-label">Domain issues</div>
+        <div class="stat-value"><%= _hostingIssues.length %></div>
+        <div class="stat-sub"><a href="/root/hosting" style="color:inherit;">Δείτε hosting →</a></div>
+      </div>
+      <div class="stat-card ok">
+        <div class="stat-label">Ενεργές συνδρομές</div>
+        <div class="stat-value"><%= activeSubs || 0 %></div>
+        <div class="stat-sub"><% if ((expiringSoon || 0) > 0) { %><span style="color:#f59e0b;font-weight:700;"><%= expiringSoon %> λήγουν σύντομα</span><% } else { %>Δεν λήγουν σύντομα<% } %></div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-label">Εκκρεμείς referrals</div>
+        <div class="stat-value"><%= Number(pendingReferralAmount || 0).toFixed(2) %> €</div>
+        <div class="stat-sub"><a href="/root/finance" style="color:inherit;">Δείτε finance →</a></div>
+      </div>
+    </div>
+
+    <!-- Quick navigation -->
+    <div class="card">
+      <h2>Γρήγορη πλοήγηση</h2>
+      <p class="helper">Πρόσβαση σε κάθε ενότητα της διαχείρισης.</p>
+      <div class="quick-links">
+        <a href="/root/tenants" class="quick-link"><span class="ql-icon">🏪</span> Tenants<br><small style="font-weight:400;color:#64748b;">Δημιουργία, ρυθμίσεις, συνδρομές</small></a>
+        <a href="/root/hosting" class="quick-link"><span class="ql-icon">🌐</span> Hosting<br><small style="font-weight:400;color:#64748b;">DNS, SSL, VA, domain status</small></a>
+        <a href="/root/finance" class="quick-link"><span class="ql-icon">💰</span> Finance<br><small style="font-weight:400;color:#64748b;">Referral, settlements, ledger</small></a>
+        <a href="/root/themes" class="quick-link"><span class="ql-icon">🎨</span> Themes<br><small style="font-weight:400;color:#64748b;">Theme governance, templates</small></a>
+        <a href="/root/tickets" class="quick-link"><span class="ql-icon">🎫</span> Tickets<br><small style="font-weight:400;color:#64748b;">Υποστήριξη, απαντήσεις</small></a>
+      </div>
+    </div>
+
+    <!-- Recent open tickets -->
+    <% if (recentTickets && recentTickets.length > 0) { %>
+    <div class="card">
+      <h2>Πρόσφατα ανοιχτά tickets (<%= recentTickets.length %><% if (openTicketCount > recentTickets.length) { %>/<%= openTicketCount %><% } %>)</h2>
+      <p class="helper">Τελευταία 5 εκκρεμή αιτήματα υποστήριξης — <a href="/root/tickets">Δείτε όλα →</a></p>
+      <% recentTickets.forEach(function(tk) { %>
+      <div class="ticket-item">
+        <div class="ticket-header">
+          <span class="ticket-title">[<code><%= tk._tenantId %></code>] <%= tk.subject %></span>
+          <span class="status-badge <%= tk.status === 'replied' ? 'st-replied' : 'st-open' %>">
+            <%= tk.status === 'replied' ? '💬 Απαντήθηκε' : '⏳ Εκκρεμεί' %>
+          </span>
+        </div>
+        <p style="font-size:.82rem;color:#374151;margin:4px 0 6px;"><%= (tk.body || '').slice(0,180) %><%= (tk.body||'').length > 180 ? '…' : '' %></p>
+        <span class="ticket-meta"><%= new Date(tk.createdAt).toLocaleString('el-GR') %> · <%= tk.category %></span>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+
+    <!-- Domain issues -->
+    <% if (_hostingIssues.length > 0) { %>
+    <div class="card">
+      <h2>Domain issues (<%= _hostingIssues.length %>)</h2>
+      <p class="helper">Tenants που χρειάζονται DNS/domain διόρθωση — <a href="/root/hosting">Hosting panel →</a></p>
+      <table class="issues-table">
+        <thead>
+          <tr><th>Tenant</th><th>Domain</th><th>Status</th><th>Ενέργεια</th></tr>
+        </thead>
+        <tbody>
+          <% _hostingIssues.forEach(function(t) { %>
+          <% const ds = t.domainStatus || 'pending_dns'; %>
+          <tr>
+            <td><code><%= t.id %></code></td>
+            <td><%= t.primaryDomain || t.domain || '–' %></td>
+            <td>
+              <span class="chip <%= ds === 'active' ? 'chip-ok' : ds.startsWith('pending') ? 'chip-pend' : 'chip-err' %>"><%= ds %></span>
+              <% if (t.issueFlag) { %><span class="chip chip-err" style="margin-left:4px;">⚠ issue</span><% } %>
+            </td>
+            <td><a href="/root/hosting#tc-<%= t.id %>" style="font-size:.82rem;color:#2563eb;">Άνοιγμα →</a></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+
+    <!-- Tenants quick overview -->
+    <div class="card">
+      <h2>Tenants (<%= tenantCount %>)</h2>
+      <p class="helper">Γρήγορη επισκόπηση — <a href="/root/tenants">Πλήρης διαχείριση →</a></p>
+      <div style="overflow-x:auto;">
+        <table class="issues-table">
+          <thead>
+            <tr><th>ID</th><th>Domain</th><th>Πακέτο</th><th>Ενεργό</th><th>Συνδρομή</th><th>Preview</th></tr>
+          </thead>
+          <tbody>
+            <% (tenants || []).forEach(function(t) { %>
+            <% const sub = getSubscriptionInfo(t); %>
+            <tr>
+              <td><code><%= t.id %></code></td>
+              <td style="font-size:.82rem;"><%= t.primaryDomain || t.domain || '–' %></td>
+              <td><span style="font-size:.75rem;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:999px;font-weight:600;"><%= t.supportTier %></span></td>
+              <td><%= t.active ? '✓' : '✗' %></td>
+              <td>
+                <% if (sub && sub.expiryStr) { %>
+                  <span style="font-size:.73rem;padding:2px 8px;border-radius:12px;font-weight:600;background:<%= sub.isExpired ? '#fee2e2' : sub.isExpiringSoon ? '#fef3c7' : '#d1fae5' %>;color:<%= sub.isExpired ? '#991b1b' : sub.isExpiringSoon ? '#92400e' : '#065f46' %>;">
+                    <%= sub.isExpired ? '⚠ Ληγμένη' : sub.daysLeft + ' μέρες' %>
+                  </span>
+                <% } else { %><span style="color:#ccc;font-size:.8rem;">–</span><% } %>
+              </td>
+              <td style="font-size:.78rem;"><a href="/t/<%= t.id %>" target="_blank">Store</a> · <a href="/t/<%= t.id %>/admin/login" target="_blank">Admin</a></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p style="font-size:.75rem;color:#94a3b8;text-align:center;margin-top:32px;">
+      Root password: env <code>THRONOS_ROOT_ADMIN_PASSWORD</code> — Μην κοινοποιείτε αυτό το URL.
+    </p>
+  </div>
+</body>
+</html>

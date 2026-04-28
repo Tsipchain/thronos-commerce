@@ -5683,7 +5683,7 @@ app.post('/admin/tickets/new', async (req, res) => {
 // Root admin: add reply to ticket
 app.post('/root/tickets/reply', async (req, res) => {
   const { password, tenantId, ticketId, replyText } = req.body;
-  if (!verifyRootPassword(password)) return res.redirect('/root/tenants?error=wrong_password');
+  if (!verifyRootPassword(password)) { setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/tickets'); }
 
   const tenantPaths = tenantPaths(tenantId);
   const tickets = loadJson(tenantPaths.tickets, []);
@@ -5694,19 +5694,21 @@ app.post('/root/tickets/reply', async (req, res) => {
     saveJson(tenantPaths.tickets, tickets);
   }
 
-  res.redirect('/root/tenants?message=reply_sent');
+  setRootFlash(req, { message: 'Η απάντηση στο ticket στάλθηκε.' });
+  res.redirect('/root/tickets');
 });
 
 // Root admin: close ticket
 app.post('/root/tickets/close', async (req, res) => {
   const { password, tenantId, ticketId } = req.body;
-  if (!verifyRootPassword(password)) return res.redirect('/root/tenants?error=wrong_password');
+  if (!verifyRootPassword(password)) { setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/tickets'); }
 
   const tenantPaths = tenantPaths(tenantId);
   const tickets = loadJson(tenantPaths.tickets, []);
   const tIdx    = tickets.findIndex((t) => t.id === ticketId);
   if (tIdx >= 0) { tickets[tIdx].status = 'resolved'; saveJson(tenantPaths.tickets, tickets); }
-  res.redirect('/root/tenants');
+  setRootFlash(req, { message: 'Το ticket έκλεισε.' });
+  res.redirect('/root/tickets');
 });
 
 // ─── Root Admin: Tenants Management ──────────────────────────────────────────
@@ -5829,28 +5831,197 @@ function buildRootViewModel(extra, req) {
   };
 }
 
-app.get('/root/tenants', (req, res) => {
-  console.log('[root-admin] render-root-tenants:start', JSON.stringify({
-    path: req.originalUrl || req.url,
-    rootAuthenticated: !!(req.session && req.session.rootAdmin)
-  }));
-  console.log('[root-admin] finance:render', JSON.stringify({
-    referralRows: loadReferralLedger().length,
-    settlementRows: loadSettlementLedger().length
-  }));
-  res.render('root-tenants', buildRootViewModel({}, req));
-});
+// ── Session flash for root admin ──────────────────────────────────────────────
+function setRootFlash(req, data) { req.session._rootFlash = data; }
+function popRootFlash(req) { const f = req.session._rootFlash || {}; req.session._rootFlash = null; return f; }
 
-app.get('/root/hosting', (req, res) => {
+// ── Nav badge counts (open tickets + unresolved finance) ──────────────────────
+function getRootNavCounts() {
+  const ts = loadTenantsRegistry();
+  let openTicketCount = 0;
+  ts.forEach((t) => {
+    try { openTicketCount += loadJson(tenantPaths(t.id).tickets, []).filter((tk) => tk.status !== 'resolved').length; } catch (_) {}
+  });
+  const refL = loadReferralLedger();
+  const stL  = loadSettlementLedger();
+  const unresolvedFinanceCount =
+    refL.filter((r) => ['pending', 'approved', 'disputed'].includes(r.status)).length +
+    stL.filter((r)  => ['pending', 'approved', 'partially_settled', 'disputed'].includes(r.status)).length;
+  return { openTicketCount, unresolvedFinanceCount };
+}
+
+// ── Page-specific model builders ──────────────────────────────────────────────
+function buildDashboardViewModel(req) {
+  const flash   = popRootFlash(req);
+  const tenants = loadTenantsRegistry();
+  const navCounts = getRootNavCounts();
+
+  const activeSubs = tenants.filter((t) => t.active && t.subscriptionExpiry && new Date(t.subscriptionExpiry) > new Date()).length;
+  const expiringSoon = tenants.filter((t) => {
+    if (!t.subscriptionExpiry) return false;
+    const d = (new Date(t.subscriptionExpiry) - new Date()) / 86400000;
+    return d >= 0 && d <= 14;
+  }).length;
+  const recentTickets = [];
+  tenants.forEach((t) => {
+    try { loadJson(tenantPaths(t.id).tickets, []).filter((tk) => tk.status !== 'resolved').forEach((tk) => recentTickets.push({ ...tk, _tenantId: t.id })); } catch (_) {}
+  });
+  recentTickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const pendingReferralAmount = loadReferralLedger()
+    .filter((r) => r.status === 'pending' || r.status === 'approved')
+    .reduce((s, r) => s + Number(r.commissionAmount || 0), 0);
+
+  return {
+    page: 'dashboard', ...navCounts,
+    tenants, tenantCount: tenants.length, activeTenantCount: tenants.filter((t) => t.active).length,
+    activeSubs, expiringSoon,
+    recentTickets: recentTickets.slice(0, 5),
+    pendingReferralAmount: +pendingReferralAmount.toFixed(2),
+    getSubscriptionInfo,
+    message: flash.message || null, error: flash.error || null
+  };
+}
+
+function buildTenantsViewModel(req, extra) {
+  const flash   = popRootFlash(req);
+  const tenants = loadTenantsRegistry();
+  const tenantPaymentConfigs = {};
+  tenants.forEach((t) => {
+    try {
+      const cfgPath = path.join(TENANTS_DIR, t.id, 'config.json');
+      tenantPaymentConfigs[t.id] = fs.existsSync(cfgPath) ? (JSON.parse(fs.readFileSync(cfgPath, 'utf8')).paymentOptions || []) : [];
+    } catch (_) { tenantPaymentConfigs[t.id] = []; }
+  });
+  return {
+    page: 'tenants', ...getRootNavCounts(),
+    tenants, themeGovernance: loadThemeGovernance(), tenantPaymentConfigs,
+    getSubscriptionInfo, SUPPORT_TIERS, PACKAGE_PRICES,
+    message: (extra && extra.message) || flash.message || null,
+    error:   (extra && extra.error)   || flash.error   || null
+  };
+}
+
+function buildThemesViewModel(req, extra) {
+  const flash = popRootFlash(req);
+  return {
+    page: 'themes', ...getRootNavCounts(),
+    tenants: loadTenantsRegistry(),
+    themeGovernance: loadThemeGovernance(), themeCatalog: listThemeCatalog(), themeTemplates: listThemeTemplates(),
+    message: (extra && extra.message) || flash.message || null,
+    error:   (extra && extra.error)   || flash.error   || null
+  };
+}
+
+function buildFinanceViewModel(req, extra) {
+  const flash = popRootFlash(req);
+  const q = (req && req.query) ? req.query : {};
+  const tenantFilter = String(q.tenantId || '').trim();
+  const referralCodeFilter = String(q.referralCode || '').trim();
+  const referralStatusFilter = String(q.refStatus || '').trim();
+  const settlementStatusFilter = String(q.stStatus || '').trim();
+  const paymentMethodFilter = String(q.paymentMethod || '').trim();
+
+  const refEarnings = loadReferralEarnings();
+  const refLedgerRaw = loadReferralLedger();
+  const stLedgerRaw  = loadSettlementLedger();
+  const referralLedger = refLedgerRaw.filter((r) => {
+    if (tenantFilter && r.tenantId !== tenantFilter) return false;
+    if (referralCodeFilter && r.referralCode !== referralCodeFilter) return false;
+    if (referralStatusFilter && r.status !== referralStatusFilter) return false;
+    return true;
+  });
+  const settlementLedger = stLedgerRaw.filter((r) => {
+    if (tenantFilter && r.tenantId !== tenantFilter) return false;
+    if (paymentMethodFilter && r.paymentMethod !== paymentMethodFilter) return false;
+    if (settlementStatusFilter && r.status !== settlementStatusFilter) return false;
+    return true;
+  });
+  const referralTotalsByCode = referralLedger.reduce((acc, r) => {
+    const k = r.referralCode || 'unknown';
+    if (!acc[k]) acc[k] = { pending: 0, approved: 0, paid: 0, orders: 0 };
+    acc[k].orders += 1;
+    if (r.status === 'paid')     acc[k].paid     += Number(r.commissionAmount || 0);
+    else if (r.status === 'approved') acc[k].approved += Number(r.commissionAmount || 0);
+    else if (r.status === 'pending')  acc[k].pending  += Number(r.commissionAmount || 0);
+    return acc;
+  }, {});
+  const settlementTotalsByTenant = settlementLedger.reduce((acc, r) => {
+    const k = r.tenantId || 'unknown';
+    if (!acc[k]) acc[k] = { pendingPayable: 0, pendingReceivable: 0, settled: 0 };
+    if (r.status === 'settled') acc[k].settled += Number(r.netSettlementAmount || 0);
+    else if (['pending', 'approved', 'partially_settled'].includes(r.status)) {
+      if (r.settlementDirection === 'payable_to_tenant')     acc[k].pendingPayable    += Number(r.netSettlementAmount || 0);
+      if (r.settlementDirection === 'receivable_from_tenant') acc[k].pendingReceivable += Number(r.netSettlementAmount || 0);
+    }
+    return acc;
+  }, {});
+  const pendingReferralPayouts   = referralLedger.filter((r) => r.status === 'pending' || r.status === 'approved').reduce((s, r) => s + Number(r.commissionAmount || 0), 0);
+  const pendingTenantPayables    = settlementLedger.filter((r) => ['pending', 'approved', 'partially_settled'].includes(r.status) && r.settlementDirection === 'payable_to_tenant').reduce((s, r) => s + Number(r.netSettlementAmount || 0), 0);
+  const pendingTenantReceivables = settlementLedger.filter((r) => ['pending', 'approved', 'partially_settled'].includes(r.status) && r.settlementDirection === 'receivable_from_tenant').reduce((s, r) => s + Number(r.netSettlementAmount || 0), 0);
+  const pendingByCode = {};
+  refEarnings.filter((e) => e.status === 'pending').forEach((e) => {
+    if (!pendingByCode[e.refCode]) pendingByCode[e.refCode] = { total: 0, rows: [] };
+    pendingByCode[e.refCode].total = +(pendingByCode[e.refCode].total + e.amountFiat).toFixed(2);
+    pendingByCode[e.refCode].rows.push(e);
+  });
+  return {
+    page: 'finance', ...getRootNavCounts(),
+    tenants: loadTenantsRegistry(),
+    refAccounts: loadReferralAccounts(), refEarnings: refEarnings.slice(-200).reverse(),
+    referralLedger: referralLedger.slice().reverse().slice(0, 400),
+    settlementLedger: settlementLedger.slice().reverse().slice(0, 400),
+    referralTotalsByCode, settlementTotalsByTenant,
+    pendingReferralPayouts: +pendingReferralPayouts.toFixed(2),
+    pendingTenantPayables:  +pendingTenantPayables.toFixed(2),
+    pendingTenantReceivables: +pendingTenantReceivables.toFixed(2),
+    pendingByCode,
+    financeFilters: { tenantFilter, referralCodeFilter, referralStatusFilter, settlementStatusFilter, paymentMethodFilter },
+    message: (extra && extra.message) || flash.message || null,
+    error:   (extra && extra.error)   || flash.error   || null
+  };
+}
+
+function buildTicketsViewModel(req) {
+  const flash = popRootFlash(req);
+  const tenants = loadTenantsRegistry();
+  const allTickets = [], resolvedTickets = [];
+  tenants.forEach((t) => {
+    try {
+      loadJson(tenantPaths(t.id).tickets, []).forEach((tk) => {
+        if (tk.status === 'resolved') resolvedTickets.push({ ...tk, _tenantId: t.id });
+        else allTickets.push({ ...tk, _tenantId: t.id });
+      });
+    } catch (_) {}
+  });
+  allTickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  resolvedTickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return {
+    page: 'tickets', ...getRootNavCounts(),
+    allTickets, resolvedTickets: resolvedTickets.slice(0, 20),
+    message: flash.message || null, error: flash.error || null
+  };
+}
+
+app.get('/root',          (req, res) => { if (!req.session.rootAdmin) return res.redirect('/root/login'); res.redirect('/root/dashboard'); });
+app.get('/root/dashboard', requireRootAdmin, (req, res) => res.render('root-dashboard', buildDashboardViewModel(req)));
+app.get('/root/tenants',   requireRootAdmin, (req, res) => res.render('root-tenants',   buildTenantsViewModel(req)));
+app.get('/root/themes',    requireRootAdmin, (req, res) => res.render('root-themes',    buildThemesViewModel(req)));
+app.get('/root/finance',   requireRootAdmin, (req, res) => res.render('root-finance',   buildFinanceViewModel(req)));
+app.get('/root/tickets',   requireRootAdmin, (req, res) => res.render('root-tickets',   buildTicketsViewModel(req)));
+
+app.get('/root/hosting', requireRootAdmin, (req, res) => {
+  const flash = popRootFlash(req);
   const rows = _buildHostingRows(loadTenantsRegistry());
+  const navCounts = getRootNavCounts();
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
   const vaUrlMissing = !(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
   console.log('[root-hosting] render', JSON.stringify({ rows: rows.length, unresolvedCount, vaUrlMissing }));
-  res.render('root-hosting', { rows, unresolvedCount, vaUrlMissing, message: null, error: null });
+  res.render('root-hosting', { page: 'hosting', ...navCounts, rows, unresolvedCount, vaUrlMissing, message: flash.message || null, error: flash.error || null });
 });
 
 app.get('/root/login', (req, res) => {
-  if (req.session.rootAdmin) return res.redirect('/root/tenants');
+  if (req.session.rootAdmin) return res.redirect('/root/dashboard');
   res.render('root-login', { error: null });
 });
 
@@ -5860,7 +6031,7 @@ app.post('/root/login', (req, res) => {
     return res.status(401).render('root-login', { error: 'Invalid root password.' });
   }
   req.session.rootAdmin = { authenticatedAt: new Date().toISOString() };
-  res.redirect('/root/tenants');
+  res.redirect('/root/dashboard');
 });
 
 app.get('/root/logout', (req, res) => {
@@ -5875,25 +6046,21 @@ app.post('/root/tenants/create', async (req, res) => {
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants',
-      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    return res.status(401).render('root-tenants', buildTenantsViewModel(req, { error: 'Λάθος root κωδικός.' }));
   }
 
   const cleanId = (id || '').trim();
   if (!cleanId || !/^[a-z0-9_-]+$/i.test(cleanId)) {
-    return res.status(400).render('root-tenants',
-      buildRootViewModel({ error: 'Το tenant id είναι υποχρεωτικό και επιτρέπονται μόνο a-z, 0-9, _ και -.' }));
+    return res.status(400).render('root-tenants', buildTenantsViewModel(req, { error: 'Το tenant id είναι υποχρεωτικό και επιτρέπονται μόνο a-z, 0-9, _ και -.' }));
   }
 
   if (!adminPasswordPlain) {
-    return res.status(400).render('root-tenants',
-      buildRootViewModel({ error: 'Ο κωδικός admin είναι υποχρεωτικός.' }));
+    return res.status(400).render('root-tenants', buildTenantsViewModel(req, { error: 'Ο κωδικός admin είναι υποχρεωτικός.' }));
   }
 
   const tenants = loadTenantsRegistry();
   if (tenants.some((t) => t.id === cleanId)) {
-    return res.status(400).render('root-tenants',
-      buildRootViewModel({ error: `Υπάρχει ήδη tenant με id "${cleanId}".` }));
+    return res.status(400).render('root-tenants', buildTenantsViewModel(req, { error: `Υπάρχει ήδη tenant με id "${cleanId}".` }));
   }
 
   const adminPasswordHash = await bcrypt.hash(adminPasswordPlain, 10);
@@ -5943,31 +6110,32 @@ app.post('/root/tenants/create', async (req, res) => {
     coreReferralRegister(cleanId, newTenant.referral.code, newTenant.referral.percent).catch(() => {});
   }
 
-  res.render('root-tenants',
-    buildRootViewModel({ message: `Ο tenant "${cleanId}" δημιουργήθηκε επιτυχώς.` }));
+  setRootFlash(req, { message: `Ο tenant "${cleanId}" δημιουργήθηκε επιτυχώς.` });
+  res.redirect('/root/tenants');
 });
 
 app.post('/root/templates/create', (req, res) => {
   const { rootPassword, tenantId, templateId, templateName } = req.body;
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    return res.status(401).render('root-themes', buildThemesViewModel(req, { error: 'Λάθος root κωδικός.' }));
   }
   const tenant = findTenantById((tenantId || '').trim());
   if (!tenant) {
-    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+    return res.status(404).render('root-themes', buildThemesViewModel(req, { error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
   const cleanTemplateId = sanitizeTemplateId(templateId);
   if (!cleanTemplateId) {
-    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Δώστε έγκυρο template id (a-z, 0-9, -, _).' }));
+    return res.status(400).render('root-themes', buildThemesViewModel(req, { error: 'Δώστε έγκυρο template id (a-z, 0-9, -, _).' }));
   }
   const tpl = saveTemplateFromTenant(cleanTemplateId, tenant.id, templateName);
-  return res.render('root-tenants', buildRootViewModel({ message: `Template "${tpl.id}" αποθηκεύτηκε.` }));
+  setRootFlash(req, { message: `Template "${tpl.id}" αποθηκεύτηκε.` });
+  return res.redirect('/root/themes');
 });
 
 app.post('/root/themes/update', (req, res) => {
   const { rootPassword, availableThemeKeys } = req.body;
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    return res.status(401).render('root-themes', buildThemesViewModel(req, { error: 'Λάθος root κωδικός.' }));
   }
   const parsedKeys = String(availableThemeKeys || '').split(',');
   const nextAvailable = normalizeThemeKeys(parsedKeys, DEFAULT_AVAILABLE_THEME_KEYS);
@@ -5978,7 +6146,8 @@ app.post('/root/themes/update', (req, res) => {
     return Object.assign({}, tenant, { allowedThemeKeys: allowed });
   });
   saveTenantsRegistry(constrained);
-  return res.render('root-tenants', buildRootViewModel({ message: 'Τα διαθέσιμα themes ενημερώθηκαν.' }));
+  setRootFlash(req, { message: 'Τα διαθέσιμα themes ενημερώθηκαν.' });
+  return res.redirect('/root/themes');
 });
 
 app.post('/root/tenants/update', (req, res) => {
@@ -5988,15 +6157,13 @@ app.post('/root/tenants/update', (req, res) => {
   } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants',
-      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    return res.status(401).render('root-tenants', buildTenantsViewModel(req, { error: 'Λάθος root κωδικός.' }));
   }
 
   const tenants = loadTenantsRegistry();
   const idx = tenants.findIndex((t) => t.id === tenantId);
   if (idx === -1) {
-    return res.status(404).render('root-tenants',
-      buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+    return res.status(404).render('root-tenants', buildTenantsViewModel(req, { error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
 
   if (domain !== undefined || primaryDomain !== undefined || domains !== undefined || previewSubdomain !== undefined) {
@@ -6048,36 +6215,33 @@ app.post('/root/tenants/update', (req, res) => {
   saveTenantsRegistry(tenants);
   console.log(`[Root Admin] Updated tenant: ${tenantId}`);
 
-  res.render('root-tenants',
-    buildRootViewModel({ message: `Ο tenant "${tenantId}" ενημερώθηκε.` }));
+  setRootFlash(req, { message: `Ο tenant "${tenantId}" ενημερώθηκε.` });
+  res.redirect('/root/tenants');
 });
 
 app.post('/root/tenants/reset-admin-password', async (req, res) => {
   const { rootPassword, tenantId, newPassword } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants',
-      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    return res.status(401).render('root-tenants', buildTenantsViewModel(req, { error: 'Λάθος root κωδικός.' }));
   }
 
   if (!newPassword) {
-    return res.status(400).render('root-tenants',
-      buildRootViewModel({ error: 'Ο νέος κωδικός είναι υποχρεωτικός.' }));
+    return res.status(400).render('root-tenants', buildTenantsViewModel(req, { error: 'Ο νέος κωδικός είναι υποχρεωτικός.' }));
   }
 
   const tenants = loadTenantsRegistry();
   const idx = tenants.findIndex((t) => t.id === tenantId);
   if (idx === -1) {
-    return res.status(404).render('root-tenants',
-      buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+    return res.status(404).render('root-tenants', buildTenantsViewModel(req, { error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
 
   tenants[idx].adminPasswordHash = await bcrypt.hash(newPassword, 10);
   saveTenantsRegistry(tenants);
   console.log(`[Root Admin] Reset admin password for tenant: ${tenantId}`);
 
-  res.render('root-tenants',
-    buildRootViewModel({ message: `Ο κωδικός admin για τον tenant "${tenantId}" ενημερώθηκε.` }));
+  setRootFlash(req, { message: `Ο κωδικός admin για τον tenant "${tenantId}" ενημερώθηκε.` });
+  res.redirect('/root/tenants');
 });
 
 // Root: update gateway surcharge for a tenant's payment options
@@ -6085,15 +6249,13 @@ app.post('/root/tenants/payment-config', (req, res) => {
   const { rootPassword, tenantId } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants',
-      buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    return res.status(401).render('root-tenants', buildTenantsViewModel(req, { error: 'Λάθος root κωδικός.' }));
   }
 
   const tenants = loadTenantsRegistry();
   const tenant = tenants.find((t) => t.id === tenantId);
   if (!tenant) {
-    return res.status(404).render('root-tenants',
-      buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+    return res.status(404).render('root-tenants', buildTenantsViewModel(req, { error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
   }
 
   const cfgPath = path.join(TENANTS_DIR, tenantId, 'config.json');
@@ -6105,8 +6267,8 @@ app.post('/root/tenants/payment-config', (req, res) => {
   saveJson(cfgPath, config);
   console.log(`[Root Admin] Updated payment surcharges for tenant: ${tenantId}`);
 
-  res.render('root-tenants',
-    buildRootViewModel({ message: `Τα surcharges για τον tenant "${tenantId}" αποθηκεύτηκαν.` }));
+  setRootFlash(req, { message: `Τα surcharges για τον tenant "${tenantId}" αποθηκεύτηκαν.` });
+  res.redirect('/root/tenants');
 });
 
 // ── Stripe webhook → referral earnings ───────────────────────────────────────
@@ -6230,13 +6392,13 @@ app.post('/root/tenants/referral', async (req, res) => {
   const { rootPassword, tenantId, refCode, refPercent } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/finance');
   }
 
   const tenants = loadTenantsRegistry();
   const idx     = tenants.findIndex((t) => t.id === tenantId);
   if (idx === -1) {
-    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Tenant "${tenantId}" δεν βρέθηκε.` }));
+    setRootFlash(req, { error: `Tenant "${tenantId}" δεν βρέθηκε.` }); return res.redirect('/root/finance');
   }
 
   const cleanCode    = (refCode || '').trim();
@@ -6254,7 +6416,8 @@ app.post('/root/tenants/referral', async (req, res) => {
   }
 
   console.log(`[Referral] Updated referral for tenant ${tenantId}: code=${cleanCode} percent=${percent}`);
-  res.render('root-tenants', buildRootViewModel({ message: `Referral για τον tenant "${tenantId}" αποθηκεύτηκε.` }));
+  setRootFlash(req, { message: `Referral για τον tenant "${tenantId}" αποθηκεύτηκε.` });
+  res.redirect('/root/finance');
 });
 
 // ── Root: referral account fiat method update ─────────────────────────────────
@@ -6262,18 +6425,19 @@ app.post('/root/referral/account', (req, res) => {
   const { rootPassword, code, payoutMode, iban, holder, wallet } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/finance');
   }
   const accounts = loadReferralAccounts();
   if (!accounts[code]) {
-    return res.status(404).render('root-tenants', buildRootViewModel({ error: `Referral account "${code}" δεν βρέθηκε.` }));
+    setRootFlash(req, { error: `Referral account "${code}" δεν βρέθηκε.` }); return res.redirect('/root/finance');
   }
   accounts[code].payoutMode  = payoutMode || 'offchain_fiat';
   accounts[code].wallet      = (wallet || '').trim() || null;
   accounts[code].fiatMethod  = { type: 'bank', iban: (iban || '').trim(), holder: (holder || '').trim() };
   saveReferralAccounts(accounts);
 
-  res.render('root-tenants', buildRootViewModel({ message: `Account "${code}" ενημερώθηκε.` }));
+  setRootFlash(req, { message: `Account "${code}" ενημερώθηκε.` });
+  res.redirect('/root/finance');
 });
 
 // ── Root: mark earning(s) as paid ────────────────────────────────────────────
@@ -6281,7 +6445,7 @@ app.post('/root/referral/mark-paid', (req, res) => {
   const { rootPassword, earningId, refCode, paidVia, txId } = req.body;
 
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }));
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/finance');
   }
 
   const earnings  = loadReferralEarnings();
@@ -6313,23 +6477,24 @@ app.post('/root/referral/mark-paid', (req, res) => {
     }
   }
 
-  res.render('root-tenants', buildRootViewModel({ message: `Πληρωμή ${totalPaid.toFixed(2)} € καταγράφηκε.` }));
+  setRootFlash(req, { message: `Πληρωμή ${totalPaid.toFixed(2)} € καταγράφηκε.` });
+  res.redirect('/root/finance');
 });
 
 app.post('/root/finance/referrals/update', (req, res) => {
   const { rootPassword, ledgerId, status, notes } = req.body;
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }, req));
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/finance');
   }
   const allowed = new Set(['pending', 'approved', 'paid', 'cancelled', 'disputed']);
   const nextStatus = String(status || '').trim().toLowerCase();
   if (!allowed.has(nextStatus)) {
-    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Μη έγκυρο referral status.' }, req));
+    setRootFlash(req, { error: 'Μη έγκυρο referral status.' }); return res.redirect('/root/finance');
   }
   const ledger = loadReferralLedger();
   const idx = ledger.findIndex((row) => row.id === String(ledgerId || '').trim());
   if (idx < 0) {
-    return res.status(404).render('root-tenants', buildRootViewModel({ error: 'Referral ledger entry δεν βρέθηκε.' }, req));
+    setRootFlash(req, { error: 'Referral ledger entry δεν βρέθηκε.' }); return res.redirect('/root/finance');
   }
   ledger[idx] = {
     ...ledger[idx],
@@ -6339,28 +6504,26 @@ app.post('/root/finance/referrals/update', (req, res) => {
   };
   saveReferralLedger(ledger);
   console.log('[finance] referral-ledger:update', JSON.stringify({
-    ledgerId: ledger[idx].id,
-    tenantId: ledger[idx].tenantId,
-    orderId: ledger[idx].orderId,
-    status: nextStatus
+    ledgerId: ledger[idx].id, tenantId: ledger[idx].tenantId, orderId: ledger[idx].orderId, status: nextStatus
   }));
-  return res.render('root-tenants', buildRootViewModel({ message: 'Referral ledger ενημερώθηκε.' }, req));
+  setRootFlash(req, { message: 'Referral ledger ενημερώθηκε.' });
+  return res.redirect('/root/finance');
 });
 
 app.post('/root/finance/settlements/update', (req, res) => {
   const { rootPassword, ledgerId, status, notes } = req.body;
   if (!verifyRootPassword(rootPassword)) {
-    return res.status(401).render('root-tenants', buildRootViewModel({ error: 'Λάθος root κωδικός.' }, req));
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' }); return res.redirect('/root/finance');
   }
   const allowed = new Set(['pending', 'approved', 'partially_settled', 'settled', 'cancelled', 'disputed']);
   const nextStatus = String(status || '').trim().toLowerCase();
   if (!allowed.has(nextStatus)) {
-    return res.status(400).render('root-tenants', buildRootViewModel({ error: 'Μη έγκυρο settlement status.' }, req));
+    setRootFlash(req, { error: 'Μη έγκυρο settlement status.' }); return res.redirect('/root/finance');
   }
   const ledger = loadSettlementLedger();
   const idx = ledger.findIndex((row) => row.id === String(ledgerId || '').trim());
   if (idx < 0) {
-    return res.status(404).render('root-tenants', buildRootViewModel({ error: 'Settlement entry δεν βρέθηκε.' }, req));
+    setRootFlash(req, { error: 'Settlement entry δεν βρέθηκε.' }); return res.redirect('/root/finance');
   }
   ledger[idx] = {
     ...ledger[idx],
@@ -6370,12 +6533,10 @@ app.post('/root/finance/settlements/update', (req, res) => {
   };
   saveSettlementLedger(ledger);
   console.log('[finance] settlement-ledger:update', JSON.stringify({
-    ledgerId: ledger[idx].id,
-    tenantId: ledger[idx].tenantId,
-    orderId: ledger[idx].orderId,
-    status: nextStatus
+    ledgerId: ledger[idx].id, tenantId: ledger[idx].tenantId, orderId: ledger[idx].orderId, status: nextStatus
   }));
-  return res.render('root-tenants', buildRootViewModel({ message: 'Settlement ledger ενημερώθηκε.' }, req));
+  setRootFlash(req, { message: 'Settlement ledger ενημερώθηκε.' });
+  return res.redirect('/root/finance');
 });
 
 app.post('/root/hosting/update', (req, res) => {

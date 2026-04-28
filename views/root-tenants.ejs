@@ -1,1081 +1,454 @@
 <!DOCTYPE html>
-<html lang="<%= lang %>">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Thronos Root Admin – Tenants</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="/styles.css" />
-    <style>
-      :root {
-        --accent-color: #5b6af5;
-        --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      }
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Root Tenants | Thronos</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    :root { --accent:#5b6af5; }
+    body { font-family:system-ui,-apple-system,sans-serif; background:#f4f6fb; color:#1a1a2e; margin:0; }
+    .page-layout { max-width:1100px; margin:28px auto; padding:0 20px 60px; }
+    .flash { padding:12px 18px; border-radius:6px; margin-bottom:20px; font-size:.9rem; }
+    .flash.success { background:#d4edda; border:1px solid #b8dfc4; color:#155724; }
+    .flash.error   { background:#f8d7da; border:1px solid #f1b0b7; color:#721c24; }
+    .page-title { font-size:1.3rem; font-weight:700; margin:0 0 24px; }
+    .card { background:#fff; border-radius:10px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:22px; }
+    .card h2 { margin:0 0 4px; font-size:1.02rem; font-weight:700; }
+    .card .helper { font-size:.82rem; color:#666; margin:0 0 18px; }
 
-      body { font-family: var(--font-family); background: #f4f6fb; color: #1a1a2e; margin: 0; }
+    /* Tenants table */
+    .tenants-table { width:100%; border-collapse:collapse; font-size:.84rem; }
+    .tenants-table th, .tenants-table td { padding:9px 10px; text-align:left; border-bottom:1px solid #eee; }
+    .tenants-table th { background:#f0f2fa; font-weight:600; white-space:nowrap; }
+    .tenants-table tr:hover td { background:#fafbff; }
+    .tier-badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:.73rem; font-weight:600; white-space:nowrap; }
+    .tier-SELF_SERVICE     { background:#e3f0ff; color:#1a56db; }
+    .tier-MANAGEMENT_START { background:#fef3c7; color:#92400e; }
+    .tier-FULL_OPS_START   { background:#d1fae5; color:#065f46; }
+    .tier-DIGITAL_STARTER  { background:#fce7f3; color:#9d174d; }
+    .tier-DIGITAL_PRO      { background:#ede9fe; color:#5b21b6; }
+    .active-yes { color:#065f46; font-weight:600; }
+    .active-no  { color:#9f1239; font-weight:600; }
 
-      header {
-        background: #1a1a2e; color: #fff; padding: 18px 28px;
-        display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-      }
-      header h1 { margin: 0; font-size: 1.2rem; letter-spacing: 0.02em; }
-      header .badge {
-        background: #5b6af5; color: #fff; border-radius: 4px;
-        padding: 2px 10px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
-      }
-      header a { color: #a0aec0; font-size: 0.82rem; text-decoration: none; }
-      header a:hover { color: #fff; }
+    /* Forms */
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+    .form-grid .full { grid-column:1/-1; }
+    .form-grid label { display:flex; flex-direction:column; gap:5px; font-size:.84rem; font-weight:500; }
+    .form-grid input, .form-grid select { padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:.88rem; background:#fff; }
+    .form-grid input:focus, .form-grid select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,106,245,.12); }
+    .form-grid .hint { font-size:.76rem; color:#888; margin-top:2px; }
+    .form-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn { display:inline-block; padding:8px 20px; border-radius:6px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; transition:opacity .15s; }
+    .btn:hover { opacity:.87; }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-warning { background:#f59e0b; color:#fff; }
+    .btn-danger  { background:#ef4444; color:#fff; }
 
-      .root-layout { max-width: 1100px; margin: 28px auto; padding: 0 20px 60px; }
+    details { margin-top:10px; }
+    details summary { cursor:pointer; font-weight:600; font-size:.92rem; color:var(--accent); list-style:none; padding:4px 0; }
+    details summary::-webkit-details-marker { display:none; }
+    details summary::before { content:'▶ '; font-size:.7rem; }
+    details[open] summary::before { content:'▼ '; font-size:.7rem; }
+    details .detail-body { padding:16px 0 4px; }
 
-      .flash { padding: 12px 18px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
-      .flash.success { background: #d4edda; border: 1px solid #b8dfc4; color: #155724; }
-      .flash.error   { background: #f8d7da; border: 1px solid #f1b0b7; color: #721c24; }
+    .root-pass-note { font-size:.78rem; color:#888; border-top:1px dashed #ddd; margin-top:20px; padding-top:14px; }
+  </style>
+</head>
+<body>
+  <%- include('_root-nav', { page: 'tenants', openTicketCount: openTicketCount || 0, unresolvedFinanceCount: unresolvedFinanceCount || 0 }) %>
 
-      /* ── Section card ── */
-      .card {
-        background: #fff; border-radius: 10px; padding: 24px 28px;
-        box-shadow: 0 2px 12px rgba(0,0,0,.07); margin-bottom: 24px;
-      }
-      .card h2 { margin: 0 0 4px; font-size: 1.05rem; }
-      .card .helper { font-size: 0.82rem; color: #666; margin: 0 0 18px; }
+  <div class="page-layout">
+    <% if (message) { %><div class="flash success"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash error"><%= error %></div><% } %>
 
-      /* ── Tenants table ── */
-      .tenants-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-      .tenants-table th, .tenants-table td {
-        padding: 9px 12px; text-align: left; border-bottom: 1px solid #eee;
-      }
-      .tenants-table th { background: #f0f2fa; font-weight: 600; white-space: nowrap; }
-      .tenants-table tr:hover td { background: #fafbff; }
+    <h1 class="page-title">Tenants</h1>
 
-      .tier-badge {
-        display: inline-block; padding: 2px 8px; border-radius: 20px;
-        font-size: 0.75rem; font-weight: 600; white-space: nowrap;
-      }
-      .tier-SELF_SERVICE     { background: #e3f0ff; color: #1a56db; }
-      .tier-MANAGEMENT_START { background: #fef3c7; color: #92400e; }
-      .tier-FULL_OPS_START   { background: #d1fae5; color: #065f46; }
-      .tier-DIGITAL_STARTER  { background: #fce7f3; color: #9d174d; }
-      .tier-DIGITAL_PRO      { background: #ede9fe; color: #5b21b6; }
+    <%# ══ TENANTS TABLE ══ %>
+    <div class="card">
+      <h2>Tenants (<%= tenants.length %>)</h2>
+      <p class="helper">Όλα τα καταστήματα που είναι εγγεγραμμένα στην πλατφόρμα.</p>
 
-      .active-yes { color: #065f46; font-weight: 600; }
-      .active-no  { color: #9f1239; font-weight: 600; }
-
-      /* ── Forms ── */
-      .form-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 12px; margin-bottom: 16px;
-      }
-      .form-grid .full { grid-column: 1 / -1; }
-      .form-grid label { display: flex; flex-direction: column; gap: 5px;
-                         font-size: 0.84rem; font-weight: 500; }
-      .form-grid input, .form-grid select {
-        padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
-        font-size: 0.88rem; background: #fff;
-      }
-      .form-grid input:focus, .form-grid select:focus {
-        outline: none; border-color: var(--accent-color);
-        box-shadow: 0 0 0 3px rgba(91,106,245,.12);
-      }
-      .form-grid .hint { font-size: 0.76rem; color: #888; margin-top: 2px; }
-
-      .form-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-      .btn {
-        display: inline-block; padding: 8px 20px; border-radius: 6px; font-size: 0.88rem;
-        font-weight: 600; cursor: pointer; border: none; transition: opacity .15s;
-      }
-      .btn:hover { opacity: 0.87; }
-      .btn-primary { background: var(--accent-color); color: #fff; }
-      .btn-warning { background: #f59e0b; color: #fff; }
-      .btn-danger  { background: #ef4444; color: #fff; }
-
-      .root-pass-note {
-        font-size: 0.78rem; color: #888;
-        border-top: 1px dashed #ddd; margin-top: 20px; padding-top: 14px;
-      }
-
-      /* ── Collapsible form sections ── */
-      details { margin-top: 10px; }
-      details summary {
-        cursor: pointer; font-weight: 600; font-size: 0.92rem;
-        color: var(--accent-color); list-style: none; padding: 4px 0;
-      }
-      details summary::-webkit-details-marker { display: none; }
-      details summary::before { content: '▶ '; font-size: 0.7rem; }
-      details[open] summary::before { content: '▼ '; font-size: 0.7rem; }
-      details .detail-body { padding: 16px 0 4px; }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>Thronos Commerce</h1>
-      <span class="badge">ROOT ADMIN</span>
-      <span style="flex:1"></span>
-      <a href="/root/hosting">Hosting Panel</a>
-      <a href="/">← Storefront</a>
-    </header>
-
-    <div class="root-layout">
-
-      <% if (message) { %>
-        <div class="flash success"><%= message %></div>
+      <% if (tenants.length === 0) { %>
+        <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants ακόμα.</p>
+      <% } else { %>
+      <div style="overflow-x:auto;">
+        <table class="tenants-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Domain</th><th>Domain status</th><th>Canonical</th>
+              <th>Πακέτο</th><th>Referral</th><th>Ενεργό</th><th>Δημιουργία</th>
+              <th>Συνδρομή</th><th>Preview URLs</th><th>Allowed themes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% tenants.forEach(function(t) { %>
+            <tr>
+              <td><code><%= t.id %></code></td>
+              <td><%= t.domain || '–' %></td>
+              <td><code><%= t.domainStatus || 'pending_dns' %></code></td>
+              <td><code><%= t.canonicalToWww ? 'www' : 'off' %></code></td>
+              <td><span class="tier-badge tier-<%= t.supportTier %>"><%= t.supportTier %></span></td>
+              <td style="font-size:.8rem;">
+                <% if (t.referral && t.referral.code) { %>
+                  <code style="background:#f0f2fa;padding:1px 5px;border-radius:3px;"><%= t.referral.code %></code>
+                  <span style="color:#888;"> <%= (t.referral.percent * 100).toFixed(0) %>%</span>
+                <% } else { %><span style="color:#ccc;">–</span><% } %>
+              </td>
+              <td>
+                <% if (t.active) { %><span class="active-yes">✓ Ναι</span>
+                <% } else { %><span class="active-no">✗ Όχι</span><% } %>
+              </td>
+              <td style="white-space:nowrap;font-size:.8rem;color:#666;">
+                <% if (t.createdAt) { %><%= new Date(t.createdAt).toLocaleDateString('el-GR') %><% } else { %>–<% } %>
+              </td>
+              <td>
+                <% const sub = getSubscriptionInfo(t); %>
+                <% if (sub && sub.expiryStr) { %>
+                  <span style="font-size:.73rem;padding:2px 8px;border-radius:12px;font-weight:600;background:<%= sub.isExpired ? '#fee2e2' : sub.isExpiringSoon ? '#fef3c7' : '#d1fae5' %>;color:<%= sub.isExpired ? '#991b1b' : sub.isExpiringSoon ? '#92400e' : '#065f46' %>;">
+                    <%= sub.isExpired ? '⚠ Ληγμένη' : sub.daysLeft + ' μέρες' %>
+                  </span>
+                  <span style="font-size:.7rem;color:#9ca3af;display:block;margin-top:2px;"><%= sub.expiryStr %></span>
+                <% } else { %><span style="color:#ccc;font-size:.8rem;">–</span><% } %>
+              </td>
+              <td style="font-size:.75rem;">
+                <div><a href="/t/<%= t.id %>" target="_blank">Store Preview</a></div>
+                <div><a href="/t/<%= t.id %>/admin/login" target="_blank">Admin Preview</a></div>
+              </td>
+              <td style="font-size:.75rem;">
+                <code><%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(', ') : 'core_default' %></code>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
       <% } %>
-      <% if (error) { %>
-        <div class="flash error"><%= error %></div>
-      <% } %>
+    </div>
 
 
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   TENANTS TABLE                                           %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Tenants (<%= tenants.length %>)</h2>
-        <p class="helper">Όλα τα καταστήματα που είναι εγγεγραμμένα στην πλατφόρμα.</p>
+    <%# ══ CREATE TENANT ══ %>
+    <div class="card">
+      <h2>Δημιουργία νέου tenant</h2>
+      <p class="helper">Δημιουργήστε νέο κατάστημα. Τα αρχεία config/products/categories θα δημιουργηθούν από το template.</p>
 
-        <% if (tenants.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants ακόμα.</p>
-        <% } else { %>
-        <div style="overflow-x:auto;">
-          <table class="tenants-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Domain</th>
-                <th>Domain status</th>
-                <th>Canonical</th>
-                <th>Πακέτο</th>
-                <th>Referral</th>
-                <th>Ενεργό</th>
-                <th>Δημιουργία</th>
-                <th>Συνδρομή</th>
-                <th>Preview URLs</th>
-                <th>Admin hash</th>
-                <th>Allowed themes</th>
-              </tr>
-            </thead>
-            <tbody>
+      <form method="POST" action="/root/tenants/create">
+        <div class="form-grid">
+          <label>
+            Tenant ID *
+            <input type="text" name="id" placeholder="π.χ. myshop" required pattern="[a-zA-Z0-9_-]+" />
+            <span class="hint">Μοναδικό αναγνωριστικό (a-z, 0-9, -, _)</span>
+          </label>
+          <label>
+            Domain
+            <input type="text" name="domain" placeholder="π.χ. myshop.gr" />
+          </label>
+          <label>
+            Primary domain
+            <input type="text" name="primaryDomain" placeholder="π.χ. myshop.gr" />
+          </label>
+          <label>
+            Domain aliases
+            <input type="text" name="domains" placeholder="myshop.gr,www.myshop.gr" />
+            <span class="hint">Comma-separated, χωρίς το primary domain</span>
+          </label>
+          <label>
+            Preview subdomain
+            <input type="text" name="previewSubdomain" placeholder="π.χ. myshop" />
+          </label>
+          <label>
+            Domain status
+            <select name="domainStatus">
+              <option value="pending_dns" selected>pending_dns</option>
+              <option value="ssl_validating">ssl_validating</option>
+              <option value="active">active</option>
+              <option value="failed">failed</option>
+            </select>
+          </label>
+          <label>
+            Canonical → www
+            <select name="canonicalToWww">
+              <option value="">Όχι (off)</option>
+              <option value="true">Ναι (www redirect)</option>
+            </select>
+          </label>
+          <label>
+            Πακέτο υποστήριξης
+            <select name="supportTier">
+              <% (SUPPORT_TIERS || []).forEach(function(t) { %><option value="<%= t %>"><%= t %></option><% }) %>
+            </select>
+          </label>
+          <label>
+            Template
+            <select name="templateId">
+              <option value="demo">demo (default)</option>
+            </select>
+          </label>
+          <label>
+            Referral code
+            <input type="text" name="refCode" placeholder="π.χ. partner-giannis" />
+          </label>
+          <label>
+            Referral %
+            <input type="number" name="refPercent" value="10" min="1" max="50" step="1" />
+          </label>
+          <label>
+            Allowed theme keys
+            <input type="text" name="allowedThemeKeys" placeholder="core_default" />
+            <span class="hint">Comma-separated. Άδειο = μόνο core_default</span>
+          </label>
+          <label>
+            Admin κωδικός *
+            <input type="text" name="adminPasswordPlain" required autocomplete="new-password" placeholder="Αρχικός κωδικός admin" />
+          </label>
+          <label>
+            Root κωδικός *
+            <input type="password" name="rootPassword" required />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Δημιουργία tenant</button>
+        </div>
+      </form>
+    </div>
+
+
+    <%# ══ UPDATE TENANT ══ %>
+    <div class="card">
+      <h2>Ενημέρωση tenant</h2>
+      <p class="helper">Αλλαγή domain, πακέτου, κατάστασης, συνδρομής. Για referral config → <a href="/root/finance">Finance page</a>.</p>
+
+      <% if (tenants.length === 0) { %>
+        <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
+      <% } else { %>
+      <form method="POST" action="/root/tenants/update" id="update-form">
+        <div class="form-grid">
+          <label>
+            Tenant
+            <select name="tenantId" id="update-tenant-select" onchange="prefillUpdate(this)">
               <% tenants.forEach(function(t) { %>
-              <tr>
-                <td><code><%= t.id %></code></td>
-                <td><%= t.domain || '–' %></td>
-                <td><code><%= t.domainStatus || 'pending_dns' %></code></td>
-                <td><code><%= t.canonicalToWww ? 'www' : 'off' %></code></td>
-                <td><span class="tier-badge tier-<%= t.supportTier %>"><%= t.supportTier %></span></td>
-                <td style="font-size:0.8rem;">
-                  <% if (t.referral && t.referral.code) { %>
-                    <code style="background:#f0f2fa;padding:1px 5px;border-radius:3px;"><%= t.referral.code %></code>
-                    <span style="color:#888;"> <%= (t.referral.percent * 100).toFixed(0) %>%</span>
-                  <% } else { %>
-                    <span style="color:#ccc;">–</span>
-                  <% } %>
-                </td>
-                <td>
-                  <% if (t.active) { %>
-                    <span class="active-yes">✓ Ναι</span>
-                  <% } else { %>
-                    <span class="active-no">✗ Όχι</span>
-                  <% } %>
-                </td>
-                <td style="white-space:nowrap;font-size:0.8rem;color:#666;">
-                  <% if (t.createdAt) { %>
-                    <%= new Date(t.createdAt).toLocaleDateString('el-GR') %>
-                  <% } else { %>–<% } %>
-                </td>
-                <td>
-                  <% const sub = getSubscriptionInfo(t); %>
-                  <% if (sub && sub.expiryStr) { %>
-                    <span style="font-size:.75rem;padding:2px 8px;border-radius:12px;font-weight:600;background:<%= sub.isExpired ? '#fee2e2' : sub.isExpiringSoon ? '#fef3c7' : '#d1fae5' %>;color:<%= sub.isExpired ? '#991b1b' : sub.isExpiringSoon ? '#92400e' : '#065f46' %>;">
-                      <%= sub.isExpired ? '⚠ Ληγμένη' : sub.daysLeft + ' μέρες' %>
-                    </span>
-                    <span style="font-size:.7rem;color:#9ca3af;display:block;margin-top:2px;"><%= sub.expiryStr %></span>
-                  <% } else { %><span style="color:#ccc;font-size:.8rem;">–</span><% } %>
-                </td>
-                <td style="font-size:.75rem;">
-                  <div><a href="/t/<%= t.id %>" target="_blank">Store Preview</a></div>
-                  <div><a href="/t/<%= t.id %>/admin/login" target="_blank">Admin Preview</a></div>
-                </td>
-                <td style="font-size:0.74rem;color:#999;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                  <%= t.adminPasswordHash ? t.adminPasswordHash.slice(0, 20) + '…' : '–' %>
-                </td>
-                <td style="font-size:.75rem;">
-                  <code><%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(', ') : 'core_default' %></code>
-                </td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-
-        <%# ── Open tickets ── %>
-        <% if (allTickets && allTickets.length) { %>
-        <h3 style="margin-top:32px;font-size:1rem;">🎫 Ανοιχτά tickets (<%= allTickets.length %>)</h3>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
-          <% allTickets.forEach(function(tk) { %>
-          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;">
-            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-              <strong style="font-size:.88rem;">[<%= tk._tenantId %>] <%= tk.subject %></strong>
-              <span style="font-size:.74rem;padding:2px 10px;border-radius:20px;font-weight:600;background:<%= tk.status === 'replied' ? '#dbeafe' : '#fef3c7' %>;color:<%= tk.status === 'replied' ? '#1e40af' : '#92400e' %>;">
-                <%= tk.status === 'replied' ? '💬 Απαντήθηκε' : '⏳ Εκκρεμεί' %>
-              </span>
-            </div>
-            <p style="font-size:.82rem;color:#374151;margin:6px 0;"><%= (tk.body || '').slice(0, 200) %><%= (tk.body||'').length > 200 ? '…' : '' %></p>
-            <span style="font-size:.74rem;color:#9ca3af;"><%= new Date(tk.createdAt).toLocaleString('el-GR') %> · <%= tk.category %></span>
-            <form method="POST" action="/root/tickets/reply" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-              <input type="hidden" name="tenantId" value="<%= tk._tenantId %>" />
-              <input type="hidden" name="ticketId" value="<%= tk.id %>" />
-              <input type="password" name="password" placeholder="Root κωδικός" style="flex:0 0 150px;padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.8rem;" required />
-              <textarea name="replyText" placeholder="Απάντηση..." rows="2" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.8rem;resize:vertical;" required></textarea>
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <button type="submit" style="padding:6px 14px;background:#3b82f6;color:#fff;border:none;border-radius:5px;font-size:.8rem;cursor:pointer;">Απάντηση</button>
-                <button type="submit" form="close-form-<%= tk.id %>" style="padding:6px 14px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;font-size:.8rem;cursor:pointer;">✓ Κλείσιμο</button>
-              </div>
-            </form>
-            <form id="close-form-<%= tk.id %>" method="POST" action="/root/tickets/close" style="display:none;">
-              <input type="hidden" name="tenantId" value="<%= tk._tenantId %>" />
-              <input type="hidden" name="ticketId" value="<%= tk.id %>" />
-              <input type="hidden" name="password" id="close-pw-<%= tk.id %>" />
-            </form>
-            <script>
-              (function() {
-                var f = document.getElementById('close-form-<%= tk.id %>');
-                var btn = f ? f.previousElementSibling : null;
-                if (btn) btn.addEventListener('click', function() {
-                  var pw = document.querySelector('form[action="/root/tickets/reply"] input[name="password"]');
-                  if (pw) document.getElementById('close-pw-<%= tk.id %>').value = pw.value;
-                });
-              })();
-            </script>
-          </div>
-          <% }) %>
-        </div>
-        <% } %>
-
-        <% } %>
-      </div>
-
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   CREATE TENANT                                           %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Theme Governance (Root)</h2>
-        <p class="helper">Ορίστε ποια theme keys είναι διαθέσιμα πλατφορμικά και ποια επιτρέπονται ανά tenant.</p>
-        <form method="POST" action="/root/themes/update">
-          <div class="form-grid">
-            <label class="full">
-              Διαθέσιμα theme keys (comma separated)
-              <input type="text" name="availableThemeKeys" value="<%= (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys)) ? themeGovernance.availableThemeKeys.join(',') : '' %>" />
-              <span class="hint">Επιτρεπόμενα keys: <% (themeCatalog || []).forEach(function(t, i) { %><code><%= t.key %></code><%= i < (themeCatalog.length - 1) ? ', ' : '' %><% }) %></span>
-            </label>
-            <label class="full">
-              Root κωδικός *
-              <input type="password" name="rootPassword" required />
-            </label>
-          </div>
-          <div class="form-actions"><button class="btn btn-primary" type="submit">Αποθήκευση Theme Governance</button></div>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2>Δημιουργία νέου tenant</h2>
-        <p class="helper">
-          Συμπληρώστε τα στοιχεία του νέου καταστήματος. Τα αρχεία config/products/categories
-          θα δημιουργηθούν αυτόματα από το template που επιλέξετε.
-        </p>
-
-        <form method="POST" action="/root/tenants/create">
-          <div class="form-grid">
-            <label>
-              Tenant ID *
-              <input type="text" name="id" placeholder="π.χ. myshop" required
-                     pattern="[a-zA-Z0-9_-]+" title="Μόνο γράμματα, αριθμοί, _ και -" />
-              <span class="hint">Μοναδικό αναγνωριστικό (a-z, 0-9, -, _)</span>
-            </label>
-
-            <label>
-              Domain
-              <input type="text" name="domain" placeholder="π.χ. myshop.gr" />
-              <span class="hint">Πραγματικό hostname για tenant resolution (αποθηκεύεται σε lowercase).</span>
-            </label>
-
-            <label>
-              Primary domain
-              <input type="text" name="primaryDomain" placeholder="π.χ. myshop.gr" />
-              <span class="hint">Το βασικό domain του tenant (apex ή www).</span>
-            </label>
-
-            <label>
-              Domain aliases
-              <input type="text" name="domains" placeholder="myshop.gr,www.myshop.gr" />
-              <span class="hint">Προαιρετικά aliases, χωρισμένα με κόμμα. Μην βάζετε εδώ το Primary domain.</span>
-            </label>
-
-            <label>
-              Preview subdomain
-              <input type="text" name="previewSubdomain" placeholder="π.χ. myshop" />
-            </label>
-
-            <label>
-              Domain status
-              <select name="domainStatus">
-                <option value="pending_dns">pending_dns</option>
-                <option value="ssl_validating">ssl_validating</option>
-                <option value="active">active</option>
-                <option value="failed">failed</option>
-              </select>
-              <span class="hint">Χειροκίνητο πεδίο παρακολούθησης (metadata) — δεν κάνει DNS/SSL provisioning.</span>
-            </label>
-
-            <label class="checkbox-row" style="align-self:end;">
-              <input type="hidden" name="canonicalToWww" value="0" />
-              <input type="checkbox" name="canonicalToWww" value="1" />
-              Canonical redirect to www
-              <span class="hint">Ενεργοποιεί redirect μόνο αν το app ήδη λύνει και τα δύο hosts.</span>
-            </label>
-
-            <label>
-              Πακέτο υποστήριξης
-              <select name="supportTier">
-                <option value="SELF_SERVICE">SELF_SERVICE</option>
-                <option value="MANAGEMENT_START">MANAGEMENT_START</option>
-                <option value="FULL_OPS_START">FULL_OPS_START</option>
-                <option value="DIGITAL_STARTER">DIGITAL_STARTER</option>
-                <option value="DIGITAL_PRO">DIGITAL_PRO</option>
-              </select>
-            </label>
-
-            <label>
-              Template (αντιγραφή από)
-              <select name="templateId">
-                <% (themeTemplates || []).forEach(function(tp) { %>
-                  <option value="<%= tp.id %>">template: <%= tp.id %></option>
-                <% }) %>
-                <% tenants.forEach(function(t) { %>
-                  <option value="<%= t.id %>" <%= t.id === 'demo' ? 'selected' : '' %>><%= t.id %></option>
-                <% }) %>
-                <% if (tenants.length === 0) { %>
-                  <option value="demo">demo (προεπιλογή)</option>
-                <% } %>
-              </select>
-              <span class="hint">Αντιγράφονται config / products / categories</span>
-            </label>
-
-            <label class="full">
-              Allowed theme keys (comma separated)
-              <input type="text" name="allowedThemeKeys" value="<%= (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys)) ? themeGovernance.availableThemeKeys.join(',') : '' %>" />
-              <span class="hint">Ο tenant θα μπορεί να επιλέξει μόνο από αυτά τα themes (υποσύνολο των global available).</span>
-            </label>
-
-            <label>
-              Κωδικός admin *
-              <input type="text" name="adminPasswordPlain" required autocomplete="new-password"
-                     placeholder="Αρχικός κωδικός για τον ιδιοκτήτη" />
-              <span class="hint">Θα αποθηκευτεί ως bcrypt hash</span>
-            </label>
-
-            <label>
-              Referral κωδικός (προαιρετικό)
-              <input type="text" name="refCode" placeholder="π.χ. partner-giannis" />
-              <span class="hint">Αφήστε κενό αν δεν ανήκει σε referral partner</span>
-            </label>
-
-            <label>
-              Referral ποσοστό %
-              <input type="number" name="refPercent" value="10" min="1" max="50" step="1" />
-              <span class="hint">Ποσοστό προμήθειας (1–50%)</span>
-            </label>
-
-            <label class="full">
-              Root κωδικός *
-              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn-primary" type="submit">+ Δημιουργία tenant</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2>Templates / Theme Skeletons</h2>
-        <p class="helper">Αποθήκευση θέματος από tenant χωρίς προϊόντα/παραγγελίες/χρήστες.</p>
-        <form method="POST" action="/root/templates/create">
-          <div class="form-grid">
-            <label>
-              Tenant πηγή
-              <select name="tenantId" required>
-                <% tenants.forEach(function(t) { %><option value="<%= t.id %>"><%= t.id %></option><% }) %>
-              </select>
-            </label>
-            <label>
-              Template ID
-              <input type="text" name="templateId" placeholder="eukolakis-theme-v1" required pattern="[a-zA-Z0-9_-]+" />
-            </label>
-            <label>
-              Όνομα template
-              <input type="text" name="templateName" placeholder="Eukolakis Theme v1" />
-            </label>
-            <label>
-              Root κωδικός
-              <input type="password" name="rootPassword" required />
-            </label>
-          </div>
-          <div class="form-actions"><button class="btn btn-primary" type="submit">Αποθήκευση ως template</button></div>
-        </form>
-        <% if (themeTemplates && themeTemplates.length) { %>
-          <div style="margin-top:16px;font-size:.84rem;color:#374151;">
-            <% themeTemplates.forEach(function(tp) { %>
-              <div style="padding:6px 0;border-bottom:1px solid #eee;"><strong><%= tp.id %></strong> — <%= tp.name || tp.id %> (source: <%= tp.sourceTenantId %>)</div>
-            <% }) %>
-          </div>
-        <% } %>
-      </div>
-
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   UPDATE TENANT                                           %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Ενημέρωση tenant</h2>
-        <p class="helper">Αλλαγή domain, πακέτου υποστήριξης ή κατάστασης ενεργοποίησης.</p>
-
-        <% if (tenants.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants για ενημέρωση.</p>
-        <% } else { %>
-        <form method="POST" action="/root/tenants/update" id="update-form">
-          <div class="form-grid">
-            <label>
-              Tenant
-              <select name="tenantId" id="update-tenant-select" onchange="prefillUpdate(this)">
-                <% tenants.forEach(function(t) { %>
-                  <option value="<%= t.id %>"
-                    data-domain="<%= t.domain || '' %>"
-                    data-primary-domain="<%= t.primaryDomain || '' %>"
-                    data-domains="<%= Array.isArray(t.domains) ? t.domains.join(',') : '' %>"
-                    data-preview-subdomain="<%= t.previewSubdomain || t.id || '' %>"
-                    data-domain-status="<%= t.domainStatus || 'pending_dns' %>"
-                    data-canonical-to-www="<%= t.canonicalToWww ? 'true' : 'false' %>"
-                    data-allowed-theme-keys="<%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(',') : '' %>"
-                    data-tier="<%= t.supportTier %>"
-                    data-active="<%= t.active ? 'true' : 'false' %>"
-                    data-allow-powered-by="<%= t.allowPoweredBy ? 'true' : 'false' %>">
-                    <%= t.id %>
-                  </option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>
-              Domain
-              <input type="text" name="domain" id="update-domain" placeholder="π.χ. myshop.gr" />
-            </label>
-
-            <label>
-              Primary domain
-              <input type="text" name="primaryDomain" id="update-primary-domain" placeholder="π.χ. eukolaki.gr" />
-            </label>
-
-            <label>
-              Domain aliases (comma separated)
-              <input type="text" name="domains" id="update-domains" placeholder="eukolaki.gr,www.eukolaki.gr" />
-              <span class="hint">Το σύστημα αφαιρεί κενά, κάνει lowercase, dedupe και αφαιρεί το Primary από aliases.</span>
-            </label>
-
-            <label>
-              Preview subdomain
-              <input type="text" name="previewSubdomain" id="update-preview-subdomain" placeholder="eukolakis" />
-            </label>
-
-            <label class="full">
-              Allowed theme keys (comma separated)
-              <input type="text" name="allowedThemeKeys" id="update-allowed-theme-keys" placeholder="core_default,eukolakis_classic_diy" />
-              <span class="hint">Global available = ό,τι ορίστηκε στο Theme Governance. Tenant allowed = υποσύνολο για τον συγκεκριμένο tenant.</span>
-            </label>
-
-            <label>
-              Domain status
-              <select name="domainStatus" id="update-domain-status">
-                <option value="pending_dns">pending_dns</option>
-                <option value="ssl_validating">ssl_validating</option>
-                <option value="active">active</option>
-                <option value="failed">failed</option>
-              </select>
-              <span class="hint">Χειροκίνητο metadata για operator tracking (όχι αυτοματισμός hosting).</span>
-            </label>
-
-            <label class="checkbox-row" style="align-self:end;">
-              <input type="hidden" name="canonicalToWww" value="0" />
-              <input type="checkbox" id="update-canonical-to-www" name="canonicalToWww" value="1" />
-              Canonical redirect to www
-              <span class="hint">Δεν αντικαθιστά DNS/Railway ρυθμίσεις· εφαρμόζεται μόνο όταν και τα δύο hosts χαρτογραφούνται.</span>
-            </label>
-
-            <label>
-              Πακέτο υποστήριξης
-              <select name="supportTier" id="update-tier">
-                <option value="SELF_SERVICE">SELF_SERVICE</option>
-                <option value="MANAGEMENT_START">MANAGEMENT_START</option>
-                <option value="FULL_OPS_START">FULL_OPS_START</option>
-                <option value="DIGITAL_STARTER">DIGITAL_STARTER</option>
-                <option value="DIGITAL_PRO">DIGITAL_PRO</option>
-              </select>
-            </label>
-
-            <label>
-              Κατάσταση
-              <select name="active" id="update-active">
-                <option value="true">Ενεργό</option>
-                <option value="false">Ανενεργό</option>
-              </select>
-            </label>
-
-            <label class="checkbox-row" style="align-self:end;">
-              <input type="hidden" name="allowPoweredBy" value="0" />
-              <input type="checkbox" id="update-allow-powered-by" name="allowPoweredBy" value="1" />
-              Επιτρέπεται “Powered by” στο footer
-            </label>
-
-            <label>
-              Λήξη συνδρομής
-              <input type="date" name="subscriptionExpiry" id="update-subexpiry" />
-            </label>
-
-            <label>
-              Root κωδικός *
-              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn-warning" type="submit">Ενημέρωση</button>
-          </div>
-        </form>
-        <% } %>
-      </div>
-
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   RESET ADMIN PASSWORD                                    %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Επαναφορά κωδικού admin</h2>
-        <p class="helper">Ορίστε νέο κωδικό για τον admin ενός tenant. Θα αποθηκευτεί ως bcrypt hash.</p>
-
-        <% if (tenants.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
-        <% } else { %>
-        <form method="POST" action="/root/tenants/reset-admin-password">
-          <div class="form-grid">
-            <label>
-              Tenant
-              <select name="tenantId">
-                <% tenants.forEach(function(t) { %>
-                  <option value="<%= t.id %>"><%= t.id %></option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>
-              Νέος κωδικός admin *
-              <input type="text" name="newPassword" required autocomplete="new-password"
-                     placeholder="Νέος κωδικός" />
-            </label>
-
-            <label class="full">
-              Root κωδικός *
-              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn-danger" type="submit">Επαναφορά κωδικού</button>
-          </div>
-        </form>
-        <% } %>
-      </div>
-
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   GATEWAY SURCHARGE (ROOT ONLY)                           %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Gateway Surcharge (ανά tenant)</h2>
-        <p class="helper">
-          Ορίστε την προσαύξηση gateway (%) ανά τρόπο πληρωμής για κάθε κατάστημα.
-          Αυτή η ρύθμιση είναι ορατή μόνο στο Root Admin.
-        </p>
-
-        <% if (tenants.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
-        <% } else { %>
-        <form method="POST" action="/root/tenants/payment-config" id="surcharge-form">
-          <div class="form-grid">
-            <label>
-              Tenant
-              <select name="tenantId" id="surcharge-tenant-select" onchange="renderSurchargeFields(this.value)">
-                <% tenants.forEach(function(t) { %>
-                  <option value="<%= t.id %>"><%= t.id %></option>
-                <% }) %>
-              </select>
-            </label>
-          </div>
-
-          <div id="surcharge-fields" style="margin:12px 0 16px;"></div>
-
-          <div class="form-grid">
-            <label class="full">
-              Root κωδικός *
-              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Αποθήκευση surcharges</button>
-          </div>
-        </form>
-        <% } %>
-      </div>
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   REFERRAL CONFIG (per tenant)                            %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Referral Config (ανά tenant)</h2>
-        <p class="helper">Σύνδεση tenant με referral partner και ορισμός ποσοστού προμήθειας.</p>
-
-        <% if (tenants.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
-        <% } else { %>
-        <form method="POST" action="/root/tenants/referral">
-          <div class="form-grid">
-            <label>
-              Tenant
-              <select name="tenantId">
-                <% tenants.forEach(function(t) { %>
-                  <option value="<%= t.id %>">
-                    <%= t.id %><%= (t.referral && t.referral.code) ? ' (' + t.referral.code + ')' : '' %>
-                  </option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>
-              Referral κωδικός
-              <input type="text" name="refCode" placeholder="π.χ. partner-giannis" />
-              <span class="hint">Αφήστε κενό για κατάργηση referral</span>
-            </label>
-
-            <label>
-              Referral ποσοστό %
-              <input type="number" name="refPercent" value="10" min="1" max="50" step="1" />
-            </label>
-
-            <label class="full">
-              Root κωδικός *
-              <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Αποθήκευση Referral Config</button>
-          </div>
-        </form>
-        <% } %>
-      </div>
-
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   REFERRAL ACCOUNTS (payout settings)                     %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Referral Accounts (στοιχεία πληρωμής)</h2>
-        <p class="helper">Ορισμός τρόπου πληρωμής ανά referral account (crypto wallet ή IBAN).</p>
-
-        <% const refAccountKeys = Object.keys(refAccounts); %>
-        <% if (refAccountKeys.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν referral accounts.</p>
-        <% } else { %>
-          <% refAccountKeys.forEach(function(code) { %>
-            <% const acc = refAccounts[code]; %>
-            <details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;">
-              <summary style="cursor:pointer;font-weight:600;">
-                <code><%= code %></code>
-                <span style="color:#6b7280;font-size:0.83rem;margin-left:8px;">
-                  <%= (acc.percent * 100).toFixed(0) %>% &middot;
-                  Tenants: <%= (acc.tenants || []).join(', ') || '–' %>
-                </span>
-              </summary>
-              <form method="POST" action="/root/referral/account" style="margin-top:14px;">
-                <input type="hidden" name="refCode" value="<%= code %>" />
-                <div class="form-grid">
-                  <label>
-                    Τρόπος πληρωμής
-                    <select name="payoutMode">
-                      <option value="crypto" <%= acc.payoutMode === 'crypto' ? 'selected' : '' %>>Crypto</option>
-                      <option value="fiat"   <%= acc.payoutMode === 'fiat'   ? 'selected' : '' %>>Fiat (IBAN)</option>
-                    </select>
-                  </label>
-
-                  <label>
-                    Crypto Wallet
-                    <input type="text" name="wallet" value="<%= acc.wallet || '' %>" placeholder="0x…" />
-                  </label>
-
-                  <label>
-                    IBAN / Fiat λεπτομέρειες
-                    <input type="text" name="fiatMethod" value="<%= acc.fiatMethod || '' %>"
-                           placeholder="IBAN GR… ή σημείωση" />
-                  </label>
-
-                  <label class="full">
-                    Root κωδικός *
-                    <input type="password" name="rootPassword" required placeholder="THRONOS_ROOT_ADMIN_PASSWORD" />
-                  </label>
-                </div>
-                <div class="form-actions">
-                  <button class="btn btn-primary" type="submit">Αποθήκευση</button>
-                </div>
-              </form>
-            </details>
-          <% }) %>
-        <% } %>
-      </div>
-
-
-      <%# ══════════════════════════════════════════════════════════ %>
-      <%#   REFERRAL PAYOUTS                                        %>
-      <%# ══════════════════════════════════════════════════════════ %>
-      <div class="card">
-        <h2>Referral Payouts</h2>
-        <p class="helper">Εκκρεμείς προμήθειες ανά referral partner. Σημειώστε ως πληρωμένες μετά την εκτέλεση.</p>
-
-        <% const pendingCodes = Object.keys(pendingByCode); %>
-        <% if (pendingCodes.length === 0) { %>
-          <p style="color:#888;font-style:italic;">Δεν υπάρχουν εκκρεμείς πληρωμές. 🎉</p>
-        <% } else { %>
-          <% pendingCodes.forEach(function(code) { %>
-            <% const grp = pendingByCode[code]; %>
-            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:18px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-                <div>
-                  <strong style="font-size:1.05rem;"><code><%= code %></code></strong>
-                  <% const acc2 = refAccounts[code]; %>
-                  <% if (acc2) { %>
-                    <span style="color:#6b7280;font-size:0.82rem;margin-left:8px;">
-                      <%= acc2.payoutMode === 'crypto' ? '🔗 ' + (acc2.wallet || '—') : '🏦 ' + (acc2.fiatMethod || '—') %>
-                    </span>
-                  <% } %>
-                </div>
-                <span style="font-size:1.1rem;font-weight:700;color:#059669;">
-                  Σύνολο: <%= grp.total.toFixed(2) %> €
-                </span>
-              </div>
-
-              <table style="width:100%;border-collapse:collapse;font-size:0.83rem;margin-bottom:14px;">
-                <thead>
-                  <tr style="background:#f0f2fa;">
-                    <th style="padding:5px 8px;text-align:left;">Tenant</th>
-                    <th style="padding:5px 8px;text-align:left;">Event</th>
-                    <th style="padding:5px 8px;text-align:right;">Ποσό €</th>
-                    <th style="padding:5px 8px;text-align:left;">Ημ/νία</th>
-                    <th style="padding:5px 8px;text-align:center;">Ενέργεια</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <% grp.rows.forEach(function(row) { %>
-                    <tr style="border-bottom:1px solid #f3f4f6;">
-                      <td style="padding:5px 8px;"><code><%= row.tenantId %></code></td>
-                      <td style="padding:5px 8px;color:#6b7280;"><%= row.eventType || '–' %></td>
-                      <td style="padding:5px 8px;text-align:right;font-weight:600;"><%= row.amountFiat.toFixed(2) %></td>
-                      <td style="padding:5px 8px;color:#6b7280;"><%= new Date(row.createdAt).toLocaleDateString('el') %></td>
-                      <td style="padding:5px 8px;text-align:center;">
-                        <form method="POST" action="/root/referral/mark-paid" style="display:inline;">
-                          <input type="hidden" name="earningId" value="<%= row.id %>" />
-                          <input type="hidden" name="refCode"   value="<%= code %>" />
-                          <input type="text"   name="paidVia"   placeholder="crypto/IBAN" style="width:80px;padding:3px 5px;border:1px solid #d1d5db;border-radius:3px;font-size:0.8rem;" />
-                          <input type="text"   name="txId"      placeholder="tx/ref" style="width:80px;padding:3px 5px;border:1px solid #d1d5db;border-radius:3px;font-size:0.8rem;" />
-                          <input type="hidden" name="rootPassword" class="root-pw-payouts" value="" />
-                          <button class="btn btn-sm" type="submit" style="font-size:0.78rem;padding:3px 8px;">✓ Πλήρωσα</button>
-                        </form>
-                      </td>
-                    </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-
-              <%# Mark ALL pending for this code as paid %>
-              <form method="POST" action="/root/referral/mark-paid" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                <input type="hidden" name="refCode" value="<%= code %>" />
-                <strong style="font-size:0.88rem;">Σημείωσε ΟΛΑ ως πληρωμένα:</strong>
-                <input type="text" name="paidVia" placeholder="crypto/IBAN" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;width:120px;" />
-                <input type="text" name="txId"    placeholder="tx/ref #" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;width:120px;" />
-                <input type="password" name="rootPassword" required placeholder="Root κωδικός" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;width:140px;" />
-                <button class="btn btn-warning" type="submit">✓ Mark All Paid (<%= grp.total.toFixed(2) %> €)</button>
-              </form>
-            </div>
-          <% }) %>
-        <% } %>
-
-        <%# Paid history (last 20) %>
-        <% const paidRows = refEarnings.filter(function(e) { return e.status === 'paid'; }).slice(-20).reverse(); %>
-        <% if (paidRows.length > 0) { %>
-          <details style="margin-top:20px;">
-            <summary style="cursor:pointer;color:#6b7280;font-size:0.88rem;">Ιστορικό πληρωμών (τελευταία <%= paidRows.length %>)</summary>
-            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-top:10px;">
-              <thead>
-                <tr style="background:#f0f2fa;">
-                  <th style="padding:5px 8px;text-align:left;">Code</th>
-                  <th style="padding:5px 8px;text-align:left;">Tenant</th>
-                  <th style="padding:5px 8px;text-align:right;">Ποσό €</th>
-                  <th style="padding:5px 8px;text-align:left;">Via</th>
-                  <th style="padding:5px 8px;text-align:left;">Tx/Ref</th>
-                  <th style="padding:5px 8px;text-align:left;">Ημ/νία</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% paidRows.forEach(function(row) { %>
-                  <tr style="border-bottom:1px solid #f3f4f6;">
-                    <td style="padding:5px 8px;"><code><%= row.refCode %></code></td>
-                    <td style="padding:5px 8px;"><code><%= row.tenantId %></code></td>
-                    <td style="padding:5px 8px;text-align:right;"><%= row.amountFiat.toFixed(2) %></td>
-                    <td style="padding:5px 8px;color:#6b7280;"><%= row.paidVia || '–' %></td>
-                    <td style="padding:5px 8px;color:#6b7280;font-size:0.78rem;"><%= row.txId || '–' %></td>
-                    <td style="padding:5px 8px;color:#6b7280;"><%= row.paidAt ? new Date(row.paidAt).toLocaleDateString('el') : '–' %></td>
-                  </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </details>
-        <% } %>
-      </div>
-
-      <div class="card">
-        <h2>Finance Backoffice (Ledger Phase)</h2>
-        <p class="helper">Ledger-only workflow: review, approve, and mark paid/settled manually. No direct payout execution yet.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;">
-          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">Pending referral payouts: <strong><%= Number(pendingReferralPayouts || 0).toFixed(2) %> €</strong></div>
-          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">Pending tenant payables: <strong><%= Number(pendingTenantPayables || 0).toFixed(2) %> €</strong></div>
-          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">Pending tenant receivables: <strong><%= Number(pendingTenantReceivables || 0).toFixed(2) %> €</strong></div>
-          <div style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff7ed;">Unresolved finance items: <strong><%= Number(unresolvedFinanceCount || 0) %></strong></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Referral Ledger</h2>
-        <form method="GET" action="/root/tenants" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px;">
-          <label style="margin:0;">Tenant
-            <input type="text" name="tenantId" value="<%= financeFilters && financeFilters.tenantFilter ? financeFilters.tenantFilter : '' %>" />
-          </label>
-          <label style="margin:0;">Referral code
-            <input type="text" name="referralCode" value="<%= financeFilters && financeFilters.referralCodeFilter ? financeFilters.referralCodeFilter : '' %>" />
-          </label>
-          <label style="margin:0;">Status
-            <select name="refStatus">
-              <option value="">All</option>
-              <% ['pending','approved','paid','cancelled','disputed'].forEach(function(st){ %>
-                <option value="<%= st %>" <%= financeFilters && financeFilters.referralStatusFilter === st ? 'selected' : '' %>><%= st %></option>
+                <option value="<%= t.id %>"
+                  data-domain="<%= t.domain || '' %>"
+                  data-primary-domain="<%= t.primaryDomain || '' %>"
+                  data-domains="<%= Array.isArray(t.domains) ? t.domains.join(',') : '' %>"
+                  data-preview-subdomain="<%= t.previewSubdomain || t.id || '' %>"
+                  data-domain-status="<%= t.domainStatus || 'pending_dns' %>"
+                  data-canonical-to-www="<%= t.canonicalToWww ? 'true' : 'false' %>"
+                  data-allowed-theme-keys="<%= Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(',') : '' %>"
+                  data-tier="<%= t.supportTier %>"
+                  data-active="<%= t.active ? 'true' : 'false' %>"
+                  data-allow-powered-by="<%= t.allowPoweredBy ? 'true' : 'false' %>">
+                  <%= t.id %>
+                </option>
               <% }) %>
             </select>
           </label>
-          <button class="btn btn-sm" type="submit">Filter</button>
-        </form>
-        <div class="helper" style="margin-bottom:8px;">
-          <% Object.keys(referralTotalsByCode || {}).forEach(function(code){ %>
-            <span style="display:inline-block;margin-right:10px;">[<strong><%= code %></strong>] pending <%= Number(referralTotalsByCode[code].pending || 0).toFixed(2) %> € / approved <%= Number(referralTotalsByCode[code].approved || 0).toFixed(2) %> € / paid <%= Number(referralTotalsByCode[code].paid || 0).toFixed(2) %> € / orders <%= referralTotalsByCode[code].orders %></span>
-          <% }) %>
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
-          <thead><tr style="background:#f0f2fa;"><th style="padding:6px 8px;text-align:left;">ID</th><th style="padding:6px 8px;text-align:left;">Tenant</th><th style="padding:6px 8px;text-align:left;">Order</th><th style="padding:6px 8px;text-align:left;">Code</th><th style="padding:6px 8px;text-align:right;">Amount €</th><th style="padding:6px 8px;text-align:left;">Status</th><th style="padding:6px 8px;text-align:left;">Action</th></tr></thead>
-          <tbody>
-            <% (referralLedger || []).forEach(function(row){ %>
-              <tr style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:6px 8px;"><code><%= row.id %></code></td>
-                <td style="padding:6px 8px;"><code><%= row.tenantId %></code></td>
-                <td style="padding:6px 8px;"><code><%= row.orderId %></code></td>
-                <td style="padding:6px 8px;"><%= row.referralCode %></td>
-                <td style="padding:6px 8px;text-align:right;"><%= Number(row.commissionAmount || 0).toFixed(2) %></td>
-                <td style="padding:6px 8px;"><strong><%= row.status %></strong></td>
-                <td style="padding:6px 8px;">
-                  <form method="POST" action="/root/finance/referrals/update" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                    <input type="hidden" name="ledgerId" value="<%= row.id %>" />
-                    <select name="status">
-                      <% ['pending','approved','paid','cancelled','disputed'].forEach(function(st){ %>
-                        <option value="<%= st %>" <%= row.status === st ? 'selected' : '' %>><%= st %></option>
-                      <% }) %>
-                    </select>
-                    <input type="text" name="notes" value="<%= row.notes || '' %>" placeholder="notes" style="min-width:120px;" />
-                    <input type="password" name="rootPassword" required placeholder="root pw" style="width:120px;" />
-                    <button class="btn btn-sm" type="submit">Save</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
 
-      <div class="card">
-        <h2>Tenant Settlement Ledger</h2>
-        <form method="GET" action="/root/tenants" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px;">
-          <label style="margin:0;">Tenant
-            <input type="text" name="tenantId" value="<%= financeFilters && financeFilters.tenantFilter ? financeFilters.tenantFilter : '' %>" />
+          <label>
+            Domain
+            <input type="text" name="domain" id="update-domain" placeholder="π.χ. myshop.gr" />
           </label>
-          <label style="margin:0;">Payment method
-            <input type="text" name="paymentMethod" value="<%= financeFilters && financeFilters.paymentMethodFilter ? financeFilters.paymentMethodFilter : '' %>" />
+          <label>
+            Primary domain
+            <input type="text" name="primaryDomain" id="update-primary-domain" />
           </label>
-          <label style="margin:0;">Status
-            <select name="stStatus">
-              <option value="">All</option>
-              <% ['pending','approved','partially_settled','settled','cancelled','disputed'].forEach(function(st){ %>
-                <option value="<%= st %>" <%= financeFilters && financeFilters.settlementStatusFilter === st ? 'selected' : '' %>><%= st %></option>
-              <% }) %>
+          <label>
+            Domain aliases (comma)
+            <input type="text" name="domains" id="update-domains" />
+            <span class="hint">Αφαιρεί duplicates, lowercase, αφαιρεί primary από aliases.</span>
+          </label>
+          <label>
+            Preview subdomain
+            <input type="text" name="previewSubdomain" id="update-preview-subdomain" />
+          </label>
+          <label class="full">
+            Allowed theme keys (comma)
+            <input type="text" name="allowedThemeKeys" id="update-allowed-theme-keys" />
+          </label>
+          <label>
+            Domain status
+            <select name="domainStatus" id="update-domain-status">
+              <option value="pending_dns">pending_dns</option>
+              <option value="ssl_validating">ssl_validating</option>
+              <option value="active">active</option>
+              <option value="failed">failed</option>
             </select>
           </label>
-          <button class="btn btn-sm" type="submit">Filter</button>
-        </form>
-        <div class="helper" style="margin-bottom:8px;">
-          <% Object.keys(settlementTotalsByTenant || {}).forEach(function(tid){ %>
-            <span style="display:inline-block;margin-right:10px;">[<strong><%= tid %></strong>] pending payable <%= Number(settlementTotalsByTenant[tid].pendingPayable || 0).toFixed(2) %> € / pending receivable <%= Number(settlementTotalsByTenant[tid].pendingReceivable || 0).toFixed(2) %> € / settled <%= Number(settlementTotalsByTenant[tid].settled || 0).toFixed(2) %> €</span>
-          <% }) %>
+          <label style="align-self:end;">
+            <input type="hidden" name="canonicalToWww" value="0" />
+            <input type="checkbox" id="update-canonical-to-www" name="canonicalToWww" value="1" />
+            Canonical → www
+          </label>
+          <label>
+            Πακέτο
+            <select name="supportTier" id="update-tier">
+              <% (SUPPORT_TIERS || []).forEach(function(t) { %><option value="<%= t %>"><%= t %></option><% }) %>
+            </select>
+          </label>
+          <label>
+            Κατάσταση
+            <select name="active" id="update-active">
+              <option value="true">Ενεργό</option>
+              <option value="false">Ανενεργό</option>
+            </select>
+          </label>
+          <label style="align-self:end;">
+            <input type="hidden" name="allowPoweredBy" value="0" />
+            <input type="checkbox" id="update-allow-powered-by" name="allowPoweredBy" value="1" />
+            Powered by footer
+          </label>
+          <label>
+            Λήξη συνδρομής
+            <input type="date" name="subscriptionExpiry" id="update-subexpiry" />
+          </label>
+          <label>
+            Root κωδικός *
+            <input type="password" name="rootPassword" required />
+          </label>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
-          <thead><tr style="background:#f0f2fa;"><th style="padding:6px 8px;text-align:left;">ID</th><th style="padding:6px 8px;text-align:left;">Tenant</th><th style="padding:6px 8px;text-align:left;">Order</th><th style="padding:6px 8px;text-align:left;">Direction</th><th style="padding:6px 8px;text-align:right;">Net €</th><th style="padding:6px 8px;text-align:left;">Status</th><th style="padding:6px 8px;text-align:left;">Action</th></tr></thead>
-          <tbody>
-            <% (settlementLedger || []).forEach(function(row){ %>
-              <tr style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:6px 8px;"><code><%= row.id %></code></td>
-                <td style="padding:6px 8px;"><code><%= row.tenantId %></code></td>
-                <td style="padding:6px 8px;"><code><%= row.orderId %></code></td>
-                <td style="padding:6px 8px;"><%= row.settlementDirection %></td>
-                <td style="padding:6px 8px;text-align:right;"><%= Number(row.netSettlementAmount || 0).toFixed(2) %></td>
-                <td style="padding:6px 8px;"><strong><%= row.status %></strong></td>
-                <td style="padding:6px 8px;">
-                  <form method="POST" action="/root/finance/settlements/update" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                    <input type="hidden" name="ledgerId" value="<%= row.id %>" />
-                    <select name="status">
-                      <% ['pending','approved','partially_settled','settled','cancelled','disputed'].forEach(function(st){ %>
-                        <option value="<%= st %>" <%= row.status === st ? 'selected' : '' %>><%= st %></option>
-                      <% }) %>
-                    </select>
-                    <input type="text" name="notes" value="<%= row.notes || '' %>" placeholder="notes" style="min-width:120px;" />
-                    <input type="password" name="rootPassword" required placeholder="root pw" style="width:120px;" />
-                    <button class="btn btn-sm" type="submit">Save</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
+        <div class="form-actions">
+          <button class="btn btn-warning" type="submit">Ενημέρωση</button>
+        </div>
+      </form>
+      <% } %>
+    </div>
 
 
-      <div class="root-pass-note">
-        <strong>Σημείωση ασφαλείας:</strong> Το root password ορίζεται μέσω της env μεταβλητής
-        <code>THRONOS_ROOT_ADMIN_PASSWORD</code>. Χωρίς αυτή, κανένα root action δεν εκτελείται.
-        Μην μοιραστείτε αυτό το URL ή τον κωδικό.
-      </div>
+    <%# ══ RESET ADMIN PASSWORD ══ %>
+    <div class="card">
+      <h2>Επαναφορά κωδικού admin</h2>
+      <p class="helper">Νέος bcrypt hash κωδικός για τον admin ενός tenant.</p>
 
-    </div><%# /root-layout %>
+      <% if (tenants.length === 0) { %>
+        <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
+      <% } else { %>
+      <form method="POST" action="/root/tenants/reset-admin-password">
+        <div class="form-grid">
+          <label>
+            Tenant
+            <select name="tenantId">
+              <% tenants.forEach(function(t) { %><option value="<%= t.id %>"><%= t.id %></option><% }) %>
+            </select>
+          </label>
+          <label>
+            Νέος κωδικός admin *
+            <input type="text" name="newPassword" required autocomplete="new-password" placeholder="Νέος κωδικός" />
+          </label>
+          <label class="full">
+            Root κωδικός *
+            <input type="password" name="rootPassword" required />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-danger" type="submit">Επαναφορά κωδικού</button>
+        </div>
+      </form>
+      <% } %>
+    </div>
 
-    <script>
-      // ── Gateway Surcharge ─────────────────────────────────────────
-      const tenantPaymentConfigs = <%- JSON.stringify(tenantPaymentConfigs) %>;
 
-      function renderSurchargeFields(tenantId) {
-        const container = document.getElementById('surcharge-fields');
-        const opts = tenantPaymentConfigs[tenantId] || [];
-        if (opts.length === 0) {
-          container.innerHTML = '<p style="color:#aaa;font-style:italic;font-size:0.85rem;">Δεν υπάρχουν payment options για αυτό το tenant.</p>';
-          return;
-        }
-        let html = '<table style="border-collapse:collapse;font-size:0.86rem;width:100%;">' +
-          '<thead><tr><th style="text-align:left;padding:6px 10px;background:#f0f2fa;">ID</th>' +
-          '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">Label</th>' +
-          '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">Surcharge %</th></tr></thead><tbody>';
-        opts.forEach(function(opt, i) {
-          html += '<tr><td style="padding:6px 10px;"><code>' + opt.id + '</code></td>' +
-            '<td style="padding:6px 10px;">' + (opt.label || '–') + '</td>' +
-            '<td style="padding:6px 10px;"><input type="number" name="surcharge_' + i + '" ' +
-            'value="' + (opt.gatewaySurchargePercent || 0) + '" min="0" step="0.001" ' +
-            'style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;" /></td></tr>';
-        });
-        html += '</tbody></table>';
-        container.innerHTML = html;
+    <%# ══ GATEWAY SURCHARGE ══ %>
+    <div class="card">
+      <h2>Gateway Surcharge</h2>
+      <p class="helper">Ρύθμιση προσαύξησης gateway (%) ανά τρόπο πληρωμής για κάθε κατάστημα.</p>
+
+      <% if (tenants.length === 0) { %>
+        <p style="color:#888;font-style:italic;">Δεν υπάρχουν tenants.</p>
+      <% } else { %>
+      <form method="POST" action="/root/tenants/payment-config" id="surcharge-form">
+        <div class="form-grid">
+          <label>
+            Tenant
+            <select name="tenantId" id="surcharge-tenant-select" onchange="renderSurchargeFields(this.value)">
+              <% tenants.forEach(function(t) { %><option value="<%= t.id %>"><%= t.id %></option><% }) %>
+            </select>
+          </label>
+        </div>
+        <div id="surcharge-fields" style="margin:12px 0 16px;"></div>
+        <div class="form-grid">
+          <label class="full">
+            Root κωδικός *
+            <input type="password" name="rootPassword" required />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Αποθήκευση surcharges</button>
+        </div>
+      </form>
+      <% } %>
+    </div>
+
+    <p class="root-pass-note">
+      <strong>Ασφάλεια:</strong> Root password → env <code>THRONOS_ROOT_ADMIN_PASSWORD</code>. Μην κοινοποιείτε αυτό το URL.
+    </p>
+  </div>
+
+  <script>
+    const tenantPaymentConfigs = <%- JSON.stringify(tenantPaymentConfigs) %>;
+
+    function renderSurchargeFields(tenantId) {
+      const container = document.getElementById('surcharge-fields');
+      const opts = tenantPaymentConfigs[tenantId] || [];
+      if (opts.length === 0) {
+        container.innerHTML = '<p style="color:#aaa;font-style:italic;font-size:.84rem;">Δεν υπάρχουν payment options για αυτό το tenant.</p>';
+        return;
       }
-
-      // Render on page load
-      const surchargeSelect = document.getElementById('surcharge-tenant-select');
-      if (surchargeSelect) renderSurchargeFields(surchargeSelect.value);
-
-      // ── Update form pre-fill ──────────────────────────────────────
-      const tenantData = {
-        <% tenants.forEach(function(t, i) { %>
-          "<%= t.id %>": {
-            domain: "<%- (t.domain || '').replace(/"/g, '\\"') %>",
-            primaryDomain: "<%- (t.primaryDomain || '').replace(/"/g, '\\"') %>",
-            domains: "<%- (Array.isArray(t.domains) ? t.domains.join(',') : '').replace(/"/g, '\\"') %>",
-            previewSubdomain: "<%- (t.previewSubdomain || t.id || '').replace(/"/g, '\\"') %>",
-            domainStatus: "<%- (t.domainStatus || 'pending_dns').replace(/"/g, '\\"') %>",
-            canonicalToWww: <%= t.canonicalToWww ? 'true' : 'false' %>,
-            allowedThemeKeys: "<%- (Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(',') : '').replace(/"/g, '\\"') %>",
-            tier: "<%= t.supportTier %>",
-            active: <%= t.active ? 'true' : 'false' %>,
-            allowPoweredBy: <%= t.allowPoweredBy ? 'true' : 'false' %>
-          }<%= i < tenants.length - 1 ? ',' : '' %>
-        <% }) %>
-      };
-
-      function prefillUpdate(select) {
-        const d = tenantData[select.value];
-        if (!d) return;
-        document.getElementById('update-domain').value = d.domain;
-        const primaryDomainEl = document.getElementById('update-primary-domain');
-        if (primaryDomainEl) primaryDomainEl.value = d.primaryDomain || '';
-        const domainsEl = document.getElementById('update-domains');
-        if (domainsEl) domainsEl.value = d.domains || '';
-        const previewEl = document.getElementById('update-preview-subdomain');
-        if (previewEl) previewEl.value = d.previewSubdomain || '';
-        const allowedThemesEl = document.getElementById('update-allowed-theme-keys');
-        if (allowedThemesEl) allowedThemesEl.value = d.allowedThemeKeys || '';
-        const domainStatusEl = document.getElementById('update-domain-status');
-        if (domainStatusEl) {
-          for (let i = 0; i < domainStatusEl.options.length; i++) {
-            if (domainStatusEl.options[i].value === (d.domainStatus || 'pending_dns')) { domainStatusEl.selectedIndex = i; break; }
-          }
-        }
-        const canonicalToWwwEl = document.getElementById('update-canonical-to-www');
-        if (canonicalToWwwEl) canonicalToWwwEl.checked = !!d.canonicalToWww;
-        const tierSel = document.getElementById('update-tier');
-        for (let i = 0; i < tierSel.options.length; i++) {
-          if (tierSel.options[i].value === d.tier) { tierSel.selectedIndex = i; break; }
-        }
-        const activeSel = document.getElementById('update-active');
-        for (let i = 0; i < activeSel.options.length; i++) {
-          if ((activeSel.options[i].value === 'true') === d.active) { activeSel.selectedIndex = i; break; }
-        }
-        const allowPoweredByEl = document.getElementById('update-allow-powered-by');
-        if (allowPoweredByEl) allowPoweredByEl.checked = !!d.allowPoweredBy;
-      }
-
-      // Pre-fill on page load
-      const sel = document.getElementById('update-tenant-select');
-      if (sel) prefillUpdate(sel);
-
-      // ── Referral payouts: sync root password to inline per-row forms ──
-      // Each per-row form has a hidden input.root-pw-payouts; user types
-      // the root password in the "Mark All" form and we mirror it upward.
-      document.querySelectorAll('form[action="/root/referral/mark-paid"]').forEach(function(form) {
-        const pwInput = form.querySelector('input[name="rootPassword"]');
-        if (!pwInput) return;
-        pwInput.addEventListener('input', function() {
-          // If this is the "mark all" form (visible password field), mirror to sibling inline forms
-          const card = form.closest('div');
-          if (!card) return;
-          card.querySelectorAll('input.root-pw-payouts').forEach(function(hidden) {
-            hidden.value = pwInput.value;
-          });
-        });
+      let html = '<table style="border-collapse:collapse;font-size:.85rem;width:100%;">' +
+        '<thead><tr>' +
+        '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">ID</th>' +
+        '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">Label</th>' +
+        '<th style="text-align:left;padding:6px 10px;background:#f0f2fa;">Surcharge %</th>' +
+        '</tr></thead><tbody>';
+      opts.forEach(function(opt, i) {
+        html += '<tr><td style="padding:6px 10px;"><code>' + opt.id + '</code></td>' +
+          '<td style="padding:6px 10px;">' + (opt.label || '–') + '</td>' +
+          '<td style="padding:6px 10px;"><input type="number" name="surcharge_' + i + '" ' +
+          'value="' + (opt.gatewaySurchargePercent || 0) + '" min="0" step="0.001" ' +
+          'style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;" /></td></tr>';
       });
-    </script>
-  </body>
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+    const surchargeSelect = document.getElementById('surcharge-tenant-select');
+    if (surchargeSelect) renderSurchargeFields(surchargeSelect.value);
+
+    const tenantData = {
+      <% tenants.forEach(function(t, i) { %>
+        "<%= t.id %>": {
+          domain: "<%- (t.domain || '').replace(/"/g, '\\"') %>",
+          primaryDomain: "<%- (t.primaryDomain || '').replace(/"/g, '\\"') %>",
+          domains: "<%- (Array.isArray(t.domains) ? t.domains.join(',') : '').replace(/"/g, '\\"') %>",
+          previewSubdomain: "<%- (t.previewSubdomain || t.id || '').replace(/"/g, '\\"') %>",
+          domainStatus: "<%- (t.domainStatus || 'pending_dns').replace(/"/g, '\\"') %>",
+          canonicalToWww: <%= t.canonicalToWww ? 'true' : 'false' %>,
+          allowedThemeKeys: "<%- (Array.isArray(t.allowedThemeKeys) ? t.allowedThemeKeys.join(',') : '').replace(/"/g, '\\"') %>",
+          tier: "<%= t.supportTier %>",
+          active: <%= t.active ? 'true' : 'false' %>,
+          allowPoweredBy: <%= t.allowPoweredBy ? 'true' : 'false' %>
+        }<%= i < tenants.length - 1 ? ',' : '' %>
+      <% }) %>
+    };
+
+    function prefillUpdate(select) {
+      const d = tenantData[select.value];
+      if (!d) return;
+      document.getElementById('update-domain').value = d.domain;
+      const el = (id) => document.getElementById(id);
+      if (el('update-primary-domain')) el('update-primary-domain').value = d.primaryDomain || '';
+      if (el('update-domains')) el('update-domains').value = d.domains || '';
+      if (el('update-preview-subdomain')) el('update-preview-subdomain').value = d.previewSubdomain || '';
+      if (el('update-allowed-theme-keys')) el('update-allowed-theme-keys').value = d.allowedThemeKeys || '';
+      const ds = el('update-domain-status');
+      if (ds) { for (let i = 0; i < ds.options.length; i++) { if (ds.options[i].value === (d.domainStatus || 'pending_dns')) { ds.selectedIndex = i; break; } } }
+      if (el('update-canonical-to-www')) el('update-canonical-to-www').checked = !!d.canonicalToWww;
+      const ts = el('update-tier');
+      if (ts) { for (let i = 0; i < ts.options.length; i++) { if (ts.options[i].value === d.tier) { ts.selectedIndex = i; break; } } }
+      const as = el('update-active');
+      if (as) { for (let i = 0; i < as.options.length; i++) { if ((as.options[i].value === 'true') === d.active) { as.selectedIndex = i; break; } } }
+      if (el('update-allow-powered-by')) el('update-allow-powered-by').checked = !!d.allowPoweredBy;
+    }
+    const sel = document.getElementById('update-tenant-select');
+    if (sel) prefillUpdate(sel);
+  </script>
+</body>
 </html>

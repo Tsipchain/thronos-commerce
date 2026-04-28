@@ -1,0 +1,23 @@
+<style>
+  .root-header { background:#0f172a; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .root-brand  { color:#fff; font-weight:700; font-size:1rem; text-decoration:none; letter-spacing:.02em; }
+  .root-nav    { display:flex; gap:4px; flex-wrap:wrap; margin-left:auto; }
+  .root-nav a  { color:#94a3b8; font-size:.82rem; font-weight:600; text-decoration:none; padding:5px 11px; border-radius:5px; transition:background .12s,color .12s; white-space:nowrap; }
+  .root-nav a:hover     { background:#1e293b; color:#fff; }
+  .root-nav a.rn-active { background:#2563eb; color:#fff; }
+  .root-nav a.rn-logout { color:#f87171; }
+  .root-nav a.rn-logout:hover { background:#7f1d1d; color:#fff; }
+  .rn-badge { display:inline-block; background:#ef4444; color:#fff; border-radius:999px; font-size:.65rem; padding:0 5px; font-weight:800; margin-left:3px; vertical-align:middle; line-height:1.4; }
+</style>
+<header class="root-header">
+  <a href="/root/dashboard" class="root-brand">⚙ Thronos Root</a>
+  <nav class="root-nav">
+    <a href="/root/dashboard" class="<%= locals.page === 'dashboard' ? 'rn-active' : '' %>">Dashboard</a>
+    <a href="/root/tenants"   class="<%= locals.page === 'tenants'   ? 'rn-active' : '' %>">Tenants</a>
+    <a href="/root/hosting"   class="<%= locals.page === 'hosting'   ? 'rn-active' : '' %>">Hosting</a>
+    <a href="/root/finance"   class="<%= locals.page === 'finance'   ? 'rn-active' : '' %>">Finance<% if (locals.unresolvedFinanceCount > 0) { %><span class="rn-badge"><%= locals.unresolvedFinanceCount %></span><% } %></a>
+    <a href="/root/themes"    class="<%= locals.page === 'themes'    ? 'rn-active' : '' %>">Themes</a>
+    <a href="/root/tickets"   class="<%= locals.page === 'tickets'   ? 'rn-active' : '' %>">Tickets<% if (locals.openTicketCount > 0) { %><span class="rn-badge"><%= locals.openTicketCount %></span><% } %></a>
+    <a href="/root/logout" class="rn-logout">Logout</a>
+  </nav>
+</header>

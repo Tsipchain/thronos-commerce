@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Root Finance | Thronos</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { font-family:system-ui,-apple-system,sans-serif; background:#f4f6fb; color:#1a1a2e; margin:0; }
+    .page-layout { max-width:1200px; margin:28px auto; padding:0 20px 60px; }
+    .flash { padding:12px 18px; border-radius:6px; margin-bottom:20px; font-size:.9rem; }
+    .flash.success { background:#d4edda; border:1px solid #b8dfc4; color:#155724; }
+    .flash.error   { background:#f8d7da; border:1px solid #f1b0b7; color:#721c24; }
+    .page-title { font-size:1.3rem; font-weight:700; margin:0 0 6px; }
+    .page-sub   { font-size:.85rem; color:#64748b; margin:0 0 24px; }
+    .card { background:#fff; border-radius:10px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:22px; }
+    .card h2 { margin:0 0 4px; font-size:1.02rem; font-weight:700; }
+    .card .helper { font-size:.82rem; color:#666; margin:0 0 16px; }
+
+    /* Stats row */
+    .finance-stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:0; }
+    .fstat { padding:12px 16px; border:1px solid #e5e7eb; border-radius:8px; background:#f8fafc; font-size:.84rem; flex:1; min-width:160px; }
+    .fstat .fval { font-size:1.3rem; font-weight:800; margin-top:4px; }
+    .fstat.warn { border-color:#fde68a; background:#fffbeb; }
+    .fstat.alert { border-color:#fca5a5; background:#fff1f2; }
+
+    /* Forms */
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; margin-bottom:16px; }
+    .form-grid .full { grid-column:1/-1; }
+    .form-grid label { display:flex; flex-direction:column; gap:5px; font-size:.84rem; font-weight:500; }
+    .form-grid input, .form-grid select { padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:.88rem; background:#fff; }
+    .form-grid input:focus, .form-grid select:focus { outline:none; border-color:#5b6af5; box-shadow:0 0 0 3px rgba(91,106,245,.12); }
+    .form-grid .hint { font-size:.76rem; color:#888; margin-top:2px; }
+    .form-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn { display:inline-block; padding:8px 20px; border-radius:6px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; transition:opacity .15s; }
+    .btn:hover { opacity:.87; }
+    .btn-primary { background:#5b6af5; color:#fff; }
+    .btn-warning { background:#f59e0b; color:#fff; }
+    .btn-sm { padding:4px 12px; font-size:.8rem; background:#e0e7ff; color:#3730a3; border:none; border-radius:5px; cursor:pointer; font-weight:600; }
+    .btn-sm:hover { background:#c7d2fe; }
+
+    /* Tables */
+    .data-table { width:100%; border-collapse:collapse; font-size:.83rem; }
+    .data-table th, .data-table td { padding:7px 10px; text-align:left; border-bottom:1px solid #f0f2f8; }
+    .data-table th { background:#f0f2fa; font-weight:600; white-space:nowrap; }
+    .data-table tr:hover td { background:#fafbff; }
+
+    details.section-toggle { margin-bottom:14px; border:1px solid #e5e7eb; border-radius:8px; }
+    details.section-toggle > summary { cursor:pointer; padding:12px 16px; font-weight:600; font-size:.9rem; list-style:none; display:flex; align-items:center; gap:8px; }
+    details.section-toggle > summary::-webkit-details-marker { display:none; }
+    details.section-toggle[open] > summary { border-bottom:1px solid #e5e7eb; }
+    details.section-toggle .section-body { padding:16px; }
+
+    .filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px; }
+    .filter-bar label { display:flex; flex-direction:column; gap:4px; font-size:.8rem; font-weight:500; }
+    .filter-bar input, .filter-bar select { padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:.83rem; }
+    .totals-summary { font-size:.8rem; color:#374151; margin-bottom:10px; }
+    .totals-summary span { display:inline-block; margin-right:14px; }
+  </style>
+</head>
+<body>
+  <%- include('_root-nav', { page: 'finance', openTicketCount: openTicketCount || 0, unresolvedFinanceCount: unresolvedFinanceCount || 0 }) %>
+
+  <div class="page-layout">
+    <% if (message) { %><div class="flash success"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+    <h1 class="page-title">Finance Backoffice</h1>
+    <p class="page-sub">Referral accounts, payouts, ledger και settlement — χειροκίνητη διαχείριση.</p>
+
+    <!-- Finance overview -->
+    <div class="card">
+      <h2>Σύνοψη</h2>
+      <div class="finance-stats">
+        <div class="fstat <%= Number(pendingReferralPayouts || 0) > 0 ? 'warn' : '' %>">
+          <div>Εκκρεμείς referral payouts</div>
+          <div class="fval"><%= Number(pendingReferralPayouts || 0).toFixed(2) %> €</div>
+        </div>
+        <div class="fstat <%= Number(pendingTenantPayables || 0) > 0 ? 'warn' : '' %>">
+          <div>Πληρωτέα σε tenants</div>
+          <div class="fval"><%= Number(pendingTenantPayables || 0).toFixed(2) %> €</div>
+        </div>
+        <div class="fstat <%= Number(pendingTenantReceivables || 0) > 0 ? 'alert' : '' %>">
+          <div>Εισπρακτέα από tenants</div>
+          <div class="fval"><%= Number(pendingTenantReceivables || 0).toFixed(2) %> €</div>
+        </div>
+        <div class="fstat <%= Number(unresolvedFinanceCount || 0) > 0 ? 'alert' : '' %>">
+          <div>Εκκρεμή finance items</div>
+          <div class="fval"><%= Number(unresolvedFinanceCount || 0) %></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Referral Config per tenant -->
+    <details class="section-toggle">
+      <summary>💼 Referral Config ανά tenant</summary>
+      <div class="section-body">
+        <p class="helper" style="margin-bottom:14px;">Σύνδεση tenant με referral partner και ορισμός ποσοστού προμήθειας.</p>
+        <form method="POST" action="/root/tenants/referral">
+          <div class="form-grid">
+            <label>
+              Tenant
+              <select name="tenantId">
+                <% (tenants || []).forEach(function(t) { %>
+                  <option value="<%= t.id %>"><%= t.id %><%= (t.referral && t.referral.code) ? ' (' + t.referral.code + ')' : '' %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>
+              Referral κωδικός
+              <input type="text" name="refCode" placeholder="π.χ. partner-giannis" />
+              <span class="hint">Αφήστε κενό για κατάργηση</span>
+            </label>
+            <label>
+              Ποσοστό %
+              <input type="number" name="refPercent" value="10" min="1" max="50" step="1" />
+            </label>
+            <label>
+              Root κωδικός *
+              <input type="password" name="rootPassword" required />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Αποθήκευση Referral Config</button>
+          </div>
+        </form>
+      </div>
+    </details>
+
+    <!-- Referral Accounts -->
+    <div class="card">
+      <h2>Referral Accounts (στοιχεία πληρωμής)</h2>
+      <p class="helper">Ορισμός τρόπου πληρωμής ανά referral account (crypto wallet ή IBAN).</p>
+
+      <% const refAccountKeys = Object.keys(refAccounts || {}); %>
+      <% if (refAccountKeys.length === 0) { %>
+        <p style="color:#888;font-style:italic;">Δεν υπάρχουν referral accounts ακόμα.</p>
+      <% } else { %>
+        <% refAccountKeys.forEach(function(code) { %>
+        <% const acc = refAccounts[code]; %>
+        <details style="margin-bottom:12px;border:1px solid #e5e7eb;border-radius:8px;">
+          <summary style="cursor:pointer;padding:10px 14px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px;">
+            <code style="font-size:.9rem;"><%= code %></code>
+            <span style="color:#6b7280;font-size:.82rem;">
+              <%= (acc.percent * 100).toFixed(0) %>%
+              · <%= acc.payoutMode === 'crypto' ? '🔗 Crypto' : '🏦 Fiat' %>
+              · Tenants: <%= (acc.tenants || []).join(', ') || '–' %>
+            </span>
+            <span style="margin-left:auto;font-size:.75rem;color:#94a3b8;">Paid: <%= Number((acc.totals && acc.totals.paidFiat) || 0).toFixed(2) %> €</span>
+          </summary>
+          <div style="padding:14px 16px;">
+            <form method="POST" action="/root/referral/account">
+              <input type="hidden" name="code" value="<%= code %>" />
+              <div class="form-grid">
+                <label>
+                  Τρόπος πληρωμής
+                  <select name="payoutMode">
+                    <option value="crypto" <%= acc.payoutMode === 'crypto' ? 'selected' : '' %>>Crypto</option>
+                    <option value="offchain_fiat" <%= (acc.payoutMode === 'offchain_fiat' || acc.payoutMode === 'fiat') ? 'selected' : '' %>>Fiat (IBAN)</option>
+                  </select>
+                </label>
+                <label>
+                  Crypto Wallet
+                  <input type="text" name="wallet" value="<%= acc.wallet || '' %>" placeholder="0x…" />
+                </label>
+                <label>
+                  IBAN
+                  <input type="text" name="iban" value="<%= (acc.fiatMethod && acc.fiatMethod.iban) || '' %>" placeholder="GR…" />
+                </label>
+                <label>
+                  Κάτοχος
+                  <input type="text" name="holder" value="<%= (acc.fiatMethod && acc.fiatMethod.holder) || '' %>" placeholder="Όνομα" />
+                </label>
+                <label>
+                  Root κωδικός *
+                  <input type="password" name="rootPassword" required />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Αποθήκευση</button>
+              </div>
+            </form>
+          </div>
+        </details>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <!-- Referral Payouts -->
+    <div class="card">
+      <h2>Referral Payouts</h2>
+      <p class="helper">Εκκρεμείς προμήθειες ανά referral partner.</p>
+
+      <% const pendingCodes = Object.keys(pendingByCode || {}); %>
+      <% if (pendingCodes.length === 0) { %>
+        <p style="color:#888;font-style:italic;">Δεν υπάρχουν εκκρεμείς πληρωμές. 🎉</p>
+      <% } else { %>
+        <% pendingCodes.forEach(function(code) { %>
+        <% const grp = pendingByCode[code]; %>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <div>
+              <strong style="font-size:1rem;"><code><%= code %></code></strong>
+              <% const acc2 = (refAccounts || {})[code]; %>
+              <% if (acc2) { %>
+                <span style="color:#6b7280;font-size:.82rem;margin-left:8px;">
+                  <%= acc2.payoutMode === 'crypto' ? '🔗 ' + (acc2.wallet || '—') : '🏦 ' + ((acc2.fiatMethod && acc2.fiatMethod.iban) || '—') %>
+                </span>
+              <% } %>
+            </div>
+            <span style="font-size:1.1rem;font-weight:700;color:#059669;">Σύνολο: <%= grp.total.toFixed(2) %> €</span>
+          </div>
+
+          <table class="data-table" style="margin-bottom:14px;">
+            <thead>
+              <tr><th>Tenant</th><th>Event</th><th style="text-align:right;">Ποσό €</th><th>Ημ/νία</th><th>Ενέργεια</th></tr>
+            </thead>
+            <tbody>
+              <% grp.rows.forEach(function(row) { %>
+              <tr>
+                <td><code><%= row.tenantId %></code></td>
+                <td style="color:#6b7280;"><%= row.eventType || row.source || '–' %></td>
+                <td style="text-align:right;font-weight:600;"><%= row.amountFiat.toFixed(2) %></td>
+                <td style="color:#6b7280;"><%= new Date(row.createdAt).toLocaleDateString('el') %></td>
+                <td>
+                  <form method="POST" action="/root/referral/mark-paid" style="display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;">
+                    <input type="hidden" name="earningId" value="<%= row.id %>" />
+                    <input type="hidden" name="refCode" value="<%= code %>" />
+                    <input type="text" name="paidVia" placeholder="via" style="width:70px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.78rem;" />
+                    <input type="text" name="txId" placeholder="tx/ref" style="width:80px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.78rem;" />
+                    <input type="hidden" name="rootPassword" class="inline-pw-<%= code %>" />
+                    <button class="btn-sm" type="submit">✓</button>
+                  </form>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+
+          <!-- Mark all -->
+          <form method="POST" action="/root/referral/mark-paid" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input type="hidden" name="refCode" value="<%= code %>" />
+            <strong style="font-size:.86rem;">Σημείωσε ΟΛΑ ως πληρωμένα:</strong>
+            <input type="text" name="paidVia" placeholder="crypto/IBAN" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:.84rem;width:110px;" />
+            <input type="text" name="txId" placeholder="tx/ref #" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:.84rem;width:110px;" />
+            <input type="password" name="rootPassword" required placeholder="Root κωδικός" class="master-pw-<%= code %>"
+                   style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:.84rem;width:140px;" />
+            <button class="btn btn-warning" type="submit">✓ Mark All Paid (<%= grp.total.toFixed(2) %> €)</button>
+          </form>
+        </div>
+        <% }) %>
+      <% } %>
+
+      <!-- Paid history -->
+      <% const paidRows = (refEarnings || []).filter(function(e) { return e.status === 'paid'; }).slice(0, 20); %>
+      <% if (paidRows.length > 0) { %>
+      <details style="margin-top:20px;">
+        <summary style="cursor:pointer;color:#6b7280;font-size:.86rem;list-style:none;">▶ Ιστορικό πληρωμών (τελευταία <%= paidRows.length %>)</summary>
+        <table class="data-table" style="margin-top:10px;">
+          <thead><tr><th>Code</th><th>Tenant</th><th style="text-align:right;">Ποσό €</th><th>Via</th><th>Tx/Ref</th><th>Ημ/νία</th></tr></thead>
+          <tbody>
+            <% paidRows.forEach(function(row) { %>
+            <tr>
+              <td><code><%= row.refCode %></code></td>
+              <td><code><%= row.tenantId %></code></td>
+              <td style="text-align:right;"><%= row.amountFiat.toFixed(2) %></td>
+              <td style="color:#6b7280;"><%= row.paidVia || '–' %></td>
+              <td style="color:#6b7280;font-size:.78rem;"><%= row.txId || '–' %></td>
+              <td style="color:#6b7280;"><%= row.paidAt ? new Date(row.paidAt).toLocaleDateString('el') : '–' %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </details>
+      <% } %>
+    </div>
+
+    <!-- Referral Ledger -->
+    <div class="card">
+      <h2>Referral Ledger</h2>
+      <form class="filter-bar" method="GET" action="/root/finance">
+        <label>Tenant <input type="text" name="tenantId" value="<%= financeFilters.tenantFilter %>" style="width:110px;" /></label>
+        <label>Code <input type="text" name="referralCode" value="<%= financeFilters.referralCodeFilter %>" style="width:110px;" /></label>
+        <label>Status
+          <select name="refStatus">
+            <option value="">All</option>
+            <% ['pending','approved','paid','cancelled','disputed'].forEach(function(st) { %>
+              <option value="<%= st %>" <%= financeFilters.referralStatusFilter === st ? 'selected' : '' %>><%= st %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button class="btn-sm" type="submit">Filter</button>
+      </form>
+
+      <% if (Object.keys(referralTotalsByCode || {}).length) { %>
+      <div class="totals-summary">
+        <% Object.keys(referralTotalsByCode).forEach(function(code) { %>
+        <span>[<strong><%= code %></strong>] pending <%= Number(referralTotalsByCode[code].pending||0).toFixed(2) %> € / approved <%= Number(referralTotalsByCode[code].approved||0).toFixed(2) %> € / paid <%= Number(referralTotalsByCode[code].paid||0).toFixed(2) %> € (<%= referralTotalsByCode[code].orders %> orders)</span>
+        <% }) %>
+      </div>
+      <% } %>
+
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Tenant</th><th>Order</th><th>Code</th><th style="text-align:right;">€</th><th>Status</th><th>Ενέργεια</th></tr></thead>
+          <tbody>
+            <% (referralLedger || []).forEach(function(row) { %>
+            <tr>
+              <td><code style="font-size:.76rem;"><%= row.id %></code></td>
+              <td><code><%= row.tenantId %></code></td>
+              <td><code style="font-size:.76rem;"><%= row.orderId %></code></td>
+              <td><%= row.referralCode %></td>
+              <td style="text-align:right;font-weight:600;"><%= Number(row.commissionAmount||0).toFixed(2) %></td>
+              <td><strong style="color:<%= row.status==='paid' ? '#059669' : row.status==='disputed' ? '#dc2626' : '#92400e' %>"><%= row.status %></strong></td>
+              <td>
+                <form method="POST" action="/root/finance/referrals/update" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                  <input type="hidden" name="ledgerId" value="<%= row.id %>" />
+                  <select name="status" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.8rem;">
+                    <% ['pending','approved','paid','cancelled','disputed'].forEach(function(st) { %>
+                      <option value="<%= st %>" <%= row.status === st ? 'selected' : '' %>><%= st %></option>
+                    <% }) %>
+                  </select>
+                  <input type="text" name="notes" value="<%= row.notes || '' %>" placeholder="notes" style="width:100px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.8rem;" />
+                  <input type="password" name="rootPassword" required placeholder="root pw" style="width:100px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.8rem;" />
+                  <button class="btn-sm" type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% if (!(referralLedger || []).length) { %><p style="color:#94a3b8;font-style:italic;font-size:.84rem;">Δεν υπάρχουν εγγραφές.</p><% } %>
+    </div>
+
+    <!-- Settlement Ledger -->
+    <div class="card">
+      <h2>Tenant Settlement Ledger</h2>
+      <form class="filter-bar" method="GET" action="/root/finance">
+        <label>Tenant <input type="text" name="tenantId" value="<%= financeFilters.tenantFilter %>" style="width:110px;" /></label>
+        <label>Payment method <input type="text" name="paymentMethod" value="<%= financeFilters.paymentMethodFilter %>" style="width:110px;" /></label>
+        <label>Status
+          <select name="stStatus">
+            <option value="">All</option>
+            <% ['pending','approved','partially_settled','settled','cancelled','disputed'].forEach(function(st) { %>
+              <option value="<%= st %>" <%= financeFilters.settlementStatusFilter === st ? 'selected' : '' %>><%= st %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button class="btn-sm" type="submit">Filter</button>
+      </form>
+
+      <% if (Object.keys(settlementTotalsByTenant || {}).length) { %>
+      <div class="totals-summary">
+        <% Object.keys(settlementTotalsByTenant).forEach(function(tid) { %>
+        <span>[<strong><%= tid %></strong>] payable <%= Number(settlementTotalsByTenant[tid].pendingPayable||0).toFixed(2) %> € / receivable <%= Number(settlementTotalsByTenant[tid].pendingReceivable||0).toFixed(2) %> € / settled <%= Number(settlementTotalsByTenant[tid].settled||0).toFixed(2) %> €</span>
+        <% }) %>
+      </div>
+      <% } %>
+
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>Tenant</th><th>Order</th><th>Direction</th><th style="text-align:right;">Net €</th><th>Status</th><th>Ενέργεια</th></tr></thead>
+          <tbody>
+            <% (settlementLedger || []).forEach(function(row) { %>
+            <tr>
+              <td><code style="font-size:.76rem;"><%= row.id %></code></td>
+              <td><code><%= row.tenantId %></code></td>
+              <td><code style="font-size:.76rem;"><%= row.orderId %></code></td>
+              <td style="font-size:.78rem;"><%= row.settlementDirection %></td>
+              <td style="text-align:right;font-weight:600;"><%= Number(row.netSettlementAmount||0).toFixed(2) %></td>
+              <td><strong style="color:<%= row.status==='settled' ? '#059669' : row.status==='disputed' ? '#dc2626' : '#92400e' %>"><%= row.status %></strong></td>
+              <td>
+                <form method="POST" action="/root/finance/settlements/update" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                  <input type="hidden" name="ledgerId" value="<%= row.id %>" />
+                  <select name="status" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.8rem;">
+                    <% ['pending','approved','partially_settled','settled','cancelled','disputed'].forEach(function(st) { %>
+                      <option value="<%= st %>" <%= row.status === st ? 'selected' : '' %>><%= st %></option>
+                    <% }) %>
+                  </select>
+                  <input type="text" name="notes" value="<%= row.notes || '' %>" placeholder="notes" style="width:100px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.8rem;" />
+                  <input type="password" name="rootPassword" required placeholder="root pw" style="width:100px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.8rem;" />
+                  <button class="btn-sm" type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% if (!(settlementLedger || []).length) { %><p style="color:#94a3b8;font-style:italic;font-size:.84rem;">Δεν υπάρχουν εγγραφές.</p><% } %>
+    </div>
+  </div>
+
+  <script>
+    // Mirror the master-pw field value to the hidden inline pw fields for per-row forms
+    document.querySelectorAll('input[class^="master-pw-"]').forEach(function(masterPw) {
+      const code = masterPw.className.replace('master-pw-', '');
+      masterPw.addEventListener('input', function() {
+        document.querySelectorAll('.inline-pw-' + code).forEach(function(h) { h.value = masterPw.value; });
+      });
+    });
+  </script>
+</body>
+</html>

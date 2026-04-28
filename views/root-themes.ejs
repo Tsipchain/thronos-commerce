@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Root Themes | Thronos</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { font-family:system-ui,-apple-system,sans-serif; background:#f4f6fb; color:#1a1a2e; margin:0; }
+    .page-layout { max-width:960px; margin:28px auto; padding:0 20px 60px; }
+    .flash { padding:12px 18px; border-radius:6px; margin-bottom:20px; font-size:.9rem; }
+    .flash.success { background:#d4edda; border:1px solid #b8dfc4; color:#155724; }
+    .flash.error   { background:#f8d7da; border:1px solid #f1b0b7; color:#721c24; }
+    .page-title { font-size:1.3rem; font-weight:700; margin:0 0 24px; }
+    .card { background:#fff; border-radius:10px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:22px; }
+    .card h2 { margin:0 0 4px; font-size:1.02rem; font-weight:700; }
+    .card .helper { font-size:.82rem; color:#666; margin:0 0 18px; }
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+    .form-grid .full { grid-column:1/-1; }
+    .form-grid label { display:flex; flex-direction:column; gap:5px; font-size:.84rem; font-weight:500; }
+    .form-grid input, .form-grid select { padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:.88rem; background:#fff; }
+    .form-grid input:focus, .form-grid select:focus { outline:none; border-color:#5b6af5; box-shadow:0 0 0 3px rgba(91,106,245,.12); }
+    .form-grid .hint { font-size:.76rem; color:#888; margin-top:2px; }
+    .form-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn { display:inline-block; padding:8px 20px; border-radius:6px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; transition:opacity .15s; }
+    .btn:hover { opacity:.87; }
+    .btn-primary { background:#5b6af5; color:#fff; }
+    .btn-warning { background:#f59e0b; color:#fff; }
+    .tpl-list { margin-top:16px; }
+    .tpl-row { padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:.84rem; display:flex; gap:12px; align-items:baseline; }
+    .tpl-row:last-child { border-bottom:none; }
+    .tpl-id { font-weight:700; font-family:monospace; }
+    .tpl-meta { color:#94a3b8; font-size:.78rem; }
+    .key-chip { display:inline-block; background:#e0e7ff; color:#3730a3; border-radius:5px; padding:2px 8px; font-size:.76rem; font-weight:600; font-family:monospace; margin:2px; }
+    .catalog-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:12px; }
+    .catalog-card { border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; }
+    .catalog-card .ckey { font-family:monospace; font-weight:700; color:#1e293b; font-size:.9rem; }
+    .catalog-card .cname { font-size:.82rem; color:#64748b; margin-top:3px; }
+  </style>
+</head>
+<body>
+  <%- include('_root-nav', { page: 'themes', openTicketCount: openTicketCount || 0, unresolvedFinanceCount: unresolvedFinanceCount || 0 }) %>
+
+  <div class="page-layout">
+    <% if (message) { %><div class="flash success"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+    <h1 class="page-title">Themes & Templates</h1>
+
+    <!-- Theme Governance -->
+    <div class="card">
+      <h2>Theme Governance</h2>
+      <p class="helper">Ορίστε ποια theme keys είναι διαθέσιμα πλατφορμικά. Οι αλλαγές εφαρμόζονται σε όλους τους tenants (τα απομακρυσμένα keys αφαιρούνται από τα allowedThemeKeys).</p>
+
+      <form method="POST" action="/root/themes/update">
+        <div class="form-grid">
+          <label class="full">
+            Διαθέσιμα theme keys (comma separated)
+            <input type="text" name="availableThemeKeys"
+                   value="<%= (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys)) ? themeGovernance.availableThemeKeys.join(',') : '' %>" />
+            <span class="hint">
+              Catalog keys:
+              <% (themeCatalog || []).forEach(function(t, i) { %>
+                <code><%= t.key %></code><%= i < (themeCatalog.length - 1) ? ', ' : '' %>
+              <% }) %>
+            </span>
+          </label>
+          <label>
+            Root κωδικός *
+            <input type="password" name="rootPassword" required />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Αποθήκευση Theme Governance</button>
+        </div>
+      </form>
+
+      <% if (themeGovernance && Array.isArray(themeGovernance.availableThemeKeys) && themeGovernance.availableThemeKeys.length) { %>
+      <div style="margin-top:16px;">
+        <span style="font-size:.82rem;color:#64748b;font-weight:600;">Τρέχοντα διαθέσιμα:</span>
+        <% themeGovernance.availableThemeKeys.forEach(function(k) { %>
+          <span class="key-chip"><%= k %></span>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Theme Catalog -->
+    <% if (themeCatalog && themeCatalog.length) { %>
+    <div class="card">
+      <h2>Theme Catalog</h2>
+      <p class="helper">Όλα τα διαθέσιμα themes στην πλατφόρμα.</p>
+      <div class="catalog-grid">
+        <% themeCatalog.forEach(function(t) { %>
+        <div class="catalog-card">
+          <div class="ckey"><%= t.key %></div>
+          <div class="cname"><%= t.name || t.key %></div>
+          <% if (t.description) { %><div style="font-size:.76rem;color:#94a3b8;margin-top:4px;"><%= t.description %></div><% } %>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Create Template from Tenant -->
+    <div class="card">
+      <h2>Αποθήκευση Template από Tenant</h2>
+      <p class="helper">Αποθηκεύει τη διαμόρφωση ενός tenant (theme, config — χωρίς προϊόντα/παραγγελίες/χρήστες) ως επαναχρησιμοποιήσιμο template.</p>
+
+      <form method="POST" action="/root/templates/create">
+        <div class="form-grid">
+          <label>
+            Tenant πηγή
+            <select name="tenantId" required>
+              <% (tenants || []).forEach(function(t) { %>
+                <option value="<%= t.id %>"><%= t.id %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label>
+            Template ID *
+            <input type="text" name="templateId" placeholder="eukolakis-theme-v1" required pattern="[a-zA-Z0-9_-]+" />
+            <span class="hint">Μόνο a-z, 0-9, -, _</span>
+          </label>
+          <label>
+            Όνομα template
+            <input type="text" name="templateName" placeholder="Eukolakis Theme v1" />
+          </label>
+          <label>
+            Root κωδικός *
+            <input type="password" name="rootPassword" required />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Αποθήκευση ως template</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Templates list -->
+    <% if (themeTemplates && themeTemplates.length) { %>
+    <div class="card">
+      <h2>Templates (<%= themeTemplates.length %>)</h2>
+      <p class="helper">Αποθηκευμένα theme skeletons — χρησιμοποιούνται κατά τη δημιουργία νέου tenant.</p>
+      <div class="tpl-list">
+        <% themeTemplates.forEach(function(tp) { %>
+        <div class="tpl-row">
+          <span class="tpl-id"><%= tp.id %></span>
+          <span><%= tp.name || tp.id %></span>
+          <span class="tpl-meta">source: <code><%= tp.sourceTenantId %></code></span>
+          <% if (tp.createdAt) { %><span class="tpl-meta"><%= new Date(tp.createdAt).toLocaleDateString('el-GR') %></span><% } %>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+  </div>
+</body>
+</html>
