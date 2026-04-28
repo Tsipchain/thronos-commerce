@@ -154,11 +154,67 @@
             <% }) %>
           </div>
           <% } %>
+
+          <% if (dnsResult.requiredRecords) { %>
+          <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;font-size:.85rem;">Required Records (Show)</summary>
+            <div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:6px;">
+              <div style="margin:8px 0;"><strong>Apex:</strong> <code><%= dnsResult.requiredRecords.apex.type %></code> → <code><%= dnsResult.requiredRecords.apex.target %></code></div>
+              <div style="margin:8px 0;"><strong>TXT:</strong> <code><%= dnsResult.requiredRecords.txt.location %></code> → <code><%= dnsResult.requiredRecords.txt.value %></code></div>
+              <% if (dnsResult.requiredRecords.aliases && dnsResult.requiredRecords.aliases.length) { %>
+              <div style="margin:8px 0;"><strong>Aliases:</strong>
+                <% dnsResult.requiredRecords.aliases.forEach(function(a){ %>
+                <div style="margin:3px 0;font-size:.8rem;"><code><%= a.domain %></code> → <code><%= a.target %></code></div>
+                <% }) %>
+              </div>
+              <% } %>
+            </div>
+          </details>
+          <% } %>
+
+          <% if (dnsResult.detectedRecords) { %>
+          <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;font-size:.85rem;">Detected Records (Show)</summary>
+            <div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:6px;">
+              <div style="margin:8px 0;"><strong>Apex:</strong>
+                <% if (dnsResult.detectedRecords.apex) { %>
+                  <code><%= dnsResult.detectedRecords.apex.type %></code>
+                  <% if (dnsResult.detectedRecords.apex.targets) { %><code><%= dnsResult.detectedRecords.apex.targets.join(', ') %></code><% } %>
+                  <% if (dnsResult.detectedRecords.apex.addresses) { %><code><%= dnsResult.detectedRecords.apex.addresses.join(', ') %></code><% } %>
+                  <span class="<%= dnsResult.detectedRecords.apex.verified ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.detectedRecords.apex.verified ? '✓' : '✗' %></span>
+                  <% if (dnsResult.detectedRecords.apex.note) { %><span class="muted"><%= dnsResult.detectedRecords.apex.note %></span><% } %>
+                <% } %>
+              </div>
+              <div style="margin:8px 0;"><strong>TXT:</strong>
+                <% if (dnsResult.detectedRecords.txt) { %>
+                  location: <code><%= dnsResult.detectedRecords.txt.location %></code>
+                  <% if (dnsResult.detectedRecords.txt.value) { %><code><%= dnsResult.detectedRecords.txt.value %></code><% } %>
+                  <span class="<%= dnsResult.detectedRecords.txt.verified ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.detectedRecords.txt.verified ? '✓' : '✗' %></span>
+                  <% if (dnsResult.detectedRecords.txt.note) { %><span class="muted"><%= dnsResult.detectedRecords.txt.note %></span><% } %>
+                <% } %>
+              </div>
+            </div>
+          </details>
+          <% } %>
         </div>
         <% } else { %>
         <div class="info-box">No DNS check result yet. Click Recheck below.</div>
         <% } %>
         <% if (row.lastCheckError) { %><div class="warn-box">Last error: <%= row.lastCheckError %></div><% } %>
+
+        <div style="margin:12px 0;"><strong>Cloudflare Configuration</strong></div>
+        <form method="POST" action="/root/hosting/cloudflare" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="text" name="cfApiToken" placeholder="Cloudflare API Token" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:160px;" />
+          <input type="text" name="cfZoneId" placeholder="Zone ID" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:120px;" />
+          <button type="submit" class="btn-save">Configure</button>
+        </form>
+
+        <div style="margin:12px 0;"><strong>Railway Deployment</strong></div>
+        <form method="POST" action="/root/hosting/railway" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="text" name="railwayDeploymentId" placeholder="Deployment ID" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:140px;" />
+          <input type="url" name="railwayUrl" placeholder="https://..." style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:200px;" />
+          <button type="submit" class="btn-save">Register</button>
+        </form>
 
         <form method="POST" action="/root/hosting/recheck" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />

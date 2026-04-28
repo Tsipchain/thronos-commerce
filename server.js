@@ -6772,7 +6772,14 @@ app.post('/root/hosting/recheck', async (req, res) => {
       lastCheckError: '',
       dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
       domainStatus: nextDomainStatus,
-      dnsCheckResult: JSON.stringify({ cname: check.cname, txt: check.txt, aliases: check.aliases, smoke: smokeResults }),
+      dnsCheckResult: JSON.stringify({
+        cname: check.cname,
+        txt: check.txt,
+        aliases: check.aliases,
+        smoke: smokeResults,
+        requiredRecords: check.requiredRecords,
+        detectedRecords: check.detectedRecords
+      }),
       aliasResults: check.aliases || []
     };
     if (fullyVerified) {
@@ -6799,6 +6806,64 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const rows = _buildHostingRows(loadTenantsRegistry());
     return res.render('root-hosting', { rows, unresolvedCount: 0, message: null, error: `DNS check απέτυχε: ${err.message}` });
   }
+});
+
+// ── Cloudflare configuration ─────────────────────────────────────────────────
+app.post('/root/hosting/cloudflare', (req, res) => {
+  const { tenantId, cfApiToken, cfZoneId } = req.body;
+  if (!verifyRootPassword(req.body.rootPassword || '')) {
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' });
+    return res.redirect('/root/hosting');
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    setRootFlash(req, { error: 'Tenant δεν βρέθηκε.' });
+    return res.redirect('/root/hosting');
+  }
+
+  // Store Cloudflare config in tenant record (will be used for sync operations)
+  if (!tenants[idx].hosting) tenants[idx].hosting = {};
+  tenants[idx].hosting.cloudflareApiToken = (cfApiToken || '').trim();
+  tenants[idx].hosting.cloudflareZoneId = (cfZoneId || '').trim();
+  saveTenantsRegistry(tenants);
+
+  const message = `Cloudflare config updated for ${tenantId}`;
+  setRootFlash(req, { message });
+  return res.redirect('/root/hosting');
+});
+
+// ── Railway deployment registration ──────────────────────────────────────────
+app.post('/root/hosting/railway', (req, res) => {
+  const { tenantId, railwayDeploymentId, railwayUrl } = req.body;
+  if (!verifyRootPassword(req.body.rootPassword || '')) {
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' });
+    return res.redirect('/root/hosting');
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    setRootFlash(req, { error: 'Tenant δεν βρέθηκε.' });
+    return res.redirect('/root/hosting');
+  }
+
+  if (!railwayDeploymentId || !railwayUrl) {
+    setRootFlash(req, { error: 'Deployment ID and URL are required.' });
+    return res.redirect('/root/hosting');
+  }
+
+  // Register in railway registry (for primary domain; can extend to aliases)
+  try {
+    const primaryDomain = tenants[idx].primaryDomain || tenants[idx].domain;
+    if (primaryDomain && railwayRegistry) {
+      railwayRegistry.register(primaryDomain, railwayDeploymentId, railwayUrl, 'active');
+    }
+    const message = `Railway deployment registered: ${railwayDeploymentId}`;
+    setRootFlash(req, { message });
+  } catch (err) {
+    setRootFlash(req, { error: `Railway registration failed: ${err.message}` });
+  }
+  return res.redirect('/root/hosting');
 });
 
 // ── VA Chat proxy (storefront) ────────────────────────────────────────────────
