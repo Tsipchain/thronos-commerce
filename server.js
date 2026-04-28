@@ -519,6 +519,74 @@ function saveTenantsRegistry(tenants) {
   saveJson(TENANTS_REGISTRY, tenants);
 }
 
+function migrateToProvisioningSchema() {
+  const tenants = loadJson(TENANTS_REGISTRY, []);
+  if (!Array.isArray(tenants)) return;
+
+  let changed = false;
+
+  const migrated = tenants.map((tenant) => {
+    const t = { ...tenant };
+
+    // Initialize domainProvisioning if missing
+    if (!t.domainProvisioning) {
+      changed = true;
+      const primaryDomain = t.primaryDomain || t.domain || '';
+      const aliases = Array.isArray(t.domains) ? [...t.domains] : [];
+      const legacyStatus = t.domainStatus || (t.hosting && t.hosting.domainStatus) || 'pending_dns';
+
+      t.domainProvisioning = {
+        primaryDomain: primaryDomain ? {
+          domain: primaryDomain,
+          status: legacyStatus,
+          dnsCheckResult: null,
+          railwayDeploymentId: null,
+          sslCertificateId: null,
+          lastUpdatedAt: new Date().toISOString()
+        } : null,
+        aliases: aliases.map((domain) => ({
+          domain,
+          status: legacyStatus,
+          dnsCheckResult: null,
+          railwayDeploymentId: null,
+          sslCertificateId: null,
+          lastUpdatedAt: new Date().toISOString()
+        }))
+      };
+    }
+
+    // Initialize mailHosting if missing
+    if (!t.mailHosting) {
+      changed = true;
+      t.mailHosting = {
+        mailProvider: null,
+        mxRecords: [],
+        spfRecord: null,
+        dkimRecords: [],
+        dmarcRecord: null
+      };
+    }
+
+    // Initialize web3Config if missing
+    if (!t.web3Config) {
+      changed = true;
+      t.web3Config = {
+        web3Enabled: false,
+        web3Host: null,
+        ipfsGateway: null,
+        dnslinkTxt: null
+      };
+    }
+
+    return t;
+  });
+
+  if (changed) {
+    console.log('[migration] Upgraded', tenants.length, 'tenant(s) to provisioning schema');
+    saveTenantsRegistry(migrated);
+  }
+}
+
 function normalizeTenantDomainInputs({ domain, primaryDomain, domains, previewSubdomain, fallbackPreviewSubdomain }) {
   const normalizedDomain = normalizeHost(domain || '');
   const normalizedPrimary = normalizeHost(primaryDomain || normalizedDomain);
@@ -6833,6 +6901,15 @@ if (process.env.THRC_PREFLIGHT_EJS === '1') {
     console.error('[boot] EJS preflight warning:', e.message);
   }
 }
+
+// Run migrations
+try {
+  migrateToProvisioningSchema();
+  console.log('[boot] Tenant provisioning schema migration completed');
+} catch (e) {
+  console.error('[boot] Migration error:', e.message);
+}
+
 app.listen(PORT, () => {
   console.log(`[boot] Thronos Commerce listening on port ${PORT}`);
 });
