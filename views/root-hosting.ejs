@@ -230,8 +230,15 @@
           <input type="password" name="rootPassword" placeholder="Root pw" required style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:110px;" />
           <input type="text" name="cfZoneId" placeholder="Zone ID" value="<%= row.cloudflareZoneId || '' %>" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:130px;" />
           <input type="password" name="cfApiToken" placeholder="API Token (optional override)" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:160px;" />
+          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:#334155;white-space:nowrap;">
+            <input type="checkbox" name="clearTokenOverride" value="1" />
+            Use env token / Clear tenant token override
+          </label>
           <button type="submit" class="btn-save">Save Zone</button>
         </form>
+        <div class="muted" style="font-size:.76rem;margin-top:2px;">
+          Token source: <strong><%= row.cloudflareTokenSource %></strong> (env / per-tenant / none)
+        </div>
         <% if (row.hasCloudflareZone) { %>
         <form method="POST" action="/root/hosting/cf-sync" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;align-items:center;">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
