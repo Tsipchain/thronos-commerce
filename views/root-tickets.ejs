@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Root Tickets | Thronos</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { font-family:system-ui,-apple-system,sans-serif; background:#f4f6fb; color:#1a1a2e; margin:0; }
+    .page-layout { max-width:960px; margin:28px auto; padding:0 20px 60px; }
+    .flash { padding:12px 18px; border-radius:6px; margin-bottom:20px; font-size:.9rem; }
+    .flash.success { background:#d4edda; border:1px solid #b8dfc4; color:#155724; }
+    .flash.error   { background:#f8d7da; border:1px solid #f1b0b7; color:#721c24; }
+    .page-title { font-size:1.3rem; font-weight:700; margin:0 0 6px; }
+    .page-sub   { font-size:.85rem; color:#64748b; margin:0 0 24px; }
+    .card { background:#fff; border-radius:10px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:22px; }
+    .card h2 { margin:0 0 4px; font-size:1.02rem; font-weight:700; }
+    .card .helper { font-size:.82rem; color:#666; margin:0 0 16px; }
+
+    .ticket-item { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:16px 18px; margin-bottom:12px; }
+    .ticket-header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .ticket-title { font-size:.9rem; font-weight:600; }
+    .ticket-meta  { font-size:.74rem; color:#94a3b8; margin-top:4px; }
+    .status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.73rem; font-weight:600; }
+    .st-open    { background:#fef3c7; color:#92400e; }
+    .st-replied { background:#dbeafe; color:#1e40af; }
+
+    .reply-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:flex-start; }
+    .reply-form input[type=password] { flex:0 0 150px; padding:6px 10px; border:1px solid #d1d5db; border-radius:5px; font-size:.82rem; }
+    .reply-form textarea { flex:1; min-width:200px; padding:6px 10px; border:1px solid #d1d5db; border-radius:5px; font-size:.82rem; resize:vertical; }
+    .reply-form .btn-reply { padding:6px 14px; background:#3b82f6; color:#fff; border:none; border-radius:5px; font-size:.82rem; cursor:pointer; white-space:nowrap; }
+    .reply-form .btn-close-tk { padding:6px 14px; background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; border-radius:5px; font-size:.82rem; cursor:pointer; white-space:nowrap; }
+
+    .resolved-row { padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:.83rem; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
+    .resolved-row:last-child { border-bottom:none; }
+    .empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
+    .empty-state .e-icon { font-size:2.5rem; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <%- include('_root-nav', { page: 'tickets', openTicketCount: openTicketCount || 0, unresolvedFinanceCount: unresolvedFinanceCount || 0 }) %>
+
+  <div class="page-layout">
+    <% if (message) { %><div class="flash success"><%= message %></div><% } %>
+    <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+    <h1 class="page-title">Tickets Υποστήριξης</h1>
+    <p class="page-sub">Ανοιχτά αιτήματα από tenants — απαντήστε ή κλείστε κάθε ticket.</p>
+
+    <!-- Open tickets -->
+    <div class="card">
+      <h2>Ανοιχτά tickets (<%= (allTickets || []).length %>)</h2>
+      <p class="helper">Εκκρεμή αιτήματα που χρειάζονται απάντηση.</p>
+
+      <% if (!allTickets || allTickets.length === 0) { %>
+      <div class="empty-state">
+        <div class="e-icon">✅</div>
+        <div>Δεν υπάρχουν ανοιχτά tickets. Όλα επιλύθηκαν!</div>
+      </div>
+      <% } else { %>
+        <% allTickets.forEach(function(tk) { %>
+        <div class="ticket-item">
+          <div class="ticket-header">
+            <div>
+              <span class="ticket-title">[<code><%= tk._tenantId %></code>] <%= tk.subject %></span>
+              <div class="ticket-meta">
+                <span>#<%= tk.id %></span> ·
+                <span><%= new Date(tk.createdAt).toLocaleString('el-GR') %></span> ·
+                <span><%= tk.category %></span>
+              </div>
+            </div>
+            <span class="status-badge <%= tk.status === 'replied' ? 'st-replied' : 'st-open' %>">
+              <%= tk.status === 'replied' ? '💬 Απαντήθηκε' : '⏳ Εκκρεμεί' %>
+            </span>
+          </div>
+
+          <p style="font-size:.84rem;color:#374151;margin:8px 0;line-height:1.5;"><%= tk.body || '' %></p>
+
+          <% if (tk.replies && tk.replies.length > 0) { %>
+          <div style="margin:10px 0;padding:10px 14px;background:#f0f9ff;border-left:3px solid #3b82f6;border-radius:0 6px 6px 0;">
+            <% tk.replies.forEach(function(r) { %>
+            <div style="font-size:.82rem;margin-bottom:6px;">
+              <strong style="color:#1e40af;">[<%= r.from === 'support' ? 'Support' : r.from %>]</strong>
+              <span style="color:#374151;"> <%= r.text %></span>
+              <span style="color:#94a3b8;font-size:.73rem;margin-left:8px;"><%= new Date(r.createdAt).toLocaleString('el-GR') %></span>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+
+          <form method="POST" action="/root/tickets/reply" class="reply-form">
+            <input type="hidden" name="tenantId" value="<%= tk._tenantId %>" />
+            <input type="hidden" name="ticketId" value="<%= tk.id %>" />
+            <input type="password" name="password" placeholder="Root κωδικός" required />
+            <textarea name="replyText" placeholder="Γράψτε απάντηση..." rows="2" required></textarea>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <button type="submit" class="btn-reply">↩ Απάντηση</button>
+              <button type="button" class="btn-close-tk" data-ticket-id="<%= tk.id %>">✓ Κλείσιμο</button>
+            </div>
+          </form>
+
+          <form id="close-form-<%= tk.id %>" method="POST" action="/root/tickets/close" style="display:none;">
+            <input type="hidden" name="tenantId" value="<%= tk._tenantId %>" />
+            <input type="hidden" name="ticketId" value="<%= tk.id %>" />
+            <input type="hidden" name="password" class="close-pw-field" />
+          </form>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <!-- Resolved tickets (last 20) -->
+    <% if (resolvedTickets && resolvedTickets.length > 0) { %>
+    <div class="card">
+      <h2>Επιλυμένα tickets (τελευταία <%= resolvedTickets.length %>)</h2>
+      <p class="helper">Αρχείο επιλυμένων αιτημάτων.</p>
+      <% resolvedTickets.forEach(function(tk) { %>
+      <div class="resolved-row">
+        <span style="color:#94a3b8;font-size:.75rem;">#<%= tk.id %></span>
+        <span>[<code><%= tk._tenantId %></code>] <strong><%= tk.subject %></strong></span>
+        <span style="color:#94a3b8;font-size:.78rem;"><%= new Date(tk.createdAt).toLocaleDateString('el-GR') %></span>
+        <span style="background:#d1fae5;color:#065f46;padding:1px 8px;border-radius:20px;font-size:.72rem;font-weight:600;">✓ Επιλύθηκε</span>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+  </div>
+
+  <script>
+    document.querySelectorAll('.btn-close-tk').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const tid = btn.dataset.ticketId;
+        const replyForm = btn.closest('.ticket-item').querySelector('form[action="/root/tickets/reply"]');
+        const pw = replyForm ? replyForm.querySelector('input[name="password"]') : null;
+        const closeForm = document.getElementById('close-form-' + tid);
+        if (closeForm) {
+          closeForm.querySelector('.close-pw-field').value = pw ? pw.value : '';
+          closeForm.submit();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
