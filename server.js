@@ -19,7 +19,8 @@ const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
-const { runDomainCheck } = require('./utils/dns-check');
+const { runDomainCheck, runDomainCheckFull } = require('./utils/dns-check');
+const { getCloudflareClient, getTenantZoneId } = require('./utils/cloudflare-api');
 const RailwayRegistry = require('./utils/railway-registry');
 
 function safeRequire(mod) {
@@ -644,6 +645,18 @@ function getTenantHostingSnapshot(tenant, req) {
   const domainType = (t.primaryDomain || t.domain) ? 'custom' : 'platform';
 
   const _poweredByMode = t.poweredByMode || (t.allowPoweredBy === true ? 'always' : 'disabled');
+
+  // Cloudflare config: zone ID is per-tenant only; token source is env (never exposed to view)
+  const cloudflareZoneId = (hosting.cloudflareZoneId || '').trim();
+  const hasCloudflareZone = !!cloudflareZoneId;
+  const cloudflareTokenSource = (hosting.cloudflareApiToken || '').trim()
+    ? 'per-tenant' : (process.env.CLOUDFLARE_API_TOKEN ? 'env' : 'none');
+
+  // Railway registry info for this tenant
+  const railwayInfo = (typeof railwayRegistry !== 'undefined' && railwayRegistry)
+    ? railwayRegistry.getForTenant(primaryDomain, aliases)
+    : {};
+
   return {
     primaryDomain,
     aliases,
@@ -651,6 +664,7 @@ function getTenantHostingSnapshot(tenant, req) {
     previewHost,
     canonicalToWww: t.canonicalToWww === true,
     domainStatus: hosting.domainStatus || t.domainStatus || 'pending_dns',
+    propagationStatus: hosting.propagationStatus || 'unknown',
     sslStatus: hosting.sslStatus || t.sslStatus || 'pending',
     sslProvider: hosting.sslProvider || 'unknown',
     sslValidUntil: hosting.sslValidUntil || '',
@@ -676,7 +690,11 @@ function getTenantHostingSnapshot(tenant, req) {
     poweredByMode: _poweredByMode,
     poweredByLabel: t.poweredByLabel || '',
     poweredByHref: t.poweredByHref || '',
-    allowPoweredBy: t.allowPoweredBy === true
+    allowPoweredBy: t.allowPoweredBy === true,
+    cloudflareZoneId,
+    hasCloudflareZone,
+    cloudflareTokenSource,
+    railwayInfo
   };
 }
 
@@ -6777,26 +6795,32 @@ app.post('/root/hosting/recheck', async (req, res) => {
   const { rootPassword, tenantId } = req.body;
   if (!verifyRootPassword(rootPassword)) {
     const rows = _buildHostingRows(loadTenantsRegistry());
-    return res.status(401).render('root-hosting', { rows, unresolvedCount: rows.filter(r => r.issueFlag || r.domainStatus !== 'active').length, message: null, error: 'Λάθος root κωδικός.' });
+    const navCounts = getRootNavCounts();
+    return res.status(401).render('root-hosting', { ...navCounts, rows, unresolvedCount: rows.filter(r => r.issueFlag || r.domainStatus !== 'active').length, message: null, error: 'Λάθος root κωδικός.' });
   }
   const tenants = loadTenantsRegistry();
   const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
   if (idx < 0) {
     const rows = _buildHostingRows(tenants);
-    return res.status(404).render('root-hosting', { rows, unresolvedCount: 0, message: null, error: 'Tenant δεν βρέθηκε.' });
+    const navCounts = getRootNavCounts();
+    return res.status(404).render('root-hosting', { ...navCounts, rows, unresolvedCount: 0, message: null, error: 'Tenant δεν βρέθηκε.' });
   }
   try {
-    const check = await runDomainCheck(tenants[idx]);
+    // Full check: public resolvers + Cloudflare API authoritative (if zone configured)
+    const check = await runDomainCheckFull(tenants[idx]);
     const now = check.checkedAt;
     const prevHosting = tenants[idx].hosting || {};
     const prevSslStatus = prevHosting.sslStatus || tenants[idx].sslStatus || 'pending';
 
     // ── HTTP smoke tests ─────────────────────────────────────────────────────
-    // Run only when DNS looks viable; skip when domain is obviously not wired.
+    // Use authoritative state (CF API) or public DNS to decide if domain is reachable.
+    // If authoritative OK but public still propagating, smoke against domain still useful.
     const smokeResults = {};
     let allSmokeOk = false;
-    if (check.domain && (check.cnameOk || check.flattenedApex)) {
-      const smokeTargets = [check.domain, ...check.aliases.map(a => a.domain)];
+    const dnsLooksViable = check.cnameOk || check.flattenedApex ||
+      (check.authoritativeOk === true); // auth ok even if public stale
+    if (check.domain && dnsLooksViable) {
+      const smokeTargets = [check.domain, ...(check.aliases || []).map(a => a.domain)];
       const smokeChecks = await Promise.allSettled(smokeTargets.map(d => httpSmoke(d)));
       smokeTargets.forEach((d, i) => {
         smokeResults[d] = smokeChecks[i].status === 'fulfilled'
@@ -6806,18 +6830,35 @@ app.post('/root/hosting/recheck', async (req, res) => {
       allSmokeOk = Object.values(smokeResults).every(s => s.ok);
     }
 
-    // ── Auto-promotion gate ──────────────────────────────────────────────────
-    // Require: root TXT passes + all aliases CNAME pass + HTTP smoke passes.
-    const dnsVerified = check.cnameOk && check.txtOk && check.allAliasesOk;
-    const fullyVerified = dnsVerified && allSmokeOk;
+    // ── DNS verification state ───────────────────────────────────────────────
+    // Prefer authoritative (CF API) over public resolver for gate decisions.
+    // If CF zone not configured, fall back to public.
+    const authOk     = check.authoritativeOk;        // null if no CF zone
+    const publicOk   = check.cnameOk && check.txtOk && check.allAliasesOk;
+    const dnsVerifiedAuthoritative = authOk === true;
+    const dnsVerifiedPublic        = publicOk;
+    const dnsVerified              = dnsVerifiedAuthoritative || dnsVerifiedPublic;
+    const propagating              = check.propagationStatus === 'propagating'; // auth ok, public not yet
 
+    // ── Auto-promotion gate ──────────────────────────────────────────────────
+    // Rules (in priority order):
+    //   active            = dnsVerified + smoke ok + ssl active
+    //   ssl_validating    = dnsVerified + smoke ok (or Railway verify ok)
+    //   public_dns_propagating = authoritativeOk but public not yet resolved
+    //   railway_pending   = dnsVerified + smoke not yet ok (Railway custom domain not bound)
+    //   pending_dns       = no required records verified
+    //   action_required   = CF says records wrong / conflicting
     let nextDomainStatus;
-    if (fullyVerified) {
-      nextDomainStatus = prevSslStatus === 'active' ? 'active' : 'ssl_validating';
-    } else if (dnsVerified) {
-      nextDomainStatus = 'ssl_validating'; // DNS ok but HTTP smoke not yet passing
-    } else if (check.cnameOk) {
-      nextDomainStatus = 'ssl_validating'; // CNAME ok, TXT/aliases pending
+    if (dnsVerified && allSmokeOk && prevSslStatus === 'active') {
+      nextDomainStatus = 'active';
+    } else if (dnsVerified && allSmokeOk) {
+      nextDomainStatus = 'ssl_validating';
+    } else if (propagating) {
+      nextDomainStatus = 'public_dns_propagating';
+    } else if (dnsVerified && !allSmokeOk) {
+      nextDomainStatus = 'railway_pending'; // DNS correct but HTTP not yet OK
+    } else if (authOk === false) {
+      nextDomainStatus = 'action_required'; // CF API says records are wrong
     } else {
       nextDomainStatus = 'pending_dns';
     }
@@ -6828,17 +6869,22 @@ app.post('/root/hosting/recheck', async (req, res) => {
       lastCheckError: '',
       dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
       domainStatus: nextDomainStatus,
+      propagationStatus: check.propagationStatus || 'unknown',
       dnsCheckResult: JSON.stringify({
-        cname: check.cname,
-        txt: check.txt,
-        aliases: check.aliases,
-        smoke: smokeResults,
+        cname:           check.cname,
+        txt:             check.txt,
+        aliases:         check.aliases,
+        smoke:           smokeResults,
         requiredRecords: check.requiredRecords,
-        detectedRecords: check.detectedRecords
+        detectedRecords: check.detectedRecords,
+        authoritative:   check.authoritative,
+        propagationStatus: check.propagationStatus,
+        cfError:         check.cfError
       }),
       aliasResults: check.aliases || []
     };
-    if (fullyVerified) {
+    // Promote legacy domainStatus field when fully verified
+    if (nextDomainStatus === 'active' || nextDomainStatus === 'ssl_validating') {
       tenants[idx].domainStatus = nextDomainStatus;
     }
     saveTenantsRegistry(tenants);
@@ -6846,10 +6892,12 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const refreshed = loadTenantsRegistry();
     const rows = _buildHostingRows(refreshed);
     const unresolvedCount = rows.filter(r => r.issueFlag || r.domainStatus !== 'active' || r.sslStatus !== 'active').length;
-    const apexNote  = check.flattenedApex ? ' (apex-A/Cloudflare)' : '';
-    const aliasNote = check.aliases && check.aliases.length ? ` · Aliases=${check.allAliasesOk ? '✓' : '✗'}` : '';
-    const smokeNote = Object.keys(smokeResults).length ? ` · Smoke=${allSmokeOk ? '✓' : '✗'}` : '';
-    const summary = `DNS check για ${tenants[idx].id}: CNAME=${check.cnameOk ? '✓' : '✗'}${apexNote} TXT=${check.txtOk ? '✓' : '✗'} (${check.txt && check.txt.source || '?'})${aliasNote}${smokeNote}`;
+    const apexNote  = check.flattenedApex ? ' (apex-A/CF)' : '';
+    const authNote  = check.authoritativeOk !== null ? ` Auth=${check.authoritativeOk ? '✓' : '✗'}` : '';
+    const propNote  = check.propagationStatus ? ` [${check.propagationStatus}]` : '';
+    const aliasNote = check.aliases && check.aliases.length ? ` Aliases=${check.allAliasesOk ? '✓' : '✗'}` : '';
+    const smokeNote = Object.keys(smokeResults).length ? ` Smoke=${allSmokeOk ? '✓' : '✗'}` : '';
+    const summary   = `Recheck ${tenants[idx].id}: CNAME=${check.cnameOk ? '✓' : '✗'}${apexNote}${authNote}${propNote} TXT=${check.txtOk ? '✓' : '✗'}${aliasNote}${smokeNote} → ${nextDomainStatus}`;
     const navCounts = getRootNavCounts();
     return res.render('root-hosting', { ...navCounts, rows, unresolvedCount, message: summary, error: null });
   } catch (err) {
@@ -6866,7 +6914,7 @@ app.post('/root/hosting/recheck', async (req, res) => {
   }
 });
 
-// ── Cloudflare configuration ─────────────────────────────────────────────────
+// ── Cloudflare configuration (per-tenant zone ID; token from env or per-tenant override) ──
 app.post('/root/hosting/cloudflare', (req, res) => {
   const { tenantId, cfApiToken, cfZoneId } = req.body;
   if (!verifyRootPassword(req.body.rootPassword || '')) {
@@ -6880,14 +6928,73 @@ app.post('/root/hosting/cloudflare', (req, res) => {
     return res.redirect('/root/hosting');
   }
 
-  // Store Cloudflare config in tenant record (will be used for sync operations)
+  // Zone ID is per-tenant only. API token: per-tenant override if provided, otherwise
+  // falls back to global env CLOUDFLARE_API_TOKEN at runtime. Never a global zone ID.
   if (!tenants[idx].hosting) tenants[idx].hosting = {};
-  tenants[idx].hosting.cloudflareApiToken = (cfApiToken || '').trim();
-  tenants[idx].hosting.cloudflareZoneId = (cfZoneId || '').trim();
+  const cleanZoneId = (cfZoneId || '').trim();
+  const cleanToken = (cfApiToken || '').trim();
+  if (cleanZoneId) tenants[idx].hosting.cloudflareZoneId = cleanZoneId;
+  if (cleanToken)  tenants[idx].hosting.cloudflareApiToken = cleanToken;
   saveTenantsRegistry(tenants);
 
-  const message = `Cloudflare config updated for ${tenantId}`;
+  const zoneStored = tenants[idx].hosting.cloudflareZoneId || '(not set)';
+  const tokenSource = cleanToken ? 'per-tenant' : 'env fallback';
+  const message = `Cloudflare config updated for ${tenantId}: zone=${zoneStored}, token=${tokenSource}`;
   setRootFlash(req, { message });
+  return res.redirect('/root/hosting');
+});
+
+// ── Cloudflare DNS sync (idempotent) ─────────────────────────────────────────
+app.post('/root/hosting/cf-sync', async (req, res) => {
+  const { tenantId, railwayTargets: railwayTargetsJson, railwayVerifyTokens: railwayVerifyJson } = req.body;
+  if (!verifyRootPassword(req.body.rootPassword || '')) {
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' });
+    return res.redirect('/root/hosting');
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    setRootFlash(req, { error: 'Tenant δεν βρέθηκε.' });
+    return res.redirect('/root/hosting');
+  }
+
+  const tenant = tenants[idx];
+  const zoneId = getTenantZoneId(tenant);
+  const cf = getCloudflareClient(tenant);
+
+  if (!cf) {
+    setRootFlash(req, { error: 'Cloudflare API token not configured (set CLOUDFLARE_API_TOKEN env or per-tenant token).' });
+    return res.redirect('/root/hosting');
+  }
+  if (!zoneId) {
+    setRootFlash(req, { error: 'Cloudflare Zone ID not configured for this tenant. Set it in the DNS tab.' });
+    return res.redirect('/root/hosting');
+  }
+
+  let railwayTargets = {};
+  let railwayVerifyTokens = {};
+  try {
+    if (railwayTargetsJson) railwayTargets = JSON.parse(railwayTargetsJson);
+    if (railwayVerifyJson) railwayVerifyTokens = JSON.parse(railwayVerifyJson);
+  } catch (e) {
+    setRootFlash(req, { error: `Invalid JSON in Railway targets: ${e.message}` });
+    return res.redirect('/root/hosting');
+  }
+
+  try {
+    const results = await cf.syncTenantDnsRecords(zoneId, {
+      primaryDomain: tenant.primaryDomain || tenant.domain,
+      aliases: tenant.domains || [],
+      tenantId: tenant.id,
+      railwayTargets,
+      railwayVerifyTokens
+    });
+    const summary = results.map(r => `${r.input.type} ${r.input.name}: ${r.action}`).join(', ');
+    setRootFlash(req, { message: `Cloudflare DNS sync complete for ${tenantId}: ${summary}` });
+  } catch (err) {
+    console.error('[cf-sync] error:', err.message);
+    setRootFlash(req, { error: `Cloudflare sync failed: ${err.message}` });
+  }
   return res.redirect('/root/hosting');
 });
 

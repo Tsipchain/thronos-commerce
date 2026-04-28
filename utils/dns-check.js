@@ -10,6 +10,12 @@ function makePublicResolver() {
   return r;
 }
 
+function makeCustomResolver(servers) {
+  const r = new DnsResolver();
+  r.setServers(servers);
+  return r;
+}
+
 function pointsToThronos(cnames) {
   return cnames.some(
     c => c.endsWith(PLATFORM_RAILWAY_SUFFIX) || c === PLATFORM_HOST || c.endsWith('.thronoschain.org')
@@ -43,11 +49,13 @@ async function _aWith(resolver, domain) {
 // Check a domain for CNAME → Thronos target.
 // For apex/primary domains a flattened CNAME (A record) may be returned;
 // callers should treat flattenedCname=true as conditional-ok based on TXT.
-async function checkCname(domain) {
-  const pairs = [
-    [dnsP, 'system'],
-    [makePublicResolver(), 'public']
-  ];
+async function checkCname(domain, resolverOverride) {
+  const pairs = resolverOverride
+    ? [[resolverOverride, 'custom']]
+    : [
+        [dnsP, 'system'],
+        [makePublicResolver(), 'public']
+      ];
   for (const [r, label] of pairs) {
     try {
       return { ...(await _cnameWith(r, domain)), resolver: label };
@@ -55,7 +63,7 @@ async function checkCname(domain) {
       if (e.code === 'ENODATA' || e.code === 'ENOTFOUND') {
         return { ...(await _aWith(r, domain)), resolver: label };
       }
-      if (label === 'public') {
+      if (label === 'public' || label === 'custom') {
         return { ok: false, flattenedCname: false, type: 'error', note: String(e.code || e.message), resolver: label };
       }
       // system resolver returned unexpected error — fall through to public
@@ -65,8 +73,8 @@ async function checkCname(domain) {
 
 // Alias check (www, subdomains): CNAME is strictly required.
 // Cloudflare CNAME flattening only applies at zone apex; www must have a real CNAME.
-async function checkAliasCname(domain) {
-  const result = await checkCname(domain);
+async function checkAliasCname(domain, resolverOverride) {
+  const result = await checkCname(domain, resolverOverride);
   if (result && result.flattenedCname) {
     return { ...result, ok: false, note: 'Alias requires CNAME — A record not accepted for www/subdomain alias' };
   }
@@ -77,7 +85,7 @@ async function checkAliasCname(domain) {
 // Strategy: check root domain TXT first (e.g. eukolaki.gr TXT thronos-verify=eukolakis),
 // fall back to legacy subdomain TXT (_thronos-verify.eukolaki.gr).
 // Try system resolver first, then public resolver.
-async function checkThronosVerifyTxt(domain, tenantId) {
+async function checkThronosVerifyTxt(domain, tenantId, resolverOverride) {
   const expected = `thronos-verify=${tenantId}`;
 
   async function tryRootThenLegacy(resolver, label) {
@@ -110,6 +118,10 @@ async function checkThronosVerifyTxt(domain, tenantId) {
     }
   }
 
+  if (resolverOverride) {
+    return tryRootThenLegacy(resolverOverride, 'custom');
+  }
+
   const pairs = [[dnsP, 'system'], [makePublicResolver(), 'public']];
   for (const [r, label] of pairs) {
     try {
@@ -123,7 +135,7 @@ async function checkThronosVerifyTxt(domain, tenantId) {
   }
 }
 
-// Helper: get actual CNAME targets for a domain (returns { targets, type, addressess }).
+// Helper: get actual CNAME targets for a domain (returns { targets, type, addresses }).
 async function getAliasCnameTargets(domain) {
   const resolver = makePublicResolver();
   try {
@@ -171,7 +183,8 @@ async function checkApexA(domain) {
   }
 }
 
-async function runDomainCheck(tenant) {
+// Core domain check using a specific resolver (or default public+system)
+async function _runDomainCheckWithResolver(tenant, resolverOverride) {
   const primary = String(tenant.primaryDomain || tenant.domain || '').trim().toLowerCase();
   if (!primary) {
     return { domain: null, cnameOk: false, txtOk: false, checkedAt: new Date().toISOString() };
@@ -183,9 +196,9 @@ async function runDomainCheck(tenant) {
   // Primary apex: checkCname (flattenedCname allowed, evaluated below)
   // Aliases (www etc.): checkAliasCname (flattenedCname = fail)
   const [cnameRes, txtRes, ...aliasRes] = await Promise.allSettled([
-    checkCname(primary),
-    checkThronosVerifyTxt(primary, tenant.id),
-    ...aliasList.map(a => checkAliasCname(a))
+    checkCname(primary, resolverOverride),
+    checkThronosVerifyTxt(primary, tenant.id, resolverOverride),
+    ...aliasList.map(a => checkAliasCname(a, resolverOverride))
   ]);
 
   const cname = cnameRes.status === 'fulfilled' ? cnameRes.value : { ok: false, note: cnameRes.reason?.message };
@@ -195,10 +208,34 @@ async function runDomainCheck(tenant) {
     ...(aliasRes[i].status === 'fulfilled' ? aliasRes[i].value : { ok: false, note: aliasRes[i].reason?.message })
   }));
 
-  // Apex CNAME flattening: if Cloudflare collapsed CNAME → A, accept it when
-  // TXT verification passes (TXT record proves the domain belongs to this tenant).
   const flattenedApex = cname.flattenedCname === true;
   const effectiveCnameOk = cname.ok || (flattenedApex && txt.ok);
+
+  return {
+    domain:       primary,
+    checkedAt:    new Date().toISOString(),
+    cnameOk:      effectiveCnameOk,
+    cnameRaw:     cname.ok,
+    flattenedApex,
+    txtOk:        txt.ok,
+    allAliasesOk: aliases.length === 0 || aliases.every(a => a.ok),
+    cname:        { ...cname, effectiveOk: effectiveCnameOk },
+    txt,
+    aliases
+  };
+}
+
+// Standard check: public resolvers only (1.1.1.1, 8.8.8.8, system)
+async function runDomainCheck(tenant) {
+  const primary = String(tenant.primaryDomain || tenant.domain || '').trim().toLowerCase();
+  if (!primary) {
+    return { domain: null, cnameOk: false, txtOk: false, checkedAt: new Date().toISOString() };
+  }
+  const aliasList = (Array.isArray(tenant.domains) ? tenant.domains : [])
+    .map(d => String(d).trim().toLowerCase())
+    .filter(Boolean);
+
+  const base = await _runDomainCheckWithResolver(tenant, null);
 
   // Build required vs detected records structure
   const requiredRecords = {
@@ -221,11 +258,15 @@ async function runDomainCheck(tenant) {
     })) : []
   };
 
+  const cname = base.cname;
+  const txt = base.txt;
+  const aliases = base.aliases;
+
   const detectedRecords = {
     apex: cname.cnames ? {
       type: 'CNAME',
       targets: cname.cnames,
-      verified: cname.ok || effectiveCnameOk
+      verified: cname.effectiveOk || base.cnameOk
     } : cname.flattenedCname ? {
       type: 'A-record',
       addresses: cname.addrs || [],
@@ -255,19 +296,75 @@ async function runDomainCheck(tenant) {
     })) : []
   };
 
+  return { ...base, requiredRecords, detectedRecords };
+}
+
+// Full check: public resolvers + optionally Cloudflare authoritative API.
+// Returns both public and authoritative (CF API) results separately.
+// propagationStatus: 'ok' | 'propagating' | 'missing' | 'unknown'
+//   - ok:          public resolvers show correct records
+//   - propagating: CF API shows correct records but public resolvers haven't caught up yet
+//   - missing:     CF API shows records are missing or wrong
+//   - unknown:     no CF zone configured, only public check available
+async function runDomainCheckFull(tenant) {
+  const publicResult = await runDomainCheck(tenant);
+  const publicAllOk = publicResult.cnameOk && publicResult.txtOk && publicResult.allAliasesOk;
+
+  // Try Cloudflare API authoritative check if zone is configured
+  let authResult = null;
+  let authAllOk = null;
+  let cfError = null;
+
+  const hosting = (tenant && tenant.hosting) || {};
+  const zoneId = (hosting.cloudflareZoneId || '').trim();
+  const cfToken = (hosting.cloudflareApiToken || '').trim() || process.env.CLOUDFLARE_API_TOKEN || '';
+
+  if (zoneId && cfToken) {
+    try {
+      const { CloudflareClient } = require('./cloudflare-api');
+      const cf = new CloudflareClient(cfToken);
+      authResult = await cf.readTenantDnsState(zoneId, {
+        primaryDomain: tenant.primaryDomain || tenant.domain,
+        aliases: tenant.domains || [],
+        tenantId: tenant.id
+      });
+      authResult.source = 'cloudflare-api';
+      authAllOk = authResult.cnameOk && authResult.txtOk && authResult.allAliasesOk;
+    } catch (e) {
+      cfError = e.message;
+      authResult = null;
+    }
+  }
+
+  // Determine propagation status
+  let propagationStatus;
+  if (authResult) {
+    if (authAllOk && publicAllOk) {
+      propagationStatus = 'ok';
+    } else if (authAllOk && !publicAllOk) {
+      propagationStatus = 'propagating'; // CF correct, public resolvers stale
+    } else {
+      propagationStatus = 'missing'; // CF config missing/wrong
+    }
+  } else {
+    propagationStatus = publicAllOk ? 'ok' : 'unknown';
+  }
+
   return {
-    domain:        primary,
-    checkedAt:     new Date().toISOString(),
-    cnameOk:       effectiveCnameOk,
-    cnameRaw:      cname.ok,
-    flattenedApex,
-    txtOk:         txt.ok,
-    allAliasesOk:  aliases.length === 0 || aliases.every(a => a.ok),
-    cname:         { ...cname, effectiveOk: effectiveCnameOk },
-    txt,
-    aliases,
-    requiredRecords,
-    detectedRecords
+    ...publicResult,
+    public: {
+      cnameOk: publicResult.cnameOk,
+      txtOk: publicResult.txtOk,
+      allAliasesOk: publicResult.allAliasesOk,
+      cname: publicResult.cname,
+      txt: publicResult.txt,
+      aliases: publicResult.aliases
+    },
+    authoritative: authResult,
+    authoritativeOk: authAllOk,
+    propagationStatus,
+    cfError: cfError || null,
+    hasCloudflareZone: !!(zoneId && cfToken)
   };
 }
 
@@ -276,6 +373,7 @@ module.exports = {
   checkAliasCname,
   checkThronosVerifyTxt,
   runDomainCheck,
+  runDomainCheckFull,
   matchesTxt,
   pointsToThronos,
   getAliasCnameTargets,

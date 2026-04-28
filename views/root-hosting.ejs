@@ -73,15 +73,25 @@
     <%
       const ds = row.domainStatus || 'pending_dns';
       const ss = row.sslStatus || 'pending';
-      const dsChip = ds === 'active' ? 'ok' : (ds === 'ssl_validating' ? 'warn' : ds.startsWith('pending') ? 'pend' : 'err');
+      const ps = row.propagationStatus || '';
+      function dsChipClass(s) {
+        if (s === 'active') return 'ok';
+        if (s === 'ssl_validating' || s === 'railway_pending') return 'warn';
+        if (s === 'public_dns_propagating') return 'info';
+        if (s === 'authoritative_ok') return 'info';
+        if (s === 'action_required' || s === 'failed') return 'err';
+        return 'pend';
+      }
       const ssChip = ss === 'active' ? 'ok' : ss === 'pending' ? 'pend' : 'err';
     %>
     <details class="tenant-card" id="tc-<%= row.tenantId %>">
       <summary>
         <strong><%= row.tenantId %></strong>
         <span class="muted"><%= row.primaryDomain || '(platform only)' %></span>
-        <span class="chip <%= dsChip %>">domain: <%= ds %></span>
+        <span class="chip <%= dsChipClass(ds) %>">domain: <%= ds %></span>
+        <% if (ps && ps !== 'ok' && ps !== 'unknown') { %><span class="chip info">⟳ <%= ps %></span><% } %>
         <span class="chip <%= ssChip %>">ssl: <%= ss %></span>
+        <% if (row.hasCloudflareZone) { %><span class="chip info" title="CF Zone: <%= row.cloudflareZoneId %>">CF ✓</span><% } %>
         <% if (row.issueFlag) { %><span class="chip err">⚠ issue</span><% } %>
         <% if (row.vaEnabled && !row.vaBackendAvailable) { %><span class="chip warn">VA: no backend URL</span><% } %>
         <span class="arrow">▼</span>
@@ -103,41 +113,75 @@
           Preview host: <code><%= row.previewHost || '—' %></code>
           &nbsp;·&nbsp; Canonical www: <%= row.canonicalToWww ? 'on' : 'off' %>
           &nbsp;·&nbsp; Type: <span class="chip info"><%= row.domainType %></span>
+          &nbsp;·&nbsp; CF Zone: <% if (row.hasCloudflareZone) { %><code><%= row.cloudflareZoneId %></code> (token: <%= row.cloudflareTokenSource %>)<% } else { %><span class="chip warn">not configured</span><% } %>
         </p>
         <div class="status-row"><span class="status-label">Primary domain</span><code><%= row.primaryDomain || '—' %></code></div>
         <div class="status-row"><span class="status-label">Aliases</span><code><%= Array.isArray(row.aliases) && row.aliases.length ? row.aliases.join(', ') : '—' %></code></div>
 
         <% let dnsResult = null; try { dnsResult = row.dnsCheckResult ? JSON.parse(row.dnsCheckResult) : null; } catch(e){} %>
         <% if (dnsResult) { %>
+        <%
+          var _propStatus = dnsResult.propagationStatus || 'unknown';
+          var _auth       = dnsResult.authoritative;
+          var _cname      = dnsResult.cname || {};
+          var _txt        = dnsResult.txt   || {};
+          var _cnameEffective = _cname.effectiveOk !== undefined ? _cname.effectiveOk : _cname.ok;
+        %>
+
+        <% if (_propStatus === 'propagating') { %>
+        <div class="info-box" style="background:#eff6ff;border-color:#bfdbfe;">
+          <strong>⟳ Propagating</strong> — Cloudflare authoritative records are correct. Public resolver cache is still stale (<code>1.1.1.1</code>/<code>8.8.8.8</code> may take up to 48h). No action needed.
+        </div>
+        <% } else if (_propStatus === 'missing' && _auth) { %>
+        <div class="warn-box"><strong>⚠ Action Required</strong> — Cloudflare zone is configured but required DNS records are missing or wrong. Use CF Sync below.</div>
+        <% } %>
+
+        <% if (_auth) { %>
+        <div class="dns-result-box" style="border-left:3px solid #2563eb;">
+          <strong>Authoritative (Cloudflare API)</strong> <span class="chip info" style="font-size:.7rem;">source: cloudflare-api</span><br/>
+          CNAME/Apex <span class="<%= _auth.cnameOk ? 'dns-ok' : 'dns-fail' %>"><%= _auth.cnameOk ? '✓' : '✗' %></span>
+          <% if (_auth.apexCnames && _auth.apexCnames.length) { %><span class="muted">→ <%= _auth.apexCnames.join(', ') %></span><% } %>
+          <% if (_auth.flattenedApex) { %><span class="chip warn" style="font-size:.7rem;">proxied/flattened</span><% } %>
+          &nbsp;&nbsp;
+          TXT <span class="<%= _auth.txtOk ? 'dns-ok' : 'dns-fail' %>"><%= _auth.txtOk ? '✓' : '✗' %></span>
+          <% if (_auth.apexTxtRecords && _auth.apexTxtRecords.length) { %><span class="muted">(<%= _auth.apexTxtRecords.slice(0,2).join(', ').slice(0,80) %>)</span><% } %>
+          <% if (_auth.aliases && _auth.aliases.length) { %>
+          <div style="margin-top:6px;">
+            <% _auth.aliases.forEach(function(a){ %>
+            <div style="font-size:.8rem;margin:2px 0;">
+              <code><%= a.domain %></code>: <span class="<%= a.ok ? 'dns-ok' : 'dns-fail' %>"><%= a.ok ? '✓' : '✗' %></span>
+              <% if (a.cnames && a.cnames.length) { %><span class="muted">→ <%= a.cnames.join(', ') %></span><% } %>
+              <% if (a.railwayVerifyOk) { %><span class="chip ok" style="font-size:.7rem;">_railway-verify ✓</span><% } %>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+        <% } %>
+
         <div class="dns-result-box">
-          <strong>Last DNS check</strong> <span class="muted"><%= row.lastCheckedAt || '—' %></span><br/>
-          <%
-            var _cname = dnsResult.cname || {};
-            var _txt   = dnsResult.txt   || {};
-            var _cnameEffective = _cname.effectiveOk !== undefined ? _cname.effectiveOk : _cname.ok;
-          %>
+          <strong>Public resolver (1.1.1.1/8.8.8.8)</strong> <span class="muted"><%= row.lastCheckedAt || '—' %></span>
+          <% if (_propStatus === 'propagating') { %><span class="chip info" style="font-size:.7rem;">cache stale — ok</span><% } %>
+          <br/>
           CNAME <span class="<%= _cnameEffective ? 'dns-ok' : 'dns-fail' %>"><%= _cnameEffective ? '✓' : '✗' %></span>
           <% if (_cname.cnames) { %><span class="muted">→ <%= _cname.cnames.join(', ') %></span><% } %>
           <% if (_cname.type === 'apex-a') { %><span class="chip warn" style="font-size:.7rem;">Cloudflare apex-A</span><% } %>
-          <% if (_cname.note) { %><span class="muted">(<%= _cname.note.slice(0,80) %>)</span><% } %>
-          <span class="muted">[<%= _cname.resolver || '?' %>]</span>
+          <% if (_cname.note && _propStatus !== 'propagating') { %><span class="muted">(<%= _cname.note.slice(0,80) %>)</span><% } %>
           &nbsp;&nbsp;
           TXT <span class="<%= _txt.ok ? 'dns-ok' : 'dns-fail' %>"><%= _txt.ok ? '✓' : '✗' %></span>
           <% if (_txt.source) { %><span class="muted">via <%= _txt.source %></span><% } %>
-          <span class="muted">[<%= _txt.resolver || '?' %>]</span>
           <% if (_txt.ok && _txt.source === 'legacy_subdomain') { %>
           <span class="chip warn" style="font-size:.7rem;">legacy TXT — migrate to root</span>
           <% } %>
-          <% if (!_txt.ok) { %>
+          <% if (!_txt.ok && _propStatus !== 'propagating') { %>
           <div class="warn-box" style="margin-top:6px;">
-            Add root TXT: <code><%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code><br/>
-            <span class="muted">(legacy: <code>_thronos-verify.<%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code> also accepted)</span>
+            Add root TXT: <code><%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code>
           </div>
           <% } %>
           <% if (Array.isArray(dnsResult.aliases) && dnsResult.aliases.length) { %>
-          <div style="margin-top:8px;"><strong>Aliases:</strong>
+          <div style="margin-top:6px;">
             <% dnsResult.aliases.forEach(function(a){ %>
-            <div style="margin:3px 0;font-size:.8rem;">
+            <div style="margin:2px 0;font-size:.8rem;">
               <code><%= a.domain %></code>: <span class="<%= a.ok ? 'dns-ok' : 'dns-fail' %>"><%= a.ok ? '✓' : '✗' %></span>
               <% if (a.cnames) { %><span class="muted">→ <%= a.cnames.join(', ') %></span><% } %>
               <% if (a.note) { %><span class="muted">(<%= a.note %>)</span><% } %>
@@ -146,9 +190,9 @@
           </div>
           <% } %>
           <% if (dnsResult.smoke && Object.keys(dnsResult.smoke).length) { %>
-          <div style="margin-top:8px;"><strong>HTTP smoke:</strong>
-            <% Object.entries(dnsResult.smoke).forEach(function(e){ var d=e[0], s=e[1]; %>
-            <div style="margin:3px 0;font-size:.8rem;">
+          <div style="margin-top:6px;"><strong>HTTP smoke:</strong>
+            <% Object.entries(dnsResult.smoke).forEach(function(entry){ var d=entry[0], s=entry[1]; %>
+            <div style="margin:2px 0;font-size:.8rem;">
               <code><%= d %></code>: <span class="<%= s.ok ? 'dns-ok' : 'dns-fail' %>"><%= s.ok ? '✓' : '✗' %></span>
               <% if (s.statusCode) { %><span class="muted"><%= s.proto %> <%= s.statusCode %></span><% } %>
               <% if (s.note) { %><span class="muted">(<%= s.note.slice(0,80) %>)</span><% } %>
@@ -156,65 +200,65 @@
             <% }) %>
           </div>
           <% } %>
-
-          <% if (dnsResult.requiredRecords) { %>
-          <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;font-size:.85rem;">Required Records (Show)</summary>
-            <div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:6px;">
-              <div style="margin:8px 0;"><strong>Apex:</strong> <code><%= dnsResult.requiredRecords.apex.type %></code> → <code><%= dnsResult.requiredRecords.apex.target %></code></div>
-              <div style="margin:8px 0;"><strong>TXT:</strong> <code><%= dnsResult.requiredRecords.txt.location %></code> → <code><%= dnsResult.requiredRecords.txt.value %></code></div>
-              <% if (dnsResult.requiredRecords.aliases && dnsResult.requiredRecords.aliases.length) { %>
-              <div style="margin:8px 0;"><strong>Aliases:</strong>
-                <% dnsResult.requiredRecords.aliases.forEach(function(a){ %>
-                <div style="margin:3px 0;font-size:.8rem;"><code><%= a.domain %></code> → <code><%= a.target %></code></div>
-                <% }) %>
-              </div>
-              <% } %>
-            </div>
-          </details>
-          <% } %>
-
-          <% if (dnsResult.detectedRecords) { %>
-          <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;font-size:.85rem;">Detected Records (Show)</summary>
-            <div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:6px;">
-              <div style="margin:8px 0;"><strong>Apex:</strong>
-                <% if (dnsResult.detectedRecords.apex) { %>
-                  <code><%= dnsResult.detectedRecords.apex.type %></code>
-                  <% if (dnsResult.detectedRecords.apex.targets) { %><code><%= dnsResult.detectedRecords.apex.targets.join(', ') %></code><% } %>
-                  <% if (dnsResult.detectedRecords.apex.addresses) { %><code><%= dnsResult.detectedRecords.apex.addresses.join(', ') %></code><% } %>
-                  <span class="<%= dnsResult.detectedRecords.apex.verified ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.detectedRecords.apex.verified ? '✓' : '✗' %></span>
-                  <% if (dnsResult.detectedRecords.apex.note) { %><span class="muted"><%= dnsResult.detectedRecords.apex.note %></span><% } %>
-                <% } %>
-              </div>
-              <div style="margin:8px 0;"><strong>TXT:</strong>
-                <% if (dnsResult.detectedRecords.txt) { %>
-                  location: <code><%= dnsResult.detectedRecords.txt.location %></code>
-                  <% if (dnsResult.detectedRecords.txt.value) { %><code><%= dnsResult.detectedRecords.txt.value %></code><% } %>
-                  <span class="<%= dnsResult.detectedRecords.txt.verified ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.detectedRecords.txt.verified ? '✓' : '✗' %></span>
-                  <% if (dnsResult.detectedRecords.txt.note) { %><span class="muted"><%= dnsResult.detectedRecords.txt.note %></span><% } %>
-                <% } %>
-              </div>
-            </div>
-          </details>
-          <% } %>
+          <% if (dnsResult.cfError) { %><div class="warn-box" style="margin-top:6px;">CF API error: <%= dnsResult.cfError %></div><% } %>
         </div>
+
+        <% if (dnsResult.requiredRecords) { %>
+        <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;font-size:.82rem;">Required Records</summary>
+          <div style="margin-top:6px;padding:10px;background:#f9fafb;border-radius:6px;font-size:.8rem;">
+            <div><strong>Apex:</strong> CNAME → <code><%= (dnsResult.requiredRecords.apex && dnsResult.requiredRecords.apex.target) || 'up.railway.app' %></code></div>
+            <div><strong>TXT:</strong> <code><%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code></div>
+            <% if (dnsResult.requiredRecords.aliases && dnsResult.requiredRecords.aliases.length) { %>
+              <% dnsResult.requiredRecords.aliases.forEach(function(a){ %>
+              <div><code><%= a.domain %></code> CNAME → <code><%= a.target %></code></div>
+              <% }) %>
+            <% } %>
+          </div>
+        </details>
+        <% } %>
         <% } else { %>
         <div class="info-box">No DNS check result yet. Click Recheck below.</div>
         <% } %>
         <% if (row.lastCheckError) { %><div class="warn-box">Last error: <%= row.lastCheckError %></div><% } %>
 
-        <div style="margin:12px 0;"><strong>Cloudflare Configuration</strong></div>
-        <form method="POST" action="/root/hosting/cloudflare" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+        <%# Cloudflare zone config + sync %>
+        <div style="margin:14px 0 4px;"><strong>Cloudflare Zone Configuration</strong>
+          <% if (row.hasCloudflareZone) { %><span class="chip ok" style="font-size:.7rem;">zone set</span><% } %>
+        </div>
+        <form method="POST" action="/root/hosting/cloudflare" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;align-items:center;">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
-          <input type="text" name="cfApiToken" placeholder="Cloudflare API Token" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:160px;" />
-          <input type="text" name="cfZoneId" placeholder="Zone ID" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:120px;" />
-          <button type="submit" class="btn-save">Configure</button>
+          <input type="password" name="rootPassword" placeholder="Root pw" required style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:110px;" />
+          <input type="text" name="cfZoneId" placeholder="Zone ID" value="<%= row.cloudflareZoneId || '' %>" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:130px;" />
+          <input type="password" name="cfApiToken" placeholder="API Token (optional override)" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:160px;" />
+          <button type="submit" class="btn-save">Save Zone</button>
         </form>
-
-        <div style="margin:12px 0;"><strong>Railway Deployment</strong></div>
-        <form method="POST" action="/root/hosting/railway" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+        <% if (row.hasCloudflareZone) { %>
+        <form method="POST" action="/root/hosting/cf-sync" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;align-items:center;">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="password" name="rootPassword" placeholder="Root pw" required style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:110px;" />
+          <input type="text" name="railwayTargets" placeholder='{"eukolaki.gr":"olz9lkef.up.railway.app",...}' style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.78rem;flex:1;min-width:200px;" />
+          <input type="text" name="railwayVerifyTokens" placeholder='{"www.eukolaki.gr":"railway-verify=abc..."}' style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.78rem;flex:1;min-width:200px;" />
+          <button type="submit" class="btn-recheck" style="background:#0ea5e9;">↑ Sync DNS to CF</button>
+        </form>
+        <% } %>
+
+        <%# Railway deployment registry %>
+        <div style="margin:14px 0 4px;"><strong>Railway Deployment</strong></div>
+        <% if (row.railwayInfo && Object.keys(row.railwayInfo).length) { %>
+        <div class="dns-result-box" style="margin-bottom:8px;">
+          <% Object.entries(row.railwayInfo).forEach(function(entry){ var d=entry[0], r=entry[1]; %>
+          <div style="font-size:.82rem;margin:3px 0;">
+            <code><%= d %></code> → <code><%= r.url %></code>
+            <span class="chip <%= r.status === 'active' ? 'ok' : 'pend' %>" style="font-size:.7rem;"><%= r.status %></span>
+          </div>
+          <% }) %>
+        </div>
+        <% } %>
+        <form method="POST" action="/root/hosting/railway" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;align-items:center;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="password" name="rootPassword" placeholder="Root pw" required style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:110px;" />
           <input type="text" name="railwayDeploymentId" placeholder="Deployment ID" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:140px;" />
-          <input type="url" name="railwayUrl" placeholder="https://..." style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:200px;" />
+          <input type="url" name="railwayUrl" placeholder="https://xxx.up.railway.app" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:200px;" />
           <button type="submit" class="btn-save">Register</button>
         </form>
 
@@ -230,7 +274,7 @@
           <div class="form-grid">
             <label>Domain status
               <select name="domainStatus">
-                <% ['pending_dns','ssl_validating','active','failed'].forEach(function(st){ %>
+                <% ['pending_dns','public_dns_propagating','railway_pending','ssl_validating','active','action_required','failed'].forEach(function(st){ %>
                   <option value="<%= st %>" <%= row.domainStatus === st ? 'selected' : '' %>><%= st %></option>
                 <% }) %>
               </select>
