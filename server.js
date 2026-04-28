@@ -504,6 +504,7 @@ function loadTenantsRegistry() {
       ...tenant,
       allowedThemeKeys: normalizeThemeKeys(tenant && tenant.allowedThemeKeys, governance.availableThemeKeys),
       hosting: {
+        ...hosting,
         domainStatus: hosting.domainStatus || tenant.domainStatus || 'pending_dns',
         sslStatus: hosting.sslStatus || 'pending',
         sslProvider: hosting.sslProvider || '',
