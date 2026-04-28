@@ -123,6 +123,54 @@ async function checkThronosVerifyTxt(domain, tenantId) {
   }
 }
 
+// Helper: get actual CNAME targets for a domain (returns { targets, type, addressess }).
+async function getAliasCnameTargets(domain) {
+  const resolver = makePublicResolver();
+  try {
+    const cnames = await resolver.resolveCname(domain);
+    return { targets: cnames, type: 'cname', addresses: null };
+  } catch (e) {
+    if (e.code === 'ENODATA' || e.code === 'ENOTFOUND') {
+      try {
+        const addrs = await resolver.resolve4(domain);
+        return { targets: null, type: 'a-record', addresses: addrs };
+      } catch { }
+    }
+    return { targets: null, type: 'error', addresses: null, note: String(e.code || e.message) };
+  }
+}
+
+// Helper: get TXT records for a domain (including legacy subdomain).
+async function getTxtRecords(domain) {
+  const resolver = makePublicResolver();
+  const results = { root: null, legacy: null };
+
+  try {
+    results.root = (await resolver.resolveTxt(domain)).flat();
+  } catch (e) {
+    // ENODATA is normal if TXT doesn't exist
+  }
+
+  try {
+    results.legacy = (await resolver.resolveTxt(`_thronos-verify.${domain}`)).flat();
+  } catch (e) {
+    // ENODATA is normal if legacy TXT doesn't exist
+  }
+
+  return results;
+}
+
+// Helper: get A records for apex domain (used when CNAME is flattened).
+async function checkApexA(domain) {
+  const resolver = makePublicResolver();
+  try {
+    const addrs = await resolver.resolve4(domain);
+    return { addresses: addrs, type: 'a-record' };
+  } catch (e) {
+    return { addresses: null, type: 'error', note: String(e.code || e.message) };
+  }
+}
+
 async function runDomainCheck(tenant) {
   const primary = String(tenant.primaryDomain || tenant.domain || '').trim().toLowerCase();
   if (!primary) {
@@ -152,6 +200,61 @@ async function runDomainCheck(tenant) {
   const flattenedApex = cname.flattenedCname === true;
   const effectiveCnameOk = cname.ok || (flattenedApex && txt.ok);
 
+  // Build required vs detected records structure
+  const requiredRecords = {
+    apex: {
+      type: 'CNAME',
+      target: PLATFORM_RAILWAY_SUFFIX,
+      description: 'Primary domain must point to Thronos Railway deployment'
+    },
+    txt: {
+      type: 'TXT',
+      location: primary,
+      value: `thronos-verify=${tenant.id}`,
+      description: 'Ownership verification record'
+    },
+    aliases: aliasList.length > 0 ? aliasList.map(domain => ({
+      domain,
+      type: 'CNAME',
+      target: PLATFORM_RAILWAY_SUFFIX,
+      description: 'Alias must have real CNAME to Thronos'
+    })) : []
+  };
+
+  const detectedRecords = {
+    apex: cname.cnames ? {
+      type: 'CNAME',
+      targets: cname.cnames,
+      verified: cname.ok || effectiveCnameOk
+    } : cname.flattenedCname ? {
+      type: 'A-record',
+      addresses: cname.addrs || [],
+      verified: false,
+      note: 'CNAME flattened to A records (will verify if TXT passes)'
+    } : {
+      type: 'error',
+      verified: false,
+      note: cname.note || 'Could not resolve'
+    },
+    txt: txt.records ? {
+      location: txt.source || 'unknown',
+      value: txt.records.find(r => r.includes('thronos-verify')) || (txt.records.length > 0 ? txt.records[0] : null),
+      allValues: txt.records,
+      verified: txt.ok
+    } : {
+      verified: false,
+      note: txt.note || 'No TXT records found'
+    },
+    aliases: aliases.length > 0 ? aliases.map(a => ({
+      domain: a.domain,
+      type: a.cnames ? 'CNAME' : a.flattenedCname ? 'A-record' : 'error',
+      targets: a.cnames || [],
+      addresses: a.addrs || [],
+      verified: a.ok,
+      note: a.note
+    })) : []
+  };
+
   return {
     domain:        primary,
     checkedAt:     new Date().toISOString(),
@@ -162,8 +265,20 @@ async function runDomainCheck(tenant) {
     allAliasesOk:  aliases.length === 0 || aliases.every(a => a.ok),
     cname:         { ...cname, effectiveOk: effectiveCnameOk },
     txt,
-    aliases
+    aliases,
+    requiredRecords,
+    detectedRecords
   };
 }
 
-module.exports = { checkCname, checkAliasCname, checkThronosVerifyTxt, runDomainCheck, matchesTxt, pointsToThronos };
+module.exports = {
+  checkCname,
+  checkAliasCname,
+  checkThronosVerifyTxt,
+  runDomainCheck,
+  matchesTxt,
+  pointsToThronos,
+  getAliasCnameTargets,
+  getTxtRecords,
+  checkApexA
+};

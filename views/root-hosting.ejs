@@ -92,6 +92,8 @@
         <button class="tab-btn" data-tab="<%= ri %>-ssl" onclick="switchTab(this,'<%= ri %>')">SSL</button>
         <button class="tab-btn" data-tab="<%= ri %>-footer" onclick="switchTab(this,'<%= ri %>')">Footer</button>
         <button class="tab-btn" data-tab="<%= ri %>-assistant" onclick="switchTab(this,'<%= ri %>')">Assistant</button>
+        <button class="tab-btn" data-tab="<%= ri %>-mail" onclick="switchTab(this,'<%= ri %>')">Mail</button>
+        <button class="tab-btn" data-tab="<%= ri %>-web3" onclick="switchTab(this,'<%= ri %>')">Web3</button>
         <button class="tab-btn" data-tab="<%= ri %>-advanced" onclick="switchTab(this,'<%= ri %>')">Advanced</button>
       </div>
 
@@ -154,11 +156,67 @@
             <% }) %>
           </div>
           <% } %>
+
+          <% if (dnsResult.requiredRecords) { %>
+          <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;font-size:.85rem;">Required Records (Show)</summary>
+            <div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:6px;">
+              <div style="margin:8px 0;"><strong>Apex:</strong> <code><%= dnsResult.requiredRecords.apex.type %></code> → <code><%= dnsResult.requiredRecords.apex.target %></code></div>
+              <div style="margin:8px 0;"><strong>TXT:</strong> <code><%= dnsResult.requiredRecords.txt.location %></code> → <code><%= dnsResult.requiredRecords.txt.value %></code></div>
+              <% if (dnsResult.requiredRecords.aliases && dnsResult.requiredRecords.aliases.length) { %>
+              <div style="margin:8px 0;"><strong>Aliases:</strong>
+                <% dnsResult.requiredRecords.aliases.forEach(function(a){ %>
+                <div style="margin:3px 0;font-size:.8rem;"><code><%= a.domain %></code> → <code><%= a.target %></code></div>
+                <% }) %>
+              </div>
+              <% } %>
+            </div>
+          </details>
+          <% } %>
+
+          <% if (dnsResult.detectedRecords) { %>
+          <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;font-size:.85rem;">Detected Records (Show)</summary>
+            <div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:6px;">
+              <div style="margin:8px 0;"><strong>Apex:</strong>
+                <% if (dnsResult.detectedRecords.apex) { %>
+                  <code><%= dnsResult.detectedRecords.apex.type %></code>
+                  <% if (dnsResult.detectedRecords.apex.targets) { %><code><%= dnsResult.detectedRecords.apex.targets.join(', ') %></code><% } %>
+                  <% if (dnsResult.detectedRecords.apex.addresses) { %><code><%= dnsResult.detectedRecords.apex.addresses.join(', ') %></code><% } %>
+                  <span class="<%= dnsResult.detectedRecords.apex.verified ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.detectedRecords.apex.verified ? '✓' : '✗' %></span>
+                  <% if (dnsResult.detectedRecords.apex.note) { %><span class="muted"><%= dnsResult.detectedRecords.apex.note %></span><% } %>
+                <% } %>
+              </div>
+              <div style="margin:8px 0;"><strong>TXT:</strong>
+                <% if (dnsResult.detectedRecords.txt) { %>
+                  location: <code><%= dnsResult.detectedRecords.txt.location %></code>
+                  <% if (dnsResult.detectedRecords.txt.value) { %><code><%= dnsResult.detectedRecords.txt.value %></code><% } %>
+                  <span class="<%= dnsResult.detectedRecords.txt.verified ? 'dns-ok' : 'dns-fail' %>"><%= dnsResult.detectedRecords.txt.verified ? '✓' : '✗' %></span>
+                  <% if (dnsResult.detectedRecords.txt.note) { %><span class="muted"><%= dnsResult.detectedRecords.txt.note %></span><% } %>
+                <% } %>
+              </div>
+            </div>
+          </details>
+          <% } %>
         </div>
         <% } else { %>
         <div class="info-box">No DNS check result yet. Click Recheck below.</div>
         <% } %>
         <% if (row.lastCheckError) { %><div class="warn-box">Last error: <%= row.lastCheckError %></div><% } %>
+
+        <div style="margin:12px 0;"><strong>Cloudflare Configuration</strong></div>
+        <form method="POST" action="/root/hosting/cloudflare" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="text" name="cfApiToken" placeholder="Cloudflare API Token" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:160px;" />
+          <input type="text" name="cfZoneId" placeholder="Zone ID" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:120px;" />
+          <button type="submit" class="btn-save">Configure</button>
+        </form>
+
+        <div style="margin:12px 0;"><strong>Railway Deployment</strong></div>
+        <form method="POST" action="/root/hosting/railway" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="text" name="railwayDeploymentId" placeholder="Deployment ID" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:140px;" />
+          <input type="url" name="railwayUrl" placeholder="https://..." style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:200px;" />
+          <button type="submit" class="btn-save">Register</button>
+        </form>
 
         <form method="POST" action="/root/hosting/recheck" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
@@ -244,6 +302,60 @@
         <div class="info-box">✓ VA widget is live and backend is configured.</div>
         <% } %>
         <p class="muted" style="margin-top:12px;">Backend URL is the global env var THRONOS_ASSISTANT_URL / ASSISTANT_API_URL. No per-tenant URL needed.</p>
+
+        <div style="margin:12px 0;"><strong>Backend Health Check</strong></div>
+        <button class="btn-recheck" onclick="checkAssistantHealth(<%= ri %>)">🏥 Check Health</button>
+        <div id="health-<%= ri %>" style="margin:8px 0;"></div>
+      </div>
+
+      <%# ── Mail tab ── %>
+      <div class="tab-panel" id="<%= ri %>-mail">
+        <p class="muted" style="margin-bottom:10px;">Configure mail hosting and email delivery settings.</p>
+        <form method="POST" action="/root/hosting/update">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="hidden" name="section" value="mail" />
+          <div class="form-grid">
+            <label>Mail provider
+              <select name="mailProvider">
+                <option value="">— Not configured —</option>
+                <option value="sendgrid">SendGrid</option>
+                <option value="mailgun">Mailgun</option>
+                <option value="ses">Amazon SES</option>
+                <option value="smtp">Custom SMTP</option>
+              </select>
+            </label>
+            <label>MX records <input type="text" name="mxRecords" placeholder="Comma-separated MX records" /></label>
+            <label>SPF record <input type="text" name="spfRecord" placeholder="v=spf1 ..." /></label>
+            <label>DKIM records <input type="text" name="dkimRecords" placeholder="Comma-separated DKIM keys" /></label>
+            <label>DMARC record <input type="text" name="dmarcRecord" placeholder="v=DMARC1 ..." /></label>
+          </div>
+          <div class="save-row">
+            <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+            <button type="submit" class="btn-save">Save Mail Config</button>
+          </div>
+        </form>
+      </div>
+
+      <%# ── Web3 tab ── %>
+      <div class="tab-panel" id="<%= ri %>-web3">
+        <p class="muted" style="margin-bottom:10px;">Enable Web3 integration and IPFS configuration for decentralized hosting.</p>
+        <form method="POST" action="/root/hosting/update">
+          <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
+          <input type="hidden" name="section" value="web3" />
+          <div class="form-grid">
+            <label style="flex-direction:row;align-items:center;padding-top:22px;gap:8px;">
+              <input type="checkbox" name="web3Enabled" value="1" />
+              Enable Web3 integration
+            </label>
+            <label>Web3 host <input type="text" name="web3Host" placeholder="web3.example.com" /></label>
+            <label>IPFS gateway <input type="url" name="ipfsGateway" placeholder="https://gateway.pinata.cloud" /></label>
+            <label>DNSLink TXT <input type="text" name="dnslinkTxt" placeholder="_dnslink=..." /></label>
+          </div>
+          <div class="save-row">
+            <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
+            <button type="submit" class="btn-save">Save Web3 Config</button>
+          </div>
+        </form>
       </div>
 
       <%# ── Advanced tab ── %>
@@ -300,6 +412,29 @@
       if (el) { el.open = true; el.scrollIntoView({ behavior:'smooth', block:'start' }); }
     }
   })();
+
+  async function checkAssistantHealth(ri) {
+    var resultDiv = document.getElementById('health-' + ri);
+    resultDiv.innerHTML = '<p class="muted" style="font-style:italic;">Checking...</p>';
+    try {
+      var response = await fetch('/root/hosting/assistant-health', { method: 'POST' });
+      var data = await response.json();
+      var html = '';
+      if (data.ok) {
+        html = '<div class="info-box" style="background:#dcfce7;border-color:#86efac;"><strong style="color:#15803d;">✓ Healthy</strong><br/>' +
+               'Status: ' + (data.status || '?') + '<br/>' +
+               (data.responseTime ? 'Response time: ' + data.responseTime + 'ms<br/>' : '') +
+               'Message: ' + (data.message || '') + '</div>';
+      } else {
+        html = '<div class="warn-box"><strong style="color:#991b1b;">✗ Unhealthy</strong><br/>' +
+               'Status: ' + (data.status || '?') + '<br/>' +
+               'Message: ' + (data.message || 'Unknown error') + '</div>';
+      }
+      resultDiv.innerHTML = html;
+    } catch (err) {
+      resultDiv.innerHTML = '<div class="warn-box"><strong>Error:</strong> ' + err.message + '</div>';
+    }
+  }
   </script>
 </body>
 </html>

@@ -20,6 +20,7 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./utils/tenant-host-resolver');
 const { runDomainCheck } = require('./utils/dns-check');
+const RailwayRegistry = require('./utils/railway-registry');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -416,6 +417,9 @@ const REFERRAL_EARNINGS_FILE = path.join(DATA_ROOT, 'referral_earnings.json');
 const REFERRAL_LEDGER_FILE   = path.join(DATA_ROOT, 'referral_ledger.json');
 const SETTLEMENT_LEDGER_FILE = path.join(DATA_ROOT, 'settlement_ledger.json');
 const THEME_GOVERNANCE_FILE  = path.join(DATA_ROOT, 'theme-governance.json');
+const RAILWAY_REGISTRY_FILE  = path.join(DATA_ROOT, 'railway-registry.json');
+
+let railwayRegistry = null;
 
 const THEME_CATALOG = Object.freeze({
   core_default: {
@@ -517,6 +521,74 @@ function loadTenantsRegistry() {
 
 function saveTenantsRegistry(tenants) {
   saveJson(TENANTS_REGISTRY, tenants);
+}
+
+function migrateToProvisioningSchema() {
+  const tenants = loadJson(TENANTS_REGISTRY, []);
+  if (!Array.isArray(tenants)) return;
+
+  let changed = false;
+
+  const migrated = tenants.map((tenant) => {
+    const t = { ...tenant };
+
+    // Initialize domainProvisioning if missing
+    if (!t.domainProvisioning) {
+      changed = true;
+      const primaryDomain = t.primaryDomain || t.domain || '';
+      const aliases = Array.isArray(t.domains) ? [...t.domains] : [];
+      const legacyStatus = t.domainStatus || (t.hosting && t.hosting.domainStatus) || 'pending_dns';
+
+      t.domainProvisioning = {
+        primaryDomain: primaryDomain ? {
+          domain: primaryDomain,
+          status: legacyStatus,
+          dnsCheckResult: null,
+          railwayDeploymentId: null,
+          sslCertificateId: null,
+          lastUpdatedAt: new Date().toISOString()
+        } : null,
+        aliases: aliases.map((domain) => ({
+          domain,
+          status: legacyStatus,
+          dnsCheckResult: null,
+          railwayDeploymentId: null,
+          sslCertificateId: null,
+          lastUpdatedAt: new Date().toISOString()
+        }))
+      };
+    }
+
+    // Initialize mailHosting if missing
+    if (!t.mailHosting) {
+      changed = true;
+      t.mailHosting = {
+        mailProvider: null,
+        mxRecords: [],
+        spfRecord: null,
+        dkimRecords: [],
+        dmarcRecord: null
+      };
+    }
+
+    // Initialize web3Config if missing
+    if (!t.web3Config) {
+      changed = true;
+      t.web3Config = {
+        web3Enabled: false,
+        web3Host: null,
+        ipfsGateway: null,
+        dnslinkTxt: null
+      };
+    }
+
+    return t;
+  });
+
+  if (changed) {
+    console.log('[migration] Upgraded', tenants.length, 'tenant(s) to provisioning schema');
+    saveTenantsRegistry(migrated);
+  }
 }
 
 function normalizeTenantDomainInputs({ domain, primaryDomain, domains, previewSubdomain, fallbackPreviewSubdomain }) {
@@ -6586,6 +6658,29 @@ app.post('/root/hosting/update', (req, res) => {
     tenants[idx].allowPoweredBy = nextMode !== 'disabled';
   }
 
+  if (sec === 'mail') {
+    const { mailProvider, mxRecords, spfRecord, dkimRecords, dmarcRecord } = req.body;
+    if (!tenants[idx].mailHosting) tenants[idx].mailHosting = {};
+    tenants[idx].mailHosting = {
+      mailProvider: String(mailProvider || '').trim() || null,
+      mxRecords: String(mxRecords || '').split(',').map(s => s.trim()).filter(Boolean),
+      spfRecord: String(spfRecord || '').trim() || null,
+      dkimRecords: String(dkimRecords || '').split(',').map(s => s.trim()).filter(Boolean),
+      dmarcRecord: String(dmarcRecord || '').trim() || null
+    };
+  }
+
+  if (sec === 'web3') {
+    const { web3Enabled, web3Host, ipfsGateway, dnslinkTxt } = req.body;
+    if (!tenants[idx].web3Config) tenants[idx].web3Config = {};
+    tenants[idx].web3Config = {
+      web3Enabled: String(web3Enabled || '') === '1',
+      web3Host: String(web3Host || '').trim() || null,
+      ipfsGateway: String(ipfsGateway || '').trim() || null,
+      dnslinkTxt: String(dnslinkTxt || '').trim() || null
+    };
+  }
+
   if (sec === 'advanced') {
     const allowedBackup = new Set(['unknown', 'healthy', 'warning', 'failed']);
     const { issueFlag, internalNotes, tenantNotes, backupStatus } = req.body;
@@ -6610,6 +6705,38 @@ app.post('/root/hosting/update', (req, res) => {
 // ── HTTP smoke test helper ────────────────────────────────────────────────────
 // GET <domain>/ and verify it's not Railway's own 404 page.
 // Used to gate domain auto-promotion after DNS checks pass.
+// Health check for VA assistant backend
+async function checkAssistantHealth() {
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  if (!vaUrl) {
+    return { ok: false, status: 'not_configured', message: 'VA backend URL not configured', responseTime: null };
+  }
+
+  try {
+    const start = Date.now();
+    const resp = await axios.get(`${vaUrl}/api/v1/health`, {
+      timeout: 5000,
+      validateStatus: (status) => status < 500
+    });
+    const responseTime = Date.now() - start;
+    const ok = resp.status === 200;
+    return {
+      ok,
+      status: ok ? 'healthy' : 'unhealthy',
+      statusCode: resp.status,
+      responseTime,
+      message: ok ? 'Assistant backend is responsive' : `Assistant returned HTTP ${resp.status}`
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 'unreachable',
+      message: String(err.code || err.message),
+      responseTime: null
+    };
+  }
+}
+
 async function httpSmoke(domain) {
   const RAILWAY_404_MARKER = 'The train has not arrived';
   for (const proto of ['https', 'http']) {
@@ -6700,7 +6827,14 @@ app.post('/root/hosting/recheck', async (req, res) => {
       lastCheckError: '',
       dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
       domainStatus: nextDomainStatus,
-      dnsCheckResult: JSON.stringify({ cname: check.cname, txt: check.txt, aliases: check.aliases, smoke: smokeResults }),
+      dnsCheckResult: JSON.stringify({
+        cname: check.cname,
+        txt: check.txt,
+        aliases: check.aliases,
+        smoke: smokeResults,
+        requiredRecords: check.requiredRecords,
+        detectedRecords: check.detectedRecords
+      }),
       aliasResults: check.aliases || []
     };
     if (fullyVerified) {
@@ -6726,6 +6860,75 @@ app.post('/root/hosting/recheck', async (req, res) => {
     }
     const rows = _buildHostingRows(loadTenantsRegistry());
     return res.render('root-hosting', { rows, unresolvedCount: 0, message: null, error: `DNS check απέτυχε: ${err.message}` });
+  }
+});
+
+// ── Cloudflare configuration ─────────────────────────────────────────────────
+app.post('/root/hosting/cloudflare', (req, res) => {
+  const { tenantId, cfApiToken, cfZoneId } = req.body;
+  if (!verifyRootPassword(req.body.rootPassword || '')) {
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' });
+    return res.redirect('/root/hosting');
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    setRootFlash(req, { error: 'Tenant δεν βρέθηκε.' });
+    return res.redirect('/root/hosting');
+  }
+
+  // Store Cloudflare config in tenant record (will be used for sync operations)
+  if (!tenants[idx].hosting) tenants[idx].hosting = {};
+  tenants[idx].hosting.cloudflareApiToken = (cfApiToken || '').trim();
+  tenants[idx].hosting.cloudflareZoneId = (cfZoneId || '').trim();
+  saveTenantsRegistry(tenants);
+
+  const message = `Cloudflare config updated for ${tenantId}`;
+  setRootFlash(req, { message });
+  return res.redirect('/root/hosting');
+});
+
+// ── Railway deployment registration ──────────────────────────────────────────
+app.post('/root/hosting/railway', (req, res) => {
+  const { tenantId, railwayDeploymentId, railwayUrl } = req.body;
+  if (!verifyRootPassword(req.body.rootPassword || '')) {
+    setRootFlash(req, { error: 'Λάθος root κωδικός.' });
+    return res.redirect('/root/hosting');
+  }
+  const tenants = loadTenantsRegistry();
+  const idx = tenants.findIndex(t => t.id === String(tenantId || '').trim());
+  if (idx < 0) {
+    setRootFlash(req, { error: 'Tenant δεν βρέθηκε.' });
+    return res.redirect('/root/hosting');
+  }
+
+  if (!railwayDeploymentId || !railwayUrl) {
+    setRootFlash(req, { error: 'Deployment ID and URL are required.' });
+    return res.redirect('/root/hosting');
+  }
+
+  // Register in railway registry (for primary domain; can extend to aliases)
+  try {
+    const primaryDomain = tenants[idx].primaryDomain || tenants[idx].domain;
+    if (primaryDomain && railwayRegistry) {
+      railwayRegistry.register(primaryDomain, railwayDeploymentId, railwayUrl, 'active');
+    }
+    const message = `Railway deployment registered: ${railwayDeploymentId}`;
+    setRootFlash(req, { message });
+  } catch (err) {
+    setRootFlash(req, { error: `Railway registration failed: ${err.message}` });
+  }
+  return res.redirect('/root/hosting');
+});
+
+// ── Assistant health check ───────────────────────────────────────────────────
+app.post('/root/hosting/assistant-health', async (req, res) => {
+  try {
+    const health = await checkAssistantHealth();
+    return res.json(health);
+  } catch (err) {
+    console.error('[assistant-health] error:', err.message);
+    return res.status(500).json({ ok: false, status: 'error', message: err.message });
   }
 });
 
@@ -6833,6 +7036,23 @@ if (process.env.THRC_PREFLIGHT_EJS === '1') {
     console.error('[boot] EJS preflight warning:', e.message);
   }
 }
+
+// Run migrations
+try {
+  migrateToProvisioningSchema();
+  console.log('[boot] Tenant provisioning schema migration completed');
+} catch (e) {
+  console.error('[boot] Migration error:', e.message);
+}
+
+// Initialize Railway Registry
+try {
+  railwayRegistry = new RailwayRegistry(RAILWAY_REGISTRY_FILE);
+  console.log('[boot] Railway registry loaded');
+} catch (e) {
+  console.error('[boot] Railway registry error:', e.message);
+}
+
 app.listen(PORT, () => {
   console.log(`[boot] Thronos Commerce listening on port ${PORT}`);
 });
