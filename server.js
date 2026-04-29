@@ -4747,7 +4747,7 @@ app.post('/admin/assistant', async (req, res) => {
   const _validTones = ['friendly', 'professional', 'technical'];
   const _str = (v) => String(v || '').trim().slice(0, 2000); /* cap free-text at 2000 chars */
 
-  config.assistant.vaEnabled          = b.vaEnabled === '1';
+  config.assistant.vaEnabled          = parseBooleanInput(b.vaEnabled, false);
   config.assistant.vaMode             = _validModes.includes(b.vaMode)     ? b.vaMode     : 'disabled';
   config.assistant.vaLanguage         = _validLangs.includes(b.vaLanguage) ? b.vaLanguage : 'auto';
   config.assistant.vaTone             = _validTones.includes(b.vaTone)     ? b.vaTone     : 'friendly';
