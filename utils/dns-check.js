@@ -192,31 +192,56 @@ async function _runDomainCheckWithResolver(tenant, resolverOverride) {
   const aliasList = (Array.isArray(tenant.domains) ? tenant.domains : [])
     .map(d => String(d).trim().toLowerCase())
     .filter(Boolean);
+  const canonicalHost = (tenant && tenant.canonicalToWww === true) ? 'www' : 'apex';
+  const canonicalDomain = canonicalHost === 'www' ? `www.${primary}` : primary;
+  const aliasesToCheck = canonicalHost === 'www'
+    ? aliasList.filter(a => a !== canonicalDomain)
+    : aliasList;
 
-  // Primary apex: checkCname (flattenedCname allowed, evaluated below)
-  // Aliases (www etc.): checkAliasCname (flattenedCname = fail)
-  const [cnameRes, txtRes, ...aliasRes] = await Promise.allSettled([
-    checkCname(primary, resolverOverride),
+  // canonicalHost=apex: primary uses checkCname (flattenedCname allowed).
+  // canonicalHost=www: require www CNAME to Railway; apex becomes optional redirect/placeholder.
+  const canonicalCnameCheck = canonicalHost === 'www'
+    ? checkAliasCname(canonicalDomain, resolverOverride)
+    : checkCname(primary, resolverOverride);
+  const apexOptionalCheck = canonicalHost === 'www'
+    ? checkCname(primary, resolverOverride)
+    : Promise.resolve(null);
+
+  const [cnameRes, txtRes, apexOptionalRes, ...aliasRes] = await Promise.allSettled([
+    canonicalCnameCheck,
     checkThronosVerifyTxt(primary, tenant.id, resolverOverride),
-    ...aliasList.map(a => checkAliasCname(a, resolverOverride))
+    apexOptionalCheck,
+    ...aliasesToCheck.map(a => checkAliasCname(a, resolverOverride))
   ]);
 
   const cname = cnameRes.status === 'fulfilled' ? cnameRes.value : { ok: false, note: cnameRes.reason?.message };
   const txt   = txtRes.status  === 'fulfilled' ? txtRes.value  : { ok: false, note: txtRes.reason?.message };
-  const aliases = aliasList.map((a, i) => ({
+  const apexOptional = (canonicalHost === 'www' && apexOptionalRes && apexOptionalRes.status === 'fulfilled')
+    ? apexOptionalRes.value
+    : null;
+  const aliases = aliasesToCheck.map((a, i) => ({
     domain: a,
-    ...(aliasRes[i].status === 'fulfilled' ? aliasRes[i].value : { ok: false, note: aliasRes[i].reason?.message })
+    ...((aliasRes[i].status === 'fulfilled')
+      ? aliasRes[i].value
+      : { ok: false, note: aliasRes[i].reason?.message })
   }));
 
-  const flattenedApex = cname.flattenedCname === true;
-  const effectiveCnameOk = cname.ok || (flattenedApex && txt.ok);
+  const flattenedApex = canonicalHost === 'www'
+    ? (apexOptional && apexOptional.flattenedCname === true)
+    : (cname.flattenedCname === true);
+  const effectiveCnameOk = canonicalHost === 'www'
+    ? !!cname.ok
+    : (cname.ok || (flattenedApex && txt.ok));
 
   return {
     domain:       primary,
+    canonicalHost,
+    canonicalDomain,
     checkedAt:    new Date().toISOString(),
     cnameOk:      effectiveCnameOk,
     cnameRaw:     cname.ok,
     flattenedApex,
+    apexOptional,
     txtOk:        txt.ok,
     allAliasesOk: aliases.length === 0 || aliases.every(a => a.ok),
     cname:        { ...cname, effectiveOk: effectiveCnameOk },
@@ -234,15 +259,22 @@ async function runDomainCheck(tenant) {
   const aliasList = (Array.isArray(tenant.domains) ? tenant.domains : [])
     .map(d => String(d).trim().toLowerCase())
     .filter(Boolean);
+  const canonicalHost = (tenant && tenant.canonicalToWww === true) ? 'www' : 'apex';
+  const canonicalDomain = canonicalHost === 'www' ? `www.${primary}` : primary;
+  const aliasesToRequire = canonicalHost === 'www'
+    ? aliasList.filter(a => a !== canonicalDomain)
+    : aliasList;
 
   const base = await _runDomainCheckWithResolver(tenant, null);
 
   // Build required vs detected records structure
   const requiredRecords = {
     apex: {
-      type: 'CNAME',
-      target: PLATFORM_RAILWAY_SUFFIX,
-      description: 'Primary domain must point to Thronos Railway deployment'
+      type: canonicalHost === 'www' ? 'OPTIONAL' : 'CNAME',
+      target: canonicalHost === 'www' ? 'redirect/proxied-placeholder' : PLATFORM_RAILWAY_SUFFIX,
+      description: canonicalHost === 'www'
+        ? 'Apex redirect/proxied placeholder is optional but recommended when canonical host is www'
+        : 'Primary domain must point to Thronos Railway deployment'
     },
     txt: {
       type: 'TXT',
@@ -250,12 +282,18 @@ async function runDomainCheck(tenant) {
       value: `thronos-verify=${tenant.id}`,
       description: 'Ownership verification record'
     },
-    aliases: aliasList.length > 0 ? aliasList.map(domain => ({
+    aliases: aliasesToRequire.length > 0 ? aliasesToRequire.map(domain => ({
       domain,
       type: 'CNAME',
       target: PLATFORM_RAILWAY_SUFFIX,
       description: 'Alias must have real CNAME to Thronos'
-    })) : []
+    })) : [],
+    canonical: canonicalHost === 'www' ? {
+      domain: canonicalDomain,
+      type: 'CNAME',
+      target: PLATFORM_RAILWAY_SUFFIX,
+      description: 'Canonical www must point to Thronos Railway deployment'
+    } : null
   };
 
   const cname = base.cname;
@@ -276,6 +314,11 @@ async function runDomainCheck(tenant) {
       type: 'error',
       verified: false,
       note: cname.note || 'Could not resolve'
+    },
+    canonical: {
+      host: canonicalHost,
+      domain: canonicalDomain,
+      verified: base.cnameOk
     },
     txt: txt.records ? {
       location: txt.source || 'unknown',
@@ -326,7 +369,8 @@ async function runDomainCheckFull(tenant) {
       authResult = await cf.readTenantDnsState(zoneId, {
         primaryDomain: tenant.primaryDomain || tenant.domain,
         aliases: tenant.domains || [],
-        tenantId: tenant.id
+        tenantId: tenant.id,
+        canonicalHost: tenant && tenant.canonicalToWww === true ? 'www' : 'apex'
       });
       authResult.source = 'cloudflare-api';
       authAllOk = authResult.cnameOk && authResult.txtOk && authResult.allAliasesOk;
