@@ -12,7 +12,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const { matchesTxt, pointsToThronos } = require('../utils/dns-check');
-const { getCloudflareClient, getTenantZoneId } = require('../utils/cloudflare-api');
+const { CloudflareClient, getCloudflareClient, getTenantZoneId } = require('../utils/cloudflare-api');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -122,6 +122,55 @@ test('domainStatus set to ssl_validating when CF authoritative+public both ok an
   assert.equal(nextDomainStatus, 'ssl_validating');
 });
 
+test('canonicalHost=www: valid www CNAME + TXT checks can advance even when apex is redirect placeholder mode', () => {
+  const check = {
+    canonicalHost: 'www',
+    apexMode: 'redirect_to_www',
+    apexDnsStatus: 'proxied_placeholder_ok',
+    cnameOk: true,     // canonical www CNAME verified
+    txtOk: true,       // root thronos TXT verified
+    allAliasesOk: true,
+    authoritativeOk: true,
+    propagationStatus: 'ok'
+  };
+  const prevSslStatus = 'pending';
+  const allSmokeOk = false;
+
+  const authOk = check.authoritativeOk;
+  const publicOk = check.cnameOk && check.txtOk && check.allAliasesOk;
+  const dnsVerified = authOk === true || publicOk;
+  const propagating = check.propagationStatus === 'propagating';
+
+  let nextDomainStatus;
+  if (dnsVerified && allSmokeOk && prevSslStatus === 'active') nextDomainStatus = 'active';
+  else if (dnsVerified && allSmokeOk) nextDomainStatus = 'ssl_validating';
+  else if (propagating) nextDomainStatus = 'public_dns_propagating';
+  else if (dnsVerified && !allSmokeOk) nextDomainStatus = 'railway_pending';
+  else if (authOk === false) nextDomainStatus = 'action_required';
+  else nextDomainStatus = 'pending_dns';
+
+  assert.equal(nextDomainStatus, 'railway_pending');
+});
+
+test('canonicalHost=www: missing apex placeholder is warning-only and does not block advancement', () => {
+  const check = {
+    canonicalHost: 'www',
+    apexMode: 'redirect_to_www',
+    apexDnsStatus: 'missing_placeholder_warning',
+    cnameOk: true,     // canonical www still correct
+    txtOk: true,       // root TXT still correct
+    allAliasesOk: true,
+    authoritativeOk: true,
+    propagationStatus: 'ok'
+  };
+
+  const authOk = check.authoritativeOk;
+  const publicOk = check.cnameOk && check.txtOk && check.allAliasesOk;
+  const dnsVerified = authOk === true || publicOk;
+  assert.equal(dnsVerified, true, 'missing apex placeholder must be non-blocking when canonicalHost=www');
+  assert.equal(check.apexDnsStatus, 'missing_placeholder_warning');
+});
+
 // ── 2. aisthetic-stores already active — recheck keeps active ─────────────────
 
 test('domainStatus stays active when fully verified and SSL was already active', () => {
@@ -188,6 +237,59 @@ test('runDomainCheckFull: no-zone tenant gets propagationStatus ok or unknown, n
   assert.equal(result.hasCloudflareZone, false);
   assert.equal(result.authoritative, null);
 }, { timeout: 15000 });
+
+test('Cloudflare authoritative check (canonicalHost=www): apex proxied placeholder is optional and non-blocking', async () => {
+  const cf = new CloudflareClient('fake-token');
+  cf.listDnsRecords = async (_zoneId, { name }) => {
+    if (name === 'eukolaki.gr') {
+      return [
+        { type: 'TXT', name, content: 'thronos-verify=eukolakis', proxied: false },
+        { type: 'A', name, content: '192.0.2.1', proxied: true }
+      ];
+    }
+    if (name === 'www.eukolaki.gr') {
+      return [{ type: 'CNAME', name, content: 'b2el3wfs.up.railway.app', proxied: true }];
+    }
+    return [];
+  };
+
+  const result = await cf.readTenantDnsState('zone-123', {
+    primaryDomain: 'eukolaki.gr',
+    aliases: ['www.eukolaki.gr'],
+    tenantId: 'eukolakis',
+    canonicalHost: 'www'
+  });
+
+  assert.equal(result.canonicalHost, 'www');
+  assert.equal(result.apexMode, 'redirect_to_www');
+  assert.equal(result.apexDnsStatus, 'proxied_placeholder_ok');
+  assert.equal(result.cnameOk, true, 'www canonical CNAME should drive success');
+  assert.equal(result.txtOk, true);
+});
+
+test('Cloudflare authoritative check (canonicalHost=www): missing apex placeholder produces warning status only', async () => {
+  const cf = new CloudflareClient('fake-token');
+  cf.listDnsRecords = async (_zoneId, { name }) => {
+    if (name === 'eukolaki.gr') {
+      return [{ type: 'TXT', name, content: 'thronos-verify=eukolakis', proxied: false }];
+    }
+    if (name === 'www.eukolaki.gr') {
+      return [{ type: 'CNAME', name, content: 'b2el3wfs.up.railway.app', proxied: true }];
+    }
+    return [];
+  };
+
+  const result = await cf.readTenantDnsState('zone-123', {
+    primaryDomain: 'eukolaki.gr',
+    aliases: ['www.eukolaki.gr'],
+    tenantId: 'eukolakis',
+    canonicalHost: 'www'
+  });
+
+  assert.equal(result.apexDnsStatus, 'missing_placeholder_warning');
+  assert.equal(result.cnameOk, true, 'missing apex placeholder should not block canonical www verification');
+  assert.equal(result.txtOk, true);
+});
 
 // ── 4. Tenant with missing alias CNAME ────────────────────────────────────────
 
