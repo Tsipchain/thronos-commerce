@@ -11,3 +11,4 @@ process.on('unhandledRejection', (reason) => {
 const express = require('express');
 const { normalizeAssistantConfig } = require('./lib/assistant-config');
 const setupAdminAssistantRoutes = require('./lib/admin-assistant-routes');
+const path = require('path');
