@@ -4784,13 +4784,16 @@ app.post('/admin/assistant', async (req, res) => {
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
 });
 
-// Tenant-admin AI assistant panel routes
-setupAdminAssistantRoutes(app, {
-  requireAdmin,
-  loadTenantConfig,
-  saveTenantConfig,
-  verifyAdminAction,
-  buildAdminViewModel,
+app.get('/admin/assistant-panel', (req, res) => {
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  res.render('admin-assistant-panel', {
+    tenant: req.tenant,
+    config,
+    assistant,
+    withTenantLink: (pathName, q) => withTenantLink(req, pathName, q),
+    lang: normalizeLang((req.query && req.query.lang) || req.cookies.lang || 'el')
+  });
 });
 
 app.post('/admin/payments', async (req, res) => {
