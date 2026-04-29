@@ -4816,7 +4816,6 @@ setupAdminAssistantRoutes({
   requireAdmin,
   buildAdminViewModel,
   loadTenantConfig,
-  withTenantLink,
   axios,
   resolveAssistantEnv
 });

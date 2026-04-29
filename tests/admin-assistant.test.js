@@ -11,6 +11,7 @@ test('assistant panel route is registered', () => {
   assert.match(serverSource, /setupAdminAssistantRoutes\(/);
   assert.doesNotMatch(serverSource, /app.get\('\/admin\/assistant-panel'/);
   assert.doesNotMatch(serverSource, /normalizeLang\(/);
+  assert.doesNotMatch(serverSource, /setupAdminAssistantRoutes\([\s\S]*withTenantLink[\s\S]*\)/);
 });
 
 test('assistant panel link is visible in admin sidebar', () => {
