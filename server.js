@@ -10,6 +10,7 @@ process.on('unhandledRejection', (reason) => {
 
 const express = require('express');
 const { normalizeAssistantConfig } = require('./lib/assistant-config');
+const setupAdminAssistantRoutes = require('./lib/admin-assistant-routes');
 const path = require('path');
 const fs = require('fs');
 const ejs = require('ejs');
@@ -4781,6 +4782,15 @@ app.post('/admin/assistant', async (req, res) => {
 
   saveTenantConfig(req, config);
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
+});
+
+// Tenant-admin AI assistant panel routes
+setupAdminAssistantRoutes(app, {
+  requireAdmin,
+  loadTenantConfig,
+  saveTenantConfig,
+  verifyAdminAction,
+  buildAdminViewModel,
 });
 
 app.post('/admin/payments', async (req, res) => {
