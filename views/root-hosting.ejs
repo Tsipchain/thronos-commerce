@@ -111,7 +111,9 @@
       <div class="tab-panel active" id="<%= ri %>-dns">
         <p class="muted">
           Preview host: <code><%= row.previewHost || '—' %></code>
-          &nbsp;·&nbsp; Canonical www: <%= row.canonicalToWww ? 'on' : 'off' %>
+          &nbsp;·&nbsp; Canonical host: <strong><%= row.canonicalHost || (row.canonicalToWww ? 'www' : 'apex') %></strong>
+          &nbsp;·&nbsp; Apex mode: <%= row.apexMode || (row.canonicalToWww ? 'redirect_to_www' : 'direct_to_platform') %>
+          &nbsp;·&nbsp; Source: <code><%= row.canonicalSource || 'tenant.canonicalToWww' %></code>
           &nbsp;·&nbsp; Type: <span class="chip info"><%= row.domainType %></span>
           &nbsp;·&nbsp; CF Zone: <% if (row.hasCloudflareZone) { %><code><%= row.cloudflareZoneId %></code> (token: <%= row.cloudflareTokenSource %>)<% } else { %><span class="chip warn">not configured</span><% } %>
         </p>
@@ -139,6 +141,11 @@
         <% if (_auth) { %>
         <div class="dns-result-box" style="border-left:3px solid #2563eb;">
           <strong>Authoritative (Cloudflare API)</strong> <span class="chip info" style="font-size:.7rem;">source: cloudflare-api</span><br/>
+          <% if (_auth.canonicalHost === 'www') { %>
+          Canonical host: <code>www</code> &nbsp;·&nbsp; Apex DNS:
+          <% if (_auth.apexDnsStatus === 'proxied_placeholder_ok') { %><span class="dns-ok">proxied placeholder OK</span><% } else { %><span class="chip warn">missing placeholder (recommended)</span><% } %>
+          <br/>
+          <% } %>
           CNAME/Apex <span class="<%= _auth.cnameOk ? 'dns-ok' : 'dns-fail' %>"><%= _auth.cnameOk ? '✓' : '✗' %></span>
           <% if (_auth.apexCnames && _auth.apexCnames.length) { %><span class="muted">→ <%= _auth.apexCnames.join(', ') %></span><% } %>
           <% if (_auth.flattenedApex) { %><span class="chip warn" style="font-size:.7rem;">proxied/flattened</span><% } %>
@@ -178,6 +185,11 @@
             Add root TXT: <code><%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code>
           </div>
           <% } %>
+          <% if (dnsResult.canonicalHost === 'www' && !_auth) { %>
+          <div class="info-box" style="margin-top:6px;">
+            Apex DNS: <% if (dnsResult.apexOptional && (dnsResult.apexOptional.flattenedCname || dnsResult.apexOptional.ok)) { %><span class="dns-ok">placeholder/redirect detected</span><% } else { %><span class="chip warn">missing placeholder (recommended, non-blocking)</span><% } %>
+          </div>
+          <% } %>
           <% if (Array.isArray(dnsResult.aliases) && dnsResult.aliases.length) { %>
           <div style="margin-top:6px;">
             <% dnsResult.aliases.forEach(function(a){ %>
@@ -206,7 +218,17 @@
         <% if (dnsResult.requiredRecords) { %>
         <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;font-size:.82rem;">Required Records</summary>
           <div style="margin-top:6px;padding:10px;background:#f9fafb;border-radius:6px;font-size:.8rem;">
-            <div><strong>Apex:</strong> CNAME → <code><%= (dnsResult.requiredRecords.apex && dnsResult.requiredRecords.apex.target) || 'up.railway.app' %></code></div>
+            <div>
+              <strong>Apex:</strong>
+              <% if (dnsResult.requiredRecords.apex && dnsResult.requiredRecords.apex.type === 'OPTIONAL') { %>
+                optional redirect/placeholder (recommended for canonical www)
+              <% } else { %>
+                CNAME → <code><%= (dnsResult.requiredRecords.apex && dnsResult.requiredRecords.apex.target) || 'up.railway.app' %></code>
+              <% } %>
+            </div>
+            <% if (dnsResult.requiredRecords.canonical) { %>
+            <div><strong>Canonical:</strong> <code><%= dnsResult.requiredRecords.canonical.domain %></code> CNAME → <code><%= dnsResult.requiredRecords.canonical.target %></code></div>
+            <% } %>
             <div><strong>TXT:</strong> <code><%= row.primaryDomain %></code> → <code>thronos-verify=<%= row.tenantId %></code></div>
             <% if (dnsResult.requiredRecords.aliases && dnsResult.requiredRecords.aliases.length) { %>
               <% dnsResult.requiredRecords.aliases.forEach(function(a){ %>
@@ -230,8 +252,15 @@
           <input type="password" name="rootPassword" placeholder="Root pw" required style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:110px;" />
           <input type="text" name="cfZoneId" placeholder="Zone ID" value="<%= row.cloudflareZoneId || '' %>" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;width:130px;" />
           <input type="password" name="cfApiToken" placeholder="API Token (optional override)" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;flex:1;min-width:160px;" />
+          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:#334155;white-space:nowrap;">
+            <input type="checkbox" name="clearTokenOverride" value="1" />
+            Use env token / Clear tenant token override
+          </label>
           <button type="submit" class="btn-save">Save Zone</button>
         </form>
+        <div class="muted" style="font-size:.76rem;margin-top:2px;">
+          Token source: <strong><%= row.cloudflareTokenSource %></strong> (env / per-tenant / none)
+        </div>
         <% if (row.hasCloudflareZone) { %>
         <form method="POST" action="/root/hosting/cf-sync" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;align-items:center;">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
@@ -290,6 +319,10 @@
 
       <%# ── SSL tab ── %>
       <div class="tab-panel" id="<%= ri %>-ssl">
+        <p class="muted" style="margin-bottom:10px;">
+          Detected SSL status from DNS/HTTP checks: <strong><%= row.sslStatus || 'pending' %></strong>.
+          Manual values below are stored as <code>sslManualOverride</code> and do not drive auto-promotion.
+        </p>
         <form method="POST" action="/root/hosting/update">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
           <input type="hidden" name="section" value="ssl" />
@@ -306,7 +339,7 @@
           </div>
           <div class="save-row">
             <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
-            <button type="submit" class="btn-save">Save SSL</button>
+            <button type="submit" class="btn-save">Save SSL Manual Override</button>
           </div>
         </form>
       </div>
