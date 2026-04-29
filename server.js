@@ -130,6 +130,27 @@ function getLangFromRequest(req) {
   return 'el';
 }
 
+function resolveAssistantEnv() {
+  const urlCandidates = [
+    ['THRONOS_ASSISTANT_URL', process.env.THRONOS_ASSISTANT_URL],
+    ['ASSISTANT_API_URL', process.env.ASSISTANT_API_URL],
+    ['VCA_URL', process.env.VCA_URL],
+    ['ASSISTANT_URL', process.env.ASSISTANT_URL]
+  ];
+  const urlPair = urlCandidates.find(([, value]) => String(value || '').trim());
+  const assistantUrl = String((urlPair && urlPair[1]) || '').trim().replace(/\/$/, '');
+  const assistantUrlSource = (urlPair && urlPair[0]) || 'unset';
+
+  const secretCandidates = [
+    ['COMMERCE_WEBHOOK_SECRET', process.env.COMMERCE_WEBHOOK_SECRET],
+    ['ASSISTANT_WEBHOOK_SECRET', process.env.ASSISTANT_WEBHOOK_SECRET]
+  ];
+  const secretPair = secretCandidates.find(([, value]) => String(value || '').trim());
+  const webhookSecret = String((secretPair && secretPair[1]) || '').trim();
+  const webhookSecretSource = (secretPair && secretPair[0]) || 'unset';
+  return { assistantUrl, assistantUrlSource, webhookSecret, webhookSecretSource };
+}
+
 function translate(lang, key) {
   const parts = key.split('.');
   let val = LOCALES[lang];
@@ -680,11 +701,17 @@ function getTenantHostingSnapshot(tenant, req) {
   const previewHost = previewSubdomain ? `${previewSubdomain}.thonoscommerce.thronoschain.org` : '';
   const config = req ? loadTenantConfig(req) : {};
   const vaAssistant = (config && config.assistant) || {};
-  const vaBackendAvailable = !!(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
+  const vaBackendAvailable = !!String(
+    process.env.THRONOS_ASSISTANT_URL ||
+    process.env.ASSISTANT_API_URL ||
+    process.env.VCA_URL ||
+    process.env.ASSISTANT_URL ||
+    ''
+  ).trim();
   const vaEnabled = !!vaAssistant.vaEnabled;
   const vaMode = vaAssistant.vaMode || 'disabled';
   const vaWarning = vaEnabled && ['customer', 'both'].includes(vaMode) && !vaBackendAvailable
-    ? 'Widget enabled but THRONOS_ASSISTANT_URL env var is not set — chat will fail.'
+    ? 'Widget enabled but assistant backend URL env is not set — chat will fail.'
     : null;
   const domainType = (t.primaryDomain || t.domain) ? 'custom' : 'platform';
 
@@ -2013,13 +2040,13 @@ async function sendOrderWebhook({ tenant, config, order }) {
  * If the env var is absent, the signature header is omitted (VA will allow it in dev mode).
  */
 async function fireVASync(tenantId, event, data) {
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  const { assistantUrl: vaUrl } = resolveAssistantEnv();
   if (!vaUrl) return;
 
   const body = JSON.stringify({ event, tenant_id: tenantId, data });
   const headers = { 'Content-Type': 'application/json' };
 
-  const secret = (process.env.COMMERCE_WEBHOOK_SECRET || '').trim();
+  const { webhookSecret: secret } = resolveAssistantEnv();
   if (secret) {
     headers['X-Thronos-Signature'] =
       'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex');
@@ -4784,15 +4811,17 @@ app.post('/admin/assistant', async (req, res) => {
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
 });
 
-app.get('/admin/assistant-panel', (req, res) => {
+app.get('/admin/assistant-panel', requireAdmin, (req, res) => {
   const config = loadTenantConfig(req);
   const assistant = (config && config.assistant) || {};
+  const contentLang = (req.session && req.session.contentLang) || 'el';
   res.render('admin-assistant-panel', {
     tenant: req.tenant,
     config,
     assistant,
     withTenantLink: (pathName, q) => withTenantLink(req, pathName, q),
-    lang: normalizeLang((req.query && req.query.lang) || req.cookies.lang || 'el')
+    lang: getLangFromRequest(req),
+    contentLang
   });
 });
 
@@ -6207,7 +6236,7 @@ app.get('/root/hosting', requireRootAdmin, (req, res) => {
   const rows = _buildHostingRows(loadTenantsRegistry());
   const navCounts = getRootNavCounts();
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
-  const vaUrlMissing = !(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
+  const vaUrlMissing = !resolveAssistantEnv().assistantUrl;
   console.log('[root-hosting] render', JSON.stringify({ rows: rows.length, unresolvedCount, vaUrlMissing }));
   res.render('root-hosting', { page: 'hosting', ...navCounts, rows, unresolvedCount, vaUrlMissing, message: flash.message || null, error: flash.error || null });
 });
@@ -6837,7 +6866,7 @@ app.post('/root/hosting/update', (req, res) => {
 // Used to gate domain auto-promotion after DNS checks pass.
 // Health check for VA assistant backend
 async function checkAssistantHealth() {
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  const { assistantUrl: vaUrl } = resolveAssistantEnv();
   if (!vaUrl) {
     return { ok: false, status: 'not_configured', message: 'VA backend URL not configured', responseTime: null };
   }
@@ -7165,7 +7194,7 @@ app.post('/api/chat', async (req, res) => {
   if (!assistant.vaEnabled || !['customer', 'both'].includes(assistant.vaMode)) {
     return res.status(403).json({ error: 'Chat assistant not available for this store.' });
   }
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  const { assistantUrl: vaUrl } = resolveAssistantEnv();
   if (!vaUrl) {
     return res.status(503).json({ error: 'Assistant service not configured.' });
   }
@@ -7244,11 +7273,18 @@ console.log('[boot] Env audit:', {
   THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
   THRONOS_COMMERCE_API_KEY: !!process.env.THRONOS_COMMERCE_API_KEY,
   COMMERCE_WEBHOOK_SECRET: !!process.env.COMMERCE_WEBHOOK_SECRET,
-  THRONOS_ASSISTANT_URL: !!(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL),
+  THRONOS_ASSISTANT_URL: !!resolveAssistantEnv().assistantUrl,
   THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });
 console.log('[boot] DATA_ROOT:', DATA_ROOT);
+{
+  const env = resolveAssistantEnv();
+  console.log('[boot] assistant env sources', {
+    assistantUrlSource: env.assistantUrlSource,
+    webhookSecretSource: env.webhookSecretSource
+  });
+}
 
 if (process.env.THRC_PREFLIGHT_EJS === '1') {
   try {

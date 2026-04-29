@@ -10,6 +10,8 @@ const indexTpl = fs.readFileSync(path.join(__dirname, '..', 'views', 'index.ejs'
 test('assistant panel route is registered', () => {
   assert.match(serverSource, /app.get\('\/admin\/assistant-panel'/);
   assert.match(serverSource, /res\.render\('admin-assistant-panel'/);
+  assert.match(serverSource, /getLangFromRequest\(req\)/);
+  assert.doesNotMatch(serverSource, /normalizeLang\(/);
 });
 
 test('assistant panel link is visible in admin sidebar', () => {
