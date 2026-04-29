@@ -282,3 +282,11 @@ test('recheck sets detected hosting.sslStatus from live checks, not stale manual
   assert.match(snippet, /detectedSslStatus/);
   assert.match(snippet, /sslStatus:\s*detectedSslStatus/);
 });
+
+test('recheck smoke targets include canonicalDomain for canonical www tenants', () => {
+  const routeIdx = serverSource.indexOf("app.post('/root/hosting/recheck'");
+  assert.ok(routeIdx >= 0, 'recheck route should exist');
+  const snippet = serverSource.slice(routeIdx, routeIdx + 5200);
+  assert.match(snippet, /canonicalSmokeTarget/);
+  assert.match(snippet, /check\.canonicalDomain/);
+});

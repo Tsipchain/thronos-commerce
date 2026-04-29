@@ -6887,7 +6887,6 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const check = await runDomainCheckFull(tenants[idx]);
     const now = check.checkedAt;
     const prevHosting = tenants[idx].hosting || {};
-    const prevSslStatus = prevHosting.sslStatus || tenants[idx].sslStatus || 'pending';
 
     // ── HTTP smoke tests ─────────────────────────────────────────────────────
     // Use authoritative state (CF API) or public DNS to decide if domain is reachable.
@@ -6897,7 +6896,9 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const dnsLooksViable = check.cnameOk || check.flattenedApex ||
       (check.authoritativeOk === true); // auth ok even if public stale
     if (check.domain && dnsLooksViable) {
-      const smokeTargets = [check.domain, ...(check.aliases || []).map(a => a.domain)];
+      const canonicalCfg = getTenantCanonicalConfig(tenants[idx]);
+      const canonicalSmokeTarget = check.canonicalDomain || canonicalCfg.canonicalDomain || check.domain;
+      const smokeTargets = [...new Set([canonicalSmokeTarget, check.domain, ...(check.aliases || []).map(a => a.domain)].filter(Boolean))];
       const smokeChecks = await Promise.allSettled(smokeTargets.map(d => httpSmoke(d)));
       smokeTargets.forEach((d, i) => {
         smokeResults[d] = smokeChecks[i].status === 'fulfilled'
@@ -6926,10 +6927,8 @@ app.post('/root/hosting/recheck', async (req, res) => {
     //   pending_dns       = no required records verified
     //   action_required   = CF says records wrong / conflicting
     let nextDomainStatus;
-    if (dnsVerified && allSmokeOk && prevSslStatus === 'active') {
+    if (dnsVerified && allSmokeOk) {
       nextDomainStatus = 'active';
-    } else if (dnsVerified && allSmokeOk) {
-      nextDomainStatus = 'ssl_validating';
     } else if (propagating) {
       nextDomainStatus = 'public_dns_propagating';
     } else if (dnsVerified && !allSmokeOk) {
