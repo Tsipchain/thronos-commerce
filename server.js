@@ -10,7 +10,7 @@ process.on('unhandledRejection', (reason) => {
 
 const express = require('express');
 const { normalizeAssistantConfig } = require('./lib/assistant-config');
-const setupAdminAssistantRoutes = require('./lib/admin-assistant-routes');
+const { setupAdminAssistantRoutes } = require('./lib/admin-assistant-routes');
 const path = require('path');
 const fs = require('fs');
 const ejs = require('ejs');
@@ -4811,18 +4811,14 @@ app.post('/admin/assistant', async (req, res) => {
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
 });
 
-app.get('/admin/assistant-panel', requireAdmin, (req, res) => {
-  const config = loadTenantConfig(req);
-  const assistant = (config && config.assistant) || {};
-  const contentLang = (req.session && req.session.contentLang) || 'el';
-  res.render('admin-assistant-panel', {
-    tenant: req.tenant,
-    config,
-    assistant,
-    withTenantLink: (pathName, q) => withTenantLink(req, pathName, q),
-    lang: getLangFromRequest(req),
-    contentLang
-  });
+setupAdminAssistantRoutes({
+  app,
+  requireAdmin,
+  buildAdminViewModel,
+  loadTenantConfig,
+  withTenantLink,
+  axios,
+  resolveAssistantEnv
 });
 
 app.post('/admin/payments', async (req, res) => {
