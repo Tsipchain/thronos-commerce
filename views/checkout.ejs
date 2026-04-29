@@ -149,12 +149,17 @@
       .store-footer .meta-line { margin-top:6px; }
       .store-footer .thronos-sign { position:absolute; right:10px; bottom:8px; font-size:.72rem; opacity:.85; text-decoration:none; color:inherit; }
     </style>
-  </head>
+  
+    <style>
+      body.eukolakis-classic .checkout-compact-logo { max-height:34px; object-fit:contain; }
+    </style>
+
+</head>
   <body class="<%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>">
     <header class="store-header <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'premium' : '' %>">
       <div class="logo-title">
         <% if (config.logoPath) { %>
-          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo" />
+          <img src="<%= config.logoPath %>" alt="<%= config.storeName %>" class="logo <%= ((config.theme && config.theme.headerFgCheckout) || 'badge-left') === 'hidden' ? '' : 'checkout-compact-logo' %>" />
         <% } %>
         <a href="<%= withTenantLink('/') %>" style="text-decoration:none;color:inherit;"><h1><%= config.storeName %></h1></a>
       </div>

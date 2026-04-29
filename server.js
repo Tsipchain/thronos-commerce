@@ -500,10 +500,16 @@ function loadTenantsRegistry() {
   const governance = loadThemeGovernance();
   return tenants.map((tenant) => {
     const hosting = tenant && tenant.hosting && typeof tenant.hosting === 'object' ? tenant.hosting : {};
+    const poweredByCfg = getTenantPoweredByConfig(tenant);
     return {
       ...tenant,
       allowedThemeKeys: normalizeThemeKeys(tenant && tenant.allowedThemeKeys, governance.availableThemeKeys),
+      poweredByMode: poweredByCfg.poweredByMode,
+      poweredByLabel: poweredByCfg.poweredByLabel,
+      poweredByHref: poweredByCfg.poweredByHref,
+      allowPoweredBy: poweredByCfg.allowPoweredBy,
       hosting: {
+        ...hosting,
         domainStatus: hosting.domainStatus || tenant.domainStatus || 'pending_dns',
         sslStatus: hosting.sslStatus || 'pending',
         sslProvider: hosting.sslProvider || '',
@@ -627,9 +633,46 @@ function findTenantById(tenantId) {
   return loadTenantsRegistry().find((t) => t.id === tenantId) || null;
 }
 
+function parseBooleanInput(value, fallback = false) {
+  if (value === undefined || value === null) return fallback;
+  const values = Array.isArray(value) ? value : [value];
+  const normalized = values.map(v => String(v).trim().toLowerCase());
+  if (normalized.some(v => ['true', '1', 'on', 'yes'].includes(v))) return true;
+  if (normalized.some(v => ['false', '0', 'off', 'no'].includes(v))) return false;
+  return fallback;
+}
+
+function getTenantCanonicalConfig(tenant) {
+  const t = tenant || {};
+  const baseDomain = String(t.primaryDomain || t.domain || '').trim();
+  const canonicalToWww = t.canonicalToWww === true;
+  return {
+    canonicalToWww,
+    canonicalHost: canonicalToWww ? 'www' : 'apex',
+    canonicalDomain: canonicalToWww ? (baseDomain ? `www.${baseDomain}` : '') : baseDomain,
+    apexMode: canonicalToWww ? 'redirect_to_www' : 'direct_to_platform',
+    source: 'tenant.canonicalToWww'
+  };
+}
+
+function getTenantPoweredByConfig(tenant) {
+  const t = tenant || {};
+  const mode = ['always', 'free_only', 'disabled'].includes(String(t.poweredByMode || '').trim())
+    ? String(t.poweredByMode).trim()
+    : (t.allowPoweredBy === true ? 'always' : 'disabled');
+  return {
+    poweredByMode: mode,
+    poweredByLabel: String(t.poweredByLabel || '').trim(),
+    poweredByHref: String(t.poweredByHref || '').trim(),
+    allowPoweredBy: mode !== 'disabled'
+  };
+}
+
 function getTenantHostingSnapshot(tenant, req) {
   const t = tenant || {};
   const hosting = t.hosting || {};
+  const canonicalCfg = getTenantCanonicalConfig(t);
+  const poweredByCfg = getTenantPoweredByConfig(t);
   const aliases = Array.isArray(t.domains) ? t.domains : [];
   const primaryDomain = String(t.primaryDomain || t.domain || '').trim();
   const previewSubdomain = String(t.previewSubdomain || t.id || '').trim();
@@ -644,8 +687,6 @@ function getTenantHostingSnapshot(tenant, req) {
     : null;
   const domainType = (t.primaryDomain || t.domain) ? 'custom' : 'platform';
 
-  const _poweredByMode = t.poweredByMode || (t.allowPoweredBy === true ? 'always' : 'disabled');
-
   // Cloudflare config: zone ID is per-tenant only; token source is env (never exposed to view)
   const cloudflareZoneId = (hosting.cloudflareZoneId || '').trim();
   const hasCloudflareZone = !!cloudflareZoneId;
@@ -654,20 +695,28 @@ function getTenantHostingSnapshot(tenant, req) {
 
   // Railway registry info for this tenant
   const railwayInfo = (typeof railwayRegistry !== 'undefined' && railwayRegistry)
-    ? railwayRegistry.getForTenant(primaryDomain, aliases)
+    ? railwayRegistry.getForTenant(canonicalCfg.canonicalDomain || primaryDomain, aliases)
     : {};
+  const sslManualOverride = (hosting && hosting.sslManualOverride && typeof hosting.sslManualOverride === 'object')
+    ? hosting.sslManualOverride
+    : null;
 
   return {
     primaryDomain,
     aliases,
     previewSubdomain,
     previewHost,
-    canonicalToWww: t.canonicalToWww === true,
+    canonicalToWww: canonicalCfg.canonicalToWww,
+    canonicalHost: canonicalCfg.canonicalHost,
+    canonicalDomain: canonicalCfg.canonicalDomain,
+    apexMode: canonicalCfg.apexMode,
+    canonicalSource: canonicalCfg.source,
     domainStatus: hosting.domainStatus || t.domainStatus || 'pending_dns',
     propagationStatus: hosting.propagationStatus || 'unknown',
     sslStatus: hosting.sslStatus || t.sslStatus || 'pending',
     sslProvider: hosting.sslProvider || 'unknown',
     sslValidUntil: hosting.sslValidUntil || '',
+    sslManualOverride,
     dnsVerifiedAt: hosting.dnsVerifiedAt || '',
     lastCheckedAt: hosting.lastCheckedAt || '',
     lastCheckError: hosting.lastCheckError || '',
@@ -687,15 +736,34 @@ function getTenantHostingSnapshot(tenant, req) {
     vaMode,
     vaBackendAvailable,
     vaWarning,
-    poweredByMode: _poweredByMode,
-    poweredByLabel: t.poweredByLabel || '',
-    poweredByHref: t.poweredByHref || '',
-    allowPoweredBy: t.allowPoweredBy === true,
+    poweredByMode: poweredByCfg.poweredByMode,
+    poweredByLabel: poweredByCfg.poweredByLabel,
+    poweredByHref: poweredByCfg.poweredByHref,
+    allowPoweredBy: poweredByCfg.allowPoweredBy,
     cloudflareZoneId,
     hasCloudflareZone,
     cloudflareTokenSource,
     railwayInfo
   };
+}
+
+function applyTenantCloudflareConfig(tenant, { cfZoneId, cfApiToken, clearTokenOverride }) {
+  const nextTenant = tenant || {};
+  const nextHosting = (nextTenant.hosting && typeof nextTenant.hosting === 'object')
+    ? { ...nextTenant.hosting }
+    : {};
+
+  const cleanZoneId = String(cfZoneId || '').trim();
+  const cleanToken = String(cfApiToken || '').trim();
+  const shouldClearToken = clearTokenOverride === true
+    || String(clearTokenOverride || '').trim() === '1'
+    || String(clearTokenOverride || '').trim().toLowerCase() === 'true';
+
+  if (cleanZoneId) nextHosting.cloudflareZoneId = cleanZoneId;
+  if (shouldClearToken) delete nextHosting.cloudflareApiToken;
+  else if (cleanToken) nextHosting.cloudflareApiToken = cleanToken;
+
+  return { ...nextTenant, hosting: nextHosting };
 }
 
 // ── Referral helpers ──────────────────────────────────────────────────────────
@@ -4373,6 +4441,15 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
+    themeHeaderFgHomepage,
+    themeHeaderFgProduct,
+    themeHeaderFgCategory,
+    themeHeaderFgCheckout,
+    themeHeaderFgAdmin,
+    themeHeaderHeroHomepage,
+    themeHeaderHeroProduct,
+    themeHeaderHeroCategory,
+    themeHeaderHeroCheckout,
     themeCursorImage,
     themeProductThumbAspect,
     themeProductThumbFit,
@@ -4458,6 +4535,18 @@ app.post('/admin/settings', async (req, res) => {
   const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
   config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
   config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 88));
+  const _fgModes = ['hidden', 'badge-left', 'badge-right', 'centered-small', 'normal'];
+  const _heroModes = ['off', 'centered-background', 'full-width-background'];
+  const _pick = (val, allowed, fallback) => allowed.includes(String(val || '').trim()) ? String(val).trim() : fallback;
+  config.theme.headerFgHomepage = _pick(themeHeaderFgHomepage, _fgModes, config.theme.headerFgHomepage || 'hidden');
+  config.theme.headerFgProduct = _pick(themeHeaderFgProduct, _fgModes, config.theme.headerFgProduct || 'badge-right');
+  config.theme.headerFgCategory = _pick(themeHeaderFgCategory, _fgModes, config.theme.headerFgCategory || 'badge-right');
+  config.theme.headerFgCheckout = _pick(themeHeaderFgCheckout, _fgModes, config.theme.headerFgCheckout || 'badge-left');
+  config.theme.headerFgAdmin = _pick(themeHeaderFgAdmin, _fgModes, config.theme.headerFgAdmin || 'normal');
+  config.theme.headerHeroHomepage = _pick(themeHeaderHeroHomepage, _heroModes, config.theme.headerHeroHomepage || 'centered-background');
+  config.theme.headerHeroProduct = _pick(themeHeaderHeroProduct, _heroModes, config.theme.headerHeroProduct || 'centered-background');
+  config.theme.headerHeroCategory = _pick(themeHeaderHeroCategory, _heroModes, config.theme.headerHeroCategory || 'off');
+  config.theme.headerHeroCheckout = _pick(themeHeaderHeroCheckout, _heroModes, config.theme.headerHeroCheckout || 'off');
   config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
   config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
   const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
@@ -4679,7 +4768,7 @@ app.post('/admin/assistant', async (req, res) => {
   const _validTones = ['friendly', 'professional', 'technical'];
   const _str = (v) => String(v || '').trim().slice(0, 2000); /* cap free-text at 2000 chars */
 
-  config.assistant.vaEnabled          = b.vaEnabled === '1';
+  config.assistant.vaEnabled          = parseBooleanInput(b.vaEnabled, false);
   config.assistant.vaMode             = _validModes.includes(b.vaMode)     ? b.vaMode     : 'disabled';
   config.assistant.vaLanguage         = _validLangs.includes(b.vaLanguage) ? b.vaLanguage : 'auto';
   config.assistant.vaTone             = _validTones.includes(b.vaTone)     ? b.vaTone     : 'friendly';
@@ -4692,6 +4781,18 @@ app.post('/admin/assistant', async (req, res) => {
 
   saveTenantConfig(req, config);
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
+});
+
+app.get('/admin/assistant-panel', (req, res) => {
+  const config = loadTenantConfig(req);
+  const assistant = (config && config.assistant) || {};
+  res.render('admin-assistant-panel', {
+    tenant: req.tenant,
+    config,
+    assistant,
+    withTenantLink: (pathName, q) => withTenantLink(req, pathName, q),
+    lang: normalizeLang((req.query && req.query.lang) || req.cookies.lang || 'el')
+  });
 });
 
 app.post('/admin/payments', async (req, res) => {
@@ -6173,9 +6274,10 @@ app.post('/root/tenants/create', async (req, res) => {
     domains: normalizedDomains.domains,
     previewSubdomain: normalizedDomains.previewSubdomain,
     domainStatus: allowedDomainStatuses.includes(String(domainStatus || '').trim()) ? String(domainStatus).trim() : 'pending_dns',
-    canonicalToWww: canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on',
+    canonicalToWww: parseBooleanInput(canonicalToWww, false),
     allowedThemeKeys: parsedAllowedThemeKeys,
     supportTier: resolvedTier,
+    poweredByMode: 'disabled',
     allowPoweredBy: false,
     adminPasswordHash,
     createdAt: new Date().toISOString(),
@@ -6274,23 +6376,25 @@ app.post('/root/tenants/update', (req, res) => {
     const allowedDomainStatuses = ['pending_dns', 'ssl_validating', 'active', 'failed'];
     tenants[idx].domainStatus = allowedDomainStatuses.includes(normalizedStatus) ? normalizedStatus : (tenants[idx].domainStatus || 'pending_dns');
   }
-  if (canonicalToWww !== undefined) {
-    tenants[idx].canonicalToWww = canonicalToWww === 'true' || canonicalToWww === '1' || canonicalToWww === 'on';
-  }
+  if (canonicalToWww !== undefined) tenants[idx].canonicalToWww = parseBooleanInput(canonicalToWww, tenants[idx].canonicalToWww === true);
   if (allowedThemeKeys !== undefined) {
     const governance = loadThemeGovernance();
     tenants[idx].allowedThemeKeys = normalizeThemeKeys(String(allowedThemeKeys || '').split(','), governance.availableThemeKeys)
       .filter((key) => governance.availableThemeKeys.includes(key));
   }
   if (supportTier && SUPPORT_TIERS.includes(supportTier)) tenants[idx].supportTier = supportTier;
-  tenants[idx].active = active === 'true' || active === '1' || active === 'on';
-  tenants[idx].allowPoweredBy = allowPoweredBy === 'true' || allowPoweredBy === '1' || allowPoweredBy === 'on';
+  tenants[idx].active = parseBooleanInput(active, tenants[idx].active !== false);
+  const requestedAllowPoweredBy = parseBooleanInput(allowPoweredBy, undefined);
   const { poweredByMode } = req.body;
   if (poweredByMode !== undefined) {
     const allowedModes = new Set(['always', 'free_only', 'disabled']);
     tenants[idx].poweredByMode = allowedModes.has(String(poweredByMode || '').trim()) ? String(poweredByMode).trim() : 'disabled';
-    tenants[idx].allowPoweredBy = tenants[idx].poweredByMode !== 'disabled';
+  } else if (requestedAllowPoweredBy !== undefined) {
+    tenants[idx].poweredByMode = requestedAllowPoweredBy ? 'always' : 'disabled';
   }
+  const poweredByCfg = getTenantPoweredByConfig(tenants[idx]);
+  tenants[idx].poweredByMode = poweredByCfg.poweredByMode;
+  tenants[idx].allowPoweredBy = poweredByCfg.allowPoweredBy;
 
   const { subscriptionExpiry } = req.body;
   if (subscriptionExpiry) {
@@ -6660,9 +6764,13 @@ app.post('/root/hosting/update', (req, res) => {
     const nextSslStatus = allowedSsl.has(String(sslStatus || '').trim()) ? String(sslStatus).trim() : 'pending';
     tenants[idx].hosting = {
       ...(tenants[idx].hosting || {}),
-      sslStatus: nextSslStatus,
-      sslProvider: String(sslProvider || '').trim(),
-      sslValidUntil: String(sslValidUntil || '').trim()
+      sslManualOverride: {
+        enabled: true,
+        sslStatus: nextSslStatus,
+        sslProvider: String(sslProvider || '').trim(),
+        sslValidUntil: String(sslValidUntil || '').trim(),
+        updatedAt: new Date().toISOString()
+      }
     };
   }
 
@@ -6670,10 +6778,12 @@ app.post('/root/hosting/update', (req, res) => {
     const { poweredByMode, poweredByLabel, poweredByHref } = req.body;
     const allowedModes = new Set(['always', 'free_only', 'disabled']);
     const nextMode = allowedModes.has(String(poweredByMode || '').trim()) ? String(poweredByMode).trim() : 'disabled';
-    tenants[idx].poweredByMode  = nextMode;
+    tenants[idx].poweredByMode = nextMode;
     tenants[idx].poweredByLabel = String(poweredByLabel || '').trim().slice(0, 120);
-    tenants[idx].poweredByHref  = String(poweredByHref || '').trim().slice(0, 500);
-    tenants[idx].allowPoweredBy = nextMode !== 'disabled';
+    tenants[idx].poweredByHref = String(poweredByHref || '').trim().slice(0, 500);
+    const poweredByCfg = getTenantPoweredByConfig(tenants[idx]);
+    tenants[idx].poweredByMode = poweredByCfg.poweredByMode;
+    tenants[idx].allowPoweredBy = poweredByCfg.allowPoweredBy;
   }
 
   if (sec === 'mail') {
@@ -6810,7 +6920,6 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const check = await runDomainCheckFull(tenants[idx]);
     const now = check.checkedAt;
     const prevHosting = tenants[idx].hosting || {};
-    const prevSslStatus = prevHosting.sslStatus || tenants[idx].sslStatus || 'pending';
 
     // ── HTTP smoke tests ─────────────────────────────────────────────────────
     // Use authoritative state (CF API) or public DNS to decide if domain is reachable.
@@ -6820,7 +6929,9 @@ app.post('/root/hosting/recheck', async (req, res) => {
     const dnsLooksViable = check.cnameOk || check.flattenedApex ||
       (check.authoritativeOk === true); // auth ok even if public stale
     if (check.domain && dnsLooksViable) {
-      const smokeTargets = [check.domain, ...(check.aliases || []).map(a => a.domain)];
+      const canonicalCfg = getTenantCanonicalConfig(tenants[idx]);
+      const canonicalSmokeTarget = check.canonicalDomain || canonicalCfg.canonicalDomain || check.domain;
+      const smokeTargets = [...new Set([canonicalSmokeTarget, check.domain, ...(check.aliases || []).map(a => a.domain)].filter(Boolean))];
       const smokeChecks = await Promise.allSettled(smokeTargets.map(d => httpSmoke(d)));
       smokeTargets.forEach((d, i) => {
         smokeResults[d] = smokeChecks[i].status === 'fulfilled'
@@ -6849,10 +6960,8 @@ app.post('/root/hosting/recheck', async (req, res) => {
     //   pending_dns       = no required records verified
     //   action_required   = CF says records wrong / conflicting
     let nextDomainStatus;
-    if (dnsVerified && allSmokeOk && prevSslStatus === 'active') {
+    if (dnsVerified && allSmokeOk) {
       nextDomainStatus = 'active';
-    } else if (dnsVerified && allSmokeOk) {
-      nextDomainStatus = 'ssl_validating';
     } else if (propagating) {
       nextDomainStatus = 'public_dns_propagating';
     } else if (dnsVerified && !allSmokeOk) {
@@ -6863,10 +6972,12 @@ app.post('/root/hosting/recheck', async (req, res) => {
       nextDomainStatus = 'pending_dns';
     }
 
+    const detectedSslStatus = allSmokeOk ? 'active' : (dnsVerified ? 'pending' : 'pending');
     tenants[idx].hosting = {
       ...prevHosting,
       lastCheckedAt: now,
       lastCheckError: '',
+      sslStatus: detectedSslStatus,
       dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
       domainStatus: nextDomainStatus,
       propagationStatus: check.propagationStatus || 'unknown',
@@ -6916,7 +7027,7 @@ app.post('/root/hosting/recheck', async (req, res) => {
 
 // ── Cloudflare configuration (per-tenant zone ID; token from env or per-tenant override) ──
 app.post('/root/hosting/cloudflare', (req, res) => {
-  const { tenantId, cfApiToken, cfZoneId } = req.body;
+  const { tenantId, cfApiToken, cfZoneId, clearTokenOverride } = req.body;
   if (!verifyRootPassword(req.body.rootPassword || '')) {
     setRootFlash(req, { error: 'Λάθος root κωδικός.' });
     return res.redirect('/root/hosting');
@@ -6928,17 +7039,17 @@ app.post('/root/hosting/cloudflare', (req, res) => {
     return res.redirect('/root/hosting');
   }
 
-  // Zone ID is per-tenant only. API token: per-tenant override if provided, otherwise
-  // falls back to global env CLOUDFLARE_API_TOKEN at runtime. Never a global zone ID.
-  if (!tenants[idx].hosting) tenants[idx].hosting = {};
-  const cleanZoneId = (cfZoneId || '').trim();
-  const cleanToken = (cfApiToken || '').trim();
-  if (cleanZoneId) tenants[idx].hosting.cloudflareZoneId = cleanZoneId;
-  if (cleanToken)  tenants[idx].hosting.cloudflareApiToken = cleanToken;
+  // Zone ID is per-tenant only. API token behavior:
+  // - clearTokenOverride=true => delete per-tenant token so env fallback is used
+  // - non-empty cfApiToken    => save per-tenant override
+  // - empty cfApiToken        => keep existing token as-is
+  tenants[idx] = applyTenantCloudflareConfig(tenants[idx], { cfZoneId, cfApiToken, clearTokenOverride });
   saveTenantsRegistry(tenants);
 
   const zoneStored = tenants[idx].hosting.cloudflareZoneId || '(not set)';
-  const tokenSource = cleanToken ? 'per-tenant' : 'env fallback';
+  const tokenSource = (tenants[idx].hosting.cloudflareApiToken || '').trim()
+    ? 'per-tenant'
+    : (process.env.CLOUDFLARE_API_TOKEN ? 'env' : 'none');
   const message = `Cloudflare config updated for ${tenantId}: zone=${zoneStored}, token=${tokenSource}`;
   setRootFlash(req, { message });
   return res.redirect('/root/hosting');
@@ -7017,11 +7128,12 @@ app.post('/root/hosting/railway', (req, res) => {
     return res.redirect('/root/hosting');
   }
 
-  // Register in railway registry (for primary domain; can extend to aliases)
+  // Register in railway registry using canonical domain when canonical www is enabled
   try {
-    const primaryDomain = tenants[idx].primaryDomain || tenants[idx].domain;
-    if (primaryDomain && railwayRegistry) {
-      railwayRegistry.register(primaryDomain, railwayDeploymentId, railwayUrl, 'active');
+    const canonicalCfg = getTenantCanonicalConfig(tenants[idx]);
+    const registryDomain = canonicalCfg.canonicalDomain || tenants[idx].primaryDomain || tenants[idx].domain;
+    if (registryDomain && railwayRegistry) {
+      railwayRegistry.register(registryDomain, railwayDeploymentId, railwayUrl, 'active');
     }
     const message = `Railway deployment registered: ${railwayDeploymentId}`;
     setRootFlash(req, { message });

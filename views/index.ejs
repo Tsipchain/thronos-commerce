@@ -249,6 +249,26 @@
         border-bottom: 2px solid rgba(196,144,46,.32) !important;
         box-shadow: 0 2px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(196,144,46,.06) inset !important;
         padding: 0 !important;
+        overflow: hidden;
+        isolation: isolate;
+        min-height: 190px;
+      }
+      /* Tenant-scoped Eukolakis classic hero-logo layer behind header rows only. */
+      body.eukolakis-classic .eko-header-bg-logo {
+        position: absolute;
+        inset: 6px 4% 6px;
+        z-index: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      body.eukolakis-classic .eko-header-bg-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        opacity: var(--eko-hero-logo-opacity, .22);
+        filter: drop-shadow(0 18px 26px rgba(0,0,0,.65)) saturate(1.12);
       }
       /* Thin gold accent strip at very top of header */
       body.eukolakis-classic .store-header::before {
@@ -266,7 +286,12 @@
       body.eukolakis-classic.eko-light .store-header::before {
         background: linear-gradient(90deg, transparent 0%, rgba(196,144,46,.55) 30%, rgba(219,168,60,.55) 60%, transparent 100%);
       }
+      
+      body.eukolakis-classic .header-mode-toggle-slot { display:flex; align-items:center; justify-content:flex-start; margin-right:8px; z-index:6; }
+      @media (max-width: 600px) { body.eukolakis-classic .header-mode-toggle-slot .eko-mode-btn { font-size:.68rem; padding:5px 8px; } }
       body.eukolakis-classic .header-main-row {
+        position: relative;
+        z-index: 2;
         justify-content: space-between !important;
         align-items: center !important;
         padding: 10px 20px 12px;
@@ -285,14 +310,19 @@
         gap: 10px;
         flex-shrink: 0;
       }
+      body.eukolakis-classic .logo-title.classic-branding.centered {
+        justify-content: center !important;
+        text-align: center !important;
+      }
       body.eukolakis-classic .eko-brand-banner {
         position: relative;
-        min-width: min(540px, 64vw);
+        min-width: 0;
+        max-width: 220px;
         border-radius: 12px;
-        padding: 10px 14px;
+        padding: 6px 10px;
         border: 1px solid rgba(196,144,46,.42);
-        background: linear-gradient(145deg, rgba(17,24,39,.88) 0%, rgba(12,16,24,.95) 100%);
-        box-shadow: 0 10px 28px rgba(0,0,0,.42), 0 0 0 1px rgba(196,144,46,.12) inset;
+        background: linear-gradient(145deg, rgba(17,24,39,.72) 0%, rgba(12,16,24,.84) 100%);
+        box-shadow: 0 6px 14px rgba(0,0,0,.28), 0 0 0 1px rgba(196,144,46,.08) inset;
       }
       body.eukolakis-classic .eko-brand-banner::after {
         content: '';
@@ -303,7 +333,7 @@
       }
       body.eukolakis-classic .eko-brand-banner img {
         width: 100%;
-        max-height: 62px;
+        max-height: var(--eko-foreground-logo-max-height, 42px);
         object-fit: contain;
         object-position: left center;
         display: block;
@@ -311,7 +341,7 @@
       }
       body.eukolakis-classic .eko-brand-caption {
         margin-top: 4px;
-        font-size: .62rem;
+        font-size: .52rem;
         font-weight: 800;
         letter-spacing: .18em;
         color: rgba(196,144,46,.86);
@@ -371,11 +401,22 @@
 
       /* ── Nav row: horizontal tab bar ── */
       body.eukolakis-classic .header-nav-row {
+        position: relative;
+        z-index: 2;
         margin-top: 0 !important;
         padding: 0 !important;
         border-top: 1px solid rgba(196,144,46,.12);
         background: rgba(0,0,0,.38);
         backdrop-filter: blur(4px);
+      }
+      body.eukolakis-classic .store-header.eko-hero-off { min-height: 0; }
+      body.eukolakis-classic .store-header.eko-hero-off .eko-header-bg-logo { display: none; }
+      body.eukolakis-classic .store-header.fg-logo-hidden .eko-brand-banner,
+      body.eukolakis-classic .store-header.header-logo-foreground-hidden .eko-brand-banner { display: none; }
+      body.eukolakis-classic .store-header.fg-logo-normal .eko-brand-banner,
+      body.eukolakis-classic .store-header.header-logo-foreground-normal .eko-brand-banner {
+        max-width: min(540px, 64vw);
+        padding: 10px 14px;
       }
       body.eukolakis-classic.eko-light .header-nav-row {
         background: rgba(0,0,0,.03);
@@ -976,21 +1017,25 @@
 
       /* ── Color mode toggle ── */
       .eko-mode-btn {
-        position: fixed; bottom: 68px; right: 14px; z-index: 900;
+        position: relative; z-index: 6;
         border: 1px solid var(--eko-border); border-radius: 999px;
-        padding: 7px 13px; background: var(--eko-surface); color: var(--eko-text);
+        padding: 6px 10px; background: var(--eko-surface); color: var(--eko-text);
         cursor: pointer; font-size: .75rem; font-weight: 700; opacity: .8;
         box-shadow: 0 4px 18px rgba(0,0,0,.28); transition: opacity .14s;
         display: none;
       }
-      body.eukolakis-classic .eko-mode-btn { display: inline-block; }
+      body.eukolakis-classic .eko-mode-btn { display: inline-flex; align-items:center; }
       .eko-mode-btn:hover { opacity: 1; }
 
       /* ── Responsive ── */
       @media (max-width: 860px) {
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
       }
+      body.eukolakis-classic .header-mode-toggle-slot {
+        display:flex; align-items:center; justify-content:flex-start; margin-right:8px; z-index:6;
+      }
       @media (max-width: 600px) {
+        body.eukolakis-classic .header-mode-toggle-slot .eko-mode-btn { font-size:.68rem; padding:5px 8px; }
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
         body.eukolakis-classic .eko-cat-tile-img,
@@ -999,8 +1044,11 @@
         body.eukolakis-classic .eko-cat-tile-badge { padding: 6px 8px 7px; }
         body.eukolakis-classic .eko-cat-tile-arrow { width: 24px; height: 24px; font-size: .84rem; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
-        body.eukolakis-classic .header-main-row { padding: 8px 12px; min-height: 84px; }
-        body.eukolakis-classic .eko-brand-banner { min-width: 100%; }
+      body.eukolakis-classic .header-main-row { padding: 8px 12px; min-height: 84px; }
+        body.eukolakis-classic .store-header { min-height: 138px; }
+        body.eukolakis-classic .eko-header-bg-logo { inset: 6px 6% 6px; }
+        body.eukolakis-classic .eko-header-bg-logo img { opacity: .16; }
+        body.eukolakis-classic .eko-brand-banner { max-width: 170px; }
         body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
         body.eukolakis-classic main { padding: 14px 12px 36px; }
       }
@@ -1075,8 +1123,17 @@
     <% const authPosition = (theme.authPosition === 'left') ? 'left' : 'right'; %>
     <% const menuStyle = ['classic', 'pills', 'compact'].includes(theme.menuStyle) ? theme.menuStyle : 'classic'; %>
     <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
-    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> auth-pos-<%= authPosition %> branding-mode-<%= brandingMode %>">
+    <% const ekoHeroMode = isEukolakisClassic ? String((theme.headerHeroHomepage || 'centered-background')) : 'off'; %>
+    <% const ekoHeroEnabled = isEukolakisClassic ? (ekoHeroMode !== 'off') : false; %>
+    <% const ekoHeroOpacity = Number(theme.headerHeroLogoOpacity != null ? theme.headerHeroLogoOpacity : 0.22); %>
+    <% const ekoFgMode = isEukolakisClassic ? String((theme.headerFgHomepage || 'hidden')) : 'normal'; %>
+    <% const ekoFgMaxHeight = Math.max(28, Math.min(120, Number(theme.headerForegroundLogoMaxHeight || 42))); %>
+    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> header-logo-foreground-<%= ekoFgMode %> <%= ekoHeroEnabled ? 'header-hero-logo-enabled' : 'header-hero-logo-disabled' %> auth-pos-<%= authPosition %> branding-mode-<%= brandingMode %> <%= ekoHeroEnabled ? 'eko-hero-on' : 'eko-hero-off' %> <%= ('fg-logo-' + ekoFgMode) %> <%= ('hero-mode-' + ekoHeroMode) %>" style="<%= isEukolakisClassic ? ('--eko-hero-logo-opacity:' + ekoHeroOpacity + ';--eko-foreground-logo-max-height:' + ekoFgMaxHeight + 'px;') : '' %>">
+      <% if (isEukolakisClassic && headerBrandAssetSrc && ekoHeroEnabled) { %>
+        <div class="eko-header-bg-logo" aria-hidden="true"><img src="<%= headerBrandAssetSrc %>" alt="" /></div>
+      <% } %>
       <div class="header-main-row">
+      <% if (isEukolakisClassic) { %><div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div><% } %>
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (isEukolakisClassic && headerBrandAssetSrc) { %>
           <div class="eko-brand-banner">
@@ -2293,7 +2350,9 @@
         var btn = document.createElement('button');
         btn.className = 'eko-mode-btn';
         btn.type = 'button';
-        document.body.appendChild(btn);
+        var slot = document.querySelector('.header-mode-toggle-slot') || document.querySelector('.header-main-row');
+        if (slot) slot.appendChild(btn);
+        else document.body.appendChild(btn);
         applyMode(current);
         btn.addEventListener('click', function() {
           current = body.classList.contains('eko-light') ? 'dark' : 'light';
