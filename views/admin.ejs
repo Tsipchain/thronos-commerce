@@ -241,6 +241,7 @@
         <a href="<%= withTenantLink('/admin/hosting') %>">🛰️ Hosting</a>
         <a href="#tab-notifications">🔔 Notifications</a>
         <a href="#tab-assistant">🤖 Βοηθός</a>
+        <a href="<%= withTenantLink('/admin/assistant-panel') %>">🧠 Assistant Panel</a>
         <a href="#tab-support">⚙️ Advanced</a>
         <a href="<%= withTenantLink('/') %>">👁️ Preview Store</a>
       </aside>
@@ -565,6 +566,17 @@
           <input id="themeLogoMaxHeight" type="number" min="56" max="120" name="themeLogoMaxHeight" value="<%= config.theme.logoMaxHeight %>" <%= permissions.canEditSettings ? '' : 'readonly' %> />
           <small class="helper">Ύψος σε pixels (56–120px). <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>Για Eukolakis Classic συνιστάται 80–100px.<% } else { %>Τιμές 64–96px δουλεύουν καλά για τα περισσότερα logo.<% } %></small>
         </label>
+
+        <fieldset style="border:1px solid #e5e7eb;padding:10px;border-radius:10px;margin-top:10px;">
+          <legend><strong>Header & logo (Eukolakis Classic)</strong></legend>
+          <p class="helper">Preview labels: Homepage header / Product page header / Checkout header.</p>
+          <label><span>Homepage header — Foreground logo</span><select name="themeHeaderFgHomepage"><% ['hidden','badge-left','badge-right','centered-small','normal'].forEach(function(m){ %><option value="<%= m %>" <%= (config.theme.headerFgHomepage || 'hidden')===m ? 'selected':'' %>><%= m %></option><% }) %></select></label>
+          <label><span>Homepage header — Hero/background logo</span><select name="themeHeaderHeroHomepage"><% ['off','centered-background','full-width-background'].forEach(function(m){ %><option value="<%= m %>" <%= (config.theme.headerHeroHomepage || 'centered-background')===m ? 'selected':'' %>><%= m %></option><% }) %></select></label>
+          <label><span>Product page header — Foreground logo</span><select name="themeHeaderFgProduct"><% ['hidden','badge-left','badge-right','centered-small','normal'].forEach(function(m){ %><option value="<%= m %>" <%= (config.theme.headerFgProduct || 'badge-right')===m ? 'selected':'' %>><%= m %></option><% }) %></select></label>
+          <label><span>Product page header — Hero/background logo</span><select name="themeHeaderHeroProduct"><% ['off','centered-background','full-width-background'].forEach(function(m){ %><option value="<%= m %>" <%= (config.theme.headerHeroProduct || 'centered-background')===m ? 'selected':'' %>><%= m %></option><% }) %></select></label>
+          <label><span>Checkout header — Foreground logo</span><select name="themeHeaderFgCheckout"><% ['hidden','badge-left','badge-right','centered-small','normal'].forEach(function(m){ %><option value="<%= m %>" <%= (config.theme.headerFgCheckout || 'badge-left')===m ? 'selected':'' %>><%= m %></option><% }) %></select></label>
+          <label><span>Checkout header — Hero/background logo</span><select name="themeHeaderHeroCheckout"><% ['off','centered-background','full-width-background'].forEach(function(m){ %><option value="<%= m %>" <%= (config.theme.headerHeroCheckout || 'off')===m ? 'selected':'' %>><%= m %></option><% }) %></select></label>
+        </fieldset>
         <% if (config.logoPath) { %>
         <% const liveLogoBgMode = (config.theme && config.theme.logoBgMode) || 'auto'; %>
         <% const liveLogoPreviewBgClass = liveLogoBgMode === 'dark_badge' ? 'is-dark' : (liveLogoBgMode === 'light_badge' ? 'is-light' : 'is-auto'); %>
