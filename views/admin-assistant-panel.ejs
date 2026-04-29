@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assistant Panel - <%= config.storeName %></title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main style="max-width:860px;margin:24px auto;padding:0 12px;">
+    <h1>🧠 Tenant Admin Assistant Panel</h1>
+    <p>Χώρος βοηθού διαχειριστή για ρυθμίσεις/προτάσεις. Είναι ξεχωριστός από τον storefront customer assistant.</p>
+    <p><a href="<%= withTenantLink('/admin') %>">← Back to Admin</a></p>
+    <div style="padding:12px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;">
+      <p><strong>Storefront assistant enabled:</strong> <%= assistant.vaEnabled ? 'yes' : 'no' %></p>
+      <p><strong>Storefront assistant mode:</strong> <%= assistant.vaMode || 'disabled' %></p>
+      <small>Δεν εμφανίζονται credentials / cross-tenant δεδομένα σε αυτή τη σελίδα.</small>
+    </div>
+  </main>
+</body>
+</html>
