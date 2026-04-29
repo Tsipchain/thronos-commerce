@@ -301,8 +301,10 @@
       }
       body.eukolakis-classic .store-header.eko-hero-off { min-height: 0; }
       body.eukolakis-classic .store-header.eko-hero-off .eko-header-bg-logo { display: none; }
-      body.eukolakis-classic .store-header.fg-logo-hidden .eko-brand-banner { display: none; }
-      body.eukolakis-classic .store-header.fg-logo-normal .eko-brand-banner {
+      body.eukolakis-classic .store-header.fg-logo-hidden .eko-brand-banner,
+      body.eukolakis-classic .store-header.header-logo-foreground-hidden .eko-brand-banner { display: none; }
+      body.eukolakis-classic .store-header.fg-logo-normal .eko-brand-banner,
+      body.eukolakis-classic .store-header.header-logo-foreground-normal .eko-brand-banner {
         max-width: min(540px, 64vw);
         padding: 10px 14px;
       }
@@ -500,11 +502,12 @@
     <% const headerBrandAssetSrc = (productHeaderBannerAudit && productHeaderBannerAudit.exists && productHeaderBannerAudit.url) ? productHeaderBannerAudit.url : (config.logoPath || ''); %>
     <% const navMenuPlateAudit = Array.isArray(productAssetAudit.navMenuPlates) ? productAssetAudit.navMenuPlates : []; %>
     <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
-    <% const ekoHeroEnabled = isEukolakisClassic ? (theme.headerHeroLogoEnabled !== false) : false; %>
+    <% const ekoHeroMode = isEukolakisClassic ? String((theme.headerHeroProduct || 'centered-background')) : 'off'; %>
+    <% const ekoHeroEnabled = isEukolakisClassic ? (ekoHeroMode !== 'off') : false; %>
     <% const ekoHeroOpacity = Number(theme.headerHeroLogoOpacity != null ? theme.headerHeroLogoOpacity : 0.22); %>
-    <% const ekoFgMode = (isEukolakisClassic && ['badge','hidden','normal'].includes(String(theme.headerForegroundLogoMode || '').trim())) ? String(theme.headerForegroundLogoMode).trim() : 'badge'; %>
+    <% const ekoFgMode = isEukolakisClassic ? String((theme.headerFgProduct || 'badge-right')) : 'normal'; %>
     <% const ekoFgMaxHeight = Math.max(28, Math.min(120, Number(theme.headerForegroundLogoMaxHeight || 42))); %>
-    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> branding-mode-<%= brandingMode %> <%= ekoHeroEnabled ? 'eko-hero-on' : 'eko-hero-off' %> <%= ('fg-logo-' + ekoFgMode) %>" style="<%= isEukolakisClassic ? ('--eko-hero-logo-opacity:' + ekoHeroOpacity + ';--eko-foreground-logo-max-height:' + ekoFgMaxHeight + 'px;') : '' %>">
+    <header class="store-header <%= isEukolakisClassic ? 'premium' : '' %> header-logo-foreground-<%= ekoFgMode %> <%= ekoHeroEnabled ? 'header-hero-logo-enabled' : 'header-hero-logo-disabled' %> branding-mode-<%= brandingMode %> <%= ekoHeroEnabled ? 'eko-hero-on' : 'eko-hero-off' %> <%= ('fg-logo-' + ekoFgMode) %> <%= ('hero-mode-' + ekoHeroMode) %>" style="<%= isEukolakisClassic ? ('--eko-hero-logo-opacity:' + ekoHeroOpacity + ';--eko-foreground-logo-max-height:' + ekoFgMaxHeight + 'px;') : '' %>">
       <% if (isEukolakisClassic && headerBrandAssetSrc && ekoHeroEnabled) { %>
         <div class="eko-header-bg-logo" aria-hidden="true"><img src="<%= headerBrandAssetSrc %>" alt="" /></div>
       <% } %>

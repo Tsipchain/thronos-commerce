@@ -4441,6 +4441,15 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
+    themeHeaderFgHomepage,
+    themeHeaderFgProduct,
+    themeHeaderFgCategory,
+    themeHeaderFgCheckout,
+    themeHeaderFgAdmin,
+    themeHeaderHeroHomepage,
+    themeHeaderHeroProduct,
+    themeHeaderHeroCategory,
+    themeHeaderHeroCheckout,
     themeCursorImage,
     themeProductThumbAspect,
     themeProductThumbFit,
@@ -4526,6 +4535,18 @@ app.post('/admin/settings', async (req, res) => {
   const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
   config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
   config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 88));
+  const _fgModes = ['hidden', 'badge-left', 'badge-right', 'centered-small', 'normal'];
+  const _heroModes = ['off', 'centered-background', 'full-width-background'];
+  const _pick = (val, allowed, fallback) => allowed.includes(String(val || '').trim()) ? String(val).trim() : fallback;
+  config.theme.headerFgHomepage = _pick(themeHeaderFgHomepage, _fgModes, config.theme.headerFgHomepage || 'hidden');
+  config.theme.headerFgProduct = _pick(themeHeaderFgProduct, _fgModes, config.theme.headerFgProduct || 'badge-right');
+  config.theme.headerFgCategory = _pick(themeHeaderFgCategory, _fgModes, config.theme.headerFgCategory || 'badge-right');
+  config.theme.headerFgCheckout = _pick(themeHeaderFgCheckout, _fgModes, config.theme.headerFgCheckout || 'badge-left');
+  config.theme.headerFgAdmin = _pick(themeHeaderFgAdmin, _fgModes, config.theme.headerFgAdmin || 'normal');
+  config.theme.headerHeroHomepage = _pick(themeHeaderHeroHomepage, _heroModes, config.theme.headerHeroHomepage || 'centered-background');
+  config.theme.headerHeroProduct = _pick(themeHeaderHeroProduct, _heroModes, config.theme.headerHeroProduct || 'centered-background');
+  config.theme.headerHeroCategory = _pick(themeHeaderHeroCategory, _heroModes, config.theme.headerHeroCategory || 'off');
+  config.theme.headerHeroCheckout = _pick(themeHeaderHeroCheckout, _heroModes, config.theme.headerHeroCheckout || 'off');
   config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
   config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
   const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();

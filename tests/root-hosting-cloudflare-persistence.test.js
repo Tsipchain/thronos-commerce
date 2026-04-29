@@ -290,3 +290,17 @@ test('recheck smoke targets include canonicalDomain for canonical www tenants', 
   assert.match(snippet, /canonicalSmokeTarget/);
   assert.match(snippet, /check\.canonicalDomain/);
 });
+
+test('templates include eukolakis header logo mode classes', () => {
+  const indexTpl = fs.readFileSync(path.join(__dirname, '..', 'views', 'index.ejs'), 'utf8');
+  const productTpl = fs.readFileSync(path.join(__dirname, '..', 'views', 'product.ejs'), 'utf8');
+  assert.match(indexTpl, /header-logo-foreground-hidden/);
+  assert.match(indexTpl, /header-hero-logo-enabled/);
+  assert.match(productTpl, /header-logo-foreground-<%= ekoFgMode %>/);
+});
+
+test('checkout template supports compact logo mode for eukolakis classic', () => {
+  const checkoutTpl = fs.readFileSync(path.join(__dirname, '..', 'views', 'checkout.ejs'), 'utf8');
+  assert.match(checkoutTpl, /checkout-compact-logo/);
+  assert.match(checkoutTpl, /theme\.headerFgCheckout/);
+});
