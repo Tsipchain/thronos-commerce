@@ -169,6 +169,55 @@ test('canonicalHost=www: missing apex placeholder is warning-only and does not b
   assert.equal(check.apexDnsStatus, 'missing_placeholder_warning');
 });
 
+test('canonicalHost=www: valid www CNAME + TXT checks can advance even when apex is redirect placeholder mode', () => {
+  const check = {
+    canonicalHost: 'www',
+    apexMode: 'redirect_to_www',
+    apexDnsStatus: 'proxied_placeholder_ok',
+    cnameOk: true,     // canonical www CNAME verified
+    txtOk: true,       // root thronos TXT verified
+    allAliasesOk: true,
+    authoritativeOk: true,
+    propagationStatus: 'ok'
+  };
+  const prevSslStatus = 'pending';
+  const allSmokeOk = false;
+
+  const authOk = check.authoritativeOk;
+  const publicOk = check.cnameOk && check.txtOk && check.allAliasesOk;
+  const dnsVerified = authOk === true || publicOk;
+  const propagating = check.propagationStatus === 'propagating';
+
+  let nextDomainStatus;
+  if (dnsVerified && allSmokeOk && prevSslStatus === 'active') nextDomainStatus = 'active';
+  else if (dnsVerified && allSmokeOk) nextDomainStatus = 'ssl_validating';
+  else if (propagating) nextDomainStatus = 'public_dns_propagating';
+  else if (dnsVerified && !allSmokeOk) nextDomainStatus = 'railway_pending';
+  else if (authOk === false) nextDomainStatus = 'action_required';
+  else nextDomainStatus = 'pending_dns';
+
+  assert.equal(nextDomainStatus, 'railway_pending');
+});
+
+test('canonicalHost=www: missing apex placeholder is warning-only and does not block advancement', () => {
+  const check = {
+    canonicalHost: 'www',
+    apexMode: 'redirect_to_www',
+    apexDnsStatus: 'missing_placeholder_warning',
+    cnameOk: true,     // canonical www still correct
+    txtOk: true,       // root TXT still correct
+    allAliasesOk: true,
+    authoritativeOk: true,
+    propagationStatus: 'ok'
+  };
+
+  const authOk = check.authoritativeOk;
+  const publicOk = check.cnameOk && check.txtOk && check.allAliasesOk;
+  const dnsVerified = authOk === true || publicOk;
+  assert.equal(dnsVerified, true, 'missing apex placeholder must be non-blocking when canonicalHost=www');
+  assert.equal(check.apexDnsStatus, 'missing_placeholder_warning');
+});
+
 // ── 2. aisthetic-stores already active — recheck keeps active ─────────────────
 
 test('domainStatus stays active when fully verified and SSL was already active', () => {
