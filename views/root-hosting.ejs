@@ -111,8 +111,9 @@
       <div class="tab-panel active" id="<%= ri %>-dns">
         <p class="muted">
           Preview host: <code><%= row.previewHost || '—' %></code>
-          &nbsp;·&nbsp; Canonical host: <strong><%= row.canonicalToWww ? 'www' : 'apex' %></strong>
-          &nbsp;·&nbsp; Apex mode: <%= row.canonicalToWww ? 'redirect to www' : 'direct to platform' %>
+          &nbsp;·&nbsp; Canonical host: <strong><%= row.canonicalHost || (row.canonicalToWww ? 'www' : 'apex') %></strong>
+          &nbsp;·&nbsp; Apex mode: <%= row.apexMode || (row.canonicalToWww ? 'redirect_to_www' : 'direct_to_platform') %>
+          &nbsp;·&nbsp; Source: <code><%= row.canonicalSource || 'tenant.canonicalToWww' %></code>
           &nbsp;·&nbsp; Type: <span class="chip info"><%= row.domainType %></span>
           &nbsp;·&nbsp; CF Zone: <% if (row.hasCloudflareZone) { %><code><%= row.cloudflareZoneId %></code> (token: <%= row.cloudflareTokenSource %>)<% } else { %><span class="chip warn">not configured</span><% } %>
         </p>
@@ -318,6 +319,10 @@
 
       <%# ── SSL tab ── %>
       <div class="tab-panel" id="<%= ri %>-ssl">
+        <p class="muted" style="margin-bottom:10px;">
+          Detected SSL status from DNS/HTTP checks: <strong><%= row.sslStatus || 'pending' %></strong>.
+          Manual values below are stored as <code>sslManualOverride</code> and do not drive auto-promotion.
+        </p>
         <form method="POST" action="/root/hosting/update">
           <input type="hidden" name="tenantId" value="<%= row.tenantId %>" />
           <input type="hidden" name="section" value="ssl" />
@@ -334,7 +339,7 @@
           </div>
           <div class="save-row">
             <div class="pw-row"><label>Root pw:</label><input type="password" name="rootPassword" required /></div>
-            <button type="submit" class="btn-save">Save SSL</button>
+            <button type="submit" class="btn-save">Save SSL Manual Override</button>
           </div>
         </form>
       </div>

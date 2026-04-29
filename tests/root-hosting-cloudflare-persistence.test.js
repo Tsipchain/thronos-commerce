@@ -48,6 +48,7 @@ function instantiateFunction(name, contextValues) {
 }
 
 test('save zone persistence: loadTenantsRegistry preserves hosting.cloudflareZoneId in returned tenant', () => {
+  const getTenantPoweredByConfig = instantiateFunction('getTenantPoweredByConfig', {});
   const loadTenantsRegistry = instantiateFunction('loadTenantsRegistry', {
     TENANTS_REGISTRY: '/tmp/tenants.json',
     loadJson: () => ([{
@@ -60,7 +61,8 @@ test('save zone persistence: loadTenantsRegistry preserves hosting.cloudflareZon
       }
     }]),
     loadThemeGovernance: () => ({ availableThemeKeys: ['classic'] }),
-    normalizeThemeKeys: (keys) => keys
+    normalizeThemeKeys: (keys) => keys,
+    getTenantPoweredByConfig
   });
 
   const tenants = loadTenantsRegistry();
@@ -69,9 +71,13 @@ test('save zone persistence: loadTenantsRegistry preserves hosting.cloudflareZon
 });
 
 test('getTenantHostingSnapshot reports hasCloudflareZone=true when tenant hosting zone exists', () => {
+  const getTenantCanonicalConfig = instantiateFunction('getTenantCanonicalConfig', {});
+  const getTenantPoweredByConfig = instantiateFunction('getTenantPoweredByConfig', {});
   const getTenantHostingSnapshot = instantiateFunction('getTenantHostingSnapshot', {
     loadTenantConfig: () => ({}),
-    railwayRegistry: { getForTenant: () => ({}) }
+    railwayRegistry: { getForTenant: () => ({}) },
+    getTenantCanonicalConfig,
+    getTenantPoweredByConfig
   });
 
   const snapshot = getTenantHostingSnapshot({
@@ -165,9 +171,13 @@ test('empty token field preserves existing override unless clearTokenOverride is
 
 test('after override is cleared, hosting snapshot reports token source env', () => {
   const applyTenantCloudflareConfig = instantiateFunction('applyTenantCloudflareConfig', {});
+  const getTenantCanonicalConfig = instantiateFunction('getTenantCanonicalConfig', {});
+  const getTenantPoweredByConfig = instantiateFunction('getTenantPoweredByConfig', {});
   const getTenantHostingSnapshot = instantiateFunction('getTenantHostingSnapshot', {
     loadTenantConfig: () => ({}),
-    railwayRegistry: { getForTenant: () => ({}) }
+    railwayRegistry: { getForTenant: () => ({}) },
+    getTenantCanonicalConfig,
+    getTenantPoweredByConfig
   });
   const savedToken = process.env.CLOUDFLARE_API_TOKEN;
   process.env.CLOUDFLARE_API_TOKEN = 'env-global-token';
@@ -193,4 +203,52 @@ test('after override is cleared, hosting snapshot reports token source env', () 
     if (savedToken !== undefined) process.env.CLOUDFLARE_API_TOKEN = savedToken;
     else delete process.env.CLOUDFLARE_API_TOKEN;
   }
+});
+
+test('canonical single source: canonicalToWww=true derives canonicalHost/apexMode consistently', () => {
+  const getTenantCanonicalConfig = instantiateFunction('getTenantCanonicalConfig', {});
+  const cfg = getTenantCanonicalConfig({
+    domain: 'eukolaki.gr',
+    primaryDomain: 'eukolaki.gr',
+    canonicalToWww: true
+  });
+  assert.equal(cfg.canonicalHost, 'www');
+  assert.equal(cfg.canonicalDomain, 'www.eukolaki.gr');
+  assert.equal(cfg.apexMode, 'redirect_to_www');
+  assert.equal(cfg.source, 'tenant.canonicalToWww');
+});
+
+test('/root/tenants/update and /root/hosting/recheck use tenant.canonicalToWww as persisted source', () => {
+  const updateRouteIdx = serverSource.indexOf("app.post('/root/tenants/update'");
+  assert.ok(updateRouteIdx >= 0, 'tenants update route should exist');
+  const updateSnippet = serverSource.slice(updateRouteIdx, updateRouteIdx + 2200);
+  assert.match(updateSnippet, /tenants\[idx\]\.canonicalToWww/);
+  assert.doesNotMatch(updateSnippet, /canonicalHost\s*=/);
+  assert.doesNotMatch(updateSnippet, /apexMode\s*=/);
+
+  const recheckRouteIdx = serverSource.indexOf("app.post('/root/hosting/recheck'");
+  assert.ok(recheckRouteIdx >= 0, 'hosting recheck route should exist');
+  const recheckSnippet = serverSource.slice(recheckRouteIdx, recheckRouteIdx + 2400);
+  assert.match(recheckSnippet, /runDomainCheckFull\(tenants\[idx\]\)/);
+  assert.doesNotMatch(recheckSnippet, /tenants\[idx\]\.canonicalHost/);
+  assert.doesNotMatch(recheckSnippet, /tenants\[idx\]\.apexMode/);
+});
+
+test('poweredByMode is normalized as active source; legacy allowPoweredBy does not override mode', () => {
+  const getTenantPoweredByConfig = instantiateFunction('getTenantPoweredByConfig', {});
+  const legacy = getTenantPoweredByConfig({ allowPoweredBy: true });
+  assert.equal(legacy.poweredByMode, 'always');
+  assert.equal(legacy.allowPoweredBy, true);
+
+  const explicitDisabled = getTenantPoweredByConfig({ allowPoweredBy: true, poweredByMode: 'disabled' });
+  assert.equal(explicitDisabled.poweredByMode, 'disabled');
+  assert.equal(explicitDisabled.allowPoweredBy, false);
+});
+
+test('SSL manual save stores sslManualOverride and does not silently overwrite detected hosting.sslStatus', () => {
+  const routeIdx = serverSource.indexOf("if (sec === 'ssl')");
+  assert.ok(routeIdx >= 0, 'ssl section in /root/hosting/update should exist');
+  const snippet = serverSource.slice(routeIdx, routeIdx + 700);
+  assert.match(snippet, /sslManualOverride/);
+  assert.doesNotMatch(snippet, /\.\.\.\(tenants\[idx\]\.hosting \|\| \{\}\),\s*sslStatus:/);
 });
