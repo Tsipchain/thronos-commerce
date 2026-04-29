@@ -218,6 +218,20 @@ test('canonical single source: canonicalToWww=true derives canonicalHost/apexMod
   assert.equal(cfg.source, 'tenant.canonicalToWww');
 });
 
+test('parseBooleanInput handles duplicate checkbox values correctly', () => {
+  const parseBooleanInput = instantiateFunction('parseBooleanInput', {});
+  assert.equal(parseBooleanInput(['0', '1'], false), true);
+  assert.equal(parseBooleanInput(['0'], true), false);
+  assert.equal(parseBooleanInput('1', false), true);
+  assert.equal(parseBooleanInput('0', true), false);
+});
+
+test('canonicalToWww and allowPoweredBy duplicate submissions persist true via parseBooleanInput', () => {
+  const parseBooleanInput = instantiateFunction('parseBooleanInput', {});
+  assert.equal(parseBooleanInput(['0', '1'], false), true, 'canonicalToWww-style duplicate input should resolve true');
+  assert.equal(parseBooleanInput(['0', '1'], false), true, 'allowPoweredBy-style duplicate input should resolve true');
+});
+
 test('/root/tenants/update and /root/hosting/recheck use tenant.canonicalToWww as persisted source', () => {
   const updateRouteIdx = serverSource.indexOf("app.post('/root/tenants/update'");
   assert.ok(updateRouteIdx >= 0, 'tenants update route should exist');
@@ -251,4 +265,20 @@ test('SSL manual save stores sslManualOverride and does not silently overwrite d
   const snippet = serverSource.slice(routeIdx, routeIdx + 700);
   assert.match(snippet, /sslManualOverride/);
   assert.doesNotMatch(snippet, /\.\.\.\(tenants\[idx\]\.hosting \|\| \{\}\),\s*sslStatus:/);
+});
+
+test('railway registration uses canonical domain when canonicalToWww=true', () => {
+  const routeIdx = serverSource.indexOf("app.post('/root/hosting/railway'");
+  assert.ok(routeIdx >= 0, 'railway route should exist');
+  const snippet = serverSource.slice(routeIdx, routeIdx + 1200);
+  assert.match(snippet, /getTenantCanonicalConfig\(tenants\[idx\]\)/);
+  assert.match(snippet, /canonicalCfg\.canonicalDomain/);
+});
+
+test('recheck sets detected hosting.sslStatus from live checks, not stale manual active', () => {
+  const routeIdx = serverSource.indexOf("app.post('/root/hosting/recheck'");
+  assert.ok(routeIdx >= 0, 'recheck route should exist');
+  const snippet = serverSource.slice(routeIdx, routeIdx + 5200);
+  assert.match(snippet, /detectedSslStatus/);
+  assert.match(snippet, /sslStatus:\s*detectedSslStatus/);
 });

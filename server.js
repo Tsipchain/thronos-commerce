@@ -635,8 +635,11 @@ function findTenantById(tenantId) {
 
 function parseBooleanInput(value, fallback = false) {
   if (value === undefined || value === null) return fallback;
-  const raw = String(value).trim().toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'on' || raw === 'yes';
+  const values = Array.isArray(value) ? value : [value];
+  const normalized = values.map(v => String(v).trim().toLowerCase());
+  if (normalized.some(v => ['true', '1', 'on', 'yes'].includes(v))) return true;
+  if (normalized.some(v => ['false', '0', 'off', 'no'].includes(v))) return false;
+  return fallback;
 }
 
 function getTenantCanonicalConfig(tenant) {
@@ -692,7 +695,7 @@ function getTenantHostingSnapshot(tenant, req) {
 
   // Railway registry info for this tenant
   const railwayInfo = (typeof railwayRegistry !== 'undefined' && railwayRegistry)
-    ? railwayRegistry.getForTenant(primaryDomain, aliases)
+    ? railwayRegistry.getForTenant(canonicalCfg.canonicalDomain || primaryDomain, aliases)
     : {};
   const sslManualOverride = (hosting && hosting.sslManualOverride && typeof hosting.sslManualOverride === 'object')
     ? hosting.sslManualOverride
@@ -6937,10 +6940,12 @@ app.post('/root/hosting/recheck', async (req, res) => {
       nextDomainStatus = 'pending_dns';
     }
 
+    const detectedSslStatus = allSmokeOk ? 'active' : (dnsVerified ? 'pending' : 'pending');
     tenants[idx].hosting = {
       ...prevHosting,
       lastCheckedAt: now,
       lastCheckError: '',
+      sslStatus: detectedSslStatus,
       dnsVerifiedAt: dnsVerified ? now : (prevHosting.dnsVerifiedAt || ''),
       domainStatus: nextDomainStatus,
       propagationStatus: check.propagationStatus || 'unknown',
@@ -7091,11 +7096,12 @@ app.post('/root/hosting/railway', (req, res) => {
     return res.redirect('/root/hosting');
   }
 
-  // Register in railway registry (for primary domain; can extend to aliases)
+  // Register in railway registry using canonical domain when canonical www is enabled
   try {
-    const primaryDomain = tenants[idx].primaryDomain || tenants[idx].domain;
-    if (primaryDomain && railwayRegistry) {
-      railwayRegistry.register(primaryDomain, railwayDeploymentId, railwayUrl, 'active');
+    const canonicalCfg = getTenantCanonicalConfig(tenants[idx]);
+    const registryDomain = canonicalCfg.canonicalDomain || tenants[idx].primaryDomain || tenants[idx].domain;
+    if (registryDomain && railwayRegistry) {
+      railwayRegistry.register(registryDomain, railwayDeploymentId, railwayUrl, 'active');
     }
     const message = `Railway deployment registered: ${railwayDeploymentId}`;
     setRootFlash(req, { message });
