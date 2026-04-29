@@ -203,9 +203,13 @@ class CloudflareClient {
 
   // Read records for a domain from Cloudflare (authoritative truth).
   // Returns structured result matching runDomainCheck output format.
-  async readTenantDnsState(zoneId, { primaryDomain, aliases, tenantId }) {
+  async readTenantDnsState(zoneId, { primaryDomain, aliases, tenantId, canonicalHost = 'apex' }) {
     const allAliases = aliases || [];
-    const allDomains = [primaryDomain, ...allAliases];
+    const canonicalDomain = canonicalHost === 'www' ? `www.${primaryDomain}` : primaryDomain;
+    const requiredAliases = canonicalHost === 'www'
+      ? allAliases.filter(a => a !== canonicalDomain)
+      : allAliases;
+    const allDomains = [primaryDomain, canonicalDomain, ...requiredAliases];
 
     // Fetch all records for each domain
     const recordsByDomain = {};
@@ -215,7 +219,7 @@ class CloudflareClient {
 
     // Also fetch _railway-verify records for aliases
     const railwayVerifyRecords = {};
-    await Promise.all(allAliases.map(async alias => {
+    await Promise.all(requiredAliases.map(async alias => {
       const verifyName = `_railway-verify.${alias}`;
       try {
         const recs = await this.listDnsRecords(zoneId, { name: verifyName });
@@ -230,17 +234,20 @@ class CloudflareClient {
     const thronosToken = `thronos-verify=${tenantId}`;
     const txtOk = apexTxt.some(r => r.content === thronosToken);
 
-    // Check apex CNAME
+    // Check apex records
     const apexCname = recordsByDomain[primaryDomain].filter(r => r.type === 'CNAME');
     const apexA = recordsByDomain[primaryDomain].filter(r => r.type === 'A');
     const PLATFORM_RAILWAY_SUFFIX = 'up.railway.app';
-    const cnameOk = apexCname.some(r => r.content.endsWith(PLATFORM_RAILWAY_SUFFIX) || r.content.endsWith('.thronoschain.org'));
-    // Cloudflare proxied CNAME shows as A when queried publicly; check via API
+    const apexRailwayCnameOk = apexCname.some(r => r.content.endsWith(PLATFORM_RAILWAY_SUFFIX) || r.content.endsWith('.thronoschain.org'));
     const flattenedApex = apexCname.length === 0 && apexA.length > 0;
-    const effectiveCnameOk = cnameOk || (flattenedApex && txtOk);
+    const apexPlaceholderOk = apexA.some(r => r.proxied === true && r.content === '192.0.2.1');
+
+    const canonicalRecords = recordsByDomain[canonicalDomain] || [];
+    const canonicalCname = canonicalRecords.filter(r => r.type === 'CNAME');
+    const canonicalCnameOk = canonicalCname.some(r => r.content.endsWith(PLATFORM_RAILWAY_SUFFIX) || r.content.endsWith('.thronoschain.org'));
 
     // Check aliases
-    const aliasResults = allAliases.map(alias => {
+    const aliasResults = requiredAliases.map(alias => {
       const recs = recordsByDomain[alias] || [];
       const aliasCname = recs.filter(r => r.type === 'CNAME');
       const aliasOk = aliasCname.some(r => r.content.endsWith(PLATFORM_RAILWAY_SUFFIX) || r.content.endsWith('.thronoschain.org'));
@@ -254,11 +261,23 @@ class CloudflareClient {
       };
     });
 
+    const effectiveCnameOk = canonicalHost === 'www'
+      ? canonicalCnameOk
+      : (apexRailwayCnameOk || (flattenedApex && txtOk));
+    const apexDnsStatus = canonicalHost === 'www'
+      ? (apexPlaceholderOk ? 'proxied_placeholder_ok' : 'missing_placeholder_warning')
+      : (flattenedApex ? 'flattened_or_apex_a' : (apexRailwayCnameOk ? 'railway_target_ok' : 'missing'));
+
     return {
       source: 'cloudflare-api',
       domain: primaryDomain,
+      canonicalHost,
+      canonicalDomain,
+      apexMode: canonicalHost === 'www' ? 'redirect_to_www' : 'direct_to_platform',
+      apexDnsStatus,
+      apexPlaceholderOk,
       cnameOk: effectiveCnameOk,
-      cnameRaw: cnameOk,
+      cnameRaw: canonicalHost === 'www' ? canonicalCnameOk : apexRailwayCnameOk,
       flattenedApex,
       txtOk,
       allAliasesOk: aliasResults.length === 0 || aliasResults.every(a => a.ok),
