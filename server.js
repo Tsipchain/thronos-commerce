@@ -4811,13 +4811,12 @@ app.post('/admin/assistant', async (req, res) => {
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
 });
 
-setupAdminAssistantRoutes({
-  app,
+setupAdminAssistantRoutes(app, {
   requireAdmin,
   buildAdminViewModel,
   loadTenantConfig,
-  axios,
-  resolveAssistantEnv
+  saveTenantConfig,
+  verifyAdminAction,
 });
 
 app.post('/admin/payments', async (req, res) => {

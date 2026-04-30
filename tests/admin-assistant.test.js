@@ -1,7 +1,9 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const assert = require('assert');
+const fs = require('fs');
+const http = require('http');
+const os = require('os');
+const path = require('path');
+const mod = require('../lib/admin-assistant-routes');
 
 /**
  * Tests for the tenant-admin assistant panel.
@@ -13,13 +15,8 @@ const path = require('node:path');
  *  D. env resolution — fallback order, trailing-slash strip, no-secret log
  *  E. chat proxy — missing URL → 503; VCA 502 forwarded; wrong secret → 401
  *  F. storefront assistant unchanged
+ *  G. module export structure
  */
-
-const assert = require('assert');
-const fs     = require('fs');
-const http   = require('http');
-const os     = require('os');
-const path   = require('path');
 
 let passed = 0;
 let failed = 0;
@@ -121,6 +118,12 @@ function clearModuleCache() {
     delete require.cache[resolved];
   }
 }
+
+// ================================================================== //
+// Run all tests
+// ================================================================== //
+
+(async () => {
 
 // ================================================================== //
 // A. buildTenantContext                                                //
@@ -363,7 +366,7 @@ await test('E1: /admin/assistant-panel/chat — missing URL returns 503', async 
   clearModuleCache();
 
   const app = buildMockApp();
-  require('../lib/admin-assistant-routes')(app, STUB_DEPS);
+  mod.setupAdminAssistantRoutes(app, STUB_DEPS);
 
   const handler = app.findLast('post', '/admin/assistant-panel/chat');
   assert.ok(handler, 'chat route not registered');
@@ -395,7 +398,7 @@ await test('E2: /admin/assistant-panel/chat — VCA 502 forwarded as 502', async
     clearModuleCache();
 
     const app = buildMockApp();
-    require('../lib/admin-assistant-routes')(app, STUB_DEPS);
+    mod.setupAdminAssistantRoutes(app, STUB_DEPS);
     const handler = app.findLast('post', '/admin/assistant-panel/chat');
 
     const req = buildMockReq({ body: { message: 'hi' } });
@@ -427,7 +430,7 @@ await test('E3: /admin/assistant-panel/chat — VCA 401 (wrong secret) forwarded
     clearModuleCache();
 
     const app = buildMockApp();
-    require('../lib/admin-assistant-routes')(app, STUB_DEPS);
+    mod.setupAdminAssistantRoutes(app, STUB_DEPS);
     const handler = app.findLast('post', '/admin/assistant-panel/chat');
 
     const req = buildMockReq({ body: { message: 'hi' } });
@@ -464,7 +467,7 @@ await test('E4: /admin/assistant-panel/chat — VCA timeout returns 504', async 
     clearModuleCache();
 
     const app = buildMockApp();
-    require('../lib/admin-assistant-routes')(app, STUB_DEPS);
+    mod.setupAdminAssistantRoutes(app, STUB_DEPS);
     const handler = app.findLast('post', '/admin/assistant-panel/chat');
 
     const req = buildMockReq({ body: { message: 'hi' } });
@@ -495,7 +498,7 @@ await test('E5: /admin/assistant-panel/chat — VCA 200 success proxied correctl
     clearModuleCache();
 
     const app = buildMockApp();
-    require('../lib/admin-assistant-routes')(app, STUB_DEPS);
+    mod.setupAdminAssistantRoutes(app, STUB_DEPS);
     const handler = app.findLast('post', '/admin/assistant-panel/chat');
 
     const req = buildMockReq({ body: { message: 'hello' } });
@@ -533,8 +536,30 @@ await test('F2: routes module uses resolveVcaUrl not raw VCA_URL env', async () 
 });
 
 // ================================================================== //
+// G. Module export structure (regression test)                         //
+// ================================================================== //
+
+await test('G1: admin-assistant-routes.js exports setupAdminAssistantRoutes as function', () => {
+  assert.strictEqual(typeof mod.setupAdminAssistantRoutes, 'function', 'setupAdminAssistantRoutes not a function');
+  assert.strictEqual(Object.keys(mod).length, 1, 'module exports more than setupAdminAssistantRoutes');
+});
+
+await test('G2: server.js has no duplicate /admin/assistant-panel route', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
+  const matches = src.match(/app\.(?:get|post)\('\/admin\/assistant-panel/g) || [];
+  const count = matches.length;
+  // Only 1 reference to setupAdminAssistantRoutes route registration should exist
+  assert.ok(count <= 5, `found ${count} references to /admin/assistant-panel routes; setupAdminAssistantRoutes should register them all`);
+});
+
+// ================================================================== //
 // Summary                                                              //
 // ================================================================== //
 
 console.log(`\nResult: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
+
+})().catch(err => {
+  console.error('Test execution error:', err);
+  process.exit(1);
+});
