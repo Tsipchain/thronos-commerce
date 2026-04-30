@@ -7189,7 +7189,7 @@ app.post('/api/chat', async (req, res) => {
   if (!assistant.vaEnabled || !['customer', 'both'].includes(assistant.vaMode)) {
     return res.status(403).json({ error: 'Chat assistant not available for this store.' });
   }
-  const { assistantUrl: vaUrl } = resolveAssistantEnv();
+  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || process.env.VCA_URL || '').replace(/\/$/, '');
   if (!vaUrl) {
     return res.status(503).json({ error: 'Assistant service not configured.' });
   }
@@ -7215,8 +7215,8 @@ app.post('/api/chat', async (req, res) => {
           ? String(req.session.user.email) : null,
       },
       {
-        headers: sharedHeaders,
-        timeout: 20000,
+        headers: commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
+        timeout: 15000,
       }
     );
     const token = tokenRes.data && tokenRes.data.access_token;
@@ -7232,26 +7232,13 @@ app.post('/api/chat', async (req, res) => {
     );
     return res.json(chatRes.data);
   } catch (err) {
-    let targetHost = '';
-    let targetPath = '';
-    try {
-      const target = new URL(`${vaUrl}/api/v1/assistant/chat`);
-      targetHost = target.host;
-      targetPath = target.pathname;
-    } catch (_) {}
-    const isTimeout = err && (err.code === 'ECONNABORTED' || /timeout/i.test(String(err.message || '')));
-    console.error('[VA chat] proxy error', JSON.stringify({
-      tenantId: req.tenantId || null,
-      targetHost,
-      targetPath,
-      status: (err.response && err.response.status) || null,
-      timeout: isTimeout,
-      code: err.code || null
-    }));
-    const httpStatus = (err.response && err.response.status) || 502;
+    const isTimeout = err.code === 'ECONNABORTED' || (err.message && err.message.includes('timeout'));
+    const reason = isTimeout ? 'timeout' : (err.code || err.message || 'unknown');
+    console.error('[VA chat] proxy error tenant=%s reason=%s', req.tenantId || '?', reason);
+    const httpStatus = (err.response && err.response.status) || (isTimeout ? 504 : 502);
     const detail = (err.response && err.response.data && err.response.data.detail)
-      || 'Assistant temporarily unavailable.';
-    return res.status(httpStatus >= 500 ? 502 : httpStatus).json({ error: detail });
+      || (isTimeout ? 'Assistant timed out — please retry.' : 'Assistant temporarily unavailable.');
+    return res.status(httpStatus >= 500 ? (isTimeout ? 504 : 502) : httpStatus).json({ error: detail });
   }
 });
 
