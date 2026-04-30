@@ -10,7 +10,7 @@ process.on('unhandledRejection', (reason) => {
 
 const express = require('express');
 const { normalizeAssistantConfig } = require('./lib/assistant-config');
-const setupAdminAssistantRoutes = require('./lib/admin-assistant-routes');
+const { setupAdminAssistantRoutes } = require('./lib/admin-assistant-routes');
 const path = require('path');
 const fs = require('fs');
 const ejs = require('ejs');
@@ -128,6 +128,27 @@ function getLangFromRequest(req) {
     }
   }
   return 'el';
+}
+
+function resolveAssistantEnv() {
+  const urlCandidates = [
+    ['THRONOS_ASSISTANT_URL', process.env.THRONOS_ASSISTANT_URL],
+    ['ASSISTANT_API_URL', process.env.ASSISTANT_API_URL],
+    ['VCA_URL', process.env.VCA_URL],
+    ['ASSISTANT_URL', process.env.ASSISTANT_URL]
+  ];
+  const urlPair = urlCandidates.find(([, value]) => String(value || '').trim());
+  const assistantUrl = String((urlPair && urlPair[1]) || '').trim().replace(/\/$/, '');
+  const assistantUrlSource = (urlPair && urlPair[0]) || 'unset';
+
+  const secretCandidates = [
+    ['COMMERCE_WEBHOOK_SECRET', process.env.COMMERCE_WEBHOOK_SECRET],
+    ['ASSISTANT_WEBHOOK_SECRET', process.env.ASSISTANT_WEBHOOK_SECRET]
+  ];
+  const secretPair = secretCandidates.find(([, value]) => String(value || '').trim());
+  const webhookSecret = String((secretPair && secretPair[1]) || '').trim();
+  const webhookSecretSource = (secretPair && secretPair[0]) || 'unset';
+  return { assistantUrl, assistantUrlSource, webhookSecret, webhookSecretSource };
 }
 
 function translate(lang, key) {
@@ -680,11 +701,17 @@ function getTenantHostingSnapshot(tenant, req) {
   const previewHost = previewSubdomain ? `${previewSubdomain}.thonoscommerce.thronoschain.org` : '';
   const config = req ? loadTenantConfig(req) : {};
   const vaAssistant = (config && config.assistant) || {};
-  const vaBackendAvailable = !!(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
+  const vaBackendAvailable = !!String(
+    process.env.THRONOS_ASSISTANT_URL ||
+    process.env.ASSISTANT_API_URL ||
+    process.env.VCA_URL ||
+    process.env.ASSISTANT_URL ||
+    ''
+  ).trim();
   const vaEnabled = !!vaAssistant.vaEnabled;
   const vaMode = vaAssistant.vaMode || 'disabled';
   const vaWarning = vaEnabled && ['customer', 'both'].includes(vaMode) && !vaBackendAvailable
-    ? 'Widget enabled but THRONOS_ASSISTANT_URL env var is not set — chat will fail.'
+    ? 'Widget enabled but assistant backend URL env is not set — chat will fail.'
     : null;
   const domainType = (t.primaryDomain || t.domain) ? 'custom' : 'platform';
 
@@ -2013,13 +2040,13 @@ async function sendOrderWebhook({ tenant, config, order }) {
  * If the env var is absent, the signature header is omitted (VA will allow it in dev mode).
  */
 async function fireVASync(tenantId, event, data) {
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  const { assistantUrl: vaUrl } = resolveAssistantEnv();
   if (!vaUrl) return;
 
   const body = JSON.stringify({ event, tenant_id: tenantId, data });
   const headers = { 'Content-Type': 'application/json' };
 
-  const secret = (process.env.COMMERCE_WEBHOOK_SECRET || '').trim();
+  const { webhookSecret: secret } = resolveAssistantEnv();
   if (secret) {
     headers['X-Thronos-Signature'] =
       'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex');
@@ -4442,6 +4469,15 @@ app.post('/admin/settings', async (req, res) => {
     themeLogoRadius,
     themeLogoShadow,
     themeLogoMaxHeight,
+    themeHeaderFgHomepage,
+    themeHeaderFgProduct,
+    themeHeaderFgCategory,
+    themeHeaderFgCheckout,
+    themeHeaderFgAdmin,
+    themeHeaderHeroHomepage,
+    themeHeaderHeroProduct,
+    themeHeaderHeroCategory,
+    themeHeaderHeroCheckout,
     themeCursorImage,
     themeProductThumbAspect,
     themeProductThumbFit,
@@ -4527,6 +4563,18 @@ app.post('/admin/settings', async (req, res) => {
   const normalizedLogoShadow = String(themeLogoShadow || config.theme.logoShadow || 'soft').trim();
   config.theme.logoShadow = ['none', 'soft', 'floating'].includes(normalizedLogoShadow) ? normalizedLogoShadow : 'soft';
   config.theme.logoMaxHeight = Math.max(28, Math.min(140, Number(themeLogoMaxHeight) || Number(config.theme.logoMaxHeight) || 88));
+  const _fgModes = ['hidden', 'badge-left', 'badge-right', 'centered-small', 'normal'];
+  const _heroModes = ['off', 'centered-background', 'full-width-background'];
+  const _pick = (val, allowed, fallback) => allowed.includes(String(val || '').trim()) ? String(val).trim() : fallback;
+  config.theme.headerFgHomepage = _pick(themeHeaderFgHomepage, _fgModes, config.theme.headerFgHomepage || 'hidden');
+  config.theme.headerFgProduct = _pick(themeHeaderFgProduct, _fgModes, config.theme.headerFgProduct || 'badge-right');
+  config.theme.headerFgCategory = _pick(themeHeaderFgCategory, _fgModes, config.theme.headerFgCategory || 'badge-right');
+  config.theme.headerFgCheckout = _pick(themeHeaderFgCheckout, _fgModes, config.theme.headerFgCheckout || 'badge-left');
+  config.theme.headerFgAdmin = _pick(themeHeaderFgAdmin, _fgModes, config.theme.headerFgAdmin || 'normal');
+  config.theme.headerHeroHomepage = _pick(themeHeaderHeroHomepage, _heroModes, config.theme.headerHeroHomepage || 'centered-background');
+  config.theme.headerHeroProduct = _pick(themeHeaderHeroProduct, _heroModes, config.theme.headerHeroProduct || 'centered-background');
+  config.theme.headerHeroCategory = _pick(themeHeaderHeroCategory, _heroModes, config.theme.headerHeroCategory || 'off');
+  config.theme.headerHeroCheckout = _pick(themeHeaderHeroCheckout, _heroModes, config.theme.headerHeroCheckout || 'off');
   config.theme.productThumbAspect = ['4:3', '1:1', '3:4'].includes(String(themeProductThumbAspect || '')) ? String(themeProductThumbAspect) : (config.theme.productThumbAspect || '4:3');
   config.theme.productThumbFit = ['cover', 'contain'].includes(String(themeProductThumbFit || '')) ? String(themeProductThumbFit) : (config.theme.productThumbFit || 'cover');
   const rawThumbBg = String(themeProductThumbBg || config.theme.productThumbBg || '#111111').trim();
@@ -4763,13 +4811,13 @@ app.post('/admin/assistant', async (req, res) => {
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις του βοηθού αποθηκεύτηκαν.' }));
 });
 
-// Tenant-admin AI assistant panel routes
-setupAdminAssistantRoutes(app, {
+setupAdminAssistantRoutes({
+  app,
   requireAdmin,
-  loadTenantConfig,
-  saveTenantConfig,
-  verifyAdminAction,
   buildAdminViewModel,
+  loadTenantConfig,
+  axios,
+  resolveAssistantEnv
 });
 
 app.post('/admin/payments', async (req, res) => {
@@ -6183,7 +6231,7 @@ app.get('/root/hosting', requireRootAdmin, (req, res) => {
   const rows = _buildHostingRows(loadTenantsRegistry());
   const navCounts = getRootNavCounts();
   const unresolvedCount = rows.filter((row) => row.issueFlag || row.domainStatus !== 'active' || row.sslStatus !== 'active').length;
-  const vaUrlMissing = !(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL);
+  const vaUrlMissing = !resolveAssistantEnv().assistantUrl;
   console.log('[root-hosting] render', JSON.stringify({ rows: rows.length, unresolvedCount, vaUrlMissing }));
   res.render('root-hosting', { page: 'hosting', ...navCounts, rows, unresolvedCount, vaUrlMissing, message: flash.message || null, error: flash.error || null });
 });
@@ -6813,7 +6861,7 @@ app.post('/root/hosting/update', (req, res) => {
 // Used to gate domain auto-promotion after DNS checks pass.
 // Health check for VA assistant backend
 async function checkAssistantHealth() {
-  const vaUrl = (process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL || '').replace(/\/$/, '');
+  const { assistantUrl: vaUrl } = resolveAssistantEnv();
   if (!vaUrl) {
     return { ok: false, status: 'not_configured', message: 'VA backend URL not configured', responseTime: null };
   }
@@ -7151,6 +7199,12 @@ app.post('/api/chat', async (req, res) => {
   }
   try {
     const commerceKey = (process.env.THRONOS_COMMERCE_API_KEY || '').trim();
+    const { webhookSecret } = resolveAssistantEnv();
+    const sharedHeaders = Object.assign(
+      {},
+      commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
+      webhookSecret ? { 'X-Thronos-Shared-Secret': webhookSecret } : {}
+    );
     const tokenRes = await axios.post(
       `${vaUrl}/api/v1/auth/customer-token`,
       {
@@ -7174,7 +7228,7 @@ app.post('/api/chat', async (req, res) => {
         role: 'customer',
         context: (context && typeof context === 'object') ? context : null,
       },
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
+      { headers: Object.assign({ Authorization: `Bearer ${token}` }, webhookSecret ? { 'X-Thronos-Shared-Secret': webhookSecret } : {}), timeout: 20000 }
     );
     return res.json(chatRes.data);
   } catch (err) {
@@ -7222,11 +7276,18 @@ console.log('[boot] Env audit:', {
   THRC_ASSISTANT_API_KEY: !!process.env.THRC_ASSISTANT_API_KEY,
   THRONOS_COMMERCE_API_KEY: !!process.env.THRONOS_COMMERCE_API_KEY,
   COMMERCE_WEBHOOK_SECRET: !!process.env.COMMERCE_WEBHOOK_SECRET,
-  THRONOS_ASSISTANT_URL: !!(process.env.THRONOS_ASSISTANT_URL || process.env.ASSISTANT_API_URL),
+  THRONOS_ASSISTANT_URL: !!resolveAssistantEnv().assistantUrl,
   THRONOS_ROOT_ADMIN: !!(process.env.THRONOS_ROOT_ADMIN_PASSWORD),
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });
 console.log('[boot] DATA_ROOT:', DATA_ROOT);
+{
+  const env = resolveAssistantEnv();
+  console.log('[boot] assistant env sources', {
+    assistantUrlSource: env.assistantUrlSource,
+    webhookSecretSource: env.webhookSecretSource
+  });
+}
 
 if (process.env.THRC_PREFLIGHT_EJS === '1') {
   try {
