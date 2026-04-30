@@ -548,8 +548,40 @@ await test('G2: server.js has no duplicate /admin/assistant-panel route', () => 
   const src = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
   const matches = src.match(/app\.(?:get|post)\('\/admin\/assistant-panel/g) || [];
   const count = matches.length;
-  // Only 1 reference to setupAdminAssistantRoutes route registration should exist
   assert.ok(count <= 5, `found ${count} references to /admin/assistant-panel routes; setupAdminAssistantRoutes should register them all`);
+});
+
+// ================================================================== //
+// H. Admin panel render — regression tests                            //
+// ================================================================== //
+
+await test('H1: admin-assistant.ejs contains "Tenant Admin Assistant Panel" heading', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../views/admin-assistant.ejs'), 'utf8');
+  assert.ok(src.includes('Tenant Admin Assistant Panel'), 'Missing "Tenant Admin Assistant Panel" in admin-assistant.ejs');
+});
+
+await test('H2: admin-assistant.ejs contains /admin/assistant-panel/chat endpoint reference', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../views/admin-assistant.ejs'), 'utf8');
+  assert.ok(
+    src.includes('/admin/assistant-panel/chat'),
+    'admin-assistant.ejs does not reference /admin/assistant-panel/chat'
+  );
+});
+
+await test('H3: admin-assistant.ejs does not hardcode bare /admin paths (uses withTenantLink)', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../views/admin-assistant.ejs'), 'utf8');
+  // Sidebar links should use withTenantLink, not bare href="/admin"
+  assert.ok(!src.includes('href="/admin"'), 'Bare href="/admin" found — should use withTenantLink');
+  assert.ok(!src.includes('href="/admin/logout"'), 'Bare href="/admin/logout" found — should use withTenantLink');
+});
+
+await test('H4: admin.ejs AI Panel link is a full href, not a hash redirect', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../views/admin.ejs'), 'utf8');
+  // The AI panel link must have a full URL, not just #tab-assistant
+  assert.ok(
+    src.includes('withTenantLink(\'/admin/assistant-panel\')'),
+    'AI Admin Panel link must use withTenantLink(/admin/assistant-panel)'
+  );
 });
 
 // ================================================================== //
