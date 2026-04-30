@@ -7199,6 +7199,12 @@ app.post('/api/chat', async (req, res) => {
   }
   try {
     const commerceKey = (process.env.THRONOS_COMMERCE_API_KEY || '').trim();
+    const { webhookSecret } = resolveAssistantEnv();
+    const sharedHeaders = Object.assign(
+      {},
+      commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
+      webhookSecret ? { 'X-Thronos-Shared-Secret': webhookSecret } : {}
+    );
     const tokenRes = await axios.post(
       `${vaUrl}/api/v1/auth/customer-token`,
       {
@@ -7209,8 +7215,8 @@ app.post('/api/chat', async (req, res) => {
           ? String(req.session.user.email) : null,
       },
       {
-        headers: commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
-        timeout: 5000,
+        headers: sharedHeaders,
+        timeout: 20000,
       }
     );
     const token = tokenRes.data && tokenRes.data.access_token;
@@ -7222,11 +7228,26 @@ app.post('/api/chat', async (req, res) => {
         role: 'customer',
         context: (context && typeof context === 'object') ? context : null,
       },
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
+      { headers: Object.assign({ Authorization: `Bearer ${token}` }, webhookSecret ? { 'X-Thronos-Shared-Secret': webhookSecret } : {}), timeout: 20000 }
     );
     return res.json(chatRes.data);
   } catch (err) {
-    console.error('[VA chat] proxy error:', err.message);
+    let targetHost = '';
+    let targetPath = '';
+    try {
+      const target = new URL(`${vaUrl}/api/v1/assistant/chat`);
+      targetHost = target.host;
+      targetPath = target.pathname;
+    } catch (_) {}
+    const isTimeout = err && (err.code === 'ECONNABORTED' || /timeout/i.test(String(err.message || '')));
+    console.error('[VA chat] proxy error', JSON.stringify({
+      tenantId: req.tenantId || null,
+      targetHost,
+      targetPath,
+      status: (err.response && err.response.status) || null,
+      timeout: isTimeout,
+      code: err.code || null
+    }));
     const httpStatus = (err.response && err.response.status) || 502;
     const detail = (err.response && err.response.data && err.response.data.detail)
       || 'Assistant temporarily unavailable.';
