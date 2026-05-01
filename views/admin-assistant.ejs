@@ -97,15 +97,15 @@
   <!-- Sidebar -->
   <nav class="aa-sidebar">
     <h2><%= locals.tenant && locals.tenant.id ? locals.tenant.id : 'Admin' %></h2>
-    <a href="/admin">&#9632; Dashboard</a>
-    <a href="/admin#branding">🎨 Branding</a>
-    <a href="/admin#homepage">🏠 Homepage</a>
-    <a href="/admin/orders">📦 Orders</a>
-    <a href="/admin/payments">💳 Payments</a>
-    <a href="/admin#notifications">🔔 Notifications</a>
-    <a href="/admin#assistant">🤖 Storefront Assistant</a>
-    <a href="/admin/assistant-panel" class="active">✨ Βοηθός</a>
-    <a href="/admin/logout" style="margin-top:auto;color:#f88;">&#x2192; Logout</a>
+    <a href="<%= withTenantLink('/admin') %>">&#9632; Dashboard</a>
+    <a href="<%= withTenantLink('/admin') + '#tab-branding' %>">🎨 Branding</a>
+    <a href="<%= withTenantLink('/admin') + '#tab-homepage' %>">🏠 Homepage</a>
+    <a href="<%= withTenantLink('/admin/orders') %>">📦 Orders</a>
+    <a href="<%= withTenantLink('/admin/payments') %>">💳 Payments</a>
+    <a href="<%= withTenantLink('/admin') + '#tab-notifications' %>">🔔 Notifications</a>
+    <a href="<%= withTenantLink('/admin') + '#tab-assistant' %>">🤖 Storefront Config</a>
+    <a href="<%= withTenantLink('/admin/assistant-panel') %>" class="active">✨ AI Admin Panel</a>
+    <a href="<%= withTenantLink('/admin/logout') %>" style="margin-top:auto;color:#f88;">&#x2192; Logout</a>
   </nav>
 
   <!-- Main -->
@@ -113,7 +113,7 @@
 
     <!-- Top bar -->
     <div class="aa-topbar">
-      <h1>✨ Βοηθός &mdash; AI Διαχειριστής</h1>
+      <h1>Tenant Admin Assistant Panel</h1>
       <span class="section-badge" id="sectionBadge">Chat</span>
     </div>
 
@@ -165,6 +165,11 @@
 <script>
 (function () {
   'use strict';
+
+  // Tenant-scoped API endpoints injected server-side (never hard-coded).
+  const URL_CHAT      = '<%= withTenantLink("/admin/assistant-panel/chat") %>';
+  const URL_APPROVE   = '<%= withTenantLink("/admin/assistant-panel/approve") %>';
+  const URL_AUDIT_LOG = '<%= withTenantLink("/admin/assistant-panel/audit-log") %>';
 
   const chatContent  = document.getElementById('chatContent');
   const auditContent = document.getElementById('auditContent');
@@ -272,7 +277,7 @@
       try {
         const body = { patches: proposals };
         if (pwInput) body.password = pwInput.value;
-        const r = await fetch('/admin/assistant-panel/approve', {
+        const r = await fetch(URL_APPROVE, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
@@ -324,7 +329,7 @@
     history.push({ role: 'user', content: text });
 
     try {
-      const r = await fetch('/admin/assistant-panel/chat', {
+      const r = await fetch(URL_CHAT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -374,7 +379,7 @@
   async function loadAuditLog() {
     document.getElementById('auditBody').innerHTML = '<em style="color:#999;">Loading...</em>';
     try {
-      const r = await fetch('/admin/assistant-panel/audit-log?limit=100', { credentials: 'same-origin' });
+      const r = await fetch(URL_AUDIT_LOG + '?limit=100', { credentials: 'same-origin' });
       const d = await r.json();
       const entries = d.entries || [];
       if (!entries.length) {

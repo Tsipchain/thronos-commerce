@@ -7196,14 +7196,11 @@ app.post('/api/chat', async (req, res) => {
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'Message is required.' });
   }
+  const { webhookSecret, webhookSecretSource } = resolveAssistantEnv();
+  let _lastEndpoint = 'customer-token';
   try {
-    const commerceKey = (process.env.THRONOS_COMMERCE_API_KEY || '').trim();
-    const { webhookSecret } = resolveAssistantEnv();
-    const sharedHeaders = Object.assign(
-      {},
-      commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
-      webhookSecret ? { 'X-Thronos-Shared-Secret': webhookSecret } : {}
-    );
+    // Use COMMERCE_WEBHOOK_SECRET (canonical) for X-Thronos-Commerce-Key.
+    const authHeader = webhookSecret ? { 'X-Thronos-Commerce-Key': webhookSecret } : {};
     const tokenRes = await axios.post(
       `${vaUrl}/api/v1/auth/customer-token`,
       {
@@ -7213,13 +7210,12 @@ app.post('/api/chat', async (req, res) => {
         customer_email: (req.session && req.session.user && req.session.user.email)
           ? String(req.session.user.email) : null,
       },
-      {
-        headers: commerceKey ? { 'X-Thronos-Commerce-Key': commerceKey } : {},
-        timeout: 15000,
-      }
+      { headers: authHeader, timeout: 15000 }
     );
-    const token = tokenRes.data && tokenRes.data.access_token;
+    // VCA may return {token:...} (new) or {access_token:...} (legacy).
+    const token = tokenRes.data && (tokenRes.data.token || tokenRes.data.access_token);
     if (!token) throw new Error('No token received from VA');
+    _lastEndpoint = 'assistant/chat';
     const chatRes = await axios.post(
       `${vaUrl}/api/v1/assistant/chat`,
       {
@@ -7227,14 +7223,18 @@ app.post('/api/chat', async (req, res) => {
         role: 'customer',
         context: (context && typeof context === 'object') ? context : null,
       },
-      { headers: Object.assign({ Authorization: `Bearer ${token}` }, webhookSecret ? { 'X-Thronos-Shared-Secret': webhookSecret } : {}), timeout: 20000 }
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 20000 }
     );
     return res.json(chatRes.data);
   } catch (err) {
     const isTimeout = err.code === 'ECONNABORTED' || (err.message && err.message.includes('timeout'));
-    const reason = isTimeout ? 'timeout' : (err.code || err.message || 'unknown');
-    console.error('[VA chat] proxy error tenant=%s reason=%s', req.tenantId || '?', reason);
-    const httpStatus = (err.response && err.response.status) || (isTimeout ? 504 : 502);
+    const reason = isTimeout ? 'timeout' : (err.code || 'upstream_error');
+    const upstreamStatus = err.response && err.response.status;
+    console.error(
+      '[VA chat] proxy error tenantId=%s endpoint=%s status=%s reason=%s vcaUrlSource=%s secretSource=%s',
+      req.tenantId || '?', _lastEndpoint, upstreamStatus || '-', reason, vaUrl ? 'configured' : 'missing', webhookSecretSource
+    );
+    const httpStatus = upstreamStatus || (isTimeout ? 504 : 502);
     const detail = (err.response && err.response.data && err.response.data.detail)
       || (isTimeout ? 'Assistant timed out — please retry.' : 'Assistant temporarily unavailable.');
     return res.status(httpStatus >= 500 ? (isTimeout ? 504 : 502) : httpStatus).json({ error: detail });
