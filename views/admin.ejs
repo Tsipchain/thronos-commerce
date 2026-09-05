@@ -363,7 +363,14 @@
 
         <h3 class="settings-section-heading">Χρώματα & Τυπογραφία <% if (!supportsColors) { %><small style="color:#ca8a04;font-weight:600;">(περιορισμένη επίδραση στο τρέχον theme)</small><% } %></h3>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
-        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό βιομηχανικό header. Τα <strong>χρώματα μενού</strong> δεν εφαρμόζονται (βλ. παρακάτω). Το <strong>Primary & Accent color</strong> επηρεάζουν κουμπιά, links και δευτερεύοντα στοιχεία — εφαρμόζονται κανονικά.</p>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> υποστηρίζει clean και βιομηχανικό header. Το <strong>Primary & Accent color</strong> επηρεάζουν κουμπιά, links και δευτερεύοντα στοιχεία.</p>
+        <label><span>Στυλ header / μενού</span>
+          <select name="themeHeaderMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="clean" <%= ((config.theme && config.theme.headerMenuStyle) || 'clean') === 'clean' ? 'selected' : '' %>>Clean — compact black ecommerce header</option>
+            <option value="industrial_plates" <%= (config.theme && config.theme.headerMenuStyle) === 'industrial_plates' ? 'selected' : '' %>>Industrial plates — rivets / metallic navigation</option>
+          </select>
+          <small class="helper">Το clean είναι το προεπιλεγμένο για Eukolakis. Το industrial_plates παραμένει διαθέσιμο ως επαναχρησιμοποιήσιμο style.</small>
+        </label>
         <% } %>
 
         <label><span><%= t('admin.primaryColor') %></span>
@@ -944,6 +951,34 @@
           <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
           <span><%= homepageLabels.subscriptionsToggle %></span>
         </label>
+        <% const subscriptionVideoCard = (rawConfig.homepage && rawConfig.homepage.subscriptionVideoCard) || {}; %>
+        <h3 class="settings-section-heading">Κάρτα Συνδρομητικών Βίντεο</h3>
+        <p class="helper">Η κάρτα εμφανίζεται μαζί με τις κατηγορίες όταν η ενότητα Συνδρομές / Videos είναι ενεργή. Χρησιμοποιεί την υπάρχουσα σελίδα συνδρομητικού περιεχομένου.</p>
+        <label><span>Εικόνα κάρτας</span>
+          <input type="text" id="homepage-subscription-video-image" name="homepageSubscriptionVideoImage" value="<%= subscriptionVideoCard.image || '' %>" placeholder="/tenants/<%= tenant.id %>/media/subscription-videos.jpg" />
+          <% if (subscriptionVideoCard.image) { %>
+          <img id="homepage-subscription-video-preview" src="<%= subscriptionVideoCard.image %>" alt="Subscription videos preview" style="display:block;margin-top:7px;width:220px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <% } else { %>
+          <img id="homepage-subscription-video-preview" src="" alt="" style="display:none;margin-top:7px;width:220px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <% } %>
+          <small class="helper">Επιλέξτε υπάρχον path από το <a href="#tab-upload">Media</a>. Η εικόνα μπορεί να αντικατασταθεί ή να αφαιρεθεί αφήνοντας το πεδίο κενό.</small>
+        </label>
+        <label><span>Τίτλος κάρτας (EL / EN)</span>
+          <input type="text" name="homepageSubscriptionVideoTitle_el" value="<%= resolveField(subscriptionVideoCard.title, 'el') %>" placeholder="Συνδρομητικά βίντεο επισκευών" />
+          <input type="text" name="homepageSubscriptionVideoTitle_en" value="<%= resolveField(subscriptionVideoCard.title, 'en') %>" placeholder="Subscription repair videos" />
+        </label>
+        <label><span>Υπότιτλος κάρτας (EL / EN)</span>
+          <input type="text" name="homepageSubscriptionVideoSubtitle_el" value="<%= resolveField(subscriptionVideoCard.subtitle, 'el') %>" placeholder="Οδηγοί επισκευής βήμα-βήμα" />
+          <input type="text" name="homepageSubscriptionVideoSubtitle_en" value="<%= resolveField(subscriptionVideoCard.subtitle, 'en') %>" placeholder="Step-by-step repair guides" />
+        </label>
+        <label><span>Σύνδεσμος / προορισμός</span>
+          <input type="text" name="homepageSubscriptionVideoHref" value="<%= subscriptionVideoCard.href || '/content' %>" placeholder="/content" />
+          <small class="helper">Προεπιλογή: <code>/content</code>, η υπάρχουσα σελίδα συνδρομητικού περιεχομένου.</small>
+        </label>
+        <label><span>CTA (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSubscriptionVideoCtaLabel_el" value="<%= resolveField(subscriptionVideoCard.ctaLabel, 'el') %>" placeholder="ΔΕΣ ΠΕΡΙΣΣΟΤΕΡΑ" />
+          <input type="text" name="homepageSubscriptionVideoCtaLabel_en" value="<%= resolveField(subscriptionVideoCard.ctaLabel, 'en') %>" placeholder="SEE MORE" />
+        </label>
 
         <%# Hidden raw block order input — managed by the drag UI below %>
         <label style="display:none;">
@@ -1022,7 +1057,7 @@
           <label style="margin-top:10px;"><span>Logo / Brand badge <small style="font-weight:400;color:#94a3b8;">(κεντρικό στοιχείο intro)</small></span>
             <small class="helper">Χρησιμοποιεί αυτόματα το header banner ή το logo από το <a href="#tab-theme">Branding</a>. Για καλύτερο αποτέλεσμα, ανεβάστε PNG με διαφάνεια.</small>
           </label>
-          <% const _introEnterBtnUrlAdmin = (homepage.introEnterButtonUrl) || ''; %>
+          <% const _introEnterBtnUrlAdmin = (rawConfig.homepage && rawConfig.homepage.introEnterButtonUrl) || ''; %>
           <label style="margin-top:10px;"><span>Εικόνα κουμπιού εισόδου <small style="font-weight:400;color:#94a3b8;">(αντί κειμένου "ΜΠΕΣ ΣΤΟ ΚΑΤΑΣΤΗΜΑ")</small></span>
             <input type="text" name="homepageIntroEnterButtonUrl" value="<%= _introEnterBtnUrlAdmin %>" placeholder="/tenants/<%= tenant.id %>/media/enter-button.png" />
             <small class="helper">Ανεβάστε PNG εικόνα (ιδανικά με διαφάνεια) στο <a href="#tab-upload">Media</a>. Αν μείνει κενό, εμφανίζεται το default κουμπί με κείμενο.</small>
@@ -1261,6 +1296,7 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input type="checkbox" name="visible" checked /><span>Εμφάνιση κάρτας / κατηγορίας στο storefront</span></label>
           <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
           <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
           <label>
@@ -1277,24 +1313,25 @@
           <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
 
-        <form method="POST" action="<%= withTenantLink('/admin/categories/update') %>" class="admin-subform">
+        <form id="category-update-form" method="POST" action="<%= withTenantLink('/admin/categories/update') %>" class="admin-subform">
           <h3><%= t('admin.catUpdateTitle') %></h3>
-          <select name="categoryId">
+          <select id="category-update-id" name="categoryId">
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="text" name="name_el" placeholder="Νέο όνομα (Ελληνικά)" required />
-          <input type="text" name="name_en" placeholder="New name (English)" />
-          <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
-          <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
-          <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
+          <input id="category-update-name-el" type="text" name="name_el" placeholder="Νέο όνομα (Ελληνικά)" required />
+          <input id="category-update-name-en" type="text" name="name_en" placeholder="New name (English)" />
+          <input id="category-update-description-el" type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
+          <input id="category-update-description-en" type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input id="category-update-visible" type="checkbox" name="visible" /><span>Εμφάνιση κάρτας / κατηγορίας στο storefront</span></label>
+          <label class="checkbox-label"><input id="category-update-nav-visible" type="checkbox" name="showInMainNav" /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
+          <input id="category-update-order" type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
           <label>
-            <input type="text" name="slug" placeholder="Νέο slug URL (π.χ. tsantes)" required />
+            <input id="category-update-slug" type="text" name="slug" placeholder="Νέο slug URL (π.χ. tsantes)" required />
             <small class="helper">Χρησιμοποιείται στη διεύθυνση URL: /products/tsantes. Χρησιμοποιείτε μόνο λατινικούς χαρακτήρες, αριθμούς και παύλες.</small>
           </label>
-          <select name="parentId">
+          <select id="category-update-parent" name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
@@ -2088,6 +2125,10 @@
             <span><%= t('admin.modalFeatured') %></span>
           </label>
           <label style="flex-direction:row;align-items:center;gap:8px;">
+            <input type="checkbox" id="f-diy-project" style="width:auto;margin:0;" />
+            <span>Show in Latest DIY Projects</span>
+          </label>
+          <label style="flex-direction:row;align-items:center;gap:8px;">
             <input type="checkbox" id="f-active" style="width:auto;margin:0;" checked />
             <span>Visible on storefront</span>
           </label>
@@ -2264,6 +2305,45 @@
         selectFile:    '<%- t("admin.jsSelectFile") %>',
         enterPass:     '<%- t("admin.jsEnterPassword") %>'
       };
+      (function bindSubscriptionVideoPreview() {
+        const input = document.getElementById('homepage-subscription-video-image');
+        const preview = document.getElementById('homepage-subscription-video-preview');
+        if (!input || !preview) return;
+        const refresh = function() {
+          const value = input.value.trim();
+          preview.src = value;
+          preview.style.display = value ? 'block' : 'none';
+        };
+        input.addEventListener('input', refresh);
+      })();
+
+      // Keep the existing compact update form, but bind every editable value to
+      // the selected record so unrelated edits cannot reset checkbox state.
+      (function bindCategoryUpdateForm() {
+        const categories = <%- categoriesJsonScript %>;
+        const select = document.getElementById('category-update-id');
+        if (!select || !Array.isArray(categories)) return;
+        const field = function(id) { return document.getElementById(id); };
+        const localized = function(value, language) {
+          if (value && typeof value === 'object') return value[language] || '';
+          return language === 'el' ? String(value || '') : '';
+        };
+        const populate = function() {
+          const category = categories.find(function(item) { return item.id === select.value; });
+          if (!category) return;
+          field('category-update-name-el').value = localized(category.name, 'el');
+          field('category-update-name-en').value = localized(category.name, 'en');
+          field('category-update-description-el').value = localized(category.shortDescription, 'el');
+          field('category-update-description-en').value = localized(category.shortDescription, 'en');
+          field('category-update-slug').value = category.slug || '';
+          field('category-update-parent').value = category.parentId || '';
+          field('category-update-order').value = category.navOrder == null ? '' : category.navOrder;
+          field('category-update-visible').checked = category.visible !== false;
+          field('category-update-nav-visible').checked = category.showInMainNav !== false;
+        };
+        select.addEventListener('change', populate);
+        populate();
+      })();
 
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
@@ -2335,6 +2415,7 @@
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
+      const fDiyProject = document.getElementById('f-diy-project');
       const fActive     = document.getElementById('f-active');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
@@ -2844,6 +2925,7 @@
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
         if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
+        if (fDiyProject) fDiyProject.checked = false;
         if (fActive) fActive.checked = true;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
@@ -2872,6 +2954,7 @@
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
+        if (fDiyProject) fDiyProject.checked = !!p.diyProject || (Array.isArray(p.tags) && p.tags.includes('diy-project'));
         if (fActive) fActive.checked = p.active !== false;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
@@ -2920,6 +3003,7 @@
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
+          diyProject:     fDiyProject && fDiyProject.checked ? true : undefined,
           active:         fActive && !fActive.checked ? false : undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,

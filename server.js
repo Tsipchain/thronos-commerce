@@ -235,6 +235,7 @@ function normalizeCategoryRecord(rawCategory, index = 0) {
     slug: safeSlug,
     name: normalizedName,
     image: normalizeMediaPath(source.image),
+    visible: source.visible !== false,
     featured: source.featured === true,
     showInMainNav: normalizedShowInMainNav,
     navOrder
@@ -1152,6 +1153,13 @@ function loadTenantConfig(req) {
     paymentOptions: [],
     homepage: {
       showSubscriptionsCard: false,
+      subscriptionVideoCard: {
+        image: '',
+        title: { el: '', en: '' },
+        subtitle: { el: '', en: '' },
+        href: '/content',
+        ctaLabel: { el: '', en: '' }
+      },
       introEnabled: false,
       introVideoUrl: '',
       introPosterUrl: '',
@@ -1225,6 +1233,7 @@ function loadTenantConfig(req) {
       headerLayout: 'default',
       authPosition: 'right',
       menuStyle: 'classic',
+      headerMenuStyle: 'industrial_plates',
       heroStyle: 'soft',
       categoryMenuStyle: 'image_label',
       cardStyle: 'soft',
@@ -1266,6 +1275,12 @@ function loadTenantConfig(req) {
     { title: '', text: '', link: '', image: '' },
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
+  cfg.homepage.subscriptionVideoCard = Object.assign(
+    { image: '', title: { el: '', en: '' }, subtitle: { el: '', en: '' }, href: '/content', ctaLabel: { el: '', en: '' } },
+    (cfg.homepage && cfg.homepage.subscriptionVideoCard) || {}
+  );
+  cfg.homepage.subscriptionVideoCard.image = normalizeMediaPath(cfg.homepage.subscriptionVideoCard.image);
+  cfg.homepage.subscriptionVideoCard.href = String(cfg.homepage.subscriptionVideoCard.href || '/content').trim() || '/content';
   cfg.homepage.blockVisibility = Object.assign(
     { hero: true, kits: true, spare: true, subscriptions: true },
     (cfg.homepage && cfg.homepage.blockVisibility) || {}
@@ -1286,6 +1301,10 @@ function loadTenantConfig(req) {
   cfg.notifications = Object.assign({}, fallback.notifications, cfg.notifications || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
+  const requestedHeaderMenuStyle = String(cfg.theme.headerMenuStyle || '').trim();
+  cfg.theme.headerMenuStyle = ['clean', 'industrial_plates'].includes(requestedHeaderMenuStyle)
+    ? requestedHeaderMenuStyle
+    : (req.tenant && req.tenant.id === 'eukolakis' ? 'clean' : 'industrial_plates');
   cfg.theme.storefrontBgUrl = normalizeMediaPath(cfg.theme.storefrontBgUrl || '', { allowAbsoluteUrl: true });
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
   cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
@@ -2656,6 +2675,7 @@ function buildAdminViewModel(req, extra) {
     rawConfig: config,
     categories: categories.map((c) => localizeCategoryContent(c, contentLang)),
     rawCategories: categories,
+    categoriesJsonScript: safeJsonForScript(categories),
     products: products.map((p) => localizeProductContent(p, contentLang)),
     rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
@@ -4422,6 +4442,11 @@ app.post('/admin/settings', async (req, res) => {
     homepageSecondaryLink,
     homepageSecondaryImage,
     homepageShowSubscriptionsCard,
+    homepageSubscriptionVideoImage,
+    homepageSubscriptionVideoTitle,
+    homepageSubscriptionVideoSubtitle,
+    homepageSubscriptionVideoHref,
+    homepageSubscriptionVideoCtaLabel,
     homepageIntroEnabled,
     homepageIntroMode,
     homepageIntroTagline,
@@ -4459,6 +4484,7 @@ app.post('/admin/settings', async (req, res) => {
     themeHeaderLayout,
     themeAuthPosition,
     themeMenuStyle,
+    themeHeaderMenuStyle,
     themeHeroStyle,
     themeCategoryMenuStyle,
     themeCardStyle,
@@ -4552,6 +4578,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.menuStyle = ['classic', 'pills', 'compact'].includes(String(themeMenuStyle || '').trim())
     ? String(themeMenuStyle).trim()
     : (config.theme.menuStyle || 'classic');
+  config.theme.headerMenuStyle = ['clean', 'industrial_plates'].includes(String(themeHeaderMenuStyle || '').trim())
+    ? String(themeHeaderMenuStyle).trim()
+    : (config.theme.headerMenuStyle || (req.tenant.id === 'eukolakis' ? 'clean' : 'industrial_plates'));
   config.theme.heroStyle = themeHeroStyle || config.theme.heroStyle || 'soft';
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
@@ -4660,6 +4689,22 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.secondaryCard.image = normalizeMediaPath(homepageSecondaryImage);
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
+  config.homepage.subscriptionVideoCard = config.homepage.subscriptionVideoCard || {};
+  if (hasBodyField(req.body, 'homepageSubscriptionVideoImage')) {
+    config.homepage.subscriptionVideoCard.image = normalizeMediaPath(homepageSubscriptionVideoImage);
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoTitle_${lang}`))) {
+    config.homepage.subscriptionVideoCard.title = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoTitle', config.homepage.subscriptionVideoCard.title || '');
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoSubtitle_${lang}`))) {
+    config.homepage.subscriptionVideoCard.subtitle = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoSubtitle', config.homepage.subscriptionVideoCard.subtitle || '');
+  }
+  if (hasBodyField(req.body, 'homepageSubscriptionVideoHref')) {
+    config.homepage.subscriptionVideoCard.href = String(homepageSubscriptionVideoHref || '').trim() || '/content';
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoCtaLabel_${lang}`))) {
+    config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
+  }
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   if (hasBodyField(req.body, 'homepageIntroMode')) {
     const _validModes = ['basic', 'assembly', 'video', 'fullscreen'];
@@ -4923,7 +4968,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
+  const { password, id, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -4974,6 +5019,7 @@ app.post('/admin/categories/add', async (req, res) => {
   if (normalizedCategoryImage) newCat.image = normalizedCategoryImage;
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   newCat.showInMainNav = showInMainNav === 'on';
+  newCat.visible = visible === 'on';
   if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
   categories.push(newCat);
   saveTenantCategories(req, categories);
@@ -4985,7 +5031,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
+  const { password, categoryId, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -5068,6 +5114,7 @@ app.post('/admin/categories/update', async (req, res) => {
     }
   }
   categories[idx].showInMainNav = showInMainNav === 'on';
+  categories[idx].visible = visible === 'on';
   if (navOrder !== undefined && navOrder !== '') categories[idx].navOrder = Number(navOrder) || 0;
   saveTenantCategories(req, categories);
 
