@@ -1155,7 +1155,7 @@
       }
       /* Clean is a selectable presentation layer; the original plate rules above
          remain intact and are activated by .eko-header-industrial_plates. */
-      body.eko-header-clean .store-header { background:#090909 !important; min-height:0 !important; box-shadow:none !important; border-bottom:1px solid #242424 !important; backdrop-filter:none; }
+      body.eko-header-clean .store-header { position:static; top:auto; background:#090909 !important; min-height:0 !important; box-shadow:none !important; border-bottom:1px solid #242424 !important; backdrop-filter:none; }
       .header-logo-foreground-hidden .logo-title { /* stable mode hook used by theme previews */ }
       body.eko-header-clean .store-header::before,
       body.eko-header-clean .store-header::after,
@@ -1232,6 +1232,7 @@
     <% const useCodeTabs = isEukolakisClassic && String(theme.categoryMenuStyle || '').trim().toLowerCase() === 'code_tabs'; %>
     <% const hideMenuForHeroFocus = false; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
+    <% const storefrontCategories = categories.filter(function(c){ return c.visible !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
@@ -1480,7 +1481,7 @@
           <a class="eko-section-link" href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΔΕΣ ΟΛΕΣ ΤΙΣ ΚΑΤΗΓΟΡΙΕΣ' : 'SEE ALL CATEGORIES' %> &rarr;</a>
         </div>
         <div class="eko-cat-grid">
-          <% navCategories.forEach(function(cat) { %>
+          <% storefrontCategories.forEach(function(cat) { %>
           <a class="eko-cat-tile" data-cat-id="<%= cat.id %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image) { %>
               <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy"
@@ -1506,7 +1507,7 @@
 
       <% if (!isEukolakisClassic) { %>
       <section class="category-cards">
-        <% categories.forEach(function(cat) { %>
+        <% storefrontCategories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>

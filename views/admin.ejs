@@ -1029,7 +1029,7 @@
           <label style="margin-top:10px;"><span>Logo / Brand badge <small style="font-weight:400;color:#94a3b8;">(κεντρικό στοιχείο intro)</small></span>
             <small class="helper">Χρησιμοποιεί αυτόματα το header banner ή το logo από το <a href="#tab-theme">Branding</a>. Για καλύτερο αποτέλεσμα, ανεβάστε PNG με διαφάνεια.</small>
           </label>
-          <% const _introEnterBtnUrlAdmin = (homepage.introEnterButtonUrl) || ''; %>
+          <% const _introEnterBtnUrlAdmin = (rawConfig.homepage && rawConfig.homepage.introEnterButtonUrl) || ''; %>
           <label style="margin-top:10px;"><span>Εικόνα κουμπιού εισόδου <small style="font-weight:400;color:#94a3b8;">(αντί κειμένου "ΜΠΕΣ ΣΤΟ ΚΑΤΑΣΤΗΜΑ")</small></span>
             <input type="text" name="homepageIntroEnterButtonUrl" value="<%= _introEnterBtnUrlAdmin %>" placeholder="/tenants/<%= tenant.id %>/media/enter-button.png" />
             <small class="helper">Ανεβάστε PNG εικόνα (ιδανικά με διαφάνεια) στο <a href="#tab-upload">Media</a>. Αν μείνει κενό, εμφανίζεται το default κουμπί με κείμενο.</small>
@@ -1285,25 +1285,25 @@
           <button type="submit" class="button"><%= t('admin.catAddBtn') %></button>
         </form>
 
-        <form method="POST" action="<%= withTenantLink('/admin/categories/update') %>" class="admin-subform">
+        <form id="category-update-form" method="POST" action="<%= withTenantLink('/admin/categories/update') %>" class="admin-subform">
           <h3><%= t('admin.catUpdateTitle') %></h3>
-          <select name="categoryId">
+          <select id="category-update-id" name="categoryId">
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
             <% }) %>
           </select>
-          <input type="text" name="name_el" placeholder="Νέο όνομα (Ελληνικά)" required />
-          <input type="text" name="name_en" placeholder="New name (English)" />
-          <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
-          <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
-          <label class="checkbox-label"><input type="checkbox" name="visible" checked /><span>Εμφάνιση κάρτας / κατηγορίας στο storefront</span></label>
-          <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
-          <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
+          <input id="category-update-name-el" type="text" name="name_el" placeholder="Νέο όνομα (Ελληνικά)" required />
+          <input id="category-update-name-en" type="text" name="name_en" placeholder="New name (English)" />
+          <input id="category-update-description-el" type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
+          <input id="category-update-description-en" type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input id="category-update-visible" type="checkbox" name="visible" /><span>Εμφάνιση κάρτας / κατηγορίας στο storefront</span></label>
+          <label class="checkbox-label"><input id="category-update-nav-visible" type="checkbox" name="showInMainNav" /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
+          <input id="category-update-order" type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
           <label>
-            <input type="text" name="slug" placeholder="Νέο slug URL (π.χ. tsantes)" required />
+            <input id="category-update-slug" type="text" name="slug" placeholder="Νέο slug URL (π.χ. tsantes)" required />
             <small class="helper">Χρησιμοποιείται στη διεύθυνση URL: /products/tsantes. Χρησιμοποιείτε μόνο λατινικούς χαρακτήρες, αριθμούς και παύλες.</small>
           </label>
-          <select name="parentId">
+          <select id="category-update-parent" name="parentId">
             <option value=""><%= t('admin.catNoParent') %></option>
             <% categories.forEach(function(cat){ %>
               <option value="<%= cat.id %>"><%= cat.name %> (<%= cat.id %>)</option>
@@ -2277,6 +2277,34 @@
         selectFile:    '<%- t("admin.jsSelectFile") %>',
         enterPass:     '<%- t("admin.jsEnterPassword") %>'
       };
+
+      // Keep the existing compact update form, but bind every editable value to
+      // the selected record so unrelated edits cannot reset checkbox state.
+      (function bindCategoryUpdateForm() {
+        const categories = <%- categoriesJsonScript %>;
+        const select = document.getElementById('category-update-id');
+        if (!select || !Array.isArray(categories)) return;
+        const field = function(id) { return document.getElementById(id); };
+        const localized = function(value, language) {
+          if (value && typeof value === 'object') return value[language] || '';
+          return language === 'el' ? String(value || '') : '';
+        };
+        const populate = function() {
+          const category = categories.find(function(item) { return item.id === select.value; });
+          if (!category) return;
+          field('category-update-name-el').value = localized(category.name, 'el');
+          field('category-update-name-en').value = localized(category.name, 'en');
+          field('category-update-description-el').value = localized(category.shortDescription, 'el');
+          field('category-update-description-en').value = localized(category.shortDescription, 'en');
+          field('category-update-slug').value = category.slug || '';
+          field('category-update-parent').value = category.parentId || '';
+          field('category-update-order').value = category.navOrder == null ? '' : category.navOrder;
+          field('category-update-visible').checked = category.visible !== false;
+          field('category-update-nav-visible').checked = category.showInMainNav !== false;
+        };
+        select.addEventListener('change', populate);
+        populate();
+      })();
 
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);

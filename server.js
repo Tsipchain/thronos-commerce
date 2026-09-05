@@ -2662,6 +2662,7 @@ function buildAdminViewModel(req, extra) {
     rawConfig: config,
     categories: categories.map((c) => localizeCategoryContent(c, contentLang)),
     rawCategories: categories,
+    categoriesJsonScript: safeJsonForScript(categories),
     products: products.map((p) => localizeProductContent(p, contentLang)),
     rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
@@ -2795,7 +2796,7 @@ app.get('/', (req, res) => {
       const nextTarget = String(req.url || '/').trim() || '/';
       return res.redirect(buildTenantLink(req, '/intro', Object.assign({ next: nextTarget }, req.lang !== 'el' ? { lang: req.lang } : {})));
     }
-    const categories = loadTenantCategories(req).filter((category) => category.visible !== false);
+    const categories = loadTenantCategories(req);
     const allProducts = loadTenantProducts(req).filter((p) => p && p.active !== false);
     const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
       defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
