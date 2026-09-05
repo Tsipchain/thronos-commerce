@@ -188,6 +188,8 @@
       const count = cart.reduce(function(s, i) { return s + (i.qty || 1); }, 0);
       badge.textContent = count;
       badge.style.display = count ? 'flex' : 'none';
+      var hdrBadge = document.getElementById('eko-cart-badge');
+      if (hdrBadge) { hdrBadge.textContent = count; hdrBadge.style.display = count ? '' : 'none'; }
       if (!cart.length) {
         itemsEl.innerHTML = '';
         emptyMsg.style.display = '';

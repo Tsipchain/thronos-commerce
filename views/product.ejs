@@ -251,6 +251,56 @@
         color: var(--eko-text-strong);
         margin: 0;
       }
+      /* ── Header search + action icons ── */
+      .eko-header-actions {
+        display: flex; align-items: center; gap: 12px;
+        margin-left: auto; margin-right: 12px;
+      }
+      .eko-header-search {
+        display: flex; align-items: center;
+        background: var(--eko-surface-2); border: 1px solid var(--eko-border);
+        border-radius: 8px; overflow: hidden; transition: border-color .14s;
+      }
+      .eko-header-search:focus-within { border-color: var(--eko-accent); }
+      .eko-header-search input {
+        background: transparent; border: none; outline: none;
+        color: var(--eko-text); font-size: .82rem; padding: 7px 10px;
+        width: 160px; transition: width .2s;
+      }
+      .eko-header-search input::placeholder { color: var(--eko-text-muted); }
+      .eko-header-search input:focus { width: 220px; }
+      .eko-header-search button {
+        background: none; border: none; cursor: pointer;
+        padding: 6px 10px; color: var(--eko-text-muted);
+        display: flex; align-items: center; transition: color .14s;
+      }
+      .eko-header-search button:hover { color: var(--eko-accent); }
+      .eko-header-search button svg { width: 16px; height: 16px; fill: currentColor; }
+      .eko-header-icon-btn {
+        display: flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; border-radius: 8px;
+        background: var(--eko-surface-2); border: 1px solid var(--eko-border);
+        color: var(--eko-text-muted); cursor: pointer;
+        text-decoration: none; position: relative;
+        transition: border-color .14s, color .14s;
+      }
+      .eko-header-icon-btn:hover {
+        border-color: var(--eko-accent); color: var(--eko-accent);
+      }
+      .eko-header-icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+      .eko-header-icon-btn .eko-badge {
+        position: absolute; top: -4px; right: -4px;
+        min-width: 16px; height: 16px; border-radius: 999px;
+        background: var(--eko-accent); color: #fff;
+        font-size: .6rem; font-weight: 800; line-height: 16px;
+        text-align: center; padding: 0 4px;
+      }
+      @media (max-width: 600px) {
+        .eko-header-search input { width: 100px; }
+        .eko-header-search input:focus { width: 140px; }
+        .eko-header-actions { gap: 6px; margin-right: 6px; }
+      }
+
       body.eukolakis-classic .header-auth-actions {
         margin-left: auto !important;
         gap: 8px;
@@ -529,6 +579,19 @@
           <% } %>
         </div>
         <% if (isEukolakisClassic) { %>
+        <div class="eko-header-actions">
+          <form class="eko-header-search" action="<%= withTenantLink('/', {}) %>" method="GET">
+            <input type="search" name="q" placeholder="<%= lang === 'el' ? 'Αναζήτηση...' : 'Search...' %>" autocomplete="off" />
+            <button type="submit" aria-label="<%= lang === 'el' ? 'Αναζήτηση' : 'Search' %>"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></button>
+          </form>
+          <a class="eko-header-icon-btn" href="<%= withTenantLink(user ? '/account' : '/login', lang !== 'el' ? { lang } : {}) %>" title="<%= lang === 'el' ? 'Λογαριασμός' : 'Account' %>">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </a>
+          <a class="eko-header-icon-btn" href="<%= withTenantLink('/checkout', lang !== 'el' ? { lang } : {}) %>" title="<%= lang === 'el' ? 'Καλάθι' : 'Cart' %>">
+            <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0020 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            <span class="eko-badge" id="eko-cart-badge" style="display:none;">0</span>
+          </a>
+        </div>
         <div class="header-auth-actions">
           <% if (!user) { %>
             <a class="button" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
