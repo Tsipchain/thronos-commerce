@@ -355,14 +355,6 @@
           <small class="helper">Το όνομα που βλέπει ο πελάτης στο storefront.</small>
         </label>
 
-        <label><span>Κείμενο hero / Καλωσόρισμα</span>
-          <textarea name="heroText_el" rows="2" placeholder="Ελληνικά"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'el') %></textarea>
-          <textarea name="heroText_en" rows="2" placeholder="English"
-                    <%= permissions.canEditSettings ? '' : 'readonly' %>><%= resolveField(rawConfig.heroText, 'en') %></textarea>
-          <small class="helper">Σύντομο μήνυμα κάτω από τον τίτλο στο hero banner. Για πιο πλούσιο hero (εικόνα + τίτλος), χρησιμοποιήστε την ενότητα <a href="#tab-homepage">Homepage → Hero Banner</a>.</small>
-        </label>
-
         <label><span>Web3 Domain <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
           <input type="text" name="web3Domain" value="<%= config.web3Domain %>"
                  placeholder="π.χ. mystore.thr" <%= permissions.canEditSettings ? '' : 'readonly' %> />
@@ -701,14 +693,6 @@
             <option value="relaxed" <%= ((config.theme && config.theme.sectionSpacing) || '') === 'relaxed' ? 'selected' : '' %>>Relaxed — περισσότερος αέρας</option>
           </select>
         </label>
-        <label class="checkbox-label">
-          <input type="hidden" name="themeBannerVisible" value="0" />
-          <input type="checkbox" name="themeBannerVisible" value="1" <%= ((config.theme && config.theme.bannerVisible) !== false) ? 'checked' : '' %> <%= permissions.canEditSettings ? '' : 'disabled' %> />
-          <span>Εμφάνιση hero banner στην αρχική σελίδα<% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %> <small style="color:#ca8a04;font-weight:600;">(δεν εφαρμόζεται στο θέμα Eukolakis Classic)</small><% } %></span>
-        </label>
-        <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
-        <small class="helper" style="display:block;margin:-2px 0 10px 28px;">Στο θέμα <strong>Eukolakis Classic</strong> το hero banner ελέγχεται αποκλειστικά από <a href="#tab-homepage">Homepage → Ορατότητα Ενοτήτων → Εμφάνιση Hero</a>.</small>
-        <% } %>
         <label><span>Preview mode indicator style <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται μόνο σε preview)</small></span>
           <select name="themePreviewBadgeStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
             <option value="soft" <%= ((config.theme && config.theme.previewBadgeStyle) || 'soft') === 'soft' ? 'selected' : '' %>>Soft</option>
@@ -1038,6 +1022,17 @@
           <label style="margin-top:10px;"><span>Logo / Brand badge <small style="font-weight:400;color:#94a3b8;">(κεντρικό στοιχείο intro)</small></span>
             <small class="helper">Χρησιμοποιεί αυτόματα το header banner ή το logo από το <a href="#tab-theme">Branding</a>. Για καλύτερο αποτέλεσμα, ανεβάστε PNG με διαφάνεια.</small>
           </label>
+          <% const _introEnterBtnUrlAdmin = (homepage.introEnterButtonUrl) || ''; %>
+          <label style="margin-top:10px;"><span>Εικόνα κουμπιού εισόδου <small style="font-weight:400;color:#94a3b8;">(αντί κειμένου "ΜΠΕΣ ΣΤΟ ΚΑΤΑΣΤΗΜΑ")</small></span>
+            <input type="text" name="homepageIntroEnterButtonUrl" value="<%= _introEnterBtnUrlAdmin %>" placeholder="/tenants/<%= tenant.id %>/media/enter-button.png" />
+            <small class="helper">Ανεβάστε PNG εικόνα (ιδανικά με διαφάνεια) στο <a href="#tab-upload">Media</a>. Αν μείνει κενό, εμφανίζεται το default κουμπί με κείμενο.</small>
+          </label>
+          <% if (_introEnterBtnUrlAdmin) { %>
+          <div style="margin-top:6px;">
+            <img src="<%= _introEnterBtnUrlAdmin %>" alt="Enter button preview" style="height:60px;max-width:260px;object-fit:contain;border-radius:6px;border:1px solid #d1d5db;background:#1a1a1a;padding:4px;" onerror="this.style.display='none'" />
+            <small style="display:block;font-size:.72rem;color:#64748b;margin-top:2px;">Τρέχον κουμπί εισόδου</small>
+          </div>
+          <% } %>
         </div>
 
         <%# ── Video fields — shown always, note when irrelevant ── %>
@@ -1134,6 +1129,9 @@
         </label>
         <label><span>TikTok URL</span>
           <input type="text" name="footerTiktokUrl" value="<%= (rawConfig.footer && rawConfig.footer.tiktokUrl) || '' %>" placeholder="https://tiktok.com/@yourhandle" />
+        </label>
+        <label><span>YouTube URL</span>
+          <input type="text" name="footerYoutubeUrl" value="<%= (rawConfig.footer && rawConfig.footer.youtubeUrl) || '' %>" placeholder="https://youtube.com/@yourchannel" />
         </label>
         <p class="helper" style="margin-top:4px;">
           Το “Powered by” του footer ρυθμίζεται από το Root Admin στο

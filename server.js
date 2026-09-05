@@ -1299,6 +1299,7 @@ function loadTenantConfig(req) {
     : 'basic';
   cfg.homepage.introTagline = String(cfg.homepage.introTagline || '').trim();
   cfg.homepage.introBackgroundUrl = normalizeMediaPath(cfg.homepage.introBackgroundUrl || '', { allowAbsoluteUrl: true });
+  cfg.homepage.introEnterButtonUrl = normalizeMediaPath(cfg.homepage.introEnterButtonUrl || '', { allowAbsoluteUrl: true });
   cfg.homepage.blockOrder = Array.isArray(cfg.homepage.blockOrder)
     ? cfg.homepage.blockOrder.filter((key) => ['hero', 'kits', 'spare', 'subscriptions'].includes(String(key))).slice(0, 4)
     : ['hero', 'kits', 'spare', 'subscriptions'];
@@ -4445,6 +4446,7 @@ app.post('/admin/settings', async (req, res) => {
     footerFacebookUrl,
     footerInstagramUrl,
     footerTiktokUrl,
+    footerYoutubeUrl,
     web3Domain,
     logoPath,
     themeMenuBg,
@@ -4493,7 +4495,8 @@ app.post('/admin/settings', async (req, res) => {
     themeEnableDiyQuickScenario,
     themeKitWizardSkipRule,
     themeHomeLayoutPreset,
-    themeStorefrontBgUrl
+    themeStorefrontBgUrl,
+    homepageIntroEnterButtonUrl
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -4667,6 +4670,7 @@ app.post('/admin/settings', async (req, res) => {
   if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = normalizeMediaPath(homepageIntroVideoUrl, { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = normalizeMediaPath(homepageIntroPosterUrl, { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageIntroBackgroundUrl')) config.homepage.introBackgroundUrl = normalizeMediaPath(req.body.homepageIntroBackgroundUrl || '', { allowAbsoluteUrl: true });
+  if (hasBodyField(req.body, 'homepageIntroEnterButtonUrl')) config.homepage.introEnterButtonUrl = normalizeMediaPath(homepageIntroEnterButtonUrl || '', { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageBlockOrder')) {
     const parsedOrder = String(homepageBlockOrder || '')
       .split(',')
@@ -4698,6 +4702,7 @@ app.post('/admin/settings', async (req, res) => {
   config.footer.facebookUrl = (footerFacebookUrl || config.footer.facebookUrl || '').trim();
   config.footer.instagramUrl = (footerInstagramUrl || config.footer.instagramUrl || '').trim();
   config.footer.tiktokUrl = (footerTiktokUrl || config.footer.tiktokUrl || '').trim();
+  config.footer.youtubeUrl = (footerYoutubeUrl || config.footer.youtubeUrl || '').trim();
 
   saveTenantConfig(req, config);
 
