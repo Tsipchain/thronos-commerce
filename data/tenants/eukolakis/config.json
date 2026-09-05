@@ -94,8 +94,9 @@
     },
     "showSubscriptionsCard": true,
     "introEnabled": true,
-    "introMode": "assembly",
-    "introTagline": "Industrial DIY kits & ανταλλακτικά για ρολά και συρόμενα.",
+    "introMode": "fullscreen",
+    "introTagline": "DIY ΕΠΙΣΚΕΥΕΣ — ΦΤΙΑΞ' ΤΟ ΜΟΝΟΣ ΣΟΥ",
+    "introBackgroundUrl": "",
     "introVideoUrl": "",
     "introPosterUrl": ""
   },

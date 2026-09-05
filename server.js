@@ -1292,11 +1292,12 @@ function loadTenantConfig(req) {
   cfg.homepage.secondaryCard.link = String(cfg.homepage.secondaryCard.link || '').trim();
   cfg.homepage.introVideoUrl = normalizeMediaPath(cfg.homepage.introVideoUrl, { allowAbsoluteUrl: true });
   cfg.homepage.introPosterUrl = normalizeMediaPath(cfg.homepage.introPosterUrl, { allowAbsoluteUrl: true });
-  const introModes = new Set(['basic', 'assembly', 'video']);
+  const introModes = new Set(['basic', 'assembly', 'video', 'fullscreen']);
   cfg.homepage.introMode = introModes.has(String(cfg.homepage.introMode || '').trim().toLowerCase())
     ? String(cfg.homepage.introMode).trim().toLowerCase()
     : 'basic';
   cfg.homepage.introTagline = String(cfg.homepage.introTagline || '').trim();
+  cfg.homepage.introBackgroundUrl = normalizeMediaPath(cfg.homepage.introBackgroundUrl || '', { allowAbsoluteUrl: true });
   cfg.homepage.blockOrder = Array.isArray(cfg.homepage.blockOrder)
     ? cfg.homepage.blockOrder.filter((key) => ['hero', 'kits', 'spare', 'subscriptions'].includes(String(key))).slice(0, 4)
     : ['hero', 'kits', 'spare', 'subscriptions'];
@@ -4653,13 +4654,14 @@ app.post('/admin/settings', async (req, res) => {
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   if (hasBodyField(req.body, 'homepageIntroMode')) {
-    const _validModes = ['basic', 'assembly', 'video'];
+    const _validModes = ['basic', 'assembly', 'video', 'fullscreen'];
     const _m = String(homepageIntroMode || 'basic').trim().toLowerCase();
     config.homepage.introMode = _validModes.includes(_m) ? _m : 'basic';
   }
   if (hasBodyField(req.body, 'homepageIntroTagline')) config.homepage.introTagline = String(homepageIntroTagline || '').trim();
   if (hasBodyField(req.body, 'homepageIntroVideoUrl')) config.homepage.introVideoUrl = normalizeMediaPath(homepageIntroVideoUrl, { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = normalizeMediaPath(homepageIntroPosterUrl, { allowAbsoluteUrl: true });
+  if (hasBodyField(req.body, 'homepageIntroBackgroundUrl')) config.homepage.introBackgroundUrl = normalizeMediaPath(req.body.homepageIntroBackgroundUrl || '', { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageBlockOrder')) {
     const parsedOrder = String(homepageBlockOrder || '')
       .split(',')
