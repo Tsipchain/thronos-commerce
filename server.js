@@ -1286,6 +1286,7 @@ function loadTenantConfig(req) {
   cfg.notifications = Object.assign({}, fallback.notifications, cfg.notifications || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
+  cfg.theme.storefrontBgUrl = normalizeMediaPath(cfg.theme.storefrontBgUrl || '', { allowAbsoluteUrl: true });
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
   cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
   cfg.homepage.secondaryCard.image = normalizeMediaPath(cfg.homepage.secondaryCard.image);
@@ -4491,7 +4492,8 @@ app.post('/admin/settings', async (req, res) => {
     themeSpareToolsCardMode,
     themeEnableDiyQuickScenario,
     themeKitWizardSkipRule,
-    themeHomeLayoutPreset
+    themeHomeLayoutPreset,
+    themeStorefrontBgUrl
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -4598,6 +4600,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.homeLayoutPreset = ['split', 'stacked'].includes(String(themeHomeLayoutPreset || ''))
     ? String(themeHomeLayoutPreset)
     : (config.theme.homeLayoutPreset || 'split');
+  if (hasBodyField(req.body, 'themeStorefrontBgUrl')) {
+    config.theme.storefrontBgUrl = normalizeMediaPath(themeStorefrontBgUrl || '', { allowAbsoluteUrl: true });
+  }
   config.homepage = config.homepage || {};
   if (hasBodyField(req.body, 'homepageHeroImage')) {
     config.homepage.heroImage = normalizeMediaPath(homepageHeroImage);

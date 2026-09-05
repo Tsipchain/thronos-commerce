@@ -1083,6 +1083,22 @@
         .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
         .kit-wizard-body { grid-template-columns: 1fr; }
       }
+      <% const _sfBgUrl = (config.theme && config.theme.storefrontBgUrl) || ''; %>
+      <% if (_sfBgUrl) { %>
+      body.eukolakis-classic { background: transparent; }
+      body.eukolakis-classic::before {
+        content: '';
+        position: fixed; inset: 0; z-index: -1;
+        background: url('<%= _sfBgUrl %>') center/cover no-repeat fixed;
+      }
+      body.eukolakis-classic::after {
+        content: '';
+        position: fixed; inset: 0; z-index: -1;
+        background: rgba(11,13,18,.82);
+      }
+      body.eukolakis-classic main,
+      body.eukolakis-classic .store-footer { position: relative; z-index: 0; }
+      <% } %>
     </style>
   </head>
   <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">

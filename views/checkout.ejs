@@ -152,6 +152,19 @@
   
     <style>
       body.eukolakis-classic .checkout-compact-logo { max-height:34px; object-fit:contain; }
+      <% const _sfBgUrl = (config.theme && config.theme.storefrontBgUrl) || ''; %>
+      <% if (_sfBgUrl) { %>
+      body.eukolakis-classic::before {
+        content: '';
+        position: fixed; inset: 0; z-index: -1;
+        background: url('<%= _sfBgUrl %>') center/cover no-repeat fixed;
+      }
+      body.eukolakis-classic::after {
+        content: '';
+        position: fixed; inset: 0; z-index: -1;
+        background: rgba(11,13,18,.82);
+      }
+      <% } %>
     </style>
 
 </head>

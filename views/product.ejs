@@ -454,6 +454,22 @@
         body.eukolakis-classic .eko-header-bg-logo { inset: 8px 8% 52px; }
         body.eukolakis-classic .eko-header-bg-logo img { opacity: .16; }
       }
+      <% const _sfBgUrl = (config.theme && config.theme.storefrontBgUrl) || ''; %>
+      <% if (_sfBgUrl) { %>
+      body.eukolakis-classic { background: transparent; }
+      body.eukolakis-classic::before {
+        content: '';
+        position: fixed; inset: 0; z-index: -1;
+        background: url('<%= _sfBgUrl %>') center/cover no-repeat fixed;
+      }
+      body.eukolakis-classic::after {
+        content: '';
+        position: fixed; inset: 0; z-index: -1;
+        background: rgba(11,13,18,.82);
+      }
+      body.eukolakis-classic main,
+      body.eukolakis-classic .store-footer { position: relative; z-index: 0; }
+      <% } %>
     </style>
     <%
       const _offers = [];
