@@ -983,9 +983,10 @@
         <%# ── Mode selector ── %>
         <label><span>Τύπος εισαγωγής</span>
           <select name="homepageIntroMode">
-            <option value="basic"    <%= _introMode === 'basic'    ? 'selected' : '' %>>Απλό splash — logo + μήνυμα καλωσορίσματος</option>
-            <option value="assembly" <%= _introMode === 'assembly' ? 'selected' : '' %>>Montage — τα στοιχεία ασσεμπλάρονται στην οθόνη</option>
-            <option value="video"    <%= _introMode === 'video'    ? 'selected' : '' %>>Βίντεο — αναπαραγωγή βίντεο εισαγωγής</option>
+            <option value="basic"      <%= _introMode === 'basic'      ? 'selected' : '' %>>Απλό splash — logo + μήνυμα καλωσορίσματος</option>
+            <option value="assembly"   <%= _introMode === 'assembly'   ? 'selected' : '' %>>Montage — τα στοιχεία ασσεμπλάρονται στην οθόνη</option>
+            <option value="video"      <%= _introMode === 'video'      ? 'selected' : '' %>>Βίντεο — αναπαραγωγή βίντεο εισαγωγής</option>
+            <option value="fullscreen" <%= _introMode === 'fullscreen' ? 'selected' : '' %>>Fullscreen — πλήρης οθόνη με background + logo + loading bar</option>
           </select>
           <small class="helper">
             <strong>Απλό splash</strong>: logo + όνομα + μήνυμα.&nbsp;
