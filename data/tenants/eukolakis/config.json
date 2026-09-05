@@ -72,6 +72,7 @@
     "logoShadow": "floating",
     "logoMaxHeight": 56,
     "presetId": "eukolakis_classic_diy",
+    "headerMenuStyle": "clean",
     "colorMode": "dark"
   },
   "homepage": {

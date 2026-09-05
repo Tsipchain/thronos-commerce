@@ -1153,6 +1153,49 @@
         .kit-wizard-modal { border-radius: 0; max-height: 100vh; height: 100vh; }
         .kit-wizard-body { grid-template-columns: 1fr; }
       }
+      /* Clean is a selectable presentation layer; the original plate rules above
+         remain intact and are activated by .eko-header-industrial_plates. */
+      body.eko-header-clean .store-header { position:static; top:auto; background:#090909 !important; min-height:0 !important; box-shadow:none !important; border-bottom:1px solid #242424 !important; backdrop-filter:none; }
+      .header-logo-foreground-hidden .logo-title { /* stable mode hook used by theme previews */ }
+      body.eko-header-clean .store-header::before,
+      body.eko-header-clean .store-header::after,
+      body.eko-header-clean .eko-header-bg-logo { display:none !important; content:none !important; }
+      body.eko-header-clean .header-main-row { max-width:1440px; margin:auto; padding:8px 22px; min-height:54px; flex-wrap:nowrap; }
+      body.eko-header-clean .header-mode-toggle-slot,
+      body.eko-header-clean .header-auth-actions { display:none !important; }
+      body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:150px; }
+      body.eko-header-clean .eko-header-compact-logo img { height:34px; max-width:130px; }
+      body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
+      body.eko-header-clean .header-nav-row { max-width:1440px; margin:-54px auto 0; min-height:54px; padding:0 390px 0 190px; border:0; background:transparent; pointer-events:none; }
+      body.eko-header-clean .header-nav-row .main-nav { padding:0; background:transparent; pointer-events:auto; }
+      body.eko-header-clean .header-nav-row ul { justify-content:center; gap:24px; overflow:visible; }
+      body.eko-header-clean .header-nav-row ul li a { min-width:0; padding:18px 0; border:0; border-radius:0; background:none; box-shadow:none; color:#f5f5f5; font-size:.73rem; letter-spacing:.045em; }
+      body.eko-header-clean .header-nav-row ul li a::before,
+      body.eko-header-clean .header-nav-row ul li a::after { display:none !important; content:none !important; animation:none !important; }
+      body.eko-header-clean .header-nav-row ul li a:hover,
+      body.eko-header-clean .header-nav-row ul li.active a { color:var(--eko-accent); background:none; transform:none; box-shadow:none; }
+      body.eko-header-clean .eko-header-actions { margin-left:auto; z-index:3; }
+      body.eko-header-clean .eko-header-icon-btn { border-color:#333; background:#111; }
+      body.eko-header-clean .eko-hero { margin:0 calc(50% - 50vw) 28px; border:0; border-radius:0; }
+      body.eko-header-clean .eko-hero-img { height:clamp(360px,48vw,680px); object-fit:cover; }
+      .eko-account-utility { margin:28px auto 0; padding:18px; display:flex; justify-content:center; align-items:center; gap:12px; border-top:1px solid var(--eko-border); color:var(--eko-text-muted); }
+      .eko-account-utility a { color:var(--eko-accent); text-decoration:none; font-size:.82rem; font-weight:700; }
+      @media (max-width:1050px) {
+        body.eko-header-clean .header-nav-row { margin:0; padding:0 14px; min-height:0; pointer-events:auto; }
+        body.eko-header-clean .menu-toggle { display:block; margin:8px 14px; background:#151515; color:#fff; border:1px solid #333; }
+        body.eko-header-clean .main-nav { display:none; }
+        body.eko-header-clean .main-nav.open { display:block; }
+        body.eko-header-clean .header-nav-row ul { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 18px; }
+        body.eko-header-clean .header-nav-row ul li a { padding:12px 0; }
+      }
+      @media (max-width:600px) {
+        body.eko-header-clean .header-main-row { padding:8px 10px; gap:7px; overflow:hidden; }
+        body.eko-header-clean .eko-header-compact-logo { min-width:0; flex:1; }
+        body.eko-header-clean .eko-header-compact-logo .eko-compact-name { display:none; }
+        body.eko-header-clean .eko-header-search { display:none; }
+        body.eko-header-clean .eko-header-actions { flex:0 0 auto; margin:0; }
+        body.eko-header-clean .eko-hero-img { height:clamp(220px,62vw,360px); }
+      }
       <% const _sfBgUrl = (config.theme && config.theme.storefrontBgUrl) || ''; %>
       <% if (_sfBgUrl) { %>
       body.eukolakis-classic { background: transparent; }
@@ -1171,7 +1214,7 @@
       <% } %>
     </style>
   </head>
-  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? 'eukolakis-classic' : '' %>" id="eko-body">
+  <body class="device-<%= device || 'desktop' %> os-<%= os || 'other' %> card-density-<%= ((config.theme && config.theme.cardDensity) || 'normal') %> home-layout-<%= ((config.theme && config.theme.homeLayoutPreset) || 'split') %> <%= config.theme && config.theme.presetId === 'eukolakis_classic_diy' ? ('eukolakis-classic eko-header-' + ((config.theme && config.theme.headerMenuStyle) || 'clean')) : '' %>" id="eko-body">
     <% const theme = config.theme || {}; %>
     <% const homepage = config.homepage || {}; %>
     <% const assetAudit = storefrontAssetAudit || {}; %>
@@ -1185,9 +1228,11 @@
     <% const topPrimaryKit1 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[0]; }) || (allProducts || products).find(function(p){ return p.type === 'KIT'; }); %>
     <% const topPrimaryKit2 = (allProducts || products).find(function(p){ return p.id === topFeaturedPrimary[1]; }) || (allProducts || products).filter(function(p){ return p.type === 'KIT'; })[1]; %>
     <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const isCleanHeader = isEukolakisClassic && theme.headerMenuStyle !== 'industrial_plates'; %>
     <% const useCodeTabs = isEukolakisClassic && String(theme.categoryMenuStyle || '').trim().toLowerCase() === 'code_tabs'; %>
     <% const hideMenuForHeroFocus = false; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
+    <% const storefrontCategories = categories.filter(function(c){ return c.visible !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
@@ -1210,7 +1255,7 @@
     <% const menuStyle = ['classic', 'pills', 'compact'].includes(theme.menuStyle) ? theme.menuStyle : 'classic'; %>
     <% const safeJson = function(value){ return JSON.stringify(value).replace(/</g, '\\u003c').replace(/-->/g, '--\\u003e').replace(/<\/script/gi, '<\\/script'); }; %>
     <% const ekoHeroMode = isEukolakisClassic ? String((theme.headerHeroHomepage || 'centered-background')) : 'off'; %>
-    <% const ekoHeroEnabled = isEukolakisClassic ? (ekoHeroMode !== 'off') : false; %>
+    <% const ekoHeroEnabled = isEukolakisClassic && !isCleanHeader ? (ekoHeroMode !== 'off') : false; %>
     <% const ekoHeroOpacity = Number(theme.headerHeroLogoOpacity != null ? theme.headerHeroLogoOpacity : 0.22); %>
     <% const ekoFgMode = isEukolakisClassic ? String((theme.headerFgHomepage || 'hidden')) : 'normal'; %>
     <% const ekoFgMaxHeight = Math.max(28, Math.min(120, Number(theme.headerForegroundLogoMaxHeight || 42))); %>
@@ -1219,7 +1264,7 @@
         <div class="eko-header-bg-logo" aria-hidden="true"><img src="<%= headerBrandAssetSrc %>" alt="" /></div>
       <% } %>
       <div class="header-main-row">
-      <% if (isEukolakisClassic) { %><div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div><% } %>
+      <% if (isEukolakisClassic && !isCleanHeader) { %><div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div><% } %>
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (isEukolakisClassic) { %>
           <a class="eko-header-compact-logo" href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>">
@@ -1266,7 +1311,7 @@
         </button>
         <% } %>
       </div>
-      <div class="header-auth-actions">
+      <% if (!isCleanHeader) { %><div class="header-auth-actions">
         <% if (!user) { %>
           <a class="button" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
           <a class="button" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Εγγραφή' : 'Signup' %></a>
@@ -1274,7 +1319,7 @@
           <a class="button" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο Λογαριασμός μου' : 'My Account' %></a>
           <a class="button" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
         <% } %>
-      </div>
+      </div><% } %>
       <% } %>
       </div>
       <% if (!hideMenuForHeroFocus) { %>
@@ -1282,6 +1327,7 @@
       <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
       <nav class="main-nav menu-style-<%= menuStyle %>" id="main-nav">
         <ul>
+          <% if (isCleanHeader) { %><li class="<%= !activeCategory ? 'active' : '' %>"><a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΑΡΧΙΚΗ' : 'HOME' %></a></li><% } %>
           <% if (!isEukolakisClassic) { %>
           <li class="<%= !activeCategory ? 'active' : '' %>">
             <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
@@ -1291,7 +1337,7 @@
             <% if (!isEukolakisClassic && theme.categoryMenuStyle && theme.categoryMenuStyle !== 'text') { return; } %>
             <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-                <% if (isEukolakisClassic && !useCodeTabs) { %>
+                <% if (isEukolakisClassic && !isCleanHeader && !useCodeTabs) { %>
                   <% if (cat.image) { %>
                     <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy"
                       onerror="this.style.display='none';var nx=this.nextElementSibling;if(nx)nx.style.display='inline-flex';" />
@@ -1435,7 +1481,7 @@
           <a class="eko-section-link" href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΔΕΣ ΟΛΕΣ ΤΙΣ ΚΑΤΗΓΟΡΙΕΣ' : 'SEE ALL CATEGORIES' %> &rarr;</a>
         </div>
         <div class="eko-cat-grid">
-          <% navCategories.forEach(function(cat) { %>
+          <% storefrontCategories.forEach(function(cat) { %>
           <a class="eko-cat-tile" data-cat-id="<%= cat.id %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image) { %>
               <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy"
@@ -1461,7 +1507,7 @@
 
       <% if (!isEukolakisClassic) { %>
       <section class="category-cards">
-        <% categories.forEach(function(cat) { %>
+        <% storefrontCategories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
@@ -1595,7 +1641,7 @@
 
       <%/* ── DIY Projects section — uses products tagged with diyProject flag or recent KIT products ── */%>
       <% const diyProjects = (allProducts || products).filter(function(p) { return p.diyProject || (p.tags && p.tags.indexOf('diy-project') !== -1); }).slice(0, 4); %>
-      <% const showProjectsSection = diyProjects.length > 0 || isEukolakisClassic; %>
+      <% const showProjectsSection = diyProjects.length > 0; %>
       <% if (showProjectsSection) { %>
       <section class="eko-projects-section">
         <div class="eko-section-header">
@@ -1618,10 +1664,6 @@
             </div>
           </a>
           <% }); %>
-        </div>
-        <% } else { %>
-        <div class="eko-hint-box" style="text-align:center;padding:20px;">
-          <p><%= lang === 'el' ? 'Προσθέστε DIY projects (tag: diy-project) στα προϊόντα σας για να εμφανιστούν εδώ.' : 'Add DIY projects (tag: diy-project) to your products to show them here.' %></p>
         </div>
         <% } %>
       </section>
@@ -1711,6 +1753,17 @@
       </div>
       <% } %>
     </main>
+    <% if (isEukolakisClassic) { %>
+    <nav class="eko-account-utility" aria-label="<%= lang === 'el' ? 'Λογαριασμός' : 'Account' %>">
+      <% if (!user) { %>
+        <a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a><span aria-hidden="true">·</span>
+        <a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δημιουργία λογαριασμού' : 'Create account' %></a>
+      <% } else { %>
+        <a href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο λογαριασμός μου' : 'My account' %></a><span aria-hidden="true">·</span>
+        <a href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
+      <% } %>
+    </nav>
+    <% } %>
     <% if (isEukolakisClassic) { %>
     <div id="kit-wizard-backdrop" class="kit-wizard-backdrop" data-wizard-display="<%= ((config.theme && config.theme.kitWizardDisplay) || 'sequential') %>" aria-hidden="true">
       <div class="kit-wizard-modal" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Οδηγός kit' : 'Kit wizard' %>">

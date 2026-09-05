@@ -12,7 +12,8 @@
       "menuText": "#ffffff",
       "menuActiveBg": "#f06292",
       "menuActiveText": "#ffffff",
-      "buttonRadius": "4px"
+      "buttonRadius": "4px",
+      "headerMenuStyle": "clean"
     }
   }
 }
