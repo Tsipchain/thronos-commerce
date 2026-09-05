@@ -235,6 +235,7 @@ function normalizeCategoryRecord(rawCategory, index = 0) {
     slug: safeSlug,
     name: normalizedName,
     image: normalizeMediaPath(source.image),
+    visible: source.visible !== false,
     featured: source.featured === true,
     showInMainNav: normalizedShowInMainNav,
     navOrder
@@ -1225,6 +1226,7 @@ function loadTenantConfig(req) {
       headerLayout: 'default',
       authPosition: 'right',
       menuStyle: 'classic',
+      headerMenuStyle: 'industrial_plates',
       heroStyle: 'soft',
       categoryMenuStyle: 'image_label',
       cardStyle: 'soft',
@@ -1286,6 +1288,10 @@ function loadTenantConfig(req) {
   cfg.notifications = Object.assign({}, fallback.notifications, cfg.notifications || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
+  const requestedHeaderMenuStyle = String(cfg.theme.headerMenuStyle || '').trim();
+  cfg.theme.headerMenuStyle = ['clean', 'industrial_plates'].includes(requestedHeaderMenuStyle)
+    ? requestedHeaderMenuStyle
+    : (req.tenant && req.tenant.id === 'eukolakis' ? 'clean' : 'industrial_plates');
   cfg.theme.storefrontBgUrl = normalizeMediaPath(cfg.theme.storefrontBgUrl || '', { allowAbsoluteUrl: true });
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
   cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
@@ -2789,7 +2795,7 @@ app.get('/', (req, res) => {
       const nextTarget = String(req.url || '/').trim() || '/';
       return res.redirect(buildTenantLink(req, '/intro', Object.assign({ next: nextTarget }, req.lang !== 'el' ? { lang: req.lang } : {})));
     }
-    const categories = loadTenantCategories(req);
+    const categories = loadTenantCategories(req).filter((category) => category.visible !== false);
     const allProducts = loadTenantProducts(req).filter((p) => p && p.active !== false);
     const hydratedAllProducts = allProducts.map((p) => hydrateKitProduct(p, allProducts, req.lang, {
       defaultPartsOnly: shouldDefaultPartsOnly(req.tenant, config)
@@ -4459,6 +4465,7 @@ app.post('/admin/settings', async (req, res) => {
     themeHeaderLayout,
     themeAuthPosition,
     themeMenuStyle,
+    themeHeaderMenuStyle,
     themeHeroStyle,
     themeCategoryMenuStyle,
     themeCardStyle,
@@ -4552,6 +4559,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.menuStyle = ['classic', 'pills', 'compact'].includes(String(themeMenuStyle || '').trim())
     ? String(themeMenuStyle).trim()
     : (config.theme.menuStyle || 'classic');
+  config.theme.headerMenuStyle = ['clean', 'industrial_plates'].includes(String(themeHeaderMenuStyle || '').trim())
+    ? String(themeHeaderMenuStyle).trim()
+    : (config.theme.headerMenuStyle || (req.tenant.id === 'eukolakis' ? 'clean' : 'industrial_plates'));
   config.theme.heroStyle = themeHeroStyle || config.theme.heroStyle || 'soft';
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
@@ -4923,7 +4933,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
+  const { password, id, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -4974,6 +4984,7 @@ app.post('/admin/categories/add', async (req, res) => {
   if (normalizedCategoryImage) newCat.image = normalizedCategoryImage;
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   newCat.showInMainNav = showInMainNav === 'on';
+  newCat.visible = visible === 'on';
   if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
   categories.push(newCat);
   saveTenantCategories(req, categories);
@@ -4985,7 +4996,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
+  const { password, categoryId, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -5068,6 +5079,7 @@ app.post('/admin/categories/update', async (req, res) => {
     }
   }
   categories[idx].showInMainNav = showInMainNav === 'on';
+  categories[idx].visible = visible === 'on';
   if (navOrder !== undefined && navOrder !== '') categories[idx].navOrder = Number(navOrder) || 0;
   saveTenantCategories(req, categories);
 

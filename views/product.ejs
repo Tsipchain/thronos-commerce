@@ -484,6 +484,27 @@
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-name { font-size: .72rem; }
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-sub { font-size: .48rem; }
       }
+      body.eko-header-clean .store-header { background:#090909 !important; border-bottom:1px solid #242424 !important; box-shadow:none !important; }
+      body.eko-header-clean .store-header::before,
+      body.eko-header-clean .store-header::after,
+      body.eko-header-clean .eko-header-bg-logo { display:none !important; content:none !important; }
+      body.eko-header-clean .header-main-row { max-width:1440px; min-height:54px; padding:8px 22px; }
+      body.eko-header-clean .header-auth-actions { display:none !important; }
+      body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
+      body.eko-header-clean .header-nav-row { background:#090909; border-top:1px solid #1d1d1d; }
+      body.eko-header-clean .header-nav-row .main-nav { max-width:1440px; }
+      body.eko-header-clean .header-nav-row .main-nav ul { justify-content:center; gap:24px; }
+      body.eko-header-clean .header-nav-row li a { background:none !important; border:0 !important; box-shadow:none !important; min-width:0 !important; padding:12px 0 !important; }
+      body.eko-header-clean .header-nav-row li a::before,
+      body.eko-header-clean .header-nav-row li a::after,
+      body.eko-header-clean .eko-nav-plate-fallback { display:none !important; content:none !important; animation:none !important; }
+      @media (max-width:600px) {
+        body.eko-header-clean .header-main-row { padding:8px 10px; overflow:hidden; }
+        body.eko-header-clean .eko-header-search { display:none; }
+        body.eko-header-clean .eko-header-actions { flex:0 0 auto; margin:0; }
+        body.eko-header-clean .eko-header-compact-logo .eko-compact-name { display:none; }
+        body.eko-header-clean .header-nav-row .main-nav ul { gap:18px; overflow-x:auto; justify-content:flex-start; }
+      }
       <% const _sfBgUrl = (config.theme && config.theme.storefrontBgUrl) || ''; %>
       <% if (_sfBgUrl) { %>
       body.eukolakis-classic { background: transparent; }
@@ -534,9 +555,10 @@
     %>
     <script type="application/ld+json"><%- JSON.stringify(_ldJson, null, 2) %></script>
   </head>
-  <body class="<%= (config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'eukolakis-classic' : '' %>">
+  <body class="<%= (config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? ('eukolakis-classic eko-header-' + ((config.theme && config.theme.headerMenuStyle) || 'clean')) : '' %>">
     <% const theme = config.theme || {}; %>
     <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
+    <% const isCleanHeader = isEukolakisClassic && theme.headerMenuStyle !== 'industrial_plates'; %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
@@ -549,7 +571,7 @@
     <% const navMenuPlateAudit = Array.isArray(productAssetAudit.navMenuPlates) ? productAssetAudit.navMenuPlates : []; %>
     <% const navPlateExistsByUrl = navMenuPlateAudit.reduce(function(acc, item){ if (item && item.url) acc[item.url] = !!item.exists; return acc; }, {}); %>
     <% const ekoHeroMode = isEukolakisClassic ? String((theme.headerHeroProduct || 'centered-background')) : 'off'; %>
-    <% const ekoHeroEnabled = isEukolakisClassic ? (ekoHeroMode !== 'off') : false; %>
+    <% const ekoHeroEnabled = isEukolakisClassic && !isCleanHeader ? (ekoHeroMode !== 'off') : false; %>
     <% const ekoHeroOpacity = Number(theme.headerHeroLogoOpacity != null ? theme.headerHeroLogoOpacity : 0.22); %>
     <% const ekoFgMode = isEukolakisClassic ? String((theme.headerFgProduct || 'badge-right')) : 'normal'; %>
     <% const ekoFgMaxHeight = Math.max(28, Math.min(120, Number(theme.headerForegroundLogoMaxHeight || 42))); %>
@@ -592,7 +614,7 @@
             <span class="eko-badge" id="eko-cart-badge" style="display:none;">0</span>
           </a>
         </div>
-        <div class="header-auth-actions">
+        <% if (!isCleanHeader) { %><div class="header-auth-actions">
           <% if (!user) { %>
             <a class="button" href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Σύνδεση' : 'Login' %></a>
             <a class="button" href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Εγγραφή' : 'Signup' %></a>
@@ -600,7 +622,7 @@
             <a class="button" href="<%= withTenantLink('/account', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Ο Λογαριασμός μου' : 'My Account' %></a>
             <a class="button" href="<%= withTenantLink('/logout', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Αποσύνδεση' : 'Logout' %></a>
           <% } %>
-        </div>
+        </div><% } %>
         <% } else { %>
         <div class="header-auth-links">
           <% if (!user) { %>
@@ -623,9 +645,10 @@
       <div class="header-nav-row">
         <nav class="main-nav open">
           <ul>
+            <% if (isCleanHeader) { %><li><a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΑΡΧΙΚΗ' : 'HOME' %></a></li><% } %>
             <% navCategories.forEach(function(cat) { %>
               <% const catLabel = (typeof cat.name === 'string') ? cat.name : (resolveField(cat.name, lang) || resolveField(cat.name, 'el') || resolveField(cat.name, 'en') || cat.id || cat.slug || 'CAT'); %>
-              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="" style="width:28px;height:20px;border-radius:4px;object-fit:cover;border:1px solid rgba(196,144,46,.26);" /><% } else { %><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><% } %><%= catLabel %></a></li>
+              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><% if (!isCleanHeader && cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="" style="width:28px;height:20px;border-radius:4px;object-fit:cover;border:1px solid rgba(196,144,46,.26);" /><% } else if (!isCleanHeader) { %><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><% } %><%= catLabel %></a></li>
             <% }) %>
           </ul>
         </nav>

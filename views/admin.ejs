@@ -363,7 +363,14 @@
 
         <h3 class="settings-section-heading">Χρώματα & Τυπογραφία <% if (!supportsColors) { %><small style="color:#ca8a04;font-weight:600;">(περιορισμένη επίδραση στο τρέχον theme)</small><% } %></h3>
         <% if (config.theme && config.theme.presetId === 'eukolakis_classic_diy') { %>
-        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> χρησιμοποιεί σταθερό βιομηχανικό header. Τα <strong>χρώματα μενού</strong> δεν εφαρμόζονται (βλ. παρακάτω). Το <strong>Primary & Accent color</strong> επηρεάζουν κουμπιά, links και δευτερεύοντα στοιχεία — εφαρμόζονται κανονικά.</p>
+        <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> υποστηρίζει clean και βιομηχανικό header. Το <strong>Primary & Accent color</strong> επηρεάζουν κουμπιά, links και δευτερεύοντα στοιχεία.</p>
+        <label><span>Στυλ header / μενού</span>
+          <select name="themeHeaderMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
+            <option value="clean" <%= ((config.theme && config.theme.headerMenuStyle) || 'clean') === 'clean' ? 'selected' : '' %>>Clean — compact black ecommerce header</option>
+            <option value="industrial_plates" <%= (config.theme && config.theme.headerMenuStyle) === 'industrial_plates' ? 'selected' : '' %>>Industrial plates — rivets / metallic navigation</option>
+          </select>
+          <small class="helper">Το clean είναι το προεπιλεγμένο για Eukolakis. Το industrial_plates παραμένει διαθέσιμο ως επαναχρησιμοποιήσιμο style.</small>
+        </label>
         <% } %>
 
         <label><span><%= t('admin.primaryColor') %></span>
@@ -1261,6 +1268,7 @@
           <input type="text" name="name_en" placeholder="Name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input type="checkbox" name="visible" checked /><span>Εμφάνιση κάρτας / κατηγορίας στο storefront</span></label>
           <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
           <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
           <label>
@@ -1288,6 +1296,7 @@
           <input type="text" name="name_en" placeholder="New name (English)" />
           <input type="text" name="shortDescription_el" placeholder="Σύντομη περιγραφή (Ελληνικά)" />
           <input type="text" name="shortDescription_en" placeholder="Short description (English)" />
+          <label class="checkbox-label"><input type="checkbox" name="visible" checked /><span>Εμφάνιση κάρτας / κατηγορίας στο storefront</span></label>
           <label class="checkbox-label"><input type="checkbox" name="showInMainNav" checked /><span>Εμφάνιση στο μενού πλοήγησης του καταστήματος</span></label>
           <input type="number" name="navOrder" placeholder="Σειρά στο μενού (π.χ. 1, 2, 3 — το 1 εμφανίζεται πρώτο)" />
           <label>
@@ -2088,6 +2097,10 @@
             <span><%= t('admin.modalFeatured') %></span>
           </label>
           <label style="flex-direction:row;align-items:center;gap:8px;">
+            <input type="checkbox" id="f-diy-project" style="width:auto;margin:0;" />
+            <span>Show in Latest DIY Projects</span>
+          </label>
+          <label style="flex-direction:row;align-items:center;gap:8px;">
             <input type="checkbox" id="f-active" style="width:auto;margin:0;" checked />
             <span>Visible on storefront</span>
           </label>
@@ -2335,6 +2348,7 @@
       const fPrice      = document.getElementById('f-price');
       const fStock      = document.getElementById('f-stock');
       const fFeatured   = document.getElementById('f-featured');
+      const fDiyProject = document.getElementById('f-diy-project');
       const fActive     = document.getElementById('f-active');
       const fCat        = document.getElementById('f-category');
       const fImg        = document.getElementById('f-imageUrl');
@@ -2844,6 +2858,7 @@
         fNameEl.value = ''; fNameEn.value = ''; fId.value = ''; fSku.value = '';
         if (fType) fType.value = 'NORMAL';
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
+        if (fDiyProject) fDiyProject.checked = false;
         if (fActive) fActive.checked = true;
         fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
@@ -2872,6 +2887,7 @@
         fPrice.value      = p.price !== undefined ? p.price : '';
         fStock.value      = p.stock !== undefined ? p.stock : '';
         fFeatured.checked = !!p.featured;
+        if (fDiyProject) fDiyProject.checked = !!p.diyProject || (Array.isArray(p.tags) && p.tags.includes('diy-project'));
         if (fActive) fActive.checked = p.active !== false;
         fCat.value        = p.categoryId || '';
         fImg.value        = p.imageUrl || '';
@@ -2920,6 +2936,7 @@
           price:          parseFloat(fPrice.value) || 0,
           stock:          parseInt(fStock.value, 10) || 0,
           featured:       fFeatured.checked || undefined,
+          diyProject:     fDiyProject && fDiyProject.checked ? true : undefined,
           active:         fActive && !fActive.checked ? false : undefined,
           categoryId:     fCat.value || undefined,
           imageUrl:       fImg.value.trim() || undefined,
