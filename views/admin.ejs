@@ -956,6 +956,7 @@
         <% const _introVideo   = (rawConfig.homepage && rawConfig.homepage.introVideoUrl) || ''; %>
         <% const _introPoster  = (rawConfig.homepage && rawConfig.homepage.introPosterUrl) || ''; %>
         <% const _introTagline = (rawConfig.homepage && rawConfig.homepage.introTagline) || ''; %>
+        <% const _introBgUrl   = (rawConfig.homepage && rawConfig.homepage.introBackgroundUrl) || ''; %>
         <%# ── Status summary chip ── %>
         <div style="padding:10px 14px;border-radius:10px;margin-bottom:12px;background:<%= _introEnabled ? '#f0fdf4' : '#f8fafc' %>;border:1px solid <%= _introEnabled ? '#bbf7d0' : '#e2e8f0' %>;">
           <p style="margin:0;font-size:.84rem;font-weight:700;color:<%= _introEnabled ? '#15803d' : '#475569' %>;">
@@ -963,8 +964,11 @@
           </p>
           <% if (_introEnabled) { %>
           <p style="margin:4px 0 0;font-size:.78rem;color:#166534;">
-            Τύπος: <strong><%= _introMode === 'video' ? 'Βίντεο' : _introMode === 'assembly' ? 'Montage (assembly)' : 'Απλό splash' %></strong>
-            <% if (_introMode === 'video') { %>
+            Τύπος: <strong><%= _introMode === 'fullscreen' ? 'Fullscreen (background + logo + loading)' : _introMode === 'video' ? 'Βίντεο' : _introMode === 'assembly' ? 'Montage (assembly)' : 'Απλό splash' %></strong>
+            <% if (_introMode === 'fullscreen') { %>
+              &nbsp;·&nbsp;
+              <% if (_introBgUrl) { %>Background: <strong>ρυθμισμένο ✓</strong><% } else { %><em style="color:#ca8a04;">χωρίς background — θα εμφανιστεί CSS ατμόσφαιρα</em><% } %>
+            <% } else if (_introMode === 'video') { %>
               &nbsp;·&nbsp;
               <% if (_introVideo) { %>Video: <strong>ρυθμισμένο ✓</strong><% } else { %><em style="color:#ca8a04;">χωρίς video URL — θα εμφανιστεί montage</em><% } %>
             <% } %>
@@ -1001,6 +1005,24 @@
                  placeholder="<%= lang === 'el' ? 'π.χ. Εξοπλισμός & ανταλλακτικά για επαγγελματίες' : 'e.g. Professional tools & parts' %>" />
           <small class="helper">Εμφανίζεται κάτω από το όνομα του καταστήματος στο splash ή το montage. Αφήστε κενό για το προεπιλεγμένο μήνυμα καλωσορίσματος.</small>
         </label>
+
+        <%# ── Fullscreen background — shown for fullscreen mode ── %>
+        <div id="intro-fullscreen-fields" style="<%= _introMode === 'fullscreen' ? '' : 'display:none;' %>border:1px solid rgba(230,126,34,.25);border-radius:10px;padding:14px;margin-bottom:12px;background:rgba(230,126,34,.04);">
+          <h4 style="margin:0 0 10px;font-size:.88rem;color:#c2410c;">Ρυθμίσεις Fullscreen Mode</h4>
+          <label><span>Background εικόνα <small style="font-weight:400;color:#94a3b8;">(workshop/ατμόσφαιρα πίσω από το logo)</small></span>
+            <input type="text" name="homepageIntroBackgroundUrl" id="intro-bg-url-input" value="<%= _introBgUrl %>" placeholder="/tenants/<%= tenant.id %>/media/intro-background.jpg" />
+            <small class="helper">Ανεβάστε εικόνα background στο <a href="#tab-upload">Media</a> και αντιγράψτε το path εδώ. Ιδανικά 1920x1080 ή μεγαλύτερη, σκοτεινή ατμόσφαιρα.</small>
+          </label>
+          <% if (_introBgUrl) { %>
+          <div style="margin-top:6px;">
+            <img src="<%= _introBgUrl %>" alt="Background preview" style="height:80px;max-width:300px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db;" onerror="this.style.display='none'" />
+            <small style="display:block;font-size:.72rem;color:#64748b;margin-top:2px;">Τρέχον background</small>
+          </div>
+          <% } %>
+          <label style="margin-top:10px;"><span>Logo / Brand badge <small style="font-weight:400;color:#94a3b8;">(κεντρικό στοιχείο intro)</small></span>
+            <small class="helper">Χρησιμοποιεί αυτόματα το header banner ή το logo από το <a href="#tab-theme">Branding</a>. Για καλύτερο αποτέλεσμα, ανεβάστε PNG με διαφάνεια.</small>
+          </label>
+        </div>
 
         <%# ── Video fields — shown always, note when irrelevant ── %>
         <label><span>URL βίντεο εισαγωγής (.mp4) <small style="font-weight:400;color:#94a3b8;">(για τύπο Βίντεο)</small></span>
@@ -3526,6 +3548,17 @@
         form.querySelector('#fav-del-pw').value = pw;
         form.submit();
       }
+
+      // ── Intro mode toggle — show/hide fullscreen fields ──
+      (function() {
+        var modeSelect = document.querySelector('select[name="homepageIntroMode"]');
+        var fsFields = document.getElementById('intro-fullscreen-fields');
+        if (modeSelect && fsFields) {
+          modeSelect.addEventListener('change', function() {
+            fsFields.style.display = modeSelect.value === 'fullscreen' ? '' : 'none';
+          });
+        }
+      })();
     </script>
   </body>
 </html>
