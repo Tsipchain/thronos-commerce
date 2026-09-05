@@ -641,140 +641,102 @@
         color: var(--eko-text-strong);
       }
 
-      /* ── Category tile grid ── */
-      .eko-cat-section { margin: 0 0 24px; }
-      .eko-cat-section-title {
-        font-size: .68rem; font-weight: 800; text-transform: uppercase;
-        letter-spacing: .2em; color: var(--eko-text-muted); margin: 0 0 12px;
+      /* ── Section header with "see all" link ── */
+      .eko-section-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin: 0 0 16px; padding-bottom: 12px;
+        border-bottom: 1px solid var(--eko-border);
       }
+      .eko-section-title {
+        font-size: 1rem; font-weight: 900; letter-spacing: .12em;
+        text-transform: uppercase; color: var(--eko-text-strong);
+        margin: 0; display: flex; align-items: center; gap: 8px;
+      }
+      .eko-section-title::before {
+        content: '\1F44D'; font-size: .9em;
+      }
+      .eko-section-link {
+        font-size: .76rem; font-weight: 700; letter-spacing: .06em;
+        text-transform: uppercase; color: var(--eko-accent);
+        text-decoration: none; white-space: nowrap;
+        transition: color .14s;
+      }
+      .eko-section-link:hover { color: var(--eko-accent-light); }
+
+      /* ── Category tile grid ── */
+      .eko-cat-section { margin: 0 0 28px; }
       .eko-cat-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 14px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
       }
       .eko-cat-tile {
         position: relative; display: flex; flex-direction: column;
-        text-decoration: none; border-radius: 12px; overflow: hidden;
-        border: 1px solid #e0e0e0;
-        border-top: 3px solid transparent;
-        background: #fff;
-        min-height: 176px;
+        text-decoration: none; border-radius: 14px; overflow: hidden;
+        border: 1px solid var(--eko-border);
+        background: var(--eko-surface);
         transition: border-color .16s, box-shadow .16s, transform .18s;
       }
       .eko-cat-tile:hover {
-        border-color: #d0d0d0;
-        box-shadow: 0 8px 28px rgba(0,0,0,.13);
+        border-color: var(--eko-accent);
+        box-shadow: 0 10px 32px rgba(0,0,0,.45);
         transform: translateY(-4px);
       }
       .eko-cat-tile-img {
-        width: 100%; height: 168px; object-fit: cover;
+        width: 100%; height: 180px; object-fit: cover;
         display: block; flex-shrink: 0;
         transition: transform .22s;
-        background: #f5f5f5;
+        background: var(--eko-surface-2);
       }
       .eko-cat-tile:hover .eko-cat-tile-img { transform: scale(1.04); }
-      /* Richer placeholder */
       .eko-cat-tile-img-placeholder {
-        width: 100%; height: 168px; display: flex; align-items: center;
+        width: 100%; height: 180px; display: flex; align-items: center;
         justify-content: center; flex-shrink: 0;
         position: relative; overflow: hidden;
-        background: #f0f2f5;
-      }
-      /* Per-category placeholder colors via data-cat-id */
-      .eko-cat-tile[data-cat-id="diy-rolla"] .eko-cat-tile-img-placeholder {
-        background: linear-gradient(135deg, #7c3a00 0%, #3d1a00 60%, #1c1008 100%);
-      }
-      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-img-placeholder {
-        background: linear-gradient(135deg, #0a2a5e 0%, #051428 60%, #020c1c 100%);
-      }
-      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-img-placeholder {
-        background: linear-gradient(135deg, #0a3028 0%, #061a14 60%, #040f0a 100%);
-      }
-      .eko-cat-tile-img-placeholder::before {
-        content: '';
-        position: absolute; inset: 0;
-        background-image:
-          repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 28px),
-          repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 28px);
+        background: var(--eko-surface-2);
       }
       .eko-cat-tile-placeholder-icon {
         position: relative; z-index: 1;
         font-size: 2.2rem; font-weight: 900; letter-spacing: .04em;
-        color: rgba(0,0,0,.1); line-height: 1;
-        font-family: system-ui, sans-serif;
+        color: rgba(255,255,255,.1); line-height: 1;
         text-transform: uppercase;
       }
-      /* Colored badge body */
       .eko-cat-tile-body {
-        padding: 0; flex-shrink: 0;
-        display: flex; align-items: stretch;
-      }
-      .eko-cat-tile-badge {
-        flex: 1; padding: 9px 14px 9px;
-        display: flex; align-items: center; justify-content: center;
-      }
-      .eko-cat-tile[data-cat-id="diy-rolla"]   .eko-cat-tile-badge { background: #d95f00; }
-      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-badge { background: #1655b5; }
-      .eko-cat-tile[data-cat-id="main-doors"]  .eko-cat-tile-badge { background: #c0392b; }
-      .eko-cat-tile[data-cat-id="tools"]       .eko-cat-tile-badge { background: #37474f; }
-      .eko-cat-tile[data-cat-id="diy-tools"]   .eko-cat-tile-badge { background: #37474f; }
-      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-badge { background: #1a6b50; }
-      .eko-cat-tile-badge-text {
-        flex: 1;
+        padding: 14px 16px 6px; flex: 1;
       }
       .eko-cat-tile-name {
-        font-size: .85rem; font-weight: 900; letter-spacing: .06em;
-        color: #fff; margin: 0; line-height: 1.2; text-transform: uppercase;
-        text-align: center;
+        font-size: .95rem; font-weight: 800;
+        color: var(--eko-text-strong); margin: 0 0 3px; line-height: 1.25;
       }
       .eko-cat-tile-desc {
-        font-size: .74rem; color: #555;
+        font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+        text-transform: uppercase; color: var(--eko-text-muted);
         margin: 0; line-height: 1.3;
-        text-align: center;
       }
-      .eko-cat-tile-subtitle {
-        padding: 7px 12px 8px; background: #fff;
-        display: flex; align-items: center; justify-content: space-between;
-        border-top: 1px solid #f0f0f0;
-        flex-shrink: 0;
+      .eko-cat-tile-cta {
+        display: inline-flex; align-items: center; gap: 6px;
+        margin: 10px 16px 14px; padding: 8px 16px;
+        background: var(--eko-accent); color: #fff;
+        font-size: .76rem; font-weight: 800; letter-spacing: .04em;
+        text-transform: uppercase; border-radius: 6px;
+        border: 2px solid rgba(0,0,0,.2);
+        transition: background .14s, transform .12s;
       }
-      /* Circular arrow button */
-      .eko-cat-tile-arrow {
-        width: 30px; height: 30px; border-radius: 50%;
-        border: none;
-        display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 1.05rem; font-weight: 700;
-        flex-shrink: 0; transition: opacity .14s;
-        text-decoration: none; background: #888;
+      .eko-cat-tile:hover .eko-cat-tile-cta {
+        background: var(--eko-accent-light);
       }
-      .eko-cat-tile[data-cat-id="diy-rolla"]   .eko-cat-tile-arrow { background: #d95f00; }
-      .eko-cat-tile[data-cat-id="diy-sliding"] .eko-cat-tile-arrow { background: #1655b5; }
-      .eko-cat-tile[data-cat-id="main-doors"]  .eko-cat-tile-arrow { background: #c0392b; }
-      .eko-cat-tile[data-cat-id="tools"]       .eko-cat-tile-arrow { background: #37474f; }
-      .eko-cat-tile[data-cat-id="diy-tools"]   .eko-cat-tile-arrow { background: #37474f; }
-      .eko-cat-tile[data-cat-id="spare-parts"] .eko-cat-tile-arrow { background: #1a6b50; }
-      .eko-cat-tile:hover .eko-cat-tile-arrow { opacity: .82; }
-      /* Remove the old eko-cat-bar (now replaced by badge) */
+      .eko-cat-tile-cta svg { width: 14px; height: 14px; fill: currentColor; }
       .eko-cat-bar { display: none; }
-      /* Light mode tile */
       body.eukolakis-classic.eko-light .eko-cat-tile {
-        background: linear-gradient(165deg, #f0f2f8 0%, #fff 100%);
+        background: #fff;
         border-color: rgba(40,50,70,.14);
-        border-top-color: rgba(140,100,21,.25);
       }
+      body.eukolakis-classic.eko-light .eko-cat-tile-name { color: #1a1a2e; }
+      body.eukolakis-classic.eko-light .eko-cat-tile-desc { color: #64748b; }
       body.eukolakis-classic.eko-light .eko-cat-tile-img-placeholder {
-        background: linear-gradient(135deg, #e8eaf2 0%, #f0f2f8 100%);
-        background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.03) 0px, rgba(0,0,0,.03) 1px, transparent 1px, transparent 20px),
-                          repeating-linear-gradient(90deg, rgba(0,0,0,.03) 0px, rgba(0,0,0,.03) 1px, transparent 1px, transparent 20px),
-                          linear-gradient(135deg, #e8eaf2 0%, #f0f2f8 100%);
+        background: #f0f2f5;
       }
-      /* Fire glow on category tiles */
-      body.eukolakis-classic .eko-cat-tile {
-        animation: eko-card-glow 3.4s ease-in-out infinite;
-      }
-      body.eukolakis-classic .eko-cat-tile:hover {
-        animation: none;
-      }
+      body.eukolakis-classic .eko-cat-tile:hover { animation: none; }
 
       /* ── Product cards — dark theme adaptation ── */
       body.eukolakis-classic .product-card {
@@ -903,23 +865,57 @@
       body.eukolakis-classic [data-home-block="subscriptions"] h3 { color: var(--eko-text-strong) !important; }
       body.eukolakis-classic [data-home-block="subscriptions"] p  { color: var(--eko-text-muted) !important; }
 
-      /* ── Featured section title ── */
+      /* ── Featured section ── */
       body.eukolakis-classic .featured-section { margin-bottom: 28px; }
-      body.eukolakis-classic .featured-section h2 {
-        color: var(--eko-text-strong) !important;
-        font-size: 1rem !important;
-        font-weight: 800 !important;
-        letter-spacing: .12em !important;
-        text-transform: uppercase !important;
-        padding-bottom: 10px !important;
-        border-bottom: 1px solid var(--eko-border) !important;
-        margin-bottom: 16px !important;
-        display: flex !important; align-items: center !important; gap: 10px !important;
+      body.eukolakis-classic .featured-section h2 { display: none !important; }
+      body.eukolakis-classic .featured-kit-card .body .eko-kit-cta {
+        display: inline-flex; align-items: center; gap: 6px;
+        margin-top: 12px; padding: 8px 18px;
+        background: var(--eko-accent); color: #fff;
+        font-size: .78rem; font-weight: 800; letter-spacing: .04em;
+        text-transform: uppercase; border-radius: 6px;
+        border: 2px solid rgba(0,0,0,.2); text-decoration: none;
+        transition: background .14s;
       }
-      body.eukolakis-classic .featured-section h2::before {
-        content: '';
-        display: inline-block; width: 3px; height: 1em;
-        background: var(--eko-accent); border-radius: 2px; flex-shrink: 0;
+      body.eukolakis-classic .featured-kit-card:hover .eko-kit-cta {
+        background: var(--eko-accent-light);
+      }
+      body.eukolakis-classic .featured-kit-card .body .eko-kit-cta svg {
+        width: 14px; height: 14px; fill: currentColor;
+      }
+
+      /* ── DIY Projects section ── */
+      .eko-projects-section { margin: 0 0 28px; }
+      .eko-projects-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .eko-project-card {
+        display: flex; flex-direction: column;
+        text-decoration: none; border-radius: 12px; overflow: hidden;
+        border: 1px solid var(--eko-border);
+        background: var(--eko-surface);
+        transition: border-color .16s, box-shadow .16s, transform .18s;
+      }
+      .eko-project-card:hover {
+        border-color: var(--eko-accent);
+        box-shadow: 0 8px 28px rgba(0,0,0,.4);
+        transform: translateY(-3px);
+      }
+      .eko-project-card-img {
+        width: 100%; height: 140px; object-fit: cover;
+        display: block; background: var(--eko-surface-2);
+        transition: transform .22s;
+      }
+      .eko-project-card:hover .eko-project-card-img { transform: scale(1.04); }
+      .eko-project-card-body {
+        padding: 12px 14px;
+      }
+      .eko-project-card-title {
+        font-size: .82rem; font-weight: 700;
+        color: var(--eko-text-strong); margin: 0;
+        line-height: 1.3;
       }
 
       /* ── Featured kit card product name (shown for eukolakis-classic) ── */
@@ -992,7 +988,8 @@
 
       /* ── Responsive ── */
       @media (max-width: 860px) {
-        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        body.eukolakis-classic .eko-projects-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       }
       body.eukolakis-classic .header-mode-toggle-slot {
         display:flex; align-items:center; justify-content:flex-start; margin-right:8px; z-index:6;
@@ -1000,13 +997,16 @@
       @media (max-width: 600px) {
         body.eukolakis-classic .header-mode-toggle-slot .eko-mode-btn { font-size:.68rem; padding:5px 8px; }
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        body.eukolakis-classic .eko-cat-tile { min-height: 100px; }
         body.eukolakis-classic .eko-cat-tile-img,
-        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 80px; }
-        body.eukolakis-classic .eko-cat-tile-name { font-size: .72rem; }
-        body.eukolakis-classic .eko-cat-tile-badge { padding: 6px 8px 7px; }
-        body.eukolakis-classic .eko-cat-tile-arrow { width: 24px; height: 24px; font-size: .84rem; }
+        body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 120px; }
+        body.eukolakis-classic .eko-cat-tile-name { font-size: .82rem; }
+        body.eukolakis-classic .eko-cat-tile-cta { font-size: .7rem; padding: 6px 12px; margin: 8px 12px 12px; }
+        body.eukolakis-classic .eko-projects-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        body.eukolakis-classic .eko-project-card-img { height: 100px; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
+        body.eukolakis-classic .eko-section-header { flex-wrap: wrap; gap: 6px; }
+        body.eukolakis-classic .eko-section-title { font-size: .82rem; }
+        body.eukolakis-classic .eko-section-link { font-size: .68rem; }
       body.eukolakis-classic .header-main-row { padding: 8px 12px; }
         body.eukolakis-classic .eko-header-compact-logo img { height: 30px; max-width: 100px; }
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-name { font-size: .72rem; }
@@ -1303,31 +1303,29 @@
       <%/* ── Eukolaki Classic industrial category tile grid ── */%>
       <% if (isEukolakisClassic && !activeCategory) { %>
       <section class="eko-cat-section">
-        <p class="eko-cat-section-title"><%= lang === 'el' ? 'Κατηγορίες' : 'Categories' %></p>
+        <div class="eko-section-header">
+          <h2 class="eko-section-title"><%= lang === 'el' ? 'ΚΑΤΗΓΟΡΙΕΣ' : 'CATEGORIES' %></h2>
+          <a class="eko-section-link" href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΔΕΣ ΟΛΕΣ ΤΙΣ ΚΑΤΗΓΟΡΙΕΣ' : 'SEE ALL CATEGORIES' %> &rarr;</a>
+        </div>
         <div class="eko-cat-grid">
           <% navCategories.forEach(function(cat) { %>
           <a class="eko-cat-tile" data-cat-id="<%= cat.id %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% const _catBadgeLabel = {'diy-rolla':'ROLL KITS','diy-sliding':'SLIDING DOORS','main-doors':'MAIN DOORS','tools':'TOOLS','diy-tools':'TOOLS','spare-parts':'SOLO PARTS'}[cat.id] || (cat.name || 'CAT').toUpperCase(); %>
             <% if (cat.image) { %>
               <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy"
                 onerror="this.style.display='none';var nx=this.nextElementSibling;if(nx)nx.style.display='flex';" />
               <div class="eko-cat-tile-img-placeholder" style="display:none;">
-                <div class="eko-cat-tile-placeholder-icon"><%- _catBadgeLabel.slice(0,6) %></div>
+                <div class="eko-cat-tile-placeholder-icon"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></div>
               </div>
             <% } else { %>
               <div class="eko-cat-tile-img-placeholder">
-                <div class="eko-cat-tile-placeholder-icon"><%- _catBadgeLabel.slice(0,6) %></div>
+                <div class="eko-cat-tile-placeholder-icon"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></div>
               </div>
             <% } %>
             <div class="eko-cat-tile-body">
-              <div class="eko-cat-tile-badge">
-                <p class="eko-cat-tile-name"><%- _catBadgeLabel %></p>
-              </div>
+              <p class="eko-cat-tile-name"><%= cat.name %></p>
+              <p class="eko-cat-tile-desc"><%= cat.shortDescription || '' %></p>
             </div>
-            <div class="eko-cat-tile-subtitle">
-              <span class="eko-cat-tile-desc"><%= cat.shortDescription || cat.name %></span>
-              <span class="eko-cat-tile-arrow">&#8250;</span>
-            </div>
+            <div class="eko-cat-tile-cta"><%= lang === 'el' ? 'ΔΕΣ ΠΕΡΙΣΣΟΤΕΡΑ' : 'SEE MORE' %> <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
           </a>
           <% }); %>
         </div>
@@ -1416,7 +1414,10 @@
 
       <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
       <section class="featured-section" data-home-block="kits">
-        <h2><%= homeBlockContent.kitsTitle || (lang === 'el' ? 'Κύρια DIY Kits' : 'Primary DIY Kits') %></h2>
+        <div class="eko-section-header">
+          <h2 class="eko-section-title" style="display:flex !important;"><%= homeBlockContent.kitsTitle || (lang === 'el' ? 'ΚΥΡΙΑ DIY KITS' : 'PRIMARY DIY KITS') %></h2>
+          <a class="eko-section-link" href="<%= withTenantLink('/', Object.assign({ category: 'diy-rolla' }, lang !== 'el' ? { lang } : {})) %>"><%= lang === 'el' ? 'ΔΕΣ ΟΛΑ ΤΑ KITS' : 'SEE ALL KITS' %> &rarr;</a>
+        </div>
         <% if (featuredHomeProducts.length) { %>
         <div class="featured-primary-grid">
           <% featuredHomeProducts.forEach(function (product) { %>
@@ -1428,13 +1429,9 @@
               <% } %>
               <div class="body">
                 <% if (product.type === 'KIT') { %><span class="kit-badge">KIT</span><% } %>
-                <% if (isEukolakisClassic) { %>
                 <p class="featured-kit-card-name"><%= resolveField(product.name, lang) || product.name %></p>
-                <% } else { %>
-                <h3 style="margin:0 0 8px;"><%= product.name %></h3>
-                <% } %>
-                <% if (product.description) { %><p style="margin:0 0 10px;"><%= product.description %></p><% } %>
-                <small style="font-weight:700;"><%= lang === 'el' ? 'Πάτα στην κάρτα για επιλογές' : 'Tap card to open wizard' %></small>
+                <% if (product.description) { %><p style="margin:0 0 4px;color:var(--eko-text-muted);font-size:.84rem;"><%= product.description %></p><% } %>
+                <div class="eko-kit-cta"><%= lang === 'el' ? 'ΔΕΣ ΤΟ KIT' : 'VIEW KIT' %> <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
               </div>
             </article>
           <% }) %>
@@ -1466,6 +1463,40 @@
         <h3 style="margin-top:0;"><%= homeBlockContent.subscriptionsTitle || (lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos') %></h3>
         <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
         <a class="button" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'Δες συνδρομές' : 'View subscriptions' %></a>
+      </section>
+      <% } %>
+
+      <%/* ── DIY Projects section — uses products tagged with diyProject flag or recent KIT products ── */%>
+      <% const diyProjects = (allProducts || products).filter(function(p) { return p.diyProject || (p.tags && p.tags.indexOf('diy-project') !== -1); }).slice(0, 4); %>
+      <% const showProjectsSection = diyProjects.length > 0 || isEukolakisClassic; %>
+      <% if (showProjectsSection) { %>
+      <section class="eko-projects-section">
+        <div class="eko-section-header">
+          <h2 class="eko-section-title"><%= lang === 'el' ? 'ΤΕΛΕΥΤΑΙΑ DIY PROJECTS' : 'LATEST DIY PROJECTS' %></h2>
+          <% if (subscriptionsEnabled) { %>
+          <a class="eko-section-link" href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΔΕΣ ΟΛΑ ΤΑ PROJECTS' : 'SEE ALL PROJECTS' %> &rarr;</a>
+          <% } %>
+        </div>
+        <% if (diyProjects.length > 0) { %>
+        <div class="eko-projects-grid">
+          <% diyProjects.forEach(function(proj) { %>
+          <a class="eko-project-card" href="<%= withTenantLink('/product/' + proj.id, lang !== 'el' ? { lang } : {}) %>">
+            <% if (proj.imageUrl) { %>
+              <img class="eko-project-card-img" src="<%= proj.imageUrl %>" alt="<%= resolveField(proj.name, lang) || proj.name %>" loading="lazy" />
+            <% } else { %>
+              <div class="eko-project-card-img" style="background:var(--eko-surface-2);"></div>
+            <% } %>
+            <div class="eko-project-card-body">
+              <p class="eko-project-card-title"><%= resolveField(proj.name, lang) || proj.name %></p>
+            </div>
+          </a>
+          <% }); %>
+        </div>
+        <% } else { %>
+        <div class="eko-hint-box" style="text-align:center;padding:20px;">
+          <p><%= lang === 'el' ? 'Προσθέστε DIY projects (tag: diy-project) στα προϊόντα σας για να εμφανιστούν εδώ.' : 'Add DIY projects (tag: diy-project) to your products to show them here.' %></p>
+        </div>
+        <% } %>
       </section>
       <% } %>
       <% } %>
