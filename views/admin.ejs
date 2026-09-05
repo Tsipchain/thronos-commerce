@@ -951,6 +951,34 @@
           <input type="checkbox" name="homepageShowSubscriptionsCard" value="1" <%= (rawConfig.homepage && rawConfig.homepage.showSubscriptionsCard) ? 'checked' : '' %> />
           <span><%= homepageLabels.subscriptionsToggle %></span>
         </label>
+        <% const subscriptionVideoCard = (rawConfig.homepage && rawConfig.homepage.subscriptionVideoCard) || {}; %>
+        <h3 class="settings-section-heading">Κάρτα Συνδρομητικών Βίντεο</h3>
+        <p class="helper">Η κάρτα εμφανίζεται μαζί με τις κατηγορίες όταν η ενότητα Συνδρομές / Videos είναι ενεργή. Χρησιμοποιεί την υπάρχουσα σελίδα συνδρομητικού περιεχομένου.</p>
+        <label><span>Εικόνα κάρτας</span>
+          <input type="text" id="homepage-subscription-video-image" name="homepageSubscriptionVideoImage" value="<%= subscriptionVideoCard.image || '' %>" placeholder="/tenants/<%= tenant.id %>/media/subscription-videos.jpg" />
+          <% if (subscriptionVideoCard.image) { %>
+          <img id="homepage-subscription-video-preview" src="<%= subscriptionVideoCard.image %>" alt="Subscription videos preview" style="display:block;margin-top:7px;width:220px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <% } else { %>
+          <img id="homepage-subscription-video-preview" src="" alt="" style="display:none;margin-top:7px;width:220px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db;" />
+          <% } %>
+          <small class="helper">Επιλέξτε υπάρχον path από το <a href="#tab-upload">Media</a>. Η εικόνα μπορεί να αντικατασταθεί ή να αφαιρεθεί αφήνοντας το πεδίο κενό.</small>
+        </label>
+        <label><span>Τίτλος κάρτας (EL / EN)</span>
+          <input type="text" name="homepageSubscriptionVideoTitle_el" value="<%= resolveField(subscriptionVideoCard.title, 'el') %>" placeholder="Συνδρομητικά βίντεο επισκευών" />
+          <input type="text" name="homepageSubscriptionVideoTitle_en" value="<%= resolveField(subscriptionVideoCard.title, 'en') %>" placeholder="Subscription repair videos" />
+        </label>
+        <label><span>Υπότιτλος κάρτας (EL / EN)</span>
+          <input type="text" name="homepageSubscriptionVideoSubtitle_el" value="<%= resolveField(subscriptionVideoCard.subtitle, 'el') %>" placeholder="Οδηγοί επισκευής βήμα-βήμα" />
+          <input type="text" name="homepageSubscriptionVideoSubtitle_en" value="<%= resolveField(subscriptionVideoCard.subtitle, 'en') %>" placeholder="Step-by-step repair guides" />
+        </label>
+        <label><span>Σύνδεσμος / προορισμός</span>
+          <input type="text" name="homepageSubscriptionVideoHref" value="<%= subscriptionVideoCard.href || '/content' %>" placeholder="/content" />
+          <small class="helper">Προεπιλογή: <code>/content</code>, η υπάρχουσα σελίδα συνδρομητικού περιεχομένου.</small>
+        </label>
+        <label><span>CTA (EL / EN) <small style="font-weight:400;color:#94a3b8;">(προαιρετικό)</small></span>
+          <input type="text" name="homepageSubscriptionVideoCtaLabel_el" value="<%= resolveField(subscriptionVideoCard.ctaLabel, 'el') %>" placeholder="ΔΕΣ ΠΕΡΙΣΣΟΤΕΡΑ" />
+          <input type="text" name="homepageSubscriptionVideoCtaLabel_en" value="<%= resolveField(subscriptionVideoCard.ctaLabel, 'en') %>" placeholder="SEE MORE" />
+        </label>
 
         <%# Hidden raw block order input — managed by the drag UI below %>
         <label style="display:none;">
@@ -2277,6 +2305,45 @@
         selectFile:    '<%- t("admin.jsSelectFile") %>',
         enterPass:     '<%- t("admin.jsEnterPassword") %>'
       };
+      (function bindSubscriptionVideoPreview() {
+        const input = document.getElementById('homepage-subscription-video-image');
+        const preview = document.getElementById('homepage-subscription-video-preview');
+        if (!input || !preview) return;
+        const refresh = function() {
+          const value = input.value.trim();
+          preview.src = value;
+          preview.style.display = value ? 'block' : 'none';
+        };
+        input.addEventListener('input', refresh);
+      })();
+
+      // Keep the existing compact update form, but bind every editable value to
+      // the selected record so unrelated edits cannot reset checkbox state.
+      (function bindCategoryUpdateForm() {
+        const categories = <%- categoriesJsonScript %>;
+        const select = document.getElementById('category-update-id');
+        if (!select || !Array.isArray(categories)) return;
+        const field = function(id) { return document.getElementById(id); };
+        const localized = function(value, language) {
+          if (value && typeof value === 'object') return value[language] || '';
+          return language === 'el' ? String(value || '') : '';
+        };
+        const populate = function() {
+          const category = categories.find(function(item) { return item.id === select.value; });
+          if (!category) return;
+          field('category-update-name-el').value = localized(category.name, 'el');
+          field('category-update-name-en').value = localized(category.name, 'en');
+          field('category-update-description-el').value = localized(category.shortDescription, 'el');
+          field('category-update-description-en').value = localized(category.shortDescription, 'en');
+          field('category-update-slug').value = category.slug || '';
+          field('category-update-parent').value = category.parentId || '';
+          field('category-update-order').value = category.navOrder == null ? '' : category.navOrder;
+          field('category-update-visible').checked = category.visible !== false;
+          field('category-update-nav-visible').checked = category.showInMainNav !== false;
+        };
+        select.addEventListener('change', populate);
+        populate();
+      })();
 
       // Keep the existing compact update form, but bind every editable value to
       // the selected record so unrelated edits cannot reset checkbox state.

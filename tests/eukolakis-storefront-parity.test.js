@@ -54,14 +54,29 @@ test('homepage and product templates share clean header scoping', () => {
   assert.match(product, /eko-header-.*headerMenuStyle/);
   assert.match(index, /body\.eko-header-clean .*::before/);
   assert.match(product, /body\.eko-header-clean .*::before/);
-  assert.match(index, /body\.eko-header-clean \.store-header \{ position:static; top:auto;/);
-  assert.match(product, /body\.eko-header-clean \.store-header \{ position:static; top:auto;/);
+  assert.match(index, /body\.eukolakis-classic\.eko-header-clean \.store-header \{ position:static; top:auto; display:grid;/);
+  assert.match(product, /body\.eukolakis-classic\.eko-header-clean \.store-header \{ position:static; top:auto; display:grid;/);
   assert.match(product, /id="menu-toggle"/);
+  assert.doesNotMatch(index, /body\.eko-header-clean \.header-nav-row \{[^}]*margin:-/);
+  assert.doesNotMatch(product, /body\.eko-header-clean \.header-nav-row \{[^}]*margin:-/);
 });
 
 test('clean mobile header protects controls from horizontal overflow', () => {
-  assert.match(index, /@media \(max-width:600px\)[\s\S]*body\.eko-header-clean \.header-main-row \{[^}]*overflow:hidden/);
+  assert.match(index, /@media \(max-width:900px\)[\s\S]*body\.eko-header-clean \.main-nav \{ display:none/);
   assert.match(index, /body\.eko-header-clean \.eko-header-search \{ display:none/);
+  assert.match(index, /aria-expanded="false" aria-controls="main-nav"/);
+  assert.match(index, /event\.key === "Escape"/);
+  assert.match(product, /event\.key === 'Escape'/);
+  assert.doesNotMatch(index, /body\.eko-header-clean[^\n]*overflow-x:auto/);
+});
+
+test('category CTAs and clean navigation share the polished components', () => {
+  assert.match(index, /\.eko-cat-tile-cta \{[\s\S]*width:calc\(100% - 32px\)[\s\S]*margin: auto 16px 14px/);
+  assert.match(index, /\.eko-cat-tile:hover \.eko-cat-tile-cta svg[^{]*\{ transform:translateX\(3px\)/);
+  assert.match(index, /class="eko-cat-tile eko-subscription-video-card"[\s\S]*class="eko-cat-tile-cta"/);
+  assert.match(index, /li class="<%= !activeCategory \? 'active' : '' %>"/);
+  assert.match(product, /product\.categoryId === cat\.id[^?]*\? 'active'/);
+  assert.match(index, /li\.active a::after \{ width:100%; opacity:1; \}/);
 });
 
 function request(port, pathname, options = {}) {
@@ -139,6 +154,34 @@ test('storefront and admin preserve independent category visibility behavior', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(loginBody) } });
     assert.equal(login.status, 302);
     const cookie = login.headers['set-cookie'][0].split(';')[0];
+    const subscriptionSettings = new URLSearchParams({ password: 'parity-test', homepageShowSubscriptionsCard: '1',
+      homepageSubscriptionVideoImage: '/subscription-test.jpg',
+      homepageSubscriptionVideoTitle_el: 'Συνδρομητικά βίντεο δοκιμής', homepageSubscriptionVideoTitle_en: 'Test subscription videos',
+      homepageSubscriptionVideoSubtitle_el: 'Οδηγοί δοκιμής', homepageSubscriptionVideoSubtitle_en: 'Test guides',
+      homepageSubscriptionVideoHref: '/content', homepageSubscriptionVideoCtaLabel_el: 'ΔΕΣ ΤΑ ΒΙΝΤΕΟ',
+      homepageSubscriptionVideoCtaLabel_en: 'SEE VIDEOS' }).toString();
+    const settingsSave = await request(port, '/admin/settings', { method: 'POST', body: subscriptionSettings,
+      headers: { Cookie: cookie, 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(subscriptionSettings) } });
+    assert.equal(settingsSave.status, 200, serverErrors || settingsSave.body.slice(0, 500));
+    const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.equal(savedConfig.homepage.subscriptionVideoCard.image, '/subscription-test.jpg');
+    assert.equal(savedConfig.homepage.subscriptionVideoCard.href, '/content');
+    const homeWithSubscription = await request(port, '/?skipIntro=1');
+    assert.match(homeWithSubscription.body, /data-special-card="subscription-videos"/);
+    assert.match(homeWithSubscription.body, /src="\/subscription-test\.jpg"/);
+    assert.match(homeWithSubscription.body, /href="\/content[^\"]*"[^>]*>ΣΥΝΔΡΟΜΗΤΙΚΑ ΒΙΝΤΕΟ/);
+    const categorySection = homeWithSubscription.body.match(/<section class="eko-cat-section">[\s\S]*?<\/section>/)[0];
+    const cardCount = (categorySection.match(/<a class="eko-cat-tile/g) || []).length;
+    const ctaCount = (categorySection.match(/<div class="eko-cat-tile-cta"/g) || []).length;
+    assert.equal(ctaCount, cardCount, 'every rendered category card uses the shared CTA');
+
+    const disableSettings = new URLSearchParams({ password: 'parity-test', homepageShowSubscriptionsCard: '0' }).toString();
+    const disableSave = await request(port, '/admin/settings', { method: 'POST', body: disableSettings,
+      headers: { Cookie: cookie, 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(disableSettings) } });
+    assert.equal(disableSave.status, 200, serverErrors || disableSave.body.slice(0, 500));
+    const homeWithoutSubscription = await request(port, '/?skipIntro=1');
+    assert.doesNotMatch(homeWithoutSubscription.body, /data-special-card="subscription-videos"/);
+
     const updateBody = new URLSearchParams({ password: 'parity-test', categoryId: hidden.id,
       name_el: typeof hidden.name === 'object' ? hidden.name.el : hidden.name,
       name_en: typeof hidden.name === 'object' ? hidden.name.en || '' : '',

@@ -702,7 +702,7 @@
         text-transform: uppercase;
       }
       .eko-cat-tile-body {
-        padding: 14px 16px 6px; flex: 1;
+        padding: 14px 16px 6px; flex: 1; display:flex; flex-direction:column;
       }
       .eko-cat-tile-name {
         font-size: .95rem; font-weight: 800;
@@ -714,18 +714,22 @@
         margin: 0; line-height: 1.3;
       }
       .eko-cat-tile-cta {
-        display: inline-flex; align-items: center; gap: 6px;
-        margin: 10px 16px 14px; padding: 8px 16px;
-        background: var(--eko-accent); color: #fff;
+        display: flex; align-items: center; justify-content:center; gap: 6px;
+        width:calc(100% - 32px); min-height:32px; box-sizing:border-box;
+        margin: auto 16px 14px; padding: 6px 12px;
+        background: color-mix(in srgb,var(--eko-accent) 6%,transparent); color: var(--eko-accent);
         font-size: .76rem; font-weight: 800; letter-spacing: .04em;
-        text-transform: uppercase; border-radius: 6px;
-        border: 2px solid rgba(0,0,0,.2);
-        transition: background .14s, transform .12s;
+        text-transform: uppercase; border-radius: 4px;
+        border: 1px solid var(--eko-accent);
+        box-shadow:0 0 10px color-mix(in srgb,var(--eko-accent) 12%,transparent);
+        transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, color .18s ease;
       }
-      .eko-cat-tile:hover .eko-cat-tile-cta {
-        background: var(--eko-accent-light);
+      .eko-cat-tile:hover .eko-cat-tile-cta, .eko-cat-tile-cta:hover {
+        background: color-mix(in srgb,var(--eko-accent) 14%,transparent); color:var(--eko-accent-light);
+        box-shadow:0 0 14px color-mix(in srgb,var(--eko-accent) 25%,transparent);
       }
-      .eko-cat-tile-cta svg { width: 14px; height: 14px; fill: currentColor; }
+      .eko-cat-tile-cta svg { width: 14px; height: 14px; fill: currentColor; transition:transform .18s ease; }
+      .eko-cat-tile:hover .eko-cat-tile-cta svg, .eko-cat-tile-cta:hover svg { transform:translateX(3px); }
       .eko-cat-bar { display: none; }
       body.eukolakis-classic.eko-light .eko-cat-tile {
         background: #fff;
@@ -1155,41 +1159,53 @@
       }
       /* Clean is a selectable presentation layer; the original plate rules above
          remain intact and are activated by .eko-header-industrial_plates. */
-      body.eko-header-clean .store-header { position:static; top:auto; background:#090909 !important; min-height:0 !important; box-shadow:none !important; border-bottom:1px solid #242424 !important; backdrop-filter:none; }
+      body.eukolakis-classic.eko-header-clean .store-header { position:static; top:auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; min-height:64px !important; padding:0 22px; background:#090909 !important; box-shadow:none !important; border-bottom:1px solid #242424 !important; backdrop-filter:none; overflow:visible; }
       .header-logo-foreground-hidden .logo-title { /* stable mode hook used by theme previews */ }
       body.eko-header-clean .store-header::before,
       body.eko-header-clean .store-header::after,
       body.eko-header-clean .eko-header-bg-logo { display:none !important; content:none !important; }
-      body.eko-header-clean .header-main-row { max-width:1440px; margin:auto; padding:8px 22px; min-height:54px; flex-wrap:nowrap; }
+      body.eko-header-clean .header-main-row { display:contents; }
+      body.eko-header-clean .logo-title { grid-column:1; align-self:center; }
       body.eko-header-clean .header-mode-toggle-slot,
       body.eko-header-clean .header-auth-actions { display:none !important; }
       body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:150px; }
       body.eko-header-clean .eko-header-compact-logo img { height:34px; max-width:130px; }
       body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
-      body.eko-header-clean .header-nav-row { max-width:1440px; margin:-54px auto 0; min-height:54px; padding:0 390px 0 190px; border:0; background:transparent; pointer-events:none; }
-      body.eko-header-clean .header-nav-row .main-nav { padding:0; background:transparent; pointer-events:auto; }
+      body.eko-header-clean .header-nav-row { display:contents; }
+      body.eko-header-clean .header-nav-row .main-nav { grid-column:2; grid-row:1; padding:0 22px; background:transparent; min-width:0; }
       body.eko-header-clean .header-nav-row ul { justify-content:center; gap:24px; overflow:visible; }
       body.eko-header-clean .header-nav-row ul li a { min-width:0; padding:18px 0; border:0; border-radius:0; background:none; box-shadow:none; color:#f5f5f5; font-size:.73rem; letter-spacing:.045em; }
-      body.eko-header-clean .header-nav-row ul li a::before,
-      body.eko-header-clean .header-nav-row ul li a::after { display:none !important; content:none !important; animation:none !important; }
+      body.eko-header-clean .header-nav-row ul li a::before { display:none !important; content:none !important; animation:none !important; }
+      body.eko-header-clean .header-nav-row ul li a::after { content:"" !important; display:block !important; position:absolute; left:0; right:auto; bottom:10px; width:0; height:2px; border:0; background:var(--eko-accent); opacity:0; box-shadow:0 0 7px color-mix(in srgb,var(--eko-accent) 30%,transparent); transition:width .2s ease, opacity .2s ease; }
+      body.eko-header-clean .header-nav-row ul li:hover a::after,
+      body.eko-header-clean .header-nav-row ul li.active a::after { width:100%; opacity:1; }
+      body.eko-header-clean .header-nav-row ul:has(li:hover) li.active:not(:hover) a::after { opacity:.4; }
       body.eko-header-clean .header-nav-row ul li a:hover,
       body.eko-header-clean .header-nav-row ul li.active a { color:var(--eko-accent); background:none; transform:none; box-shadow:none; }
-      body.eko-header-clean .eko-header-actions { margin-left:auto; z-index:3; }
+      body.eko-header-clean .eko-header-actions { grid-column:3; grid-row:1; margin:0; z-index:3; }
       body.eko-header-clean .eko-header-icon-btn { border-color:#333; background:#111; }
+      body.eko-header-clean .eko-clean-menu-toggle { display:none; grid-column:4; grid-row:1; }
+      body.eko-header-clean .eko-nav-lang { display:block; grid-column:4; grid-row:1; margin-left:8px; }
       body.eko-header-clean .eko-hero { margin:0 calc(50% - 50vw) 28px; border:0; border-radius:0; }
       body.eko-header-clean .eko-hero-img { height:clamp(360px,48vw,680px); object-fit:cover; }
       .eko-account-utility { margin:28px auto 0; padding:18px; display:flex; justify-content:center; align-items:center; gap:12px; border-top:1px solid var(--eko-border); color:var(--eko-text-muted); }
       .eko-account-utility a { color:var(--eko-accent); text-decoration:none; font-size:.82rem; font-weight:700; }
-      @media (max-width:1050px) {
-        body.eko-header-clean .header-nav-row { margin:0; padding:0 14px; min-height:0; pointer-events:auto; }
-        body.eko-header-clean .menu-toggle { display:block; margin:8px 14px; background:#151515; color:#fff; border:1px solid #333; }
+      @media (max-width:900px) {
+        body.eukolakis-classic.eko-header-clean .store-header { grid-template-columns:minmax(0,1fr) auto auto; padding:0 12px; }
+        body.eko-header-clean .logo-title { grid-column:1; grid-row:1; }
+        body.eko-header-clean .eko-header-actions { grid-column:2; }
+        body.eko-header-clean .eko-clean-menu-toggle { display:inline-flex; align-items:center; justify-content:center; grid-column:3; width:38px; height:38px; margin-left:6px; padding:0; background:#151515; color:#fff; border:1px solid #333; border-radius:8px; font-size:1.25rem; }
+        body.eko-header-clean .header-nav-row { display:block; grid-column:1/-1; grid-row:2; width:calc(100% + 24px); margin-left:-12px; }
         body.eko-header-clean .main-nav { display:none; }
-        body.eko-header-clean .main-nav.open { display:block; }
-        body.eko-header-clean .header-nav-row ul { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 18px; }
+        body.eko-header-clean .main-nav.open { display:block; padding:8px 18px 14px; border-top:1px solid #242424; background:#090909; }
+        body.eko-header-clean .header-nav-row ul { display:grid; grid-template-columns:1fr; gap:0; }
         body.eko-header-clean .header-nav-row ul li a { padding:12px 0; }
+        body.eko-header-clean .header-nav-row ul li a::after { display:none !important; }
+        body.eko-header-clean .header-nav-row ul li.active a { border-left:2px solid var(--eko-accent) !important; padding-left:10px; }
+        body.eko-header-clean .eko-nav-lang { display:block; padding:0 18px 14px; margin:0; background:#090909; }
+        body.eko-header-clean .main-nav:not(.open) + .eko-nav-lang { display:none; }
       }
       @media (max-width:600px) {
-        body.eko-header-clean .header-main-row { padding:8px 10px; gap:7px; overflow:hidden; }
         body.eko-header-clean .eko-header-compact-logo { min-width:0; flex:1; }
         body.eko-header-clean .eko-header-compact-logo .eko-compact-name { display:none; }
         body.eko-header-clean .eko-header-search { display:none; }
@@ -1250,6 +1266,12 @@
     <% const logoFilterShadow = logoShadowMode === 'floating' ? 'drop-shadow(0 12px 18px rgba(15,23,42,.28))' : (logoShadowMode === 'soft' ? 'drop-shadow(0 6px 10px rgba(15,23,42,.22))' : 'none'); %>
     <% const logoBoxShadow = hasLogoBg ? (logoShadowMode === 'floating' ? '0 16px 28px rgba(15,23,42,.22)' : (logoShadowMode === 'soft' ? '0 4px 12px rgba(15,23,42,.12)' : 'none')) : 'none'; %>
     <% const subscriptionsEnabled = !!homepage.showSubscriptionsCard; %>
+    <% const subscriptionVideoCard = homepage.subscriptionVideoCard || {}; %>
+    <% const subscriptionVideoTitle = resolveField(subscriptionVideoCard.title, lang) || (lang === 'el' ? 'Συνδρομητικά βίντεο επισκευών' : 'Subscription repair videos'); %>
+    <% const subscriptionVideoSubtitle = resolveField(subscriptionVideoCard.subtitle, lang) || ''; %>
+    <% const subscriptionVideoHrefRaw = subscriptionVideoCard.href || '/content'; %>
+    <% const subscriptionVideoHref = /^https?:\/\//i.test(subscriptionVideoHrefRaw) ? subscriptionVideoHrefRaw : withTenantLink(subscriptionVideoHrefRaw.charAt(0) === '/' ? subscriptionVideoHrefRaw : ('/' + subscriptionVideoHrefRaw), lang !== 'el' ? { lang } : {}); %>
+    <% const subscriptionVideoConfigured = !!(subscriptionVideoCard.image || resolveField(subscriptionVideoCard.title, lang) || resolveField(subscriptionVideoCard.subtitle, lang)); %>
     <% const hideStoreNameForClassicBanner = isEukolakisClassic && brandingMode === 'logo_name' && !!config.logoPath; %>
     <% const authPosition = (theme.authPosition === 'left') ? 'left' : 'right'; %>
     <% const menuStyle = ['classic', 'pills', 'compact'].includes(theme.menuStyle) ? theme.menuStyle : 'classic'; %>
@@ -1321,10 +1343,11 @@
         <% } %>
       </div><% } %>
       <% } %>
+      <% if (isCleanHeader) { %><button class="menu-toggle eko-clean-menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="<%= lang === 'el' ? 'Άνοιγμα μενού' : 'Open menu' %>">☰</button><% } %>
       </div>
       <% if (!hideMenuForHeroFocus) { %>
       <div class="header-nav-row">
-      <button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button>
+      <% if (!isCleanHeader) { %><button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav"><%= t('storefront.menuToggle') %></button><% } %>
       <nav class="main-nav menu-style-<%= menuStyle %>" id="main-nav">
         <ul>
           <% if (isCleanHeader) { %><li class="<%= !activeCategory ? 'active' : '' %>"><a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΑΡΧΙΚΗ' : 'HOME' %></a></li><% } %>
@@ -1354,6 +1377,9 @@
               </a>
             </li>
           <% }); %>
+          <% if (isCleanHeader && subscriptionsEnabled && !navCategories.some(function(cat){ return cat.slug === 'subscriptions'; })) { %>
+          <li class="<%= activeCategory === 'subscriptions' ? 'active' : '' %>"><a href="<%= subscriptionVideoHref %>"><%= lang === 'el' ? 'ΣΥΝΔΡΟΜΗΤΙΚΑ ΒΙΝΤΕΟ' : 'SUBSCRIPTION VIDEOS' %></a></li>
+          <% } %>
           <% if (!isEukolakisClassic && !user) { %>
             <li class="auth-link"><a href="<%= withTenantLink('/login', lang !== 'el' ? { lang } : {}) %>">Login</a></li>
             <li class="auth-link"><a href="<%= withTenantLink('/signup', lang !== 'el' ? { lang } : {}) %>">Signup</a></li>
@@ -1501,6 +1527,15 @@
             <div class="eko-cat-tile-cta"><%= lang === 'el' ? 'ΔΕΣ ΠΕΡΙΣΣΟΤΕΡΑ' : 'SEE MORE' %> <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
           </a>
           <% }); %>
+          <% if (subscriptionsEnabled && subscriptionVideoConfigured) { %>
+          <a class="eko-cat-tile eko-subscription-video-card" data-special-card="subscription-videos" href="<%= subscriptionVideoHref %>">
+            <% if (subscriptionVideoCard.image) { %>
+              <img class="eko-cat-tile-img" src="<%= subscriptionVideoCard.image %>" alt="<%= subscriptionVideoTitle %>" loading="lazy" />
+            <% } else { %><div class="eko-cat-tile-img-placeholder"><div class="eko-cat-tile-placeholder-icon">VIDEO</div></div><% } %>
+            <div class="eko-cat-tile-body"><p class="eko-cat-tile-name"><%= subscriptionVideoTitle %></p><p class="eko-cat-tile-desc"><%= subscriptionVideoSubtitle %></p></div>
+            <div class="eko-cat-tile-cta"><%= resolveField(subscriptionVideoCard.ctaLabel, lang) || (lang === 'el' ? 'ΔΕΣ ΠΕΡΙΣΣΟΤΕΡΑ' : 'SEE MORE') %> <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
+          </a>
+          <% } %>
         </div>
       </section>
       <% } %>
@@ -1631,7 +1666,7 @@
       </section>
       </a>
       <% } %>
-      <% if (subscriptionsEnabled && homeBlockVisibility.subscriptions !== false) { %>
+      <% if (subscriptionsEnabled && !subscriptionVideoConfigured && homeBlockVisibility.subscriptions !== false) { %>
       <section class="home-secondary" data-home-block="subscriptions" style="margin-top:10px;">
         <h3 style="margin-top:0;"><%= homeBlockContent.subscriptionsTitle || (lang === 'el' ? 'Συνδρομές / Videos' : 'Subscriptions / Videos') %></h3>
         <p style="margin-bottom:8px;"><%= lang === 'el' ? 'Πρόσβαση σε premium οδηγούς και βίντεο υποστήριξης.' : 'Access premium guides and support videos.' %></p>
@@ -1917,8 +1952,18 @@
       const menuToggle = document.getElementById("menu-toggle");
       const mainNav = document.getElementById("main-nav");
       if (menuToggle && mainNav) {
-        menuToggle.addEventListener("click", () => {
-          mainNav.classList.toggle("open");
+        const setMenuOpen = (open) => {
+          mainNav.classList.toggle("open", open);
+          menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        };
+        menuToggle.addEventListener("click", (event) => {
+          event.stopPropagation();
+          setMenuOpen(!mainNav.classList.contains("open"));
+        });
+        mainNav.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setMenuOpen(false)));
+        document.addEventListener("keydown", (event) => { if (event.key === "Escape") setMenuOpen(false); });
+        document.addEventListener("click", (event) => {
+          if (!mainNav.contains(event.target) && event.target !== menuToggle) setMenuOpen(false);
         });
       }
       const isEukolakis = <%= isEukolakisClassic ? 'true' : 'false' %>;

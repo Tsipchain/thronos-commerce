@@ -484,31 +484,46 @@
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-name { font-size: .72rem; }
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-sub { font-size: .48rem; }
       }
-      body.eko-header-clean .store-header { position:static; top:auto; background:#090909 !important; border-bottom:1px solid #242424 !important; box-shadow:none !important; }
+      body.eukolakis-classic.eko-header-clean .store-header { position:static; top:auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; min-height:64px; padding:0 22px !important; overflow:visible; background:#090909 !important; border-bottom:1px solid #242424 !important; box-shadow:none !important; }
       body.eko-header-clean .store-header::before,
       body.eko-header-clean .store-header::after,
       body.eko-header-clean .eko-header-bg-logo { display:none !important; content:none !important; }
-      body.eko-header-clean .header-main-row { max-width:1440px; min-height:54px; padding:8px 22px; }
+      body.eko-header-clean .header-main-row { display:contents; }
+      body.eko-header-clean .logo-title { grid-column:1; grid-row:1; }
       body.eko-header-clean .header-auth-actions { display:none !important; }
       body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
-      body.eko-header-clean .header-nav-row { max-width:1440px; margin:-54px auto 0; min-height:54px; padding:0 390px 0 190px !important; border:0; background:transparent; pointer-events:none; }
-      body.eko-header-clean .header-nav-row .main-nav { max-width:1440px; padding:0; background:transparent; pointer-events:auto; }
+      body.eko-header-clean .header-nav-row { display:contents; }
+      body.eko-header-clean .header-nav-row .main-nav { grid-column:2; grid-row:1; padding:0 22px; background:transparent; min-width:0; }
       body.eko-header-clean .header-nav-row .main-nav ul { justify-content:center; gap:24px; }
       body.eko-header-clean .header-nav-row li a { background:none !important; border:0 !important; box-shadow:none !important; min-width:0 !important; padding:12px 0 !important; }
       body.eko-header-clean .header-nav-row li a::before,
-      body.eko-header-clean .header-nav-row li a::after,
       body.eko-header-clean .eko-nav-plate-fallback { display:none !important; content:none !important; animation:none !important; }
+      body.eko-header-clean .header-nav-row li a { position:relative; }
+      body.eko-header-clean .header-nav-row li a::after { content:"" !important; display:block !important; position:absolute; left:0; right:auto; bottom:7px; width:0; height:2px; border:0; background:var(--eko-accent); opacity:0; box-shadow:0 0 7px color-mix(in srgb,var(--eko-accent) 30%,transparent); transition:width .2s ease, opacity .2s ease; }
+      body.eko-header-clean .header-nav-row li:hover a::after,
+      body.eko-header-clean .header-nav-row li.active a::after { width:100%; opacity:1; }
+      body.eko-header-clean .header-nav-row ul:has(li:hover) li.active:not(:hover) a::after { opacity:.4; }
+      body.eko-header-clean .eko-header-actions { grid-column:3; grid-row:1; margin:0; }
+      body.eko-header-clean .eko-clean-menu-toggle { display:none; grid-column:4; grid-row:1; }
+      body.eko-header-clean .eko-nav-lang { display:block; grid-column:4; grid-row:1; margin-left:8px; }
+      body.eko-header-clean .eko-nav-lang select { background:#111; border:1px solid #333; color:#eee; border-radius:7px; padding:7px 5px; }
       .eko-account-utility { margin:28px auto 0; padding:18px; display:flex; justify-content:center; align-items:center; gap:12px; border-top:1px solid var(--eko-border); color:var(--eko-text-muted); }
       .eko-account-utility a { color:var(--eko-accent); text-decoration:none; font-size:.82rem; font-weight:700; }
       .store-footer { margin-top:0; padding:22px 12px 28px; color:var(--footer-text-color,#6b7280); font-size:.9rem; border-top:1px solid var(--eko-border,#e5e7eb); text-align:center; }
       .store-footer .meta-line { margin-top:6px; }
       .store-footer a { color:var(--eko-accent,var(--primary-color,#4f46e5)); }
-      @media (max-width:1050px) {
-        body.eko-header-clean .header-nav-row { margin:0; padding:0 14px !important; min-height:0; pointer-events:auto; }
-        body.eko-header-clean .menu-toggle { display:block; margin:8px 14px; background:#151515; color:#fff; border:1px solid #333; }
+      @media (max-width:900px) {
+        body.eukolakis-classic.eko-header-clean .store-header { grid-template-columns:minmax(0,1fr) auto auto; padding:0 12px !important; }
+        body.eko-header-clean .eko-header-actions { grid-column:2; }
+        body.eko-header-clean .eko-clean-menu-toggle { display:inline-flex; align-items:center; justify-content:center; grid-column:3; width:38px; height:38px; margin-left:6px; padding:0; background:#151515; color:#fff; border:1px solid #333; border-radius:8px; font-size:1.25rem; }
+        body.eko-header-clean .header-nav-row { display:block; grid-column:1/-1; grid-row:2; width:calc(100% + 24px); margin-left:-12px; }
         body.eko-header-clean .main-nav { display:none; }
-        body.eko-header-clean .main-nav.open { display:block; }
-        body.eko-header-clean .header-nav-row .main-nav ul { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 18px; overflow:visible; }
+        body.eko-header-clean .main-nav.open { display:block; padding:8px 18px 14px; border-top:1px solid #242424; background:#090909; }
+        body.eko-header-clean .header-nav-row .main-nav ul { display:grid; grid-template-columns:1fr; gap:0; overflow:visible; }
+        body.eko-header-clean .header-nav-row li a::after { display:none !important; }
+        body.eko-header-clean .header-nav-row li.active a { border-left:2px solid var(--eko-accent) !important; padding-left:10px !important; }
+        body.eko-header-clean .eko-nav-lang { padding:0 18px 14px; margin:0; background:#090909; }
+        body.eko-header-clean .main-nav:not(.open) + .eko-nav-lang { display:none; }
       }
       @media (max-width:600px) {
         body.eko-header-clean .header-main-row { padding:8px 10px; overflow:hidden; }
@@ -571,6 +586,7 @@
     <% const theme = config.theme || {}; %>
     <% const isEukolakisClassic = theme.presetId === 'eukolakis_classic_diy'; %>
     <% const isCleanHeader = isEukolakisClassic && theme.headerMenuStyle !== 'industrial_plates'; %>
+    <% const subscriptionsEnabled = !!(config.homepage && config.homepage.showSubscriptionsCard); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
@@ -651,6 +667,7 @@
           <% } %>
         </div>
         <% } %>
+        <% if (isCleanHeader) { %><button class="menu-toggle eko-clean-menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="<%= lang === 'el' ? 'Άνοιγμα μενού' : 'Open menu' %>">☰</button><% } %>
       </div>
       <% if (isPreviewMode) { %>
       <div class="preview-banner" style="padding:8px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.85rem;">
@@ -659,16 +676,19 @@
       <% } %>
       <% if (isEukolakisClassic && navCategories.length) { %>
       <div class="header-nav-row">
-        <% if (isCleanHeader) { %><button class="menu-toggle" id="menu-toggle" type="button"><%= t('storefront.menuToggle') %></button><% } %>
         <nav class="main-nav <%= isCleanHeader ? '' : 'open' %>" id="main-nav">
           <ul>
             <% if (isCleanHeader) { %><li><a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΑΡΧΙΚΗ' : 'HOME' %></a></li><% } %>
             <% navCategories.forEach(function(cat) { %>
               <% const catLabel = (typeof cat.name === 'string') ? cat.name : (resolveField(cat.name, lang) || resolveField(cat.name, 'el') || resolveField(cat.name, 'en') || cat.id || cat.slug || 'CAT'); %>
-              <li><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><% if (!isCleanHeader && cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="" style="width:28px;height:20px;border-radius:4px;object-fit:cover;border:1px solid rgba(196,144,46,.26);" /><% } else if (!isCleanHeader) { %><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><% } %><%= catLabel %></a></li>
+              <li class="<%= product.categoryId === cat.id || product.categoryId === cat.slug ? 'active' : '' %>"><a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>"><% if (!isCleanHeader && cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="" style="width:28px;height:20px;border-radius:4px;object-fit:cover;border:1px solid rgba(196,144,46,.26);" /><% } else if (!isCleanHeader) { %><span class="eko-nav-plate-fallback"><%= String(catLabel).slice(0,3).toUpperCase() %></span><% } %><%= catLabel %></a></li>
             <% }) %>
+            <% if (isCleanHeader && subscriptionsEnabled && !navCategories.some(function(cat){ return cat.slug === 'subscriptions'; })) { %>
+            <li class="<%= product.hasDigitalContent ? 'active' : '' %>"><a href="<%= withTenantLink('/content', lang !== 'el' ? { lang } : {}) %>"><%= lang === 'el' ? 'ΣΥΝΔΡΟΜΗΤΙΚΑ ΒΙΝΤΕΟ' : 'SUBSCRIPTION VIDEOS' %></a></li>
+            <% } %>
           </ul>
         </nav>
+        <% if (isCleanHeader) { %><div class="eko-nav-lang"><select aria-label="<%= lang === 'el' ? 'Γλώσσα' : 'Language' %>" onchange="window.location.href=this.value"><option value="<%= withTenantLink('/product/' + product.id) %>" <%= lang === 'el' ? 'selected' : '' %>>ΕΛ</option><option value="<%= withTenantLink('/product/' + product.id, { lang: 'en' }) %>" <%= lang === 'en' ? 'selected' : '' %>>EN</option></select></div><% } %>
       </div>
       <% } %>
     </header>
@@ -901,7 +921,16 @@
     <script>
       const menuToggle = document.getElementById('menu-toggle');
       const mainNav = document.getElementById('main-nav');
-      if (menuToggle && mainNav) menuToggle.addEventListener('click', function() { mainNav.classList.toggle('open'); });
+      if (menuToggle && mainNav) {
+        const setMenuOpen = function(open) {
+          mainNav.classList.toggle('open', open);
+          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        menuToggle.addEventListener('click', function(event) { event.stopPropagation(); setMenuOpen(!mainNav.classList.contains('open')); });
+        mainNav.querySelectorAll('a').forEach(function(link) { link.addEventListener('click', function() { setMenuOpen(false); }); });
+        document.addEventListener('keydown', function(event) { if (event.key === 'Escape') setMenuOpen(false); });
+        document.addEventListener('click', function(event) { if (!mainNav.contains(event.target) && event.target !== menuToggle) setMenuOpen(false); });
+      }
       // ── Product data ──────────────────────────────────────────────
       const PRODUCT = {
         id:    '<%= product.id %>',

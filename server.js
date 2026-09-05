@@ -1153,6 +1153,13 @@ function loadTenantConfig(req) {
     paymentOptions: [],
     homepage: {
       showSubscriptionsCard: false,
+      subscriptionVideoCard: {
+        image: '',
+        title: { el: '', en: '' },
+        subtitle: { el: '', en: '' },
+        href: '/content',
+        ctaLabel: { el: '', en: '' }
+      },
       introEnabled: false,
       introVideoUrl: '',
       introPosterUrl: '',
@@ -1268,6 +1275,12 @@ function loadTenantConfig(req) {
     { title: '', text: '', link: '', image: '' },
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
+  cfg.homepage.subscriptionVideoCard = Object.assign(
+    { image: '', title: { el: '', en: '' }, subtitle: { el: '', en: '' }, href: '/content', ctaLabel: { el: '', en: '' } },
+    (cfg.homepage && cfg.homepage.subscriptionVideoCard) || {}
+  );
+  cfg.homepage.subscriptionVideoCard.image = normalizeMediaPath(cfg.homepage.subscriptionVideoCard.image);
+  cfg.homepage.subscriptionVideoCard.href = String(cfg.homepage.subscriptionVideoCard.href || '/content').trim() || '/content';
   cfg.homepage.blockVisibility = Object.assign(
     { hero: true, kits: true, spare: true, subscriptions: true },
     (cfg.homepage && cfg.homepage.blockVisibility) || {}
@@ -4429,6 +4442,11 @@ app.post('/admin/settings', async (req, res) => {
     homepageSecondaryLink,
     homepageSecondaryImage,
     homepageShowSubscriptionsCard,
+    homepageSubscriptionVideoImage,
+    homepageSubscriptionVideoTitle,
+    homepageSubscriptionVideoSubtitle,
+    homepageSubscriptionVideoHref,
+    homepageSubscriptionVideoCtaLabel,
     homepageIntroEnabled,
     homepageIntroMode,
     homepageIntroTagline,
@@ -4671,6 +4689,22 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.secondaryCard.image = normalizeMediaPath(homepageSecondaryImage);
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
+  config.homepage.subscriptionVideoCard = config.homepage.subscriptionVideoCard || {};
+  if (hasBodyField(req.body, 'homepageSubscriptionVideoImage')) {
+    config.homepage.subscriptionVideoCard.image = normalizeMediaPath(homepageSubscriptionVideoImage);
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoTitle_${lang}`))) {
+    config.homepage.subscriptionVideoCard.title = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoTitle', config.homepage.subscriptionVideoCard.title || '');
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoSubtitle_${lang}`))) {
+    config.homepage.subscriptionVideoCard.subtitle = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoSubtitle', config.homepage.subscriptionVideoCard.subtitle || '');
+  }
+  if (hasBodyField(req.body, 'homepageSubscriptionVideoHref')) {
+    config.homepage.subscriptionVideoCard.href = String(homepageSubscriptionVideoHref || '').trim() || '/content';
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoCtaLabel_${lang}`))) {
+    config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
+  }
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   if (hasBodyField(req.body, 'homepageIntroMode')) {
     const _validModes = ['basic', 'assembly', 'video', 'fullscreen'];
