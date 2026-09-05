@@ -2345,6 +2345,34 @@
         populate();
       })();
 
+      // Keep the existing compact update form, but bind every editable value to
+      // the selected record so unrelated edits cannot reset checkbox state.
+      (function bindCategoryUpdateForm() {
+        const categories = <%- categoriesJsonScript %>;
+        const select = document.getElementById('category-update-id');
+        if (!select || !Array.isArray(categories)) return;
+        const field = function(id) { return document.getElementById(id); };
+        const localized = function(value, language) {
+          if (value && typeof value === 'object') return value[language] || '';
+          return language === 'el' ? String(value || '') : '';
+        };
+        const populate = function() {
+          const category = categories.find(function(item) { return item.id === select.value; });
+          if (!category) return;
+          field('category-update-name-el').value = localized(category.name, 'el');
+          field('category-update-name-en').value = localized(category.name, 'en');
+          field('category-update-description-el').value = localized(category.shortDescription, 'el');
+          field('category-update-description-en').value = localized(category.shortDescription, 'en');
+          field('category-update-slug').value = category.slug || '';
+          field('category-update-parent').value = category.parentId || '';
+          field('category-update-order').value = category.navOrder == null ? '' : category.navOrder;
+          field('category-update-visible').checked = category.visible !== false;
+          field('category-update-nav-visible').checked = category.showInMainNav !== false;
+        };
+        select.addEventListener('change', populate);
+        populate();
+      })();
+
       // ── Products data (server-rendered) ────────────────────────
       let products = JSON.parse(<%- productsJsonEscaped %>);
       const canEdit = <%= permissions.canEditProducts ? 'true' : 'false' %>;
