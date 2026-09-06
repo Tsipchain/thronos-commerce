@@ -234,12 +234,15 @@ function normalizeCategoryRecord(rawCategory, index = 0) {
     : (source.visible !== false && source.inMainNav !== false);
   const rawOrder = source.navOrder !== undefined ? source.navOrder : source.order;
   const navOrder = Number.isFinite(Number(rawOrder)) ? Number(rawOrder) : index;
+  const imageVersion = Number.isFinite(Number(source.imageVersion)) && Number(source.imageVersion) > 0
+    ? Number(source.imageVersion) : 1;
   return {
     ...source,
     id: safeId,
     slug: safeSlug,
     name: normalizedName,
     image: normalizeMediaPath(source.image),
+    imageVersion,
     visible: source.visible !== false,
     featured: source.featured === true,
     showInMainNav: normalizedShowInMainNav,
@@ -2556,7 +2559,7 @@ app.get('/robots.txt', (_req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/tenants', express.static(TENANTS_DIR));
+app.use('/tenants', express.static(TENANTS_DIR, { maxAge: 0, etag: true }));
 // Raw body for Stripe webhook signature verification (must be before urlencoded)
 app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
@@ -5338,8 +5341,12 @@ app.post('/admin/categories/update', async (req, res) => {
   categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
     const normalizedCategoryImage = normalizeMediaPath(image);
+    const previousImage = categories[idx].image || '';
     if (normalizedCategoryImage) categories[idx].image = normalizedCategoryImage;
     else delete categories[idx].image;
+    if ((categories[idx].image || '') !== previousImage) {
+      categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
+    }
   }
   if (parentId !== undefined) {
     if (parentId && parentId.trim() && parentId.trim() !== categoryId) {
@@ -5702,8 +5709,9 @@ app.post('/admin/categories/image-upload', categoryUpload.single('image'), async
     }
   }
   categories[idx].image = `/tenants/${req.tenant.id}/media/categories/${req.file.filename}`;
+  categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
   saveTenantCategories(req, categories);
-  return res.json({ ok: true, image: categories[idx].image });
+  return res.json({ ok: true, image: categories[idx].image, imageVersion: categories[idx].imageVersion });
 });
 
 app.post('/admin/categories/image-remove', async (req, res) => {
@@ -5726,6 +5734,7 @@ app.post('/admin/categories/image-remove', async (req, res) => {
     }
   }
   delete categories[idx].image;
+  categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
   saveTenantCategories(req, categories);
   return res.json({ ok: true });
 });

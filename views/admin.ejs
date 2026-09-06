@@ -1234,7 +1234,7 @@
                 <td>
                   <% if (rawCat?.image) { %>
                     <div class="cat-image-wrap">
-                      <img src="<%= rawCat.image %>" alt="<%= cat.name %>" class="cat-preview" />
+                      <img src="<%= rawCat.image + '?v=' + (cat.imageVersion || rawCat.imageVersion || 1) %>" alt="<%= cat.name %>" class="cat-preview" />
                       <div class="cat-hover-actions">
                         <label class="cat-upload-btn" style="padding:4px 8px;font-size:.72rem;">
                           <input type="file" accept="image/*" onchange="uploadCategoryImage('<%= cat.id %>', this)" style="display:none;" />
