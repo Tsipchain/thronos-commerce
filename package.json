@@ -9,6 +9,8 @@
     "test:tenant-hosts": "node --test tests/tenant-host-resolver.test.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
+    "@aws-sdk/s3-request-presigner": "^3.1127.0",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "ejs": "^3.1.9",

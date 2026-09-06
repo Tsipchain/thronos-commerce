@@ -13,6 +13,7 @@ const { normalizeAssistantConfig } = require('./lib/assistant-config');
 const { setupAdminAssistantRoutes } = require('./lib/admin-assistant-routes');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const ejs = require('ejs');
 const crypto = require('crypto');
 const axios = require('axios');
@@ -23,6 +24,9 @@ const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./uti
 const { runDomainCheck, runDomainCheckFull } = require('./utils/dns-check');
 const { getCloudflareClient, getTenantZoneId } = require('./utils/cloudflare-api');
 const RailwayRegistry = require('./utils/railway-registry');
+const { getCustomerSubscriptionStatus } = require('./lib/subscription-status');
+const { createVideoStorage, safeKey: safeVideoStorageKey } = require('./lib/video-storage');
+const { normalizeVideo, listVideos, slugify: slugifyVideo } = require('./lib/video-library');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -235,6 +239,7 @@ function normalizeCategoryRecord(rawCategory, index = 0) {
     slug: safeSlug,
     name: normalizedName,
     image: normalizeMediaPath(source.image),
+    visible: source.visible !== false,
     featured: source.featured === true,
     showInMainNav: normalizedShowInMainNav,
     navOrder
@@ -1006,6 +1011,7 @@ function tenantPaths(tenantId) {
     categories: path.join(base, 'categories.json'),
     users: path.join(base, 'users.json'),
     orders: path.join(base, 'orders.json'),
+    videos: path.join(base, 'videos.json'),
     reviews: path.join(base, 'reviews.json'),
     stockLog:      path.join(base, 'stock_log.json'),
     analytics:     path.join(base, 'analytics.json'),
@@ -1013,6 +1019,9 @@ function tenantPaths(tenantId) {
     pendingOrders: path.join(base, 'pending_orders.json'),
     tickets:       path.join(base, 'tickets.json'),
     media,
+    // Kept outside /media because /tenants is served statically. Playback must
+    // always pass through the authorization-aware /content/:slug/stream route.
+    videoMedia: path.join(base, 'video-storage'),
     backups
   };
 }
@@ -1152,6 +1161,13 @@ function loadTenantConfig(req) {
     paymentOptions: [],
     homepage: {
       showSubscriptionsCard: false,
+      subscriptionVideoCard: {
+        image: '',
+        title: { el: '', en: '' },
+        subtitle: { el: '', en: '' },
+        href: '/content',
+        ctaLabel: { el: '', en: '' }
+      },
       introEnabled: false,
       introVideoUrl: '',
       introPosterUrl: '',
@@ -1225,6 +1241,7 @@ function loadTenantConfig(req) {
       headerLayout: 'default',
       authPosition: 'right',
       menuStyle: 'classic',
+      headerMenuStyle: 'industrial_plates',
       heroStyle: 'soft',
       categoryMenuStyle: 'image_label',
       cardStyle: 'soft',
@@ -1266,6 +1283,12 @@ function loadTenantConfig(req) {
     { title: '', text: '', link: '', image: '' },
     (cfg.homepage && cfg.homepage.secondaryCard) || {}
   );
+  cfg.homepage.subscriptionVideoCard = Object.assign(
+    { image: '', title: { el: '', en: '' }, subtitle: { el: '', en: '' }, href: '/content', ctaLabel: { el: '', en: '' } },
+    (cfg.homepage && cfg.homepage.subscriptionVideoCard) || {}
+  );
+  cfg.homepage.subscriptionVideoCard.image = normalizeMediaPath(cfg.homepage.subscriptionVideoCard.image);
+  cfg.homepage.subscriptionVideoCard.href = String(cfg.homepage.subscriptionVideoCard.href || '/content').trim() || '/content';
   cfg.homepage.blockVisibility = Object.assign(
     { hero: true, kits: true, spare: true, subscriptions: true },
     (cfg.homepage && cfg.homepage.blockVisibility) || {}
@@ -1286,6 +1309,10 @@ function loadTenantConfig(req) {
   cfg.notifications = Object.assign({}, fallback.notifications, cfg.notifications || {});
   cfg.theme = Object.assign({}, fallback.theme, cfg.theme || {});
   cfg.theme.presetId = resolveThemeKeyForTenant(req.tenant, cfg.theme.presetId || DEFAULT_THEME_KEY);
+  const requestedHeaderMenuStyle = String(cfg.theme.headerMenuStyle || '').trim();
+  cfg.theme.headerMenuStyle = ['clean', 'industrial_plates'].includes(requestedHeaderMenuStyle)
+    ? requestedHeaderMenuStyle
+    : (req.tenant && req.tenant.id === 'eukolakis' ? 'clean' : 'industrial_plates');
   cfg.theme.storefrontBgUrl = normalizeMediaPath(cfg.theme.storefrontBgUrl || '', { allowAbsoluteUrl: true });
   cfg.logoPath = normalizeMediaPath(cfg.logoPath || fallback.logoPath);
   cfg.homepage.heroImage = normalizeMediaPath(cfg.homepage.heroImage);
@@ -1403,6 +1430,38 @@ function loadTenantUsers(req) {
 
 function saveTenantUsers(req, users) {
   saveJson(req.tenantPaths.users, users);
+}
+
+function loadTenantVideos(req) {
+  return listVideos(req.tenantPaths.videos, loadJson, req.tenant.id);
+}
+
+function saveTenantVideos(req, videos) {
+  const safeVideos = (Array.isArray(videos) ? videos : []).map((video) => normalizeVideo(video, req.tenant.id));
+  saveJson(req.tenantPaths.videos, safeVideos);
+  backupJsonWithRotation(req, 'videos', safeVideos);
+}
+
+function currentCustomer(req) {
+  if (!req.session || !req.session.user) return null;
+  const sessionUser = req.session.user;
+  return loadTenantUsers(req).find((user) => user.id === sessionUser.id || normalizeEmail(user.email) === normalizeEmail(sessionUser.email)) || null;
+}
+
+function subscriberRows(req) {
+  const orders = loadTenantOrders(req);
+  return loadTenantUsers(req).map((user) => {
+    const email = normalizeEmail(user.email);
+    const customerOrders = orders.filter((order) => normalizeEmail(order.userEmail || order.email) === email).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const latestOrder = customerOrders[0] || null;
+    return {
+      id: user.id, name: user.name || '', email: user.email, createdAt: user.createdAt || null,
+      subscription: getCustomerSubscriptionStatus(user, req.tenant),
+      subscriptionHistory: Array.isArray(user.subscriptionHistory) ? user.subscriptionHistory : [],
+      latestPayment: latestOrder ? { orderId: latestOrder.id, status: latestOrder.paymentStatus || 'UNKNOWN', date: latestOrder.paidAt || latestOrder.createdAt || null } : null,
+      orders: customerOrders.map((order) => ({ id: order.id, createdAt: order.createdAt || null, paymentStatus: order.paymentStatus || 'UNKNOWN', total: order.total }))
+    };
+  });
 }
 
 function saveTenantProducts(req, products) {
@@ -2206,6 +2265,31 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const videoUploadMaxBytes = Math.max(1, Number(process.env.VIDEO_UPLOAD_MAX_BYTES) || 1024 * 1024 * 1024);
+const videoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = path.join(os.tmpdir(), 'thrc-video-uploads');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const extension = file.mimetype === 'video/webm' ? '.webm' : '.mp4';
+      cb(null, `${Date.now()}-${crypto.randomBytes(5).toString('hex')}${extension}`);
+    }
+  }),
+  limits: { fileSize: videoUploadMaxBytes },
+  fileFilter: (_req, file, cb) => cb(null, /^(video\/mp4|video\/webm)$/.test(String(file.mimetype || '')))
+});
+
+function videoStorageForRequest(req) {
+  return createVideoStorage({ localRoot: req.tenantPaths.videoMedia });
+}
+
+function cleanupTemporaryVideoUpload(req) {
+  if (!req.file || !req.file.path) return;
+  try { fs.unlinkSync(req.file.path); } catch (error) { if (error.code !== 'ENOENT') console.warn('[videos] temporary upload cleanup failed:', error.message); }
+}
 const partsUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
@@ -2415,7 +2499,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self';");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self';");
   next();
 });
 
@@ -2602,6 +2686,8 @@ function buildAdminViewModel(req, extra) {
   );
   const hasConfiguredFavicon = Boolean(faviconPath);
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
+  const videos = loadTenantVideos(req);
+  const subscribers = subscriberRows(req);
   const categories = loadTenantCategories(req);
   const assetAudit = buildTenantAssetAudit(req, config, categories);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
@@ -2656,6 +2742,7 @@ function buildAdminViewModel(req, extra) {
     rawConfig: config,
     categories: categories.map((c) => localizeCategoryContent(c, contentLang)),
     rawCategories: categories,
+    categoriesJsonScript: safeJsonForScript(categories),
     products: products.map((p) => localizeProductContent(p, contentLang)),
     rawProducts: products,
     productsJson: JSON.stringify(products, null, 2),
@@ -2668,6 +2755,11 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     unresolvedOrdersCount,
+    subscriberMetrics: {
+      active: subscribers.filter((row) => row.subscription.status === 'active').length,
+      publishedVideos: videos.filter((video) => video.published).length,
+      draftVideos: videos.filter((video) => !video.published).length
+    },
     assetAudit,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
@@ -3740,6 +3832,104 @@ app.post('/api/products/:productId/reviews', (req, res) => {
   res.json({ ok: true, review });
 });
 
+app.get('/admin/videos', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const videos = loadTenantVideos(req).sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+  res.render('admin-videos', { config, tenant: req.tenant, videos, editing: null, message: req.query.message || '', error: req.query.error || '' });
+});
+
+app.get('/admin/videos/:id/edit', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const videos = loadTenantVideos(req);
+  const editing = videos.find((video) => video.id === req.params.id);
+  if (!editing) return res.status(404).send('Video not found.');
+  return res.render('admin-videos', { config, tenant: req.tenant, videos, editing, message: '', error: '' });
+});
+
+app.post('/admin/videos/save', (req, res, next) => {
+  videoUpload.single('videoFile')(req, res, (uploadError) => {
+    if (uploadError) return res.status(400).send(`Video upload failed: ${uploadError.message}`);
+    (async () => {
+      const auth = await verifyAdminAction(req, req.body.password);
+      if (!auth.ok) { cleanupTemporaryVideoUpload(req); return res.status(401).send('Invalid admin password.'); }
+      const videos = loadTenantVideos(req);
+      const existingIndex = videos.findIndex((video) => video.id === String(req.body.id || ''));
+      const existing = existingIndex >= 0 ? videos[existingIndex] : null;
+      const sourceType = req.body.sourceType === 'uploaded' ? 'uploaded' : 'external';
+      const externalVideoUrl = String(req.body.externalVideoUrl || '').trim();
+      if (sourceType === 'external' && !/^https?:\/\//i.test(externalVideoUrl)) {
+        cleanupTemporaryVideoUpload(req);
+        return res.status(400).send('A valid http(s) external video URL is required.');
+      }
+      if (sourceType === 'uploaded' && !req.file && !(existing && existing.videoStorageKey)) {
+        return res.status(400).send('An MP4 or WebM upload is required.');
+      }
+      const draft = normalizeVideo({
+      ...existing,
+      slug: req.body.slug || slugifyVideo(req.body.titleEn || req.body.titleEl),
+      titleEl: req.body.titleEl, titleEn: req.body.titleEn,
+      descriptionEl: req.body.descriptionEl, descriptionEn: req.body.descriptionEn,
+      thumbnailUrl: normalizeMediaPath(req.body.thumbnailUrl, { allowAbsoluteUrl: true }), sourceType,
+      externalVideoUrl, videoStorageKey: existing && existing.videoStorageKey,
+      durationSeconds: req.body.durationSeconds, category: req.body.category,
+      accessLevel: req.body.accessLevel, published: req.body.published === '1',
+      featured: req.body.featured === '1', sortOrder: req.body.sortOrder
+      }, req.tenant.id);
+      if (!draft.titleEl && !draft.titleEn) { cleanupTemporaryVideoUpload(req); return res.status(400).send('A title is required.'); }
+      const duplicate = videos.some((video, index) => index !== existingIndex && video.slug === draft.slug);
+      if (duplicate) { cleanupTemporaryVideoUpload(req); return res.status(409).send('Video slug already exists.'); }
+      const storageProvider = videoStorageForRequest(req);
+      const previousKey = existing && existing.videoStorageKey;
+      if (req.file) {
+        const extension = req.file.mimetype === 'video/webm' ? '.webm' : '.mp4';
+        const leaf = `${Date.now()}-${slugifyVideo(path.basename(req.file.originalname, path.extname(req.file.originalname))) || 'video'}${extension}`;
+        const key = storageProvider.provider === 's3' ? `${req.tenant.id}/${draft.id}/${leaf}` : `${draft.id}/${leaf}`;
+        await storageProvider.put({ key, filePath: req.file.path, contentType: req.file.mimetype });
+        cleanupTemporaryVideoUpload(req);
+        draft.videoStorageKey = key;
+      } else if (sourceType === 'external') {
+        draft.videoStorageKey = '';
+      }
+      if (existingIndex >= 0) videos[existingIndex] = draft; else videos.push(draft);
+      saveTenantVideos(req, videos);
+      if (previousKey && previousKey !== draft.videoStorageKey) {
+        try { await storageProvider.remove(previousKey); } catch (error) { console.warn('[videos] old object cleanup failed:', error.message); }
+      }
+      return res.redirect(buildTenantLink(req, '/admin/videos', { message: 'saved' }));
+    })().catch((error) => { cleanupTemporaryVideoUpload(req); next(error); });
+  });
+});
+
+app.post('/admin/videos/:id/delete', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).send('Invalid admin password.');
+  const videos = loadTenantVideos(req);
+  const video = videos.find((row) => row.id === req.params.id);
+  if (!video) return res.status(404).send('Video not found.');
+  saveTenantVideos(req, videos.filter((row) => row.id !== video.id));
+  if (video.videoStorageKey) {
+    try { await videoStorageForRequest(req).remove(safeVideoStorageKey(video.videoStorageKey)); }
+    catch (error) { console.warn('[videos] object delete failed:', error.message); }
+  }
+  return res.redirect(buildTenantLink(req, '/admin/videos', { message: 'deleted' }));
+});
+
+app.get('/admin/subscribers', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const status = String(req.query.status || 'all').toLowerCase();
+  const search = normalizeEmail(req.query.q || '');
+  const rows = subscriberRows(req).filter((row) => (status === 'all' || row.subscription.status === status) && (!search || normalizeEmail(`${row.name} ${row.email}`).includes(search)));
+  res.render('admin-subscribers', { config, tenant: req.tenant, subscribers: rows, status, search, selected: null });
+});
+
+app.get('/admin/subscribers/:id', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const rows = subscriberRows(req);
+  const selected = rows.find((row) => row.id === req.params.id);
+  if (!selected) return res.status(404).send('Subscriber not found.');
+  res.render('admin-subscribers', { config, tenant: req.tenant, subscribers: rows, status: 'all', search: '', selected });
+});
+
 // Admin panel
 app.get('/admin', (req, res) => {
   console.log('[tenant-admin] render-dashboard', JSON.stringify({
@@ -4422,6 +4612,11 @@ app.post('/admin/settings', async (req, res) => {
     homepageSecondaryLink,
     homepageSecondaryImage,
     homepageShowSubscriptionsCard,
+    homepageSubscriptionVideoImage,
+    homepageSubscriptionVideoTitle,
+    homepageSubscriptionVideoSubtitle,
+    homepageSubscriptionVideoHref,
+    homepageSubscriptionVideoCtaLabel,
     homepageIntroEnabled,
     homepageIntroMode,
     homepageIntroTagline,
@@ -4459,6 +4654,7 @@ app.post('/admin/settings', async (req, res) => {
     themeHeaderLayout,
     themeAuthPosition,
     themeMenuStyle,
+    themeHeaderMenuStyle,
     themeHeroStyle,
     themeCategoryMenuStyle,
     themeCardStyle,
@@ -4552,6 +4748,9 @@ app.post('/admin/settings', async (req, res) => {
   config.theme.menuStyle = ['classic', 'pills', 'compact'].includes(String(themeMenuStyle || '').trim())
     ? String(themeMenuStyle).trim()
     : (config.theme.menuStyle || 'classic');
+  config.theme.headerMenuStyle = ['clean', 'industrial_plates'].includes(String(themeHeaderMenuStyle || '').trim())
+    ? String(themeHeaderMenuStyle).trim()
+    : (config.theme.headerMenuStyle || (req.tenant.id === 'eukolakis' ? 'clean' : 'industrial_plates'));
   config.theme.heroStyle = themeHeroStyle || config.theme.heroStyle || 'soft';
   config.theme.categoryMenuStyle = themeCategoryMenuStyle || config.theme.categoryMenuStyle || 'image_label';
   config.theme.cardStyle = themeCardStyle || config.theme.cardStyle || 'soft';
@@ -4660,6 +4859,22 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.secondaryCard.image = normalizeMediaPath(homepageSecondaryImage);
   }
   config.homepage.showSubscriptionsCard = readCheckbox(req.body, 'homepageShowSubscriptionsCard', config.homepage.showSubscriptionsCard);
+  config.homepage.subscriptionVideoCard = config.homepage.subscriptionVideoCard || {};
+  if (hasBodyField(req.body, 'homepageSubscriptionVideoImage')) {
+    config.homepage.subscriptionVideoCard.image = normalizeMediaPath(homepageSubscriptionVideoImage);
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoTitle_${lang}`))) {
+    config.homepage.subscriptionVideoCard.title = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoTitle', config.homepage.subscriptionVideoCard.title || '');
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoSubtitle_${lang}`))) {
+    config.homepage.subscriptionVideoCard.subtitle = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoSubtitle', config.homepage.subscriptionVideoCard.subtitle || '');
+  }
+  if (hasBodyField(req.body, 'homepageSubscriptionVideoHref')) {
+    config.homepage.subscriptionVideoCard.href = String(homepageSubscriptionVideoHref || '').trim() || '/content';
+  }
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoCtaLabel_${lang}`))) {
+    config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
+  }
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   if (hasBodyField(req.body, 'homepageIntroMode')) {
     const _validModes = ['basic', 'assembly', 'video', 'fullscreen'];
@@ -4923,7 +5138,7 @@ app.post('/admin/shipping-payment', async (req, res) => {
 
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
-  const { password, id, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
+  const { password, id, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -4974,6 +5189,7 @@ app.post('/admin/categories/add', async (req, res) => {
   if (normalizedCategoryImage) newCat.image = normalizedCategoryImage;
   if (parentId && parentId.trim()) newCat.parentId = parentId.trim();
   newCat.showInMainNav = showInMainNav === 'on';
+  newCat.visible = visible === 'on';
   if (navOrder !== undefined && navOrder !== '') newCat.navOrder = Number(navOrder) || 0;
   categories.push(newCat);
   saveTenantCategories(req, categories);
@@ -4985,7 +5201,7 @@ app.post('/admin/categories/add', async (req, res) => {
 });
 
 app.post('/admin/categories/update', async (req, res) => {
-  const { password, categoryId, name, slug, parentId, image, showInMainNav, navOrder } = req.body;
+  const { password, categoryId, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
   const permissions = getSupportPermissions(req.tenant.supportTier);
   if (!permissions.canEditCategories) {
     return res
@@ -5068,6 +5284,7 @@ app.post('/admin/categories/update', async (req, res) => {
     }
   }
   categories[idx].showInMainNav = showInMainNav === 'on';
+  categories[idx].visible = visible === 'on';
   if (navOrder !== undefined && navOrder !== '') categories[idx].navOrder = Number(navOrder) || 0;
   saveTenantCategories(req, categories);
 
@@ -5556,7 +5773,53 @@ app.post(
   }
 );
 
-// ── Digital content: gated access page ───────────────────────────────────────
+// ── Tenant video library and legacy purchased digital content ───────────────
+app.get('/content', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const customer = currentCustomer(req);
+  const subscription = getCustomerSubscriptionStatus(customer, req.tenant);
+  const videos = loadTenantVideos(req)
+    .filter((video) => video.published)
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+  return res.render('content-library', { config, tenant: req.tenant, user: req.session.user || null, subscription, videos });
+});
+
+app.get('/content/:slug/stream', async (req, res) => {
+  const video = loadTenantVideos(req).find((row) => row.slug === req.params.slug && row.published && row.sourceType === 'uploaded');
+  if (!video) return res.sendStatus(404);
+  const customer = currentCustomer(req);
+  const subscription = getCustomerSubscriptionStatus(customer, req.tenant);
+  if (video.accessLevel === 'subscriber' && !subscription.active) return res.sendStatus(403);
+  try {
+    const provider = videoStorageForRequest(req);
+    if (provider.provider === 's3') return res.redirect(await provider.playbackUrl(video.videoStorageKey));
+    const localPath = provider.localPath(video.videoStorageKey);
+    if (!fs.existsSync(localPath)) return res.sendStatus(404);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.sendFile(localPath);
+  } catch (error) {
+    console.error('[videos] stream failed:', error.message);
+    return res.sendStatus(404);
+  }
+});
+
+app.get('/content/:slugOrOrderId', (req, res, next) => {
+  const video = loadTenantVideos(req).find((row) => row.slug === req.params.slugOrOrderId && row.published);
+  if (video) {
+    const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+    const customer = currentCustomer(req);
+    const subscription = getCustomerSubscriptionStatus(customer, req.tenant);
+    const allowed = video.accessLevel === 'public' || subscription.active;
+    const playbackUrl = allowed
+      ? (video.sourceType === 'uploaded' ? buildTenantLink(req, `/content/${encodeURIComponent(video.slug)}/stream`) : video.externalVideoUrl)
+      : null;
+    return res.status(allowed ? 200 : 403).render('content-video', {
+      config, tenant: req.tenant, user: req.session.user || null, subscription, video, allowed, playbackUrl
+    });
+  }
+  return next();
+});
+
 app.get('/content/:orderId', requireUser, (req, res) => {
   const orders = loadTenantOrders(req);
   const order  = orders.find((o) => o.id === req.params.orderId);
