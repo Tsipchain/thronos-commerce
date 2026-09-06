@@ -345,9 +345,9 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
         : (choice.useLinkedPriceDelta && linked ? effectiveLinkedPrice : (Number(choice.priceDelta) || 0));
       return {
         ...choice,
-        label: (choice.label || '').trim() || linkedName || choice.id,
-        description: (choice.description || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
-        image: (choice.image || '').trim() || effectiveLinkedImageUrl,
+        label: (resolveTranslatable(choice.label, lang) || '').trim() || linkedName || choice.id,
+        description: (resolveTranslatable(choice.description, lang) || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
+        image: (typeof choice.image === 'string' ? choice.image : '').trim() || effectiveLinkedImageUrl,
         priceDelta: computedPriceDelta,
         linkedPrice: effectiveLinkedPrice,
         linkedName: linkedName || '',
@@ -360,7 +360,7 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
     if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
       hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
     }
-    return { ...group, choices: hydratedChoices };
+    return { ...group, label: resolveTranslatable(group.label, lang) || group.id, choices: hydratedChoices };
   });
   return { ...product, kitPayMode, kitOptions: hydratedOptions };
 }
@@ -1394,6 +1394,22 @@ function normalizeProductRecord(product) {
   } else {
     normalized.subscriptionPlan = '';
     normalized.subscriptionDurationDays = null;
+  }
+  if (normalized.type === 'KIT') {
+    const _bt = String(normalized.builderType || 'classic').trim();
+    normalized.builderType = ['classic', 'step_by_step'].includes(_bt) ? _bt : 'classic';
+    if (normalized.builderConfig && typeof normalized.builderConfig === 'object') {
+      normalized.builderConfig = {
+        bannerImage: normalizeMediaPath(normalized.builderConfig.bannerImage || '', { allowAbsoluteUrl: true }),
+        mobileBannerImage: normalizeMediaPath(normalized.builderConfig.mobileBannerImage || '', { allowAbsoluteUrl: true }),
+        title: normalized.builderConfig.title || '',
+        subtitle: normalized.builderConfig.subtitle || '',
+        helperText: normalized.builderConfig.helperText || '',
+        videoUrl: normalizeMediaPath(normalized.builderConfig.videoUrl || '', { allowAbsoluteUrl: true }),
+        showVideo: normalized.builderConfig.showVideo !== false,
+        showTrustRow: normalized.builderConfig.showTrustRow !== false,
+      };
+    }
   }
   return normalized;
 }
@@ -4942,6 +4958,34 @@ app.post('/admin/settings', async (req, res) => {
   }
   if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `homepageSubscriptionVideoCtaLabel_${lang}`))) {
     config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
+  }
+  config.homepage.heroOverlay = config.homepage.heroOverlay || {};
+  config.homepage.heroOverlay.showOverlay = readCheckbox(req.body, 'heroOverlayShowOverlay', config.homepage.heroOverlay.showOverlay !== false);
+  config.homepage.heroOverlay.showKicker = readCheckbox(req.body, 'heroOverlayShowKicker', config.homepage.heroOverlay.showKicker !== false);
+  config.homepage.heroOverlay.showTitle = readCheckbox(req.body, 'heroOverlayShowTitle', config.homepage.heroOverlay.showTitle !== false);
+  config.homepage.heroOverlay.showSubtitle = readCheckbox(req.body, 'heroOverlayShowSubtitle', config.homepage.heroOverlay.showSubtitle !== false);
+  config.homepage.heroOverlay.showPrimaryCta = readCheckbox(req.body, 'heroOverlayShowPrimaryCta', config.homepage.heroOverlay.showPrimaryCta !== false);
+  config.homepage.heroOverlay.showSecondaryCta = readCheckbox(req.body, 'heroOverlayShowSecondaryCta', config.homepage.heroOverlay.showSecondaryCta !== false);
+  config.homepage.heroPrimaryCta = config.homepage.heroPrimaryCta || {};
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `heroPrimaryCtaLabel_${lang}`))) {
+    config.homepage.heroPrimaryCta.label = buildTranslatableFromBody(req.body, 'heroPrimaryCtaLabel', config.homepage.heroPrimaryCta.label || '');
+  }
+  if (hasBodyField(req.body, 'heroPrimaryCtaUrl')) config.homepage.heroPrimaryCta.url = String(req.body.heroPrimaryCtaUrl || '').trim();
+  if (hasBodyField(req.body, 'heroPrimaryCtaAction')) {
+    const _a = String(req.body.heroPrimaryCtaAction || '').trim();
+    config.homepage.heroPrimaryCta.action = ['kit-launch', 'link'].includes(_a) ? _a : 'kit-launch';
+  }
+  config.homepage.heroSecondaryCta = config.homepage.heroSecondaryCta || {};
+  if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `heroSecondaryCtaLabel_${lang}`))) {
+    config.homepage.heroSecondaryCta.label = buildTranslatableFromBody(req.body, 'heroSecondaryCtaLabel', config.homepage.heroSecondaryCta.label || '');
+  }
+  if (hasBodyField(req.body, 'heroSecondaryCtaUrl')) config.homepage.heroSecondaryCta.url = String(req.body.heroSecondaryCtaUrl || '').trim();
+  if (hasBodyField(req.body, 'homepageHeroMobileImage')) {
+    config.homepage.heroMobileImage = normalizeMediaPath(req.body.homepageHeroMobileImage || '');
+  }
+  if (hasBodyField(req.body, 'homepageIntroImageSource')) {
+    const _src = String(req.body.homepageIntroImageSource || 'dedicated').trim();
+    config.homepage.introImageSource = ['dedicated', 'logo'].includes(_src) ? _src : 'dedicated';
   }
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   if (hasBodyField(req.body, 'homepageIntroMode')) {

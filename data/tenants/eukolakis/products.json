@@ -2,15 +2,36 @@
   {
     "id": "eukolaki-diy-roll-kit",
     "type": "KIT",
+    "builderType": "step_by_step",
+    "builderConfig": {
+      "bannerImage": "/tenants/eukolakis/media/kits/roll-main.jpg",
+      "mobileBannerImage": "",
+      "videoUrl": "",
+      "title": {
+        "el": "Φτιάξε το ρολό σου βήμα-βήμα",
+        "en": "Build your roller shutter step by step"
+      },
+      "subtitle": {
+        "el": "Επίλεξε ανταλλακτικά σε 5 βήματα και δες το κόστος σε πραγματικό χρόνο.",
+        "en": "Select parts in 5 steps and see the cost in real time."
+      },
+      "helperText": {
+        "el": "Κάθε βήμα αντιστοιχεί σε ένα μέρος της κατασκευής. Διάλεξε ό,τι ταιριάζει στις διαστάσεις σου.",
+        "en": "Each step corresponds to a part of the build. Choose what fits your dimensions."
+      },
+      "showVideo": false,
+      "showTrustRow": true
+    },
+    "kitPayMode": "parts_only",
     "name": {
       "el": "Eukolaki DIY Roll Kit",
       "en": "Eukolaki DIY Roll Kit"
     },
     "description": {
-      "el": "Kit για κατασκευή ρολού με επιλογές χρώματος, οδηγού και κουτιού.",
-      "en": "Roller shutter DIY kit with customizable color, guide and box options."
+      "el": "Kit για κατασκευή ρολού βήμα-βήμα — ταμπακιέρα, πλευρές, τιράντες, στόπερ.",
+      "en": "Roller shutter DIY kit — step by step: drum, side brackets, straps, stoppers."
     },
-    "price": 12,
+    "price": 0,
     "imageUrl": "/tenants/eukolakis/media/kits/roll-main.jpg",
     "gallery": [
       "/tenants/eukolakis/media/kits/roll-main.jpg",
@@ -20,70 +41,177 @@
     "stock": 49,
     "kitOptions": [
       {
-        "id": "color",
-        "label": "Χρώμα Kit",
+        "id": "tampakiera-karoulaki",
+        "label": { "el": "Ταμπακιέρα + Καρουλάκι", "en": "Drum Box + Spool" },
+        "order": 0,
         "required": true,
         "inputType": "radio",
         "choices": [
           {
-            "id": "white",
-            "label": "Λευκό",
-            "description": "Κλασική λευκή απόχρωση.",
-            "priceDelta": 0,
-            "image": "/tenants/eukolakis/media/options/white.png",
-            "linkedProductId": "part-color-white"
+            "id": "tamp-white",
+            "label": { "el": "Λευκό", "en": "White" },
+            "description": { "el": "Λευκή ταμπακιέρα με καρουλάκι.", "en": "White drum box with spool." },
+            "priceDelta": 8,
+            "image": "/tenants/eukolakis/media/options/tamp-white.png",
+            "linkedProductId": "part-tamp-white",
+            "useLinkedPriceDelta": true
           },
           {
-            "id": "brown",
-            "label": "Καφέ",
-            "description": "Καφέ απόχρωση ξύλου.",
-            "priceDelta": 1.5,
-            "image": "/tenants/eukolakis/media/options/brown.png",
-            "linkedProductId": "part-color-brown"
+            "id": "tamp-brown",
+            "label": { "el": "Καφέ", "en": "Brown" },
+            "description": { "el": "Καφέ ταμπακιέρα με καρουλάκι.", "en": "Brown drum box with spool." },
+            "priceDelta": 9,
+            "image": "/tenants/eukolakis/media/options/tamp-brown.png",
+            "linkedProductId": "part-tamp-brown",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "tamp-black",
+            "label": { "el": "Μαύρο", "en": "Black" },
+            "description": { "el": "Μαύρη ταμπακιέρα με καρουλάκι.", "en": "Black drum box with spool." },
+            "priceDelta": 10,
+            "image": "/tenants/eukolakis/media/options/tamp-black.png",
+            "linkedProductId": "part-tamp-black",
+            "useLinkedPriceDelta": true
           }
         ]
       },
       {
-        "id": "guide",
-        "label": "Οδηγός Ρολού",
-        "required": true,
-        "inputType": "radio",
-        "choices": [
-          {
-            "id": "guide-basic",
-            "label": "Basic 40mm",
-            "priceDelta": 2,
-            "image": "/tenants/eukolakis/media/options/guide-basic.png",
-            "linkedProductId": "part-guide-basic"
-          },
-          {
-            "id": "guide-pro",
-            "label": "Pro 55mm",
-            "priceDelta": 4.5,
-            "image": "/tenants/eukolakis/media/options/guide-pro.png",
-            "linkedProductId": "part-guide-pro"
-          }
-        ]
-      },
-      {
-        "id": "extras",
-        "label": "Προαιρετικά extras",
+        "id": "aristeri-plevra",
+        "label": { "el": "Αριστερή Πλευρά", "en": "Left Side" },
+        "order": 1,
         "required": false,
-        "inputType": "checkbox",
+        "inputType": "radio",
+        "allowSkip": true,
         "choices": [
           {
-            "id": "motor-ready",
-            "label": "Motor-ready βάση",
-            "priceDelta": 3,
-            "image": "/tenants/eukolakis/media/options/motor-ready.png",
-            "linkedProductId": "part-motor-ready"
+            "id": "left-disc-145",
+            "label": { "el": "Δίσκος 145mm", "en": "Disc 145mm" },
+            "description": { "el": "Δίσκος αριστερής πλευράς 145mm.", "en": "Left side disc 145mm." },
+            "priceDelta": 4.5,
+            "image": "/tenants/eukolakis/media/options/disc-145.png",
+            "linkedProductId": "part-disc-145",
+            "useLinkedPriceDelta": true
           },
           {
-            "id": "silent-kit",
-            "label": "Silent kit",
-            "priceDelta": 2.2,
-            "image": "/tenants/eukolakis/media/options/silent-kit.png",
-            "linkedProductId": "part-silent"
+            "id": "left-disc-120",
+            "label": { "el": "Δίσκος 120mm", "en": "Disc 120mm" },
+            "description": { "el": "Δίσκος αριστερής πλευράς 120mm.", "en": "Left side disc 120mm." },
+            "priceDelta": 3.5,
+            "image": "/tenants/eukolakis/media/options/disc-120.png",
+            "linkedProductId": "part-disc-120",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "left-koupa",
+            "label": { "el": "Κούπα", "en": "Cup bracket" },
+            "description": { "el": "Κούπα στήριξης αριστερής πλευράς.", "en": "Left side cup bracket." },
+            "priceDelta": 3,
+            "image": "/tenants/eukolakis/media/options/koupa.png",
+            "linkedProductId": "part-koupa",
+            "useLinkedPriceDelta": true
+          }
+        ]
+      },
+      {
+        "id": "dexia-plevra",
+        "label": { "el": "Δεξιά Πλευρά", "en": "Right Side" },
+        "order": 2,
+        "required": false,
+        "inputType": "radio",
+        "allowSkip": true,
+        "choices": [
+          {
+            "id": "right-disc-145",
+            "label": { "el": "Δίσκος 145mm", "en": "Disc 145mm" },
+            "description": { "el": "Δίσκος δεξιάς πλευράς 145mm.", "en": "Right side disc 145mm." },
+            "priceDelta": 4.5,
+            "image": "/tenants/eukolakis/media/options/disc-145.png",
+            "linkedProductId": "part-disc-145",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "right-disc-120",
+            "label": { "el": "Δίσκος 120mm", "en": "Disc 120mm" },
+            "description": { "el": "Δίσκος δεξιάς πλευράς 120mm.", "en": "Right side disc 120mm." },
+            "priceDelta": 3.5,
+            "image": "/tenants/eukolakis/media/options/disc-120.png",
+            "linkedProductId": "part-disc-120",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "right-koupa",
+            "label": { "el": "Κούπα", "en": "Cup bracket" },
+            "description": { "el": "Κούπα στήριξης δεξιάς πλευράς.", "en": "Right side cup bracket." },
+            "priceDelta": 3,
+            "image": "/tenants/eukolakis/media/options/koupa.png",
+            "linkedProductId": "part-koupa",
+            "useLinkedPriceDelta": true
+          }
+        ]
+      },
+      {
+        "id": "tirantes",
+        "label": { "el": "Τιράντες", "en": "Straps" },
+        "order": 3,
+        "required": false,
+        "inputType": "radio",
+        "allowSkip": true,
+        "choices": [
+          {
+            "id": "strap-plain",
+            "label": { "el": "Απλές", "en": "Plain" },
+            "description": { "el": "Απλές τιράντες ιμάντα.", "en": "Plain straps." },
+            "priceDelta": 2,
+            "image": "/tenants/eukolakis/media/options/strap-plain.png",
+            "linkedProductId": "part-strap-plain",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "strap-alu",
+            "label": { "el": "Με έλασμα αλουμινίου", "en": "With aluminium plate" },
+            "description": { "el": "Τιράντες με ενισχυμένο έλασμα αλουμινίου.", "en": "Straps with reinforced aluminium plate." },
+            "priceDelta": 3.5,
+            "image": "/tenants/eukolakis/media/options/strap-alu.png",
+            "linkedProductId": "part-strap-alu",
+            "useLinkedPriceDelta": true
+          }
+        ]
+      },
+      {
+        "id": "exoterika-stoper",
+        "label": { "el": "Εξωτερικά Στόπερ", "en": "External Stoppers" },
+        "order": 4,
+        "required": false,
+        "inputType": "radio",
+        "allowSkip": true,
+        "choices": [
+          {
+            "id": "stopper-white",
+            "label": { "el": "Λευκό", "en": "White" },
+            "description": { "el": "Εξωτερικά στόπερ λευκά.", "en": "White external stoppers." },
+            "priceDelta": 1.5,
+            "image": "/tenants/eukolakis/media/options/stopper-white.png",
+            "linkedProductId": "part-stopper-white",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "stopper-brown",
+            "label": { "el": "Καφέ", "en": "Brown" },
+            "description": { "el": "Εξωτερικά στόπερ καφέ.", "en": "Brown external stoppers." },
+            "priceDelta": 1.5,
+            "image": "/tenants/eukolakis/media/options/stopper-brown.png",
+            "linkedProductId": "part-stopper-brown",
+            "useLinkedPriceDelta": true
+          },
+          {
+            "id": "stopper-black",
+            "label": { "el": "Μαύρο", "en": "Black" },
+            "description": { "el": "Εξωτερικά στόπερ μαύρα.", "en": "Black external stoppers." },
+            "priceDelta": 2,
+            "image": "/tenants/eukolakis/media/options/stopper-black.png",
+            "linkedProductId": "part-stopper-black",
+            "useLinkedPriceDelta": true
           }
         ]
       }
@@ -131,6 +259,105 @@
         ]
       }
     ]
+  },
+  {
+    "id": "part-tamp-white",
+    "name": { "el": "Ταμπακιέρα Λευκή", "en": "White Drum Box" },
+    "description": { "el": "Λευκή ταμπακιέρα με καρουλάκι.", "en": "White drum box with spool." },
+    "price": 8,
+    "imageUrl": "/tenants/eukolakis/media/options/tamp-white.png",
+    "categoryId": "spare-parts",
+    "stock": 50
+  },
+  {
+    "id": "part-tamp-brown",
+    "name": { "el": "Ταμπακιέρα Καφέ", "en": "Brown Drum Box" },
+    "description": { "el": "Καφέ ταμπακιέρα με καρουλάκι.", "en": "Brown drum box with spool." },
+    "price": 9,
+    "imageUrl": "/tenants/eukolakis/media/options/tamp-brown.png",
+    "categoryId": "spare-parts",
+    "stock": 40
+  },
+  {
+    "id": "part-tamp-black",
+    "name": { "el": "Ταμπακιέρα Μαύρη", "en": "Black Drum Box" },
+    "description": { "el": "Μαύρη ταμπακιέρα με καρουλάκι.", "en": "Black drum box with spool." },
+    "price": 10,
+    "imageUrl": "/tenants/eukolakis/media/options/tamp-black.png",
+    "categoryId": "spare-parts",
+    "stock": 30
+  },
+  {
+    "id": "part-disc-145",
+    "name": { "el": "Δίσκος 145mm", "en": "Disc 145mm" },
+    "description": { "el": "Δίσκος στήριξης 145mm.", "en": "Support disc 145mm." },
+    "price": 4.5,
+    "imageUrl": "/tenants/eukolakis/media/options/disc-145.png",
+    "categoryId": "spare-parts",
+    "stock": 80
+  },
+  {
+    "id": "part-disc-120",
+    "name": { "el": "Δίσκος 120mm", "en": "Disc 120mm" },
+    "description": { "el": "Δίσκος στήριξης 120mm.", "en": "Support disc 120mm." },
+    "price": 3.5,
+    "imageUrl": "/tenants/eukolakis/media/options/disc-120.png",
+    "categoryId": "spare-parts",
+    "stock": 80
+  },
+  {
+    "id": "part-koupa",
+    "name": { "el": "Κούπα Στήριξης", "en": "Cup Bracket" },
+    "description": { "el": "Κούπα στήριξης πλευράς.", "en": "Side cup bracket." },
+    "price": 3,
+    "imageUrl": "/tenants/eukolakis/media/options/koupa.png",
+    "categoryId": "spare-parts",
+    "stock": 60
+  },
+  {
+    "id": "part-strap-plain",
+    "name": { "el": "Απλές Τιράντες", "en": "Plain Straps" },
+    "description": { "el": "Απλές τιράντες ιμάντα.", "en": "Plain straps." },
+    "price": 2,
+    "imageUrl": "/tenants/eukolakis/media/options/strap-plain.png",
+    "categoryId": "spare-parts",
+    "stock": 120
+  },
+  {
+    "id": "part-strap-alu",
+    "name": { "el": "Τιράντες Αλουμινίου", "en": "Aluminium Straps" },
+    "description": { "el": "Τιράντες με ενισχυμένο έλασμα αλουμινίου.", "en": "Straps with reinforced aluminium plate." },
+    "price": 3.5,
+    "imageUrl": "/tenants/eukolakis/media/options/strap-alu.png",
+    "categoryId": "spare-parts",
+    "stock": 100
+  },
+  {
+    "id": "part-stopper-white",
+    "name": { "el": "Εξωτερικά Στόπερ Λευκά", "en": "White External Stoppers" },
+    "description": { "el": "Ζεύγος εξωτερικών στόπερ λευκά.", "en": "Pair of white external stoppers." },
+    "price": 1.5,
+    "imageUrl": "/tenants/eukolakis/media/options/stopper-white.png",
+    "categoryId": "spare-parts",
+    "stock": 200
+  },
+  {
+    "id": "part-stopper-brown",
+    "name": { "el": "Εξωτερικά Στόπερ Καφέ", "en": "Brown External Stoppers" },
+    "description": { "el": "Ζεύγος εξωτερικών στόπερ καφέ.", "en": "Pair of brown external stoppers." },
+    "price": 1.5,
+    "imageUrl": "/tenants/eukolakis/media/options/stopper-brown.png",
+    "categoryId": "spare-parts",
+    "stock": 200
+  },
+  {
+    "id": "part-stopper-black",
+    "name": { "el": "Εξωτερικά Στόπερ Μαύρα", "en": "Black External Stoppers" },
+    "description": { "el": "Ζεύγος εξωτερικών στόπερ μαύρα.", "en": "Pair of black external stoppers." },
+    "price": 2,
+    "imageUrl": "/tenants/eukolakis/media/options/stopper-black.png",
+    "categoryId": "spare-parts",
+    "stock": 150
   },
   {
     "id": "part-guide-basic",
