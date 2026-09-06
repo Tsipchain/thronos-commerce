@@ -80,6 +80,18 @@ test('category CTAs and clean navigation share the polished components', () => {
   assert.match(index, /li\.active a::after \{ width:100%; opacity:1; \}/);
 });
 
+test('storefront assistant uses left anchoring and cart layering wins', () => {
+  assert.match(index, /#thrc-chat-fab \{[^}]*left:\s*20px/);
+  assert.match(index, /#thrc-chat-panel \{[^}]*left:\s*20px/);
+  assert.doesNotMatch(index, /#thrc-chat-fab \{[^}]*right:\s*28px/);
+  assert.doesNotMatch(index, /#thrc-chat-panel \{[^}]*right:\s*28px/);
+  const cart = read('views/_cart.ejs');
+  const cartPanelZ = cart.match(/#cart-panel \{[^}]*z-index:\s*(\d+)/);
+  const chatFabZ = index.match(/#thrc-chat-fab \{[^}]*z-index:\s*(\d+)/);
+  assert.ok(cartPanelZ && chatFabZ);
+  assert.ok(Number(cartPanelZ[1]) > Number(chatFabZ[1]), 'cart panel z-index > assistant z-index');
+});
+
 function request(port, pathname, options = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request({
