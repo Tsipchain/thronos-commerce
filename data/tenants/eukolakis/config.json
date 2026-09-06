@@ -94,6 +94,24 @@
       "image": ""
     },
     "showSubscriptionsCard": true,
+    "heroOverlay": {
+      "showKicker": true,
+      "showTitle": true,
+      "showSubtitle": true,
+      "showPrimaryCta": true,
+      "showSecondaryCta": true
+    },
+    "heroPrimaryCta": {
+      "label": { "el": "Ξεκίνα Roll Kit →", "en": "Start Roll Kit →" },
+      "url": "",
+      "action": "kit-launch"
+    },
+    "heroSecondaryCta": {
+      "label": { "el": "Ανταλλακτικά", "en": "Spare Parts" },
+      "url": ""
+    },
+    "heroMobileImage": "",
+    "introImageSource": "dedicated",
     "introEnabled": true,
     "introMode": "fullscreen",
     "introTagline": "DIY ΕΠΙΣΚΕΥΕΣ — ΦΤΙΑΞ' ΤΟ ΜΟΝΟΣ ΣΟΥ",

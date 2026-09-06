@@ -190,6 +190,51 @@
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
+      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.78); z-index:2200; display:none; padding:16px; overflow-y:auto; }
+      .sbs-builder-backdrop.open { display:block; }
+      .sbs-builder { max-width:960px; margin:0 auto; background:#f8fafc; border-radius:14px; box-shadow:0 22px 52px rgba(0,0,0,.4); overflow:hidden; }
+      .sbs-builder-head { padding:14px 18px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
+      .sbs-builder-head h3 { margin:0; font-size:1.05rem; }
+      .sbs-builder-head .sbs-close { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b; }
+      .sbs-progress { display:flex; gap:0; padding:0 18px; border-bottom:1px solid #e5e7eb; overflow-x:auto; }
+      .sbs-progress-step { flex:1; min-width:0; padding:10px 8px; text-align:center; font-size:.76rem; font-weight:600; color:#94a3b8; border-bottom:3px solid transparent; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .sbs-progress-step.active { color:#0f766e; border-bottom-color:#0f766e; }
+      .sbs-progress-step.done { color:#10b981; border-bottom-color:#10b981; }
+      .sbs-progress-step .sbs-step-num { display:inline-flex; width:20px; height:20px; border-radius:50%; background:#e2e8f0; color:#475569; font-size:.7rem; align-items:center; justify-content:center; margin-right:4px; }
+      .sbs-progress-step.active .sbs-step-num { background:#0f766e; color:#fff; }
+      .sbs-progress-step.done .sbs-step-num { background:#10b981; color:#fff; }
+      .sbs-builder-body { display:grid; grid-template-columns:1fr 280px; gap:0; min-height:380px; }
+      .sbs-step-content { padding:18px; overflow-y:auto; max-height:calc(100vh - 220px); }
+      .sbs-step-title { font-size:.95rem; font-weight:700; margin:0 0 4px; }
+      .sbs-step-helper { font-size:.78rem; color:#64748b; margin:0 0 14px; }
+      .sbs-option-grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); }
+      .sbs-option { border:2px solid #e2e8f0; border-radius:10px; padding:12px; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+      .sbs-option:hover { border-color:#94a3b8; }
+      .sbs-option.selected { border-color:#0f766e; box-shadow:0 0 0 3px rgba(15,118,110,.12); }
+      .sbs-option-img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; margin-bottom:8px; background:#111; }
+      .sbs-option-label { font-size:.85rem; font-weight:600; }
+      .sbs-option-desc { font-size:.74rem; color:#64748b; margin-top:2px; }
+      .sbs-option-price { font-size:.78rem; font-weight:700; color:#0f766e; margin-top:4px; }
+      .sbs-summary { background:#f1f5f9; border-left:1px solid #e2e8f0; padding:18px; display:flex; flex-direction:column; }
+      .sbs-summary h4 { margin:0 0 12px; font-size:.88rem; font-weight:700; }
+      .sbs-summary-list { flex:1; overflow-y:auto; }
+      .sbs-summary-item { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:.78rem; }
+      .sbs-summary-item .sbs-sum-label { color:#334155; }
+      .sbs-summary-item .sbs-sum-price { font-weight:600; color:#0f766e; }
+      .sbs-summary-total { margin-top:auto; padding-top:12px; border-top:2px solid #0f766e; display:flex; justify-content:space-between; font-size:.92rem; font-weight:700; }
+      .sbs-nav { padding:14px 18px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; }
+      .sbs-nav button { padding:8px 20px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:1px solid #d1d5db; background:#fff; color:#334155; }
+      .sbs-nav button:hover { background:#f1f5f9; }
+      .sbs-nav .sbs-next { background:#0f766e; color:#fff; border-color:#0f766e; }
+      .sbs-nav .sbs-next:hover { background:#0d6b63; }
+      .sbs-nav .sbs-next:disabled { opacity:.5; cursor:default; }
+      .sbs-nav .sbs-add-cart { background:#c4902e; color:#fff; border-color:#c4902e; }
+      .sbs-nav .sbs-add-cart:hover { background:#b37d24; }
+      @media (max-width:700px) {
+        .sbs-builder-body { grid-template-columns:1fr; }
+        .sbs-summary { border-left:0; border-top:1px solid #e2e8f0; max-height:180px; }
+        .sbs-progress-step { font-size:.68rem; padding:8px 4px; }
+      }
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
         backdrop-filter: blur(5px);
@@ -578,6 +623,7 @@
         width: 100%; height: clamp(220px, 30vw, 340px);
         object-fit: cover; display: block;
       }
+      .eko-hero-img-mobile { display: none; }
       .eko-hero-overlay {
         position: absolute; inset: 0;
         /* gradient up from bottom for strong text contrast */
@@ -1116,6 +1162,8 @@
         body.eukolakis-classic .eko-projects-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         body.eukolakis-classic .eko-project-card-img { height: 100px; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
+        body.eukolakis-classic .eko-hero-img-mobile { display: block; }
+        body.eukolakis-classic .eko-hero-img:not(.eko-hero-img-mobile) { display: none; }
         body.eukolakis-classic .eko-section-header { flex-wrap: wrap; gap: 6px; }
         body.eukolakis-classic .eko-section-title { font-size: .82rem; }
         body.eukolakis-classic .eko-section-link { font-size: .68rem; }
@@ -1473,28 +1521,36 @@
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
       <%/* ── Eukolaki Classic industrial hero banner — visibility controlled solely by homeBlockVisibility.hero ── */%>
       <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false) { %>
+      <% const _ho = homepage.heroOverlay || {}; %>
+      <% const _hpc = homepage.heroPrimaryCta || {}; %>
+      <% const _hsc = homepage.heroSecondaryCta || {}; %>
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
         <% const hasRealHeroImage = homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists); %>
         <% if (hasRealHeroImage) { %>
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
+          <% if (homepage.heroMobileImage) { %><img class="eko-hero-img eko-hero-img-mobile" src="<%= homepage.heroMobileImage %>" alt="<%= heroTitleText %>" loading="eager" /><% } %>
           <div class="eko-hero-overlay">
         <% } else { %>
           <div class="eko-hero-no-img">
         <% } %>
-            <p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p>
-            <h2 class="eko-hero-title"><%= heroTitleText %></h2>
-            <% if (heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
+            <% if (_ho.showKicker !== false) { %><p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p><% } %>
+            <% if (_ho.showTitle !== false) { %><h2 class="eko-hero-title"><%= heroTitleText %></h2><% } %>
+            <% if (_ho.showSubtitle !== false && heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
             <div class="eko-hero-actions">
-              <% if (topPrimaryKit1) { %>
-              <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>">
-                <%= lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →' %>
-              </a>
+              <% if (_ho.showPrimaryCta !== false && topPrimaryKit1) { %>
+              <% const _pcLabel = resolveField(_hpc.label, lang) || (lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →'); %>
+              <% if (_hpc.action === 'link' && _hpc.url) { %>
+              <a class="eko-hero-cta eko-hero-cta-primary" href="<%= _hpc.url %>"><%= _pcLabel %></a>
+              <% } else { %>
+              <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><%= _pcLabel %></a>
               <% } %>
-              <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= sparePartsHref %>">
-                <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
-              </a>
+              <% } %>
+              <% if (_ho.showSecondaryCta !== false) { %>
+              <% const _scLabel = resolveField(_hsc.label, lang) || (lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts'); %>
+              <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= _hsc.url || sparePartsHref %>"><%= _scLabel %></a>
+              <% } %>
             </div>
           </div>
       </section>
@@ -1844,6 +1900,34 @@
         </div>
         <div style="padding:14px 16px;">
           <img id="kit-full-image-el" src="" alt="" style="display:block;width:100%;max-height:78vh;object-fit:contain;border-radius:10px;background:#0f172a;" />
+        </div>
+      </div>
+    </div>
+    <div id="sbs-builder-backdrop" class="sbs-builder-backdrop" aria-hidden="true">
+      <div class="sbs-builder" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Builder βήμα-βήμα' : 'Step-by-step builder' %>">
+        <div class="sbs-builder-head">
+          <h3 id="sbs-title"></h3>
+          <button type="button" class="sbs-close" id="sbs-close">&#10005;</button>
+        </div>
+        <div class="sbs-progress" id="sbs-progress"></div>
+        <div class="sbs-builder-body">
+          <div class="sbs-step-content" id="sbs-step-content">
+            <h4 class="sbs-step-title" id="sbs-step-title"></h4>
+            <p class="sbs-step-helper" id="sbs-step-helper"></p>
+            <div class="sbs-option-grid" id="sbs-option-grid"></div>
+          </div>
+          <div class="sbs-summary" id="sbs-summary">
+            <h4><%= lang === 'el' ? 'Σύνοψη' : 'Summary' %></h4>
+            <div class="sbs-summary-list" id="sbs-summary-list"></div>
+            <div class="sbs-summary-total">
+              <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
+              <span id="sbs-total">0.00 &euro;</span>
+            </div>
+          </div>
+        </div>
+        <div class="sbs-nav">
+          <button type="button" id="sbs-back"><%= lang === 'el' ? '← Πίσω' : '← Back' %></button>
+          <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Επόμενο →' : 'Next →' %></button>
         </div>
       </div>
     </div>
@@ -2462,6 +2546,226 @@
         }
         }
       }
+      (function sbsBuilderInit(){
+        var backdrop = document.getElementById('sbs-builder-backdrop');
+        if (!backdrop) return;
+        var kitDataEl = document.getElementById('kit-products-json');
+        var catalogDataEl = document.getElementById('catalog-products-json');
+        if (!kitDataEl || !catalogDataEl) return;
+        var allKits = JSON.parse(kitDataEl.textContent);
+        var catalog = JSON.parse(catalogDataEl.textContent);
+        var catalogById = {};
+        catalog.forEach(function(p){ catalogById[p.id] = p; });
+        var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
+        if (!sbsKits.length) return;
+        var sbsState = { product: null, step: 0, selections: {} };
+        var elTitle = document.getElementById('sbs-title');
+        var elProgress = document.getElementById('sbs-progress');
+        var elStepTitle = document.getElementById('sbs-step-title');
+        var elStepHelper = document.getElementById('sbs-step-helper');
+        var elOptionGrid = document.getElementById('sbs-option-grid');
+        var elSummaryList = document.getElementById('sbs-summary-list');
+        var elTotal = document.getElementById('sbs-total');
+        var btnBack = document.getElementById('sbs-back');
+        var btnNext = document.getElementById('sbs-next');
+        var LANG = '<%= lang %>';
+        function resolveF(v) {
+          if (!v) return '';
+          if (typeof v === 'string') return v;
+          return v[LANG] || v.el || v.en || '';
+        }
+        function computeDelta(choice, product) {
+          if (choice.id === 'skip') return 0;
+          if (product.kitPayMode === 'parts_only' && choice.linkedProductId) {
+            var linked = catalogById[choice.linkedProductId];
+            if (linked) return Number(linked.price) || 0;
+          }
+          if (choice.useLinkedPriceDelta && choice.linkedProductId) {
+            var lp = catalogById[choice.linkedProductId];
+            if (lp) return Number(lp.price) || 0;
+          }
+          return Number(choice.priceDelta) || 0;
+        }
+        function renderProgress() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          elProgress.innerHTML = '';
+          groups.forEach(function(g, i) {
+            var cls = 'sbs-progress-step';
+            if (i === sbsState.step) cls += ' active';
+            else if (sbsState.selections[g.id]) cls += ' done';
+            var div = document.createElement('div');
+            div.className = cls;
+            div.innerHTML = '<span class="sbs-step-num">' + (i+1) + '</span> ' + resolveF(g.label);
+            div.addEventListener('click', function() {
+              if (i < sbsState.step || sbsState.selections[g.id]) {
+                sbsState.step = i;
+                renderStep();
+              }
+            });
+            elProgress.appendChild(div);
+          });
+        }
+        function renderStep() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          renderProgress();
+          renderSummary();
+          if (sbsState.step >= groups.length) {
+            elStepTitle.textContent = LANG === 'el' ? 'Ολοκλήρωση' : 'Finish';
+            elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
+            elOptionGrid.innerHTML = '';
+            btnBack.style.display = sbsState.step > 0 ? '' : 'none';
+            btnNext.textContent = LANG === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart';
+            btnNext.className = 'sbs-add-cart';
+            btnNext.disabled = false;
+            return;
+          }
+          var g = groups[sbsState.step];
+          elStepTitle.textContent = resolveF(g.label);
+          elStepHelper.textContent = g.required ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required') : (LANG === 'el' ? 'Προαιρετικό' : 'Optional');
+          btnBack.style.display = sbsState.step > 0 ? '' : 'none';
+          btnNext.textContent = LANG === 'el' ? 'Επόμενο →' : 'Next →';
+          btnNext.className = 'sbs-next';
+          btnNext.disabled = g.required && !sbsState.selections[g.id];
+          elOptionGrid.innerHTML = '';
+          (g.choices || []).forEach(function(c) {
+            var div = document.createElement('div');
+            div.className = 'sbs-option' + (sbsState.selections[g.id] === c.id ? ' selected' : '');
+            var delta = computeDelta(c, sbsState.product);
+            var html = '';
+            if (c.image) html += '<img class="sbs-option-img" src="' + c.image + '" alt="' + resolveF(c.label) + '" onerror="this.style.display=\'none\'" />';
+            html += '<div class="sbs-option-label">' + resolveF(c.label) + '</div>';
+            if (c.description) html += '<div class="sbs-option-desc">' + resolveF(c.description) + '</div>';
+            if (delta > 0) html += '<div class="sbs-option-price">+' + delta.toFixed(2) + ' &euro;</div>';
+            else if (delta === 0 && sbsState.product.kitPayMode !== 'parts_only') html += '<div class="sbs-option-price">' + (LANG === 'el' ? 'Περιλαμβάνεται' : 'Included') + '</div>';
+            div.innerHTML = html;
+            div.addEventListener('click', function() {
+              sbsState.selections[g.id] = c.id;
+              btnNext.disabled = false;
+              renderStep();
+            });
+            elOptionGrid.appendChild(div);
+          });
+        }
+        function renderSummary() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          var total = Number(sbsState.product.price) || 0;
+          elSummaryList.innerHTML = '';
+          if (sbsState.product.kitPayMode === 'parts_only') total = 0;
+          groups.forEach(function(g) {
+            var sel = sbsState.selections[g.id];
+            var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
+            var div = document.createElement('div');
+            div.className = 'sbs-summary-item';
+            if (choice) {
+              var delta = computeDelta(choice, sbsState.product);
+              total += delta;
+              div.innerHTML = '<span class="sbs-sum-label">' + resolveF(g.label) + ': ' + resolveF(choice.label) + '</span><span class="sbs-sum-price">+' + delta.toFixed(2) + ' &euro;</span>';
+            } else {
+              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + resolveF(g.label) + ': —</span><span class="sbs-sum-price">—</span>';
+            }
+            elSummaryList.appendChild(div);
+          });
+          elTotal.textContent = total.toFixed(2) + ' €';
+        }
+        function openSbs(productId) {
+          var product = sbsKits.find(function(k){ return k.id === productId; });
+          if (!product) return;
+          sbsState.product = product;
+          sbsState.step = 0;
+          sbsState.selections = {};
+          elTitle.textContent = resolveF(product.name);
+          backdrop.classList.add('open');
+          backdrop.setAttribute('aria-hidden', 'false');
+          renderStep();
+        }
+        function closeSbs() {
+          backdrop.classList.remove('open');
+          backdrop.setAttribute('aria-hidden', 'true');
+        }
+        document.getElementById('sbs-close').addEventListener('click', closeSbs);
+        backdrop.addEventListener('click', function(e){ if (e.target === backdrop) closeSbs(); });
+        document.addEventListener('keydown', function(e){
+          if (e.key === 'Escape' && backdrop.classList.contains('open')) closeSbs();
+        });
+        btnBack.addEventListener('click', function(){
+          if (sbsState.step > 0) { sbsState.step -= 1; renderStep(); }
+        });
+        btnNext.addEventListener('click', function(){
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          if (sbsState.step < groups.length) {
+            var g = groups[sbsState.step];
+            if (g.required && !sbsState.selections[g.id]) return;
+            sbsState.step += 1;
+            renderStep();
+            return;
+          }
+          var selected = [];
+          groups.forEach(function(g) {
+            var cid = sbsState.selections[g.id];
+            if (!cid) return;
+            var choice = (g.choices || []).find(function(c){ return c.id === cid; });
+            if (!choice) return;
+            selected.push({
+              groupId: g.id, groupLabel: resolveF(g.label),
+              choiceId: choice.id, choiceLabel: resolveF(choice.label),
+              linkedProductId: choice.linkedProductId || null,
+              priceDelta: computeDelta(choice, sbsState.product)
+            });
+          });
+          var finalPrice = selected.reduce(function(sum, o){ return sum + o.priceDelta; }, sbsState.product.kitPayMode === 'parts_only' ? 0 : (Number(sbsState.product.price) || 0));
+          var optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
+          var cartKey = sbsState.product.id + '::sbs::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
+          if (window.thrcAddToCart) {
+            if (sbsState.product.kitPayMode === 'parts_only') {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                var linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  window.thrcAddToCart({
+                    id: linked.id, name: resolveF(linked.name),
+                    price: Number(linked.price) || 0, imageUrl: linked.imageUrl || '',
+                    cartKey: linked.id + '::from-kit:' + sbsState.product.id + ':' + opt.groupId
+                  });
+                }
+              });
+              window.thrcAddToCart({
+                id: sbsState.product.id, name: resolveF(sbsState.product.name) + ' (summary)',
+                price: 0, imageUrl: sbsState.product.imageUrl || '',
+                selectedOptions: selected, optionSummary: optionSummary,
+                finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true
+              });
+            } else {
+              window.thrcAddToCart({
+                id: sbsState.product.id, name: resolveF(sbsState.product.name),
+                price: finalPrice, imageUrl: sbsState.product.imageUrl || '',
+                selectedOptions: selected, optionSummary: optionSummary,
+                finalUnitPrice: finalPrice, cartKey: cartKey,
+                builderSnapshot: { type: 'step_by_step', steps: selected, total: finalPrice }
+              });
+            }
+          }
+          closeSbs();
+        });
+        window.openSbsBuilder = openSbs;
+        var origOpen = window.openKitWizard;
+        if (origOpen) {
+          window.openKitWizard = function(pid) {
+            var sbsProduct = sbsKits.find(function(k){ return k.id === pid; });
+            if (sbsProduct) return openSbs(pid);
+            origOpen(pid);
+          };
+        }
+        document.querySelectorAll('[data-kit-launch]').forEach(function(el){
+          var pid = el.getAttribute('data-kit-launch');
+          if (sbsKits.find(function(k){ return k.id === pid; })) {
+            el.addEventListener('click', function(e){
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              openSbs(pid);
+            }, true);
+          }
+        });
+      })();
       if (productPreOpenEffect === 'exposure') {
         const exposureOverlay = document.getElementById('exposure-overlay');
         const openWithExposure = function(href) {

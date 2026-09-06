@@ -905,6 +905,56 @@
           </div>
           <small class="helper">Συνιστώμενο μέγεθος: <strong>1600 × 600 px</strong>. Κρατήστε το κείμενο στο κέντρο (το mobile κόβει τα άκρα).</small>
         </label>
+        <label><span>Εικόνα hero — mobile</span>
+          <input type="text" name="homepageHeroMobileImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroMobileImage) || '' %>" placeholder="/tenants/<%= tenant.id %>/media/hero-mobile.jpg" />
+          <small class="helper">Προαιρετική εικόνα για κινητά (< 640px). Αν δεν συμπληρωθεί, χρησιμοποιείται η desktop εικόνα.</small>
+        </label>
+
+        <% const _hoAdmin = (rawConfig.homepage && rawConfig.homepage.heroOverlay) || {}; %>
+        <h4 style="margin:18px 0 8px;font-size:.88rem;">Στοιχεία Hero Overlay</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 16px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="checkbox" name="heroOverlayShowKicker" value="1" <%= _hoAdmin.showKicker !== false ? 'checked' : '' %> /> Kicker (eyebrow)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="checkbox" name="heroOverlayShowTitle" value="1" <%= _hoAdmin.showTitle !== false ? 'checked' : '' %> /> Τίτλος
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="checkbox" name="heroOverlayShowSubtitle" value="1" <%= _hoAdmin.showSubtitle !== false ? 'checked' : '' %> /> Υπότιτλος
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="checkbox" name="heroOverlayShowPrimaryCta" value="1" <%= _hoAdmin.showPrimaryCta !== false ? 'checked' : '' %> /> Primary CTA
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="checkbox" name="heroOverlayShowSecondaryCta" value="1" <%= _hoAdmin.showSecondaryCta !== false ? 'checked' : '' %> /> Secondary CTA
+          </label>
+        </div>
+
+        <% const _hpcAdmin = (rawConfig.homepage && rawConfig.homepage.heroPrimaryCta) || {}; %>
+        <% const _hscAdmin = (rawConfig.homepage && rawConfig.homepage.heroSecondaryCta) || {}; %>
+        <h4 style="margin:18px 0 8px;font-size:.88rem;">CTA Κουμπιά Hero</h4>
+        <label><span>Primary CTA — ετικέτα (EL / EN)</span>
+          <input type="text" name="heroPrimaryCtaLabel_el" value="<%= resolveField(_hpcAdmin.label, 'el') %>" placeholder="Ξεκίνα Roll Kit →" />
+          <input type="text" name="heroPrimaryCtaLabel_en" value="<%= resolveField(_hpcAdmin.label, 'en') %>" placeholder="Start Roll Kit →" />
+        </label>
+        <label><span>Primary CTA — ενέργεια</span>
+          <select name="heroPrimaryCtaAction">
+            <option value="kit-launch" <%= (_hpcAdmin.action || 'kit-launch') === 'kit-launch' ? 'selected' : '' %>>Άνοιγμα Kit Wizard</option>
+            <option value="link" <%= _hpcAdmin.action === 'link' ? 'selected' : '' %>>Link σε URL</option>
+          </select>
+        </label>
+        <label><span>Primary CTA — URL (μόνο αν link)</span>
+          <input type="text" name="heroPrimaryCtaUrl" value="<%= _hpcAdmin.url || '' %>" placeholder="/product/..." />
+        </label>
+        <label><span>Secondary CTA — ετικέτα (EL / EN)</span>
+          <input type="text" name="heroSecondaryCtaLabel_el" value="<%= resolveField(_hscAdmin.label, 'el') %>" placeholder="Ανταλλακτικά" />
+          <input type="text" name="heroSecondaryCtaLabel_en" value="<%= resolveField(_hscAdmin.label, 'en') %>" placeholder="Spare Parts" />
+        </label>
+        <label><span>Secondary CTA — URL</span>
+          <input type="text" name="heroSecondaryCtaUrl" value="<%= _hscAdmin.url || '' %>" placeholder="/?category=spare-parts" />
+          <small class="helper">Αν δεν συμπληρωθεί, δείχνει στην κατηγορία ανταλλακτικών.</small>
+        </label>
+
         <h3 class="settings-section-heading"><%= homepageLabels.featuredSectionTitle %></h3>
         <p class="helper"><%= homepageLabels.featuredSectionHelper %></p>
 
@@ -1043,6 +1093,15 @@
             <strong>Montage</strong>: τα στοιχεία εμφανίζονται το ένα μετά το άλλο (premium εφέ).&nbsp;
             <strong>Βίντεο</strong>: παίζει βίντεο — αν δεν έχει οριστεί URL, εμφανίζεται αυτόματα montage.
           </small>
+        </label>
+
+        <%# ── Intro image source ── %>
+        <label><span>Εικόνα εισαγωγής</span>
+          <select name="homepageIntroImageSource">
+            <option value="dedicated" <%= ((rawConfig.homepage && rawConfig.homepage.introImageSource) || 'dedicated') === 'dedicated' ? 'selected' : '' %>>Αποκλειστική εικόνα εισαγωγής</option>
+            <option value="logo" <%= (rawConfig.homepage && rawConfig.homepage.introImageSource) === 'logo' ? 'selected' : '' %>>Λογότυπο καταστήματος</option>
+          </select>
+          <small class="helper">Η εικόνα εισαγωγής είναι ανεξάρτητη από το hero. Χρησιμοποιήστε «Αποκλειστική» για ξεχωριστή εικόνα ή «Λογότυπο» για το logo.</small>
         </label>
 
         <%# ── Tagline (used by basic + assembly modes) ── %>
@@ -2252,11 +2311,29 @@
       <div class="modal">
         <h3 style="margin-top:0;">KIT Builder</h3>
         <p class="helper" id="kit-builder-title"></p>
-        <p class="helper" style="margin-top:-6px;">
-          Storefront wizard mode:
+        <div style="display:flex;gap:12px;align-items:center;margin:8px 0;">
+          <label style="font-size:.82rem;font-weight:600;">Builder type:
+            <select id="kit-builder-type" style="margin-left:4px;">
+              <option value="classic">Classic wizard</option>
+              <option value="step_by_step">Step-by-step builder</option>
+            </select>
+          </label>
+          <span class="helper" style="font-size:.76rem;">Storefront wizard mode:
           <strong><%= ((config.theme && config.theme.kitWizardDisplay) || ((config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'cinematic' : 'sequential')) %></strong>
-          · change from <strong>Branding → KIT wizard display</strong>.
-        </p>
+          · change from <strong>Branding → KIT wizard display</strong>.</span>
+        </div>
+        <div id="kit-builder-config-panel" style="display:none;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-bottom:10px;background:#eff6ff;">
+          <h4 style="margin:0 0 6px;font-size:.84rem;">Builder visual config</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <label style="font-size:.78rem;">Banner image <input id="kit-bc-banner" type="text" placeholder="/tenants/.../banner.jpg" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Video URL <input id="kit-bc-video" type="text" placeholder="https://..." style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Title (EL) <input id="kit-bc-title-el" type="text" placeholder="Τίτλος builder" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Subtitle (EN) <input id="kit-bc-subtitle-en" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;grid-column:span 2;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <h4>Option Groups</h4>
@@ -3290,9 +3367,50 @@
         if (!products[i] || products[i].type !== 'KIT') return;
         kitBuilderIdx = i;
         kitBuilderGroupIdx = -1;
+        var p = products[i];
+        var btSel = document.getElementById('kit-builder-type');
+        btSel.value = p.builderType || 'classic';
+        syncBuilderConfigPanel(p);
         openKitBuilderModal();
         renderKitBuilder();
       };
+      function syncBuilderConfigPanel(p) {
+        var panel = document.getElementById('kit-builder-config-panel');
+        var isSbs = (p.builderType === 'step_by_step');
+        panel.style.display = isSbs ? '' : 'none';
+        var bc = p.builderConfig || {};
+        document.getElementById('kit-bc-banner').value = bc.bannerImage || '';
+        document.getElementById('kit-bc-video').value = bc.videoUrl || '';
+        document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
+        document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
+        document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
+        document.getElementById('kit-bc-subtitle-en').value = (bc.subtitle && bc.subtitle.en) || '';
+        document.getElementById('kit-bc-helper-el').value = bc.helperText || '';
+      }
+      document.getElementById('kit-builder-type').addEventListener('change', function() {
+        if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+        products[kitBuilderIdx].builderType = this.value;
+        syncBuilderConfigPanel(products[kitBuilderIdx]);
+      });
+      (function() {
+        var bcFields = ['kit-bc-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el'];
+        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText' };
+        bcFields.forEach(function(fId) {
+          document.getElementById(fId).addEventListener('input', function() {
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            if (!p.builderConfig) p.builderConfig = {};
+            var path = bcMap[fId];
+            var parts = path.split('.');
+            if (parts.length === 2) {
+              if (!p.builderConfig[parts[0]]) p.builderConfig[parts[0]] = {};
+              p.builderConfig[parts[0]][parts[1]] = this.value;
+            } else {
+              p.builderConfig[parts[0]] = this.value;
+            }
+          });
+        });
+      })();
       window.makeProductKit = function(i) {
         const existing = products[i];
         if (!existing) return;
