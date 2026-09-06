@@ -40,6 +40,7 @@ test('homepage has separate admin-driven hero and account utility', () => {
 
 test('category and kit image slots remain data-driven', () => {
   assert.match(index, /class="eko-cat-tile-img" src="<%= cat\.image \+ '\?v=' \+ \(cat\.imageVersion \|\| 1\) %>"/);
+
   assert.match(index, /<img src="<%= product\.imageUrl %>"/);
 });
 
