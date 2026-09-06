@@ -2,7 +2,7 @@
 <%# Include this in any storefront page EXCEPT /checkout.                     %>
 <style>
   #floating-cart {
-    position: fixed; right: 24px; bottom: 24px; z-index: 900;
+    position: fixed; right: 24px; bottom: 24px; z-index: 1060;
     width: 52px; height: 52px; border-radius: 50%;
     background: var(--primary-color, #4f46e5); color: #fff;
     display: flex; align-items: center; justify-content: center;
@@ -17,7 +17,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   #cart-panel {
-    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 901;
+    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 1100;
     width: 300px; background: #fff; border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,.18); padding: 16px;
   }
@@ -116,12 +116,18 @@
       widget.style.left = (origLeft + cx - startX) + 'px';
       widget.style.top  = (origTop  + cy - startY) + 'px';
     }
+    function collapseAssistant() {
+      var chatPanel = document.getElementById('thrc-chat-panel');
+      if (chatPanel) chatPanel.hidden = true;
+    }
     function onMoveEnd(cx, cy) {
       if (!dragging) return; dragging = false;
       const nl = origLeft + cx - startX, nt = origTop + cy - startY;
       savePos(nl, nt);
       if (Math.abs(cx - startX) < 4 && Math.abs(cy - startY) < 4) {
-        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        var opening = panel.style.display !== 'block';
+        panel.style.display = opening ? 'block' : 'none';
+        if (opening) collapseAssistant();
       }
     }
 
@@ -227,6 +233,7 @@
       saveCart(cart);
       renderCart();
       panel.style.display = 'block';
+      collapseAssistant();
     };
 
     window.thrcRemoveFromCart = function(id) { removeItem(id); };
