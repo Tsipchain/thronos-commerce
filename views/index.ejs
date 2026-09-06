@@ -1362,7 +1362,7 @@
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
                 <% if (isEukolakisClassic && !isCleanHeader && !useCodeTabs) { %>
                   <% if (cat.image) { %>
-                    <img src="<%= cat.image %>" alt="" class="eko-nav-plate-thumb" loading="lazy"
+                    <img src="<%= cat.image + '?v=' + (cat.imageVersion || 1) %>" alt="" class="eko-nav-plate-thumb" loading="lazy"
                       onerror="this.style.display='none';var nx=this.nextElementSibling;if(nx)nx.style.display='inline-flex';" />
                     <span class="eko-nav-plate-fallback" style="display:none;"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
                   <% } else { %>
@@ -1371,7 +1371,7 @@
                 <% } else if (isEukolakisClassic && useCodeTabs) { %>
                   <span class="eko-nav-plate-fallback"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></span>
                 <% } else if (cat.image) { %>
-                  <img src="<%= cat.image %>" alt="<%= cat.name %>" class="cat-logo" />
+                  <img src="<%= cat.image + '?v=' + (cat.imageVersion || 1) %>" alt="<%= cat.name %>" class="cat-logo" />
                 <% } %>
                 <%= cat.name %>
               </a>
@@ -1415,7 +1415,7 @@
           <% const navHomepage = config.homepage || {}; %>
           <% navCategories.forEach(function(cat){ %>
             <a class="pill-item <%= activeCategory === cat.slug ? 'active' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-              <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+              <% if (cat.image && navPlateExistsByUrl[cat.image]) { %><img src="<%= cat.image + '?v=' + (cat.imageVersion || 1) %>" alt="<%= cat.name %>" /><% } %>
               <span><%= cat.name %></span>
             </a>
           <% }) %>
@@ -1510,7 +1510,7 @@
           <% storefrontCategories.forEach(function(cat) { %>
           <a class="eko-cat-tile" data-cat-id="<%= cat.id %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
             <% if (cat.image) { %>
-              <img class="eko-cat-tile-img" src="<%= cat.image %>" alt="<%= cat.name %>" loading="lazy"
+              <img class="eko-cat-tile-img" src="<%= cat.image + '?v=' + (cat.imageVersion || 1) %>" alt="<%= cat.name %>" loading="lazy"
                 onerror="this.style.display='none';var nx=this.nextElementSibling;if(nx)nx.style.display='flex';" />
               <div class="eko-cat-tile-img-placeholder" style="display:none;">
                 <div class="eko-cat-tile-placeholder-icon"><%= (cat.name || 'CAT').slice(0,3).toUpperCase() %></div>
@@ -1544,7 +1544,7 @@
       <section class="category-cards">
         <% storefrontCategories.forEach(function(cat) { %>
           <a class="category-card <%= (config.theme && config.theme.categoryMenuStyle === 'image') ? 'only-image' : '' %> <%= cat.featured ? 'featured' : '' %>" href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
-            <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image %>" alt="<%= cat.name %>" /><% } %>
+            <% if (cat.image && (!config.theme || config.theme.categoryMenuStyle !== 'text')) { %><img src="<%= cat.image + '?v=' + (cat.imageVersion || 1) %>" alt="<%= cat.name %>" /><% } %>
             <div><%= cat.name %></div>
             <% if (cat.shortDescription && config.theme && config.theme.categoryMenuStyle !== 'image') { %><small><%= cat.shortDescription %></small><% } %>
           </a>
@@ -1660,7 +1660,7 @@
       <a data-exposure-link href="<%= secondaryCardHref %>" style="display:block;text-decoration:none;color:inherit;">
       <section class="hero spare-tools-card <%= spareToolsCardMode %>" data-home-block="spare" style="padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;">
         <h3 style="margin-top:0;"><%= homeBlockContent.spareTitle || resolveField(secondaryCard.title, lang) || secondaryCard.title || (featuredSecondary ? featuredSecondary.name : (lang === 'el' ? 'Ανταλλακτικά & Εργαλεία' : 'Spare parts & tools')) %></h3>
-        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
+        <% if (spareCategory && spareCategory.image) { %><img src="<%= spareCategory.image + '?v=' + (spareCategory.imageVersion || 1) %>" alt="<%= spareCategory.name %>" style="width:auto;height:96px;max-width:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;padding:4px;background:#fff;" /><% } %>
         <p style="margin-bottom:8px;"><%= resolveField(secondaryCard.text, lang) || secondaryCard.text || (featuredSecondary ? featuredSecondary.description : (lang === 'el' ? 'Βρες το κομμάτι που σου λείπει με άμεση διαθεσιμότητα.' : 'Find the part you need with fast availability.')) %></p>
         <span class="button"><%= lang === 'el' ? 'Δες ανταλλακτικά' : 'View spare parts' %></span>
       </section>

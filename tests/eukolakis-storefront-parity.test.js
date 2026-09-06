@@ -39,7 +39,8 @@ test('homepage has separate admin-driven hero and account utility', () => {
 });
 
 test('category and kit image slots remain data-driven', () => {
-  assert.match(index, /class="eko-cat-tile-img" src="<%= cat\.image %>"/);
+  assert.match(index, /class="eko-cat-tile-img" src="<%= cat\.image \+ '\?v=' \+ \(cat\.imageVersion \|\| 1\) %>"/);
+
   assert.match(index, /<img src="<%= product\.imageUrl %>"/);
 });
 
@@ -192,6 +193,61 @@ test('storefront and admin preserve independent category visibility behavior', {
     const persisted = JSON.parse(fs.readFileSync(categoriesPath, 'utf8')).find((category) => category.id === hidden.id);
     assert.equal(persisted.visible, false);
     assert.equal(persisted.showInMainNav, true);
+
+    // --- category image A→B persistence and cache-refresh ---
+    const visibleCat = JSON.parse(fs.readFileSync(categoriesPath, 'utf8')).find((c) => c.visible !== false);
+    assert.ok(visibleCat, 'need at least one visible category');
+    const versionBefore = JSON.parse(fs.readFileSync(categoriesPath, 'utf8'))
+      .find((c) => c.id === visibleCat.id).imageVersion || 1;
+    function multipartBody(fields, fileField, fileName, fileContent) {
+      const boundary = '----TestBoundary' + Date.now();
+      let body = '';
+      for (const [k, v] of Object.entries(fields)) {
+        body += `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`;
+      }
+      body += `--${boundary}\r\nContent-Disposition: form-data; name="${fileField}"; filename="${fileName}"\r\nContent-Type: image/png\r\n\r\n`;
+      const prefix = Buffer.from(body, 'utf8');
+      const suffix = Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8');
+      return { boundary, buffer: Buffer.concat([prefix, fileContent, suffix]) };
+    }
+    const fakeImgA = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB', 'base64');
+    const fakeImgB = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12P4z8BQDwAE', 'base64');
+    const uploadA = multipartBody({ password: 'parity-test', categoryId: visibleCat.id }, 'image', 'a.png', fakeImgA);
+    const resA = await request(port, '/admin/categories/image-upload', { method: 'POST', body: uploadA.buffer,
+      headers: { Cookie: cookie, 'Content-Type': `multipart/form-data; boundary=${uploadA.boundary}`, 'Content-Length': uploadA.buffer.length } });
+    assert.equal(resA.status, 200, serverErrors || resA.body.slice(0, 500));
+    const jsonA = JSON.parse(resA.body);
+    assert.ok(jsonA.ok);
+    assert.ok(jsonA.image.includes('-a.png'), 'response carries image-A path');
+    assert.ok(jsonA.imageVersion > versionBefore, 'imageVersion incremented on upload A');
+    const homeA = await request(port, '/?skipIntro=1');
+    assert.match(homeA.body, new RegExp(jsonA.image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\?v=' + jsonA.imageVersion),
+      'storefront renders image A with correct cache-bust version');
+    const uploadB = multipartBody({ password: 'parity-test', categoryId: visibleCat.id }, 'image', 'b.png', fakeImgB);
+    const resB = await request(port, '/admin/categories/image-upload', { method: 'POST', body: uploadB.buffer,
+      headers: { Cookie: cookie, 'Content-Type': `multipart/form-data; boundary=${uploadB.boundary}`, 'Content-Length': uploadB.buffer.length } });
+    assert.equal(resB.status, 200, serverErrors || resB.body.slice(0, 500));
+    const jsonB = JSON.parse(resB.body);
+    assert.ok(jsonB.ok);
+    assert.ok(jsonB.image.includes('-b.png'), 'response carries image-B path');
+    assert.ok(jsonB.imageVersion > jsonA.imageVersion, 'imageVersion incremented again for upload B');
+    const homeB = await request(port, '/?skipIntro=1');
+    assert.doesNotMatch(homeB.body, new RegExp(jsonA.image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      'storefront no longer renders old image A');
+    assert.match(homeB.body, new RegExp(jsonB.image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\?v=' + jsonB.imageVersion),
+      'storefront renders image B with incremented cache-bust version');
+    const persistedCatB = JSON.parse(fs.readFileSync(categoriesPath, 'utf8')).find((c) => c.id === visibleCat.id);
+    assert.equal(persistedCatB.image, jsonB.image, 'categories.json persisted image B path');
+    assert.equal(persistedCatB.imageVersion, jsonB.imageVersion, 'categories.json persisted imageVersion');
+
+    // --- category image removal resets and increments version ---
+    const removeBody = new URLSearchParams({ password: 'parity-test', categoryId: visibleCat.id }).toString();
+    const removeRes = await request(port, '/admin/categories/image-remove', { method: 'POST', body: removeBody,
+      headers: { Cookie: cookie, 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(removeBody) } });
+    assert.equal(removeRes.status, 200, serverErrors || removeRes.body.slice(0, 500));
+    const afterRemove = JSON.parse(fs.readFileSync(categoriesPath, 'utf8')).find((c) => c.id === visibleCat.id);
+    assert.equal(afterRemove.image, undefined, 'image removed from persisted data');
+    assert.ok(afterRemove.imageVersion > jsonB.imageVersion, 'imageVersion incremented on removal');
   } finally {
     child.kill('SIGTERM');
     fs.rmSync(tempRoot, { recursive: true, force: true });

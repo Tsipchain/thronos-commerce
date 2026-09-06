@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="<%= lang %>">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Subscribers – <%= config.storeName %></title><link rel="stylesheet" href="/styles.css">
+  <style>body{background:#f8fafc}.shell{max-width:1100px;margin:auto;padding:24px}.nav{display:flex;gap:12px;margin-bottom:18px}.card{background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:18px}.filters,.actions{display:flex;gap:8px;flex-wrap:wrap}.filters input,.filters select,.actions input,.actions select{padding:8px;border:1px solid #cbd5e1;border-radius:6px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid #e5e7eb;font-size:.85rem}.status{font-weight:700;text-transform:capitalize}.active{color:#15803d}.expired,.cancelled{color:#b91c1c}@media(max-width:700px){.card{overflow:auto}}</style>
+</head>
+<body><main class="shell">
+  <nav class="nav"><a href="<%= withTenantLink('/admin') %>">← Admin</a><a href="<%= withTenantLink('/admin/videos') %>">Videos</a></nav>
+  <h1>Subscribers</h1>
+  <section class="card"><form class="filters" method="get"><input name="q" value="<%= search %>" placeholder="Customer or email"><select name="status"><% ['all','active','expired','cancelled','none'].forEach(function(item){ %><option value="<%= item %>" <%= status===item?'selected':'' %>><%= item %></option><% }) %></select><button>Filter</button></form></section>
+  <section class="card"><table><thead><tr><th>Customer</th><th>Plan</th><th>Status</th><th>Started</th><th>Renewal / expiry</th><th>Latest payment</th></tr></thead><tbody>
+    <% subscribers.forEach(function(row){ %><tr><td><a href="<%= withTenantLink('/admin/subscribers/' + row.id) %>"><%= row.name || row.email %></a><br><small><%= row.email %></small></td><td><%= row.subscription.plan || '—' %></td><td class="status <%= row.subscription.status %>"><%= row.subscription.status %></td><td><%= row.subscription.startedAt || '—' %></td><td><%= row.subscription.expiresAt || '—' %></td><td><%= row.latestPayment ? '#' + row.latestPayment.orderId + ' · ' + row.latestPayment.status + ' · ' + row.latestPayment.date : '—' %></td></tr><% }) %>
+  </tbody></table></section>
+  <% if(selected){ %><section class="card"><h2>Subscriber detail</h2>
+    <p><strong><%= selected.name || selected.email %></strong><br><%= selected.email %><br>Created: <%= selected.createdAt || '—' %></p>
+    <h3>Current subscription</h3><dl><dt>Status</dt><dd><%= selected.subscription.status %></dd><dt>Plan</dt><dd><%= selected.subscription.plan || '—' %></dd><dt>Started at</dt><dd><%= selected.subscription.startedAt || '—' %></dd><dt>Expires at</dt><dd><%= selected.subscription.expiresAt || '—' %></dd><dt>Source order</dt><dd><%= selected.subscription.sourceOrderId ? '#' + selected.subscription.sourceOrderId : '—' %></dd></dl>
+    <h3>Manual subscription control</h3><form class="actions" method="post" action="<%= withTenantLink('/admin/subscribers/' + selected.id + '/subscription') %>"><select name="action"><option value="grant">Grant</option><option value="extend">Extend</option><option value="cancel">Cancel</option><option value="reactivate">Reactivate</option></select><input name="plan" value="<%= selected.subscription.plan %>" placeholder="Plan name"><input type="number" min="1" name="durationDays" placeholder="Duration days"><input type="date" name="expiresAt"><input type="password" name="password" placeholder="Admin password if required"><button type="submit">Apply</button></form>
+    <h3>Subscription history</h3><table><thead><tr><th>Action</th><th>Timestamp</th><th>Status</th><th>Expiry</th><th>Source</th></tr></thead><tbody><% selected.subscriptionHistory.forEach(function(entry){ %><tr><td><%= entry.action %></td><td><%= entry.timestamp %></td><td><%= entry.resultingStatus %></td><td><%= entry.resultingExpiry || '—' %></td><td><%= entry.source %><%= entry.sourceOrderId ? ' · #' + entry.sourceOrderId : '' %></td></tr><% }) %></tbody></table>
+    <h3>Orders / payments</h3><ul><% selected.orders.forEach(function(order){ %><li>#<%= order.id %> · <%= order.paymentStatus %> · <%= order.createdAt || '—' %></li><% }) %></ul>
+  </section><% } %>
+</main></body></html>

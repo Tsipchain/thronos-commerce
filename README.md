@@ -92,6 +92,10 @@ npm start
 Προαιρετικά:
 
 - `THRC_DATA_ROOT` – αν θες **εξωτερικό volume** (π.χ. `/data/thronos-commerce` στο Railway).  
+- `VIDEO_STORAGE_PROVIDER` – `local` (default) or `s3` for the tenant video library.
+- `VIDEO_UPLOAD_MAX_BYTES` – maximum accepted MP4/WebM upload size (default: 1 GiB).
+- `VIDEO_STORAGE_BUCKET`, `VIDEO_STORAGE_ENDPOINT`, `VIDEO_STORAGE_REGION`, `VIDEO_STORAGE_ACCESS_KEY`, `VIDEO_STORAGE_SECRET_KEY` – S3-compatible storage settings. `VIDEO_STORAGE_PUBLIC_BASE_URL` is reserved for a future CDN delivery mode; subscriber playback currently uses five-minute signed URLs.
+  `VIDEO_STORAGE_PROVIDER=local` is intended for development. On Railway it is durable only when `THRC_DATA_ROOT` is backed by an explicitly mounted persistent Railway Volume. Production deployments should use private S3-compatible object storage or a persistent Volume; ephemeral local storage is not safe across deployments.
   Αν ΔΕΝ οριστεί, χρησιμοποιείται το `./data` του project.
 - `THRONOS_NODE_URL` – base URL του ThronosChain node (π.χ. `https://thronos-chain.up.railway.app`)
 - `THRONOS_COMMERCE_API_KEY` – key που θα ελέγχει ο node στο `/api/commerce/attest`

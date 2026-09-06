@@ -13,6 +13,7 @@ const { normalizeAssistantConfig } = require('./lib/assistant-config');
 const { setupAdminAssistantRoutes } = require('./lib/admin-assistant-routes');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const ejs = require('ejs');
 const crypto = require('crypto');
 const axios = require('axios');
@@ -23,6 +24,10 @@ const { normalizeHost, resolveTenantFromHost, tenantHostnames } = require('./uti
 const { runDomainCheck, runDomainCheckFull } = require('./utils/dns-check');
 const { getCloudflareClient, getTenantZoneId } = require('./utils/cloudflare-api');
 const RailwayRegistry = require('./utils/railway-registry');
+const { getCustomerSubscriptionStatus } = require('./lib/subscription-status');
+const { createVideoStorage, safeKey: safeVideoStorageKey } = require('./lib/video-storage');
+const { normalizeVideo, listVideos, slugify: slugifyVideo } = require('./lib/video-library');
+const { activatePaidSubscription, applyManualSubscriptionAction } = require('./lib/customer-subscriptions');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -229,12 +234,15 @@ function normalizeCategoryRecord(rawCategory, index = 0) {
     : (source.visible !== false && source.inMainNav !== false);
   const rawOrder = source.navOrder !== undefined ? source.navOrder : source.order;
   const navOrder = Number.isFinite(Number(rawOrder)) ? Number(rawOrder) : index;
+  const imageVersion = Number.isFinite(Number(source.imageVersion)) && Number(source.imageVersion) > 0
+    ? Number(source.imageVersion) : 1;
   return {
     ...source,
     id: safeId,
     slug: safeSlug,
     name: normalizedName,
     image: normalizeMediaPath(source.image),
+    imageVersion,
     visible: source.visible !== false,
     featured: source.featured === true,
     showInMainNav: normalizedShowInMainNav,
@@ -1007,6 +1015,7 @@ function tenantPaths(tenantId) {
     categories: path.join(base, 'categories.json'),
     users: path.join(base, 'users.json'),
     orders: path.join(base, 'orders.json'),
+    videos: path.join(base, 'videos.json'),
     reviews: path.join(base, 'reviews.json'),
     stockLog:      path.join(base, 'stock_log.json'),
     analytics:     path.join(base, 'analytics.json'),
@@ -1014,6 +1023,9 @@ function tenantPaths(tenantId) {
     pendingOrders: path.join(base, 'pending_orders.json'),
     tickets:       path.join(base, 'tickets.json'),
     media,
+    // Kept outside /media because /tenants is served statically. Playback must
+    // always pass through the authorization-aware /content/:slug/stream route.
+    videoMedia: path.join(base, 'video-storage'),
     backups
   };
 }
@@ -1375,6 +1387,14 @@ function normalizeProductRecord(product) {
     .filter((url) => url && url !== normalized.imageUrl);
   normalized.galleryImages = galleryImages;
   normalized.gallery = galleryImages; // backward compatibility for existing templates/data
+  normalized.subscriptionPlan = String(normalized.subscriptionPlan || '').trim();
+  const subscriptionDurationDays = Number(normalized.subscriptionDurationDays);
+  if (normalized.subscriptionPlan && Number.isInteger(subscriptionDurationDays) && subscriptionDurationDays > 0) {
+    normalized.subscriptionDurationDays = subscriptionDurationDays;
+  } else {
+    normalized.subscriptionPlan = '';
+    normalized.subscriptionDurationDays = null;
+  }
   return normalized;
 }
 
@@ -1422,6 +1442,69 @@ function loadTenantUsers(req) {
 
 function saveTenantUsers(req, users) {
   saveJson(req.tenantPaths.users, users);
+}
+
+function loadTenantVideos(req) {
+  return listVideos(req.tenantPaths.videos, loadJson, req.tenant.id);
+}
+
+function saveTenantVideos(req, videos) {
+  const safeVideos = (Array.isArray(videos) ? videos : []).map((video) => normalizeVideo(video, req.tenant.id));
+  saveJson(req.tenantPaths.videos, safeVideos);
+  backupJsonWithRotation(req, 'videos', safeVideos);
+}
+
+function currentCustomer(req) {
+  if (!req.session || !req.session.user) return null;
+  const sessionUser = req.session.user;
+  return loadTenantUsers(req).find((user) => user.id === sessionUser.id || normalizeEmail(user.email) === normalizeEmail(sessionUser.email)) || null;
+}
+
+function subscriberRows(req) {
+  const orders = loadTenantOrders(req);
+  return loadTenantUsers(req).map((user) => {
+    const email = normalizeEmail(user.email);
+    const customerOrders = orders.filter((order) => normalizeEmail(order.userEmail || order.email) === email).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const latestOrder = customerOrders[0] || null;
+    return {
+      id: user.id, name: user.name || '', email: user.email, createdAt: user.createdAt || null,
+      subscription: getCustomerSubscriptionStatus(user, req.tenant),
+      subscriptionHistory: Array.isArray(user.subscriptionHistory) ? user.subscriptionHistory : [],
+      latestPayment: latestOrder ? { orderId: latestOrder.id, status: latestOrder.paymentStatus || 'UNKNOWN', date: latestOrder.paidAt || latestOrder.createdAt || null } : null,
+      orders: customerOrders.map((order) => ({ id: order.id, createdAt: order.createdAt || null, paymentStatus: order.paymentStatus || 'UNKNOWN', total: order.total }))
+    };
+  });
+}
+
+function activateCustomerSubscriptionForPaidOrder(req, order) {
+  const users = loadTenantUsers(req);
+  const result = activatePaidSubscription(users, order, loadTenantProducts(req));
+  if (result.activated) saveTenantUsers(req, users);
+  return result;
+}
+
+function reconcilePaidCheckoutEntitlement(tenantId, pendingId, sessionObject) {
+  const tenants = loadTenantsRegistry();
+  const tenant = tenants.find((row) => row.id === tenantId);
+  if (!tenant || !pendingId || !sessionObject || sessionObject.payment_status !== 'paid') return { activated: false, reason: 'invalid_context' };
+  const requestContext = { tenant, tenantPaths: tenantPaths(tenantId) };
+  const pending = loadJson(requestContext.tenantPaths.pendingOrders, {});
+  const entry = pending[pendingId];
+  if (!entry || !entry.order) return { activated: false, reason: 'pending_order_not_found' };
+  const metadataOrderId = String(sessionObject.metadata && sessionObject.metadata.orderId || '');
+  if (metadataOrderId && metadataOrderId !== String(entry.order.id)) return { activated: false, reason: 'order_mismatch' };
+  const order = { ...entry.order, paymentStatus: 'PAID', stripeSessionId: sessionObject.id || '' };
+  const orders = loadTenantOrders(requestContext);
+  if (!orders.some((row) => row.id === order.id)) {
+    orders.push(order);
+    saveJson(requestContext.tenantPaths.orders, orders);
+  }
+  const result = activateCustomerSubscriptionForPaidOrder(requestContext, order);
+  entry.webhookProcessedAt = entry.webhookProcessedAt || new Date().toISOString();
+  entry.verifiedStripeSessionId = sessionObject.id || entry.verifiedStripeSessionId || '';
+  pending[pendingId] = entry;
+  saveJson(requestContext.tenantPaths.pendingOrders, pending);
+  return result;
 }
 
 function saveTenantProducts(req, products) {
@@ -2225,6 +2308,31 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const videoUploadMaxBytes = Math.max(1, Number(process.env.VIDEO_UPLOAD_MAX_BYTES) || 1024 * 1024 * 1024);
+const videoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = path.join(os.tmpdir(), 'thrc-video-uploads');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const extension = file.mimetype === 'video/webm' ? '.webm' : '.mp4';
+      cb(null, `${Date.now()}-${crypto.randomBytes(5).toString('hex')}${extension}`);
+    }
+  }),
+  limits: { fileSize: videoUploadMaxBytes },
+  fileFilter: (_req, file, cb) => cb(null, /^(video\/mp4|video\/webm)$/.test(String(file.mimetype || '')))
+});
+
+function videoStorageForRequest(req) {
+  return createVideoStorage({ localRoot: req.tenantPaths.videoMedia });
+}
+
+function cleanupTemporaryVideoUpload(req) {
+  if (!req.file || !req.file.path) return;
+  try { fs.unlinkSync(req.file.path); } catch (error) { if (error.code !== 'ENOENT') console.warn('[videos] temporary upload cleanup failed:', error.message); }
+}
 const partsUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
@@ -2434,7 +2542,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self';");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self';");
   next();
 });
 
@@ -2451,7 +2559,7 @@ app.get('/robots.txt', (_req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/tenants', express.static(TENANTS_DIR));
+app.use('/tenants', express.static(TENANTS_DIR, { maxAge: 0, etag: true }));
 // Raw body for Stripe webhook signature verification (must be before urlencoded)
 app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.urlencoded({ extended: true }));
@@ -2621,6 +2729,8 @@ function buildAdminViewModel(req, extra) {
   );
   const hasConfiguredFavicon = Boolean(faviconPath);
   const products = loadTenantProducts(req).filter((p) => p && p.active !== false);
+  const videos = loadTenantVideos(req);
+  const subscribers = subscriberRows(req);
   const categories = loadTenantCategories(req);
   const assetAudit = buildTenantAssetAudit(req, config, categories);
   const qContentLang = (req.query.contentLang || '').toLowerCase();
@@ -2688,6 +2798,11 @@ function buildAdminViewModel(req, extra) {
     orderCounts,
     cityCounts,
     unresolvedOrdersCount,
+    subscriberMetrics: {
+      active: subscribers.filter((row) => row.subscription.status === 'active').length,
+      publishedVideos: videos.filter((video) => video.published).length,
+      draftVideos: videos.filter((video) => !video.published).length
+    },
     assetAudit,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
@@ -3130,6 +3245,9 @@ app.post('/checkout', async (req, res) => {
         finalUnitPrice: serverPrice,
         price:        serverPrice,
         qty:          Math.max(1, parseInt(ci.qty, 10) || 1),
+        subscriptionEntitlement: found.subscriptionPlan && found.subscriptionDurationDays
+          ? { plan: found.subscriptionPlan, durationDays: found.subscriptionDurationDays }
+          : null,
         isKitSummary: found.type === 'KIT' && found.kitPayMode === 'parts_only'
       });
     }
@@ -3228,6 +3346,7 @@ app.post('/checkout', async (req, res) => {
           mode:                 'payment',
           line_items:           lineItems,
           customer_email:       checkoutEmail,
+          metadata: { tenantId: req.tenant.id, pendingId, orderId: order.id },
           success_url: `${baseUrl}/checkout/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url:  `${baseUrl}/checkout`
         });
@@ -3417,7 +3536,8 @@ app.get('/checkout/stripe-success', async (req, res) => {
     console.error('[checkout] stripe chain:attest-failed', chainErr && chainErr.message ? chainErr.message : chainErr);
   }
   order.proofHash = proofHash;
-  appendTenantOrder(req, order);
+  if (!loadTenantOrders(req).some((existingOrder) => existingOrder.id === order.id)) appendTenantOrder(req, order);
+  activateCustomerSubscriptionForPaidOrder(req, order);
   createFinancialLedgerEntries(req, order);
 
   // Stock deduction
@@ -3758,6 +3878,124 @@ app.post('/api/products/:productId/reviews', (req, res) => {
   reviews.push(review);
   saveJson(req.tenantPaths.reviews, reviews);
   res.json({ ok: true, review });
+});
+
+app.get('/admin/videos', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const videos = loadTenantVideos(req).sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+  res.render('admin-videos', { config, tenant: req.tenant, videos, editing: null, message: req.query.message || '', error: req.query.error || '' });
+});
+
+app.get('/admin/videos/:id/edit', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const videos = loadTenantVideos(req);
+  const editing = videos.find((video) => video.id === req.params.id);
+  if (!editing) return res.status(404).send('Video not found.');
+  return res.render('admin-videos', { config, tenant: req.tenant, videos, editing, message: '', error: '' });
+});
+
+app.post('/admin/videos/save', (req, res, next) => {
+  videoUpload.single('videoFile')(req, res, (uploadError) => {
+    if (uploadError) return res.status(400).send(`Video upload failed: ${uploadError.message}`);
+    (async () => {
+      const auth = await verifyAdminAction(req, req.body.password);
+      if (!auth.ok) { cleanupTemporaryVideoUpload(req); return res.status(401).send('Invalid admin password.'); }
+      const videos = loadTenantVideos(req);
+      const existingIndex = videos.findIndex((video) => video.id === String(req.body.id || ''));
+      const existing = existingIndex >= 0 ? videos[existingIndex] : null;
+      const sourceType = req.body.sourceType === 'uploaded' ? 'uploaded' : 'external';
+      const externalVideoUrl = String(req.body.externalVideoUrl || '').trim();
+      if (sourceType === 'external' && !/^https?:\/\//i.test(externalVideoUrl)) {
+        cleanupTemporaryVideoUpload(req);
+        return res.status(400).send('A valid http(s) external video URL is required.');
+      }
+      if (sourceType === 'uploaded' && !req.file && !(existing && existing.videoStorageKey)) {
+        return res.status(400).send('An MP4 or WebM upload is required.');
+      }
+      const draft = normalizeVideo({
+      ...existing,
+      slug: req.body.slug || slugifyVideo(req.body.titleEn || req.body.titleEl),
+      titleEl: req.body.titleEl, titleEn: req.body.titleEn,
+      descriptionEl: req.body.descriptionEl, descriptionEn: req.body.descriptionEn,
+      thumbnailUrl: normalizeMediaPath(req.body.thumbnailUrl, { allowAbsoluteUrl: true }), sourceType,
+      externalVideoUrl, videoStorageKey: existing && existing.videoStorageKey,
+      durationSeconds: req.body.durationSeconds, category: req.body.category,
+      accessLevel: req.body.accessLevel, published: req.body.published === '1',
+      featured: req.body.featured === '1', sortOrder: req.body.sortOrder
+      }, req.tenant.id);
+      if (!draft.titleEl && !draft.titleEn) { cleanupTemporaryVideoUpload(req); return res.status(400).send('A title is required.'); }
+      const duplicate = videos.some((video, index) => index !== existingIndex && video.slug === draft.slug);
+      if (duplicate) { cleanupTemporaryVideoUpload(req); return res.status(409).send('Video slug already exists.'); }
+      const storageProvider = videoStorageForRequest(req);
+      const previousKey = existing && existing.videoStorageKey;
+      if (req.file) {
+        const extension = req.file.mimetype === 'video/webm' ? '.webm' : '.mp4';
+        const leaf = `${Date.now()}-${slugifyVideo(path.basename(req.file.originalname, path.extname(req.file.originalname))) || 'video'}${extension}`;
+        const key = storageProvider.provider === 's3' ? `${req.tenant.id}/${draft.id}/${leaf}` : `${draft.id}/${leaf}`;
+        await storageProvider.put({ key, filePath: req.file.path, contentType: req.file.mimetype });
+        cleanupTemporaryVideoUpload(req);
+        draft.videoStorageKey = key;
+      } else if (sourceType === 'external') {
+        draft.videoStorageKey = '';
+      }
+      if (existingIndex >= 0) videos[existingIndex] = draft; else videos.push(draft);
+      saveTenantVideos(req, videos);
+      if (previousKey && previousKey !== draft.videoStorageKey) {
+        try { await storageProvider.remove(previousKey); } catch (error) { console.warn('[videos] old object cleanup failed:', error.message); }
+      }
+      return res.redirect(buildTenantLink(req, '/admin/videos', { message: 'saved' }));
+    })().catch((error) => { cleanupTemporaryVideoUpload(req); next(error); });
+  });
+});
+
+app.post('/admin/videos/:id/delete', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).send('Invalid admin password.');
+  const videos = loadTenantVideos(req);
+  const video = videos.find((row) => row.id === req.params.id);
+  if (!video) return res.status(404).send('Video not found.');
+  saveTenantVideos(req, videos.filter((row) => row.id !== video.id));
+  if (video.videoStorageKey) {
+    try { await videoStorageForRequest(req).remove(safeVideoStorageKey(video.videoStorageKey)); }
+    catch (error) { console.warn('[videos] object delete failed:', error.message); }
+  }
+  return res.redirect(buildTenantLink(req, '/admin/videos', { message: 'deleted' }));
+});
+
+app.get('/admin/subscribers', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const status = String(req.query.status || 'all').toLowerCase();
+  const search = normalizeEmail(req.query.q || '');
+  const rows = subscriberRows(req).filter((row) => (status === 'all' || row.subscription.status === status) && (!search || normalizeEmail(`${row.name} ${row.email}`).includes(search)));
+  res.render('admin-subscribers', { config, tenant: req.tenant, subscribers: rows, status, search, selected: null });
+});
+
+app.get('/admin/subscribers/:id', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const rows = subscriberRows(req);
+  const selected = rows.find((row) => row.id === req.params.id);
+  if (!selected) return res.status(404).send('Subscriber not found.');
+  res.render('admin-subscribers', { config, tenant: req.tenant, subscribers: rows, status: 'all', search: '', selected });
+});
+
+app.post('/admin/subscribers/:id/subscription', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).send('Invalid admin password.');
+  const users = loadTenantUsers(req);
+  const customer = users.find((row) => row.id === req.params.id);
+  if (!customer) return res.status(404).send('Subscriber not found.');
+  try {
+    applyManualSubscriptionAction(customer, {
+      action: req.body.action,
+      plan: req.body.plan,
+      durationDays: req.body.durationDays ? Number(req.body.durationDays) : null,
+      expiresAt: req.body.expiresAt
+    });
+    saveTenantUsers(req, users);
+    return res.redirect(buildTenantLink(req, `/admin/subscribers/${encodeURIComponent(customer.id)}`));
+  } catch (error) {
+    return res.status(400).send(error.message);
+  }
 });
 
 // Admin panel
@@ -5103,8 +5341,12 @@ app.post('/admin/categories/update', async (req, res) => {
   categories[idx].slug = normalizedSlug;
   if (image !== undefined) {
     const normalizedCategoryImage = normalizeMediaPath(image);
+    const previousImage = categories[idx].image || '';
     if (normalizedCategoryImage) categories[idx].image = normalizedCategoryImage;
     else delete categories[idx].image;
+    if ((categories[idx].image || '') !== previousImage) {
+      categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
+    }
   }
   if (parentId !== undefined) {
     if (parentId && parentId.trim() && parentId.trim() !== categoryId) {
@@ -5467,8 +5709,9 @@ app.post('/admin/categories/image-upload', categoryUpload.single('image'), async
     }
   }
   categories[idx].image = `/tenants/${req.tenant.id}/media/categories/${req.file.filename}`;
+  categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
   saveTenantCategories(req, categories);
-  return res.json({ ok: true, image: categories[idx].image });
+  return res.json({ ok: true, image: categories[idx].image, imageVersion: categories[idx].imageVersion });
 });
 
 app.post('/admin/categories/image-remove', async (req, res) => {
@@ -5491,6 +5734,7 @@ app.post('/admin/categories/image-remove', async (req, res) => {
     }
   }
   delete categories[idx].image;
+  categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
   saveTenantCategories(req, categories);
   return res.json({ ok: true });
 });
@@ -5603,10 +5847,90 @@ app.post(
   }
 );
 
-// ── Digital content: gated access page ───────────────────────────────────────
-app.get('/content/:orderId', requireUser, (req, res) => {
+// ── Tenant video library and legacy purchased digital content ───────────────
+app.get('/content', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const customer = currentCustomer(req);
+  const subscription = getCustomerSubscriptionStatus(customer, req.tenant);
+  const videos = loadTenantVideos(req)
+    .filter((video) => video.published)
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+  return res.render('content-library', { config, tenant: req.tenant, user: req.session.user || null, subscription, videos });
+});
+
+app.get('/content/:slug/stream', async (req, res) => {
+  const video = loadTenantVideos(req).find((row) => row.slug === req.params.slug && row.published && row.sourceType === 'uploaded');
+  if (!video) return res.sendStatus(404);
+  const customer = currentCustomer(req);
+  const subscription = getCustomerSubscriptionStatus(customer, req.tenant);
+  if (video.accessLevel === 'subscriber' && !subscription.active) return res.sendStatus(403);
+  try {
+    const provider = videoStorageForRequest(req);
+    if (provider.provider === 's3') return res.redirect(await provider.playbackUrl(video.videoStorageKey));
+    const localPath = provider.localPath(video.videoStorageKey);
+    if (!fs.existsSync(localPath)) return res.sendStatus(404);
+    res.setHeader('Cache-Control', 'private, no-store');
+    const stat = fs.statSync(localPath);
+    const contentType = path.extname(localPath).toLowerCase() === '.webm' ? 'video/webm' : 'video/mp4';
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', contentType);
+    const range = String(req.headers.range || '');
+    if (!range) {
+      res.setHeader('Content-Length', stat.size);
+      return fs.createReadStream(localPath).pipe(res);
+    }
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match || (!match[1] && !match[2])) {
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
+      return res.sendStatus(416);
+    }
+    let start;
+    let end;
+    if (!match[1]) {
+      const suffixLength = Number(match[2]);
+      if (!Number.isInteger(suffixLength) || suffixLength <= 0) {
+        res.setHeader('Content-Range', `bytes */${stat.size}`);
+        return res.sendStatus(416);
+      }
+      start = Math.max(0, stat.size - suffixLength);
+      end = stat.size - 1;
+    } else {
+      start = Number(match[1]);
+      end = match[2] ? Number(match[2]) : stat.size - 1;
+    }
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start >= stat.size || end < start) {
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
+      return res.sendStatus(416);
+    }
+    end = Math.min(end, stat.size - 1);
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+    res.setHeader('Content-Length', end - start + 1);
+    return fs.createReadStream(localPath, { start, end }).pipe(res);
+  } catch (error) {
+    console.error('[videos] stream failed:', error.message);
+    return res.sendStatus(404);
+  }
+});
+
+app.get('/content/:identifier', (req, res) => {
+  const identifier = String(req.params.identifier || '');
+  const video = loadTenantVideos(req).find((row) => row.slug === identifier && row.published);
+  if (video) {
+    const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+    const customer = currentCustomer(req);
+    const subscription = getCustomerSubscriptionStatus(customer, req.tenant);
+    const allowed = video.accessLevel === 'public' || subscription.active;
+    const playbackUrl = allowed
+      ? (video.sourceType === 'uploaded' ? buildTenantLink(req, `/content/${encodeURIComponent(video.slug)}/stream`) : video.externalVideoUrl)
+      : null;
+    return res.status(allowed ? 200 : 403).render('content-video', {
+      config, tenant: req.tenant, user: req.session.user || null, subscription, video, allowed, playbackUrl
+    });
+  }
+  if (!req.session.user) return res.redirect(buildTenantLink(req, '/login'));
   const orders = loadTenantOrders(req);
-  const order  = orders.find((o) => o.id === req.params.orderId);
+  const order  = orders.find((o) => o.id === identifier);
   if (!order) return res.status(404).send('Η παραγγελία δεν βρέθηκε.');
   if (normalizeEmail(order.userEmail) !== normalizeEmail(req.session.user.email)) {
     return res.status(403).send('Δεν έχετε πρόσβαση σε αυτό το περιεχόμενο.');
@@ -6553,40 +6877,16 @@ app.post('/stripe/webhook', async (req, res) => {
   try {
     const sig = req.headers['stripe-signature'] || '';
     const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    if (!secret || !StripeLib) {
+      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET or Stripe library not configured');
+      return res.status(503).json({ error: 'Webhook verification not configured' });
+    }
     let event;
-
-    // Verify signature when secret is configured
-    if (secret) {
-      try {
-        // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
-        const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
-        const parts = sig.split(',').reduce((acc, p) => {
-          const [k, v] = p.split('='); acc[k] = v; return acc;
-        }, {});
-        const ts = parts.t;
-        const expected = crypto.createHmac('sha256', secret)
-          .update(`${ts}.${payload.toString()}`)
-          .digest('hex');
-        if (expected !== parts.v1) {
-          console.warn('[Stripe Webhook] Invalid signature');
-          return res.status(400).json({ error: 'Invalid signature' });
-        }
-        event = JSON.parse(payload.toString());
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    } else {
-      // In production, webhook secret is required — reject unverified events
-      if (process.env.NODE_ENV === 'production') {
-        console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
-        return res.status(500).json({ error: 'Webhook secret not configured' });
-      }
-      // Dev/testing only — accept raw JSON
-      try {
-        event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
-      } catch (err) {
-        return res.status(400).json({ error: 'Invalid JSON' });
-      }
+    try {
+      event = StripeLib.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err) {
+      console.warn('[Stripe Webhook] Invalid signature:', err.message);
+      return res.status(400).json({ error: 'Invalid signature' });
     }
 
     const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
@@ -6601,6 +6901,14 @@ app.post('/stripe/webhook', async (req, res) => {
     const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
     const amountFiat = +(amountRaw / 100).toFixed(2);
     const currency = (obj.currency || 'eur').toUpperCase();
+
+    if (event.type === 'checkout.session.completed') {
+      if (obj.payment_status !== 'paid') return res.json({ received: true });
+      const pendingId = String(obj.metadata && obj.metadata.pendingId || '');
+      if (tenantId && pendingId) {
+        reconcilePaidCheckoutEntitlement(tenantId, pendingId, obj);
+      }
+    }
 
     if (!tenantId || amountFiat <= 0) return res.json({ received: true });
 
@@ -7339,6 +7647,9 @@ console.log('[boot] Env audit:', {
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });
 console.log('[boot] DATA_ROOT:', DATA_ROOT);
+if (process.env.NODE_ENV === 'production' && String(process.env.VIDEO_STORAGE_PROVIDER || 'local').toLowerCase() === 'local') {
+  console.warn('[boot] WARNING: VIDEO_STORAGE_PROVIDER=local requires a persistent volume in production. Railway ephemeral storage will not survive deployments; configure a Railway Volume or private S3-compatible storage.');
+}
 {
   const env = resolveAssistantEnv();
   console.log('[boot] assistant env sources', {
