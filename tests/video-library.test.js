@@ -6,6 +6,7 @@ const os = require('node:os');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 const bcrypt = require('bcryptjs');
+const Stripe = require('stripe');
 const { getCustomerSubscriptionStatus } = require('../lib/subscription-status');
 const { createVideoStorage, safeKey } = require('../lib/video-storage');
 const { activatePaidSubscription, applyManualSubscriptionAction } = require('../lib/customer-subscriptions');
@@ -32,10 +33,11 @@ test('canonical subscriber status handles active, expired and cancelled records'
 
 test('verified subscription purchase activates once and payment replay is idempotent', () => {
   const customers = [{ id: 'buyer', email: 'buyer@example.test' }];
-  const order = { id: 'paid-order-1', email: 'buyer@example.test', paymentStatus: 'PAID', items: [{ id: 'video-plan', qty: 1 }] };
-  const products = [{ id: 'video-plan', subscriptionPlan: 'Video Club 30', subscriptionDurationDays: 30 }];
+  const order = { id: 'paid-order-1', email: 'buyer@example.test', paymentStatus: 'PAID', items: [{ id: 'video-plan', qty: 1, subscriptionEntitlement: { plan: 'Video Club 30', durationDays: 30 } }] };
+  const products = [{ id: 'video-plan', subscriptionPlan: 'Edited Annual Plan', subscriptionDurationDays: 365 }];
   const first = activatePaidSubscription(customers, order, products, '2026-01-01T00:00:00Z');
   assert.equal(first.activated, true);
+  assert.equal(first.durationDays, 30, 'the trusted order snapshot wins over later catalog edits');
   const expiry = customers[0].subscription.expiresAt;
   const replay = activatePaidSubscription(customers, order, products, '2026-01-02T00:00:00Z');
   assert.equal(replay.reason, 'already_processed');
@@ -89,7 +91,9 @@ test('video CRUD, subscriber access and tenant isolation', { timeout: 25000 }, a
   const users = [
     { id: 'active-user', name: 'Active Person', email: 'active@example.test', passwordHash, createdAt: '2025-01-01', subscription: { plan: 'Video Club', status: 'active', startsAt: '2025-01-01', expiresAt: '2099-01-01' }, paymentCardNumber: 'SHOULD_NOT_RENDER' },
     { id: 'expired-user', name: 'Expired Person', email: 'expired@example.test', passwordHash, createdAt: '2025-01-01', subscription: { plan: 'Video Club', status: 'active', startedAt: '2025-01-01', expiresAt: '2025-02-01' } },
-    { id: 'cancelled-user', name: 'Cancelled Person', email: 'cancelled@example.test', passwordHash, createdAt: '2025-01-01', subscription: { plan: 'Video Club', status: 'cancelled', startedAt: '2025-01-01', cancelledAt: '2025-02-01', expiresAt: '2099-01-01' } }
+    { id: 'cancelled-user', name: 'Cancelled Person', email: 'cancelled@example.test', passwordHash, createdAt: '2025-01-01', subscription: { plan: 'Video Club', status: 'cancelled', startedAt: '2025-01-01', cancelledAt: '2025-02-01', expiresAt: '2099-01-01' } },
+    { id: 'webhook-user', name: 'Webhook Buyer', email: 'webhook@example.test', passwordHash, createdAt: '2025-01-01' },
+    { id: 'unpaid-user', name: 'Unpaid Buyer', email: 'unpaid@example.test', passwordHash, createdAt: '2025-01-01' }
   ];
   fs.writeFileSync(path.join(tempRoot, 'tenants/eukolakis/users.json'), JSON.stringify(users, null, 2));
   fs.writeFileSync(path.join(tempRoot, 'tenants/demo/users.json'), JSON.stringify([{ id: 'other-user', email: 'other-tenant@example.test', passwordHash, subscription: { status: 'active', expiresAt: '2099-01-01' } }], null, 2));
@@ -104,14 +108,51 @@ test('video CRUD, subscriber access and tenant isolation', { timeout: 25000 }, a
   const productsFile = path.join(tempRoot, 'tenants/eukolakis/products.json');
   const products = JSON.parse(fs.readFileSync(productsFile, 'utf8'));
   products.push({ id: 'legacy-digital', name: 'Legacy digital', price: 10, active: true, hasDigitalContent: true, videoUrl: 'https://video.example/legacy.mp4' });
+  products.push({ id: 'webhook-plan', name: 'Webhook plan', price: 20, active: true, subscriptionPlan: 'Snapshot Plan', subscriptionDurationDays: 365 });
   fs.writeFileSync(productsFile, JSON.stringify(products, null, 2));
   fs.writeFileSync(path.join(tempRoot, 'tenants/eukolakis/orders.json'), JSON.stringify([{ id: 'legacy-order-1', email: 'active@example.test', userEmail: 'active@example.test', paymentStatus: 'PAID', items: [{ id: 'legacy-digital', qty: 1 }] }], null, 2));
+  fs.writeFileSync(path.join(tempRoot, 'tenants/eukolakis/pending_orders.json'), JSON.stringify({
+    'pending-webhook': { order: { id: 'webhook-order-1', tenantId: 'eukolakis', email: 'webhook@example.test', userEmail: 'webhook@example.test', paymentStatus: 'PENDING_STRIPE', items: [{ id: 'webhook-plan', qty: 1, subscriptionEntitlement: { plan: 'Snapshot Plan', durationDays: 90 } }] }, enrichedItems: [] },
+    'pending-unpaid': { order: { id: 'unpaid-order-1', tenantId: 'eukolakis', email: 'unpaid@example.test', userEmail: 'unpaid@example.test', paymentStatus: 'PENDING_STRIPE', items: [{ id: 'webhook-plan', qty: 1, subscriptionEntitlement: { plan: 'Snapshot Plan', durationDays: 90 } }] }, enrichedItems: [] }
+  }, null, 2));
   fs.writeFileSync(path.join(tempRoot, 'tenants/demo/videos.json'), JSON.stringify([{ id: 'other', tenantId: 'demo', slug: 'other-tenant-video', titleEn: 'Other tenant', sourceType: 'external', externalVideoUrl: 'https://example.test/other', accessLevel: 'public', published: true }], null, 2));
   const port = 35000 + Math.floor(Math.random() * 1000);
-  const child = spawn(process.execPath, ['server.js'], { cwd: root, env: { ...process.env, PORT: String(port), NODE_ENV: 'test', THRC_DATA_ROOT: tempRoot, SESSION_SECRET: 'video-test-secret', THRONOS_ROOT_ADMIN_PASSWORD: 'root-test', VIDEO_STORAGE_PROVIDER: 'local' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const webhookSecret = 'whsec_video_library_test';
+  const child = spawn(process.execPath, ['server.js'], { cwd: root, env: { ...process.env, PORT: String(port), NODE_ENV: 'test', THRC_DATA_ROOT: tempRoot, SESSION_SECRET: 'video-test-secret', THRONOS_ROOT_ADMIN_PASSWORD: 'root-test', VIDEO_STORAGE_PROVIDER: 'local', STRIPE_WEBHOOK_SECRET: webhookSecret }, stdio: ['ignore', 'pipe', 'pipe'] });
   let errors = ''; child.stderr.on('data', (chunk) => { errors += chunk; });
   try {
     await new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error(`startup timeout: ${errors}`)), 8000); child.stdout.on('data', (chunk) => { if (String(chunk).includes(`listening on port ${port}`)) { clearTimeout(timer); resolve(); } }); child.once('exit', (code) => reject(new Error(`server exited ${code}: ${errors}`))); });
+    const postStripeEvent = async (session, signatureOverride) => {
+      const payload = JSON.stringify({ id: `evt_${session.id}`, type: 'checkout.session.completed', data: { object: session } });
+      const signature = signatureOverride || Stripe.webhooks.generateTestHeaderString({ payload, secret: webhookSecret });
+      return request(port, '/stripe/webhook', { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'Stripe-Signature': signature } });
+    };
+    const paidSession = { id: 'cs_paid_webhook', payment_status: 'paid', amount_total: 2000, currency: 'eur', metadata: { tenantId: 'eukolakis', pendingId: 'pending-webhook', orderId: 'webhook-order-1' } };
+    const invalidWebhook = await postStripeEvent(paidSession, 't=1,v1=invalid');
+    assert.equal(invalidWebhook.status, 400);
+    let webhookUsers = JSON.parse(fs.readFileSync(path.join(tempRoot, 'tenants/eukolakis/users.json'), 'utf8'));
+    assert.equal(webhookUsers.find((user) => user.id === 'webhook-user').subscription, undefined);
+    const unpaidWebhook = await postStripeEvent({ id: 'cs_unpaid', payment_status: 'unpaid', amount_total: 2000, currency: 'eur', metadata: { tenantId: 'eukolakis', pendingId: 'pending-unpaid', orderId: 'unpaid-order-1' } });
+    assert.equal(unpaidWebhook.status, 200);
+    webhookUsers = JSON.parse(fs.readFileSync(path.join(tempRoot, 'tenants/eukolakis/users.json'), 'utf8'));
+    assert.equal(webhookUsers.find((user) => user.id === 'unpaid-user').subscription, undefined);
+    const paidWebhook = await postStripeEvent(paidSession);
+    assert.equal(paidWebhook.status, 200);
+    webhookUsers = JSON.parse(fs.readFileSync(path.join(tempRoot, 'tenants/eukolakis/users.json'), 'utf8'));
+    const webhookCustomer = webhookUsers.find((user) => user.id === 'webhook-user');
+    assert.equal(webhookCustomer.subscription.status, 'active');
+    assert.equal(webhookCustomer.subscription.plan, 'Snapshot Plan');
+    assert.equal(webhookCustomer.subscriptionHistory.length, 1);
+    const webhookExpiry = webhookCustomer.subscription.expiresAt;
+    const duplicateWebhook = await postStripeEvent(paidSession);
+    assert.equal(duplicateWebhook.status, 200);
+    webhookUsers = JSON.parse(fs.readFileSync(path.join(tempRoot, 'tenants/eukolakis/users.json'), 'utf8'));
+    assert.equal(webhookUsers.find((user) => user.id === 'webhook-user').subscription.expiresAt, webhookExpiry);
+    assert.equal(webhookUsers.find((user) => user.id === 'webhook-user').subscriptionHistory.length, 1);
+    const storedPaidOrder = JSON.parse(fs.readFileSync(path.join(tempRoot, 'tenants/eukolakis/orders.json'), 'utf8')).find((order) => order.id === 'webhook-order-1');
+    assert.equal(activatePaidSubscription(webhookUsers, storedPaidOrder, [{ id: 'webhook-plan', subscriptionPlan: 'Changed', subscriptionDurationDays: 365 }]).reason, 'already_processed', 'success-page reconciliation after the webhook remains idempotent');
+    assert.equal(webhookUsers.find((user) => user.id === 'webhook-user').subscription.expiresAt, webhookExpiry);
+
     const library = await request(port, '/content');
     assert.equal(library.status, 200);
     assert.match(library.body, /public-guide/);
@@ -169,6 +210,17 @@ test('video CRUD, subscriber access and tenant isolation', { timeout: 25000 }, a
     const adminVideos = await request(port, '/admin/videos', { headers: { Cookie: adminCookie } });
     assert.equal(adminVideos.status, 200);
     assert.doesNotMatch(adminVideos.body, /other-tenant-video/);
+    const productPayload = JSON.parse(fs.readFileSync(productsFile, 'utf8'));
+    productPayload.push({ id: 'admin-subscription', name: 'Admin Subscription', price: 15, active: true, subscriptionPlan: 'Admin 30', subscriptionDurationDays: 30 });
+    productPayload.push({ id: 'admin-ordinary', name: 'Ordinary Product', price: 5, active: true, subscriptionPlan: '', subscriptionDurationDays: -5 });
+    const productBody = new URLSearchParams({ productsJson: JSON.stringify(productPayload) }).toString();
+    const productSave = await request(port, '/admin/products', { method: 'POST', body: productBody, headers: formHeaders(productBody, adminCookie) });
+    assert.equal(productSave.status, 200, errors);
+    const savedProducts = JSON.parse(fs.readFileSync(productsFile, 'utf8'));
+    assert.equal(savedProducts.find((product) => product.id === 'admin-subscription').subscriptionDurationDays, 30);
+    assert.equal(savedProducts.find((product) => product.id === 'admin-subscription').subscriptionPlan, 'Admin 30');
+    assert.equal(savedProducts.find((product) => product.id === 'admin-ordinary').subscriptionPlan, '');
+    assert.equal(savedProducts.find((product) => product.id === 'admin-ordinary').subscriptionDurationDays, null);
     const createBody = new URLSearchParams({ titleEl: 'Νέο βίντεο', titleEn: 'New video', slug: 'new-video', sourceType: 'external', externalVideoUrl: 'https://video.example/new', accessLevel: 'subscriber', published: '1', featured: '1', sortOrder: '4' }).toString();
     const created = await request(port, '/admin/videos/save', { method: 'POST', body: createBody, headers: formHeaders(createBody, adminCookie) });
     assert.equal(created.status, 302, errors);

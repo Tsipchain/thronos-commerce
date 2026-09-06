@@ -1386,9 +1386,12 @@ function normalizeProductRecord(product) {
   normalized.gallery = galleryImages; // backward compatibility for existing templates/data
   normalized.subscriptionPlan = String(normalized.subscriptionPlan || '').trim();
   const subscriptionDurationDays = Number(normalized.subscriptionDurationDays);
-  normalized.subscriptionDurationDays = normalized.subscriptionPlan && Number.isInteger(subscriptionDurationDays) && subscriptionDurationDays > 0
-    ? subscriptionDurationDays
-    : null;
+  if (normalized.subscriptionPlan && Number.isInteger(subscriptionDurationDays) && subscriptionDurationDays > 0) {
+    normalized.subscriptionDurationDays = subscriptionDurationDays;
+  } else {
+    normalized.subscriptionPlan = '';
+    normalized.subscriptionDurationDays = null;
+  }
   return normalized;
 }
 
@@ -1474,6 +1477,30 @@ function activateCustomerSubscriptionForPaidOrder(req, order) {
   const users = loadTenantUsers(req);
   const result = activatePaidSubscription(users, order, loadTenantProducts(req));
   if (result.activated) saveTenantUsers(req, users);
+  return result;
+}
+
+function reconcilePaidCheckoutEntitlement(tenantId, pendingId, sessionObject) {
+  const tenants = loadTenantsRegistry();
+  const tenant = tenants.find((row) => row.id === tenantId);
+  if (!tenant || !pendingId || !sessionObject || sessionObject.payment_status !== 'paid') return { activated: false, reason: 'invalid_context' };
+  const requestContext = { tenant, tenantPaths: tenantPaths(tenantId) };
+  const pending = loadJson(requestContext.tenantPaths.pendingOrders, {});
+  const entry = pending[pendingId];
+  if (!entry || !entry.order) return { activated: false, reason: 'pending_order_not_found' };
+  const metadataOrderId = String(sessionObject.metadata && sessionObject.metadata.orderId || '');
+  if (metadataOrderId && metadataOrderId !== String(entry.order.id)) return { activated: false, reason: 'order_mismatch' };
+  const order = { ...entry.order, paymentStatus: 'PAID', stripeSessionId: sessionObject.id || '' };
+  const orders = loadTenantOrders(requestContext);
+  if (!orders.some((row) => row.id === order.id)) {
+    orders.push(order);
+    saveJson(requestContext.tenantPaths.orders, orders);
+  }
+  const result = activateCustomerSubscriptionForPaidOrder(requestContext, order);
+  entry.webhookProcessedAt = entry.webhookProcessedAt || new Date().toISOString();
+  entry.verifiedStripeSessionId = sessionObject.id || entry.verifiedStripeSessionId || '';
+  pending[pendingId] = entry;
+  saveJson(requestContext.tenantPaths.pendingOrders, pending);
   return result;
 }
 
@@ -3215,6 +3242,9 @@ app.post('/checkout', async (req, res) => {
         finalUnitPrice: serverPrice,
         price:        serverPrice,
         qty:          Math.max(1, parseInt(ci.qty, 10) || 1),
+        subscriptionEntitlement: found.subscriptionPlan && found.subscriptionDurationDays
+          ? { plan: found.subscriptionPlan, durationDays: found.subscriptionDurationDays }
+          : null,
         isKitSummary: found.type === 'KIT' && found.kitPayMode === 'parts_only'
       });
     }
@@ -3313,6 +3343,7 @@ app.post('/checkout', async (req, res) => {
           mode:                 'payment',
           line_items:           lineItems,
           customer_email:       checkoutEmail,
+          metadata: { tenantId: req.tenant.id, pendingId, orderId: order.id },
           success_url: `${baseUrl}/checkout/stripe-success?pending_id=${pendingId}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url:  `${baseUrl}/checkout`
         });
@@ -3502,7 +3533,7 @@ app.get('/checkout/stripe-success', async (req, res) => {
     console.error('[checkout] stripe chain:attest-failed', chainErr && chainErr.message ? chainErr.message : chainErr);
   }
   order.proofHash = proofHash;
-  appendTenantOrder(req, order);
+  if (!loadTenantOrders(req).some((existingOrder) => existingOrder.id === order.id)) appendTenantOrder(req, order);
   activateCustomerSubscriptionForPaidOrder(req, order);
   createFinancialLedgerEntries(req, order);
 
@@ -6837,40 +6868,16 @@ app.post('/stripe/webhook', async (req, res) => {
   try {
     const sig = req.headers['stripe-signature'] || '';
     const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    if (!secret || !StripeLib) {
+      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET or Stripe library not configured');
+      return res.status(503).json({ error: 'Webhook verification not configured' });
+    }
     let event;
-
-    // Verify signature when secret is configured
-    if (secret) {
-      try {
-        // Simple HMAC-SHA256 verification (Stripe-compatible payload structure)
-        const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
-        const parts = sig.split(',').reduce((acc, p) => {
-          const [k, v] = p.split('='); acc[k] = v; return acc;
-        }, {});
-        const ts = parts.t;
-        const expected = crypto.createHmac('sha256', secret)
-          .update(`${ts}.${payload.toString()}`)
-          .digest('hex');
-        if (expected !== parts.v1) {
-          console.warn('[Stripe Webhook] Invalid signature');
-          return res.status(400).json({ error: 'Invalid signature' });
-        }
-        event = JSON.parse(payload.toString());
-      } catch (err) {
-        return res.status(400).json({ error: err.message });
-      }
-    } else {
-      // In production, webhook secret is required — reject unverified events
-      if (process.env.NODE_ENV === 'production') {
-        console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unverified event');
-        return res.status(500).json({ error: 'Webhook secret not configured' });
-      }
-      // Dev/testing only — accept raw JSON
-      try {
-        event = typeof req.body === 'object' ? req.body : JSON.parse(req.body.toString());
-      } catch (err) {
-        return res.status(400).json({ error: 'Invalid JSON' });
-      }
+    try {
+      event = StripeLib.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err) {
+      console.warn('[Stripe Webhook] Invalid signature:', err.message);
+      return res.status(400).json({ error: 'Invalid signature' });
     }
 
     const HANDLED = ['checkout.session.completed', 'invoice.payment_succeeded'];
@@ -6885,6 +6892,14 @@ app.post('/stripe/webhook', async (req, res) => {
     const amountRaw = obj.amount_total || obj.amount_paid || 0;  // Stripe amount in cents
     const amountFiat = +(amountRaw / 100).toFixed(2);
     const currency = (obj.currency || 'eur').toUpperCase();
+
+    if (event.type === 'checkout.session.completed') {
+      if (obj.payment_status !== 'paid') return res.json({ received: true });
+      const pendingId = String(obj.metadata && obj.metadata.pendingId || '');
+      if (tenantId && pendingId) {
+        reconcilePaidCheckoutEntitlement(tenantId, pendingId, obj);
+      }
+    }
 
     if (!tenantId || amountFiat <= 0) return res.json({ received: true });
 

@@ -2232,6 +2232,7 @@
                      style="padding:7px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:.85rem;"
                      placeholder="https://youtu.be/..." />
             </label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;"><input type="checkbox" id="f-grantsSubscription" style="width:auto;margin:0;" /> <span>This product grants video subscription access</span></label>
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:10px;">
               <label><span>Video subscription plan <small>(leave empty for normal products)</small></span><input type="text" id="f-subscriptionPlan" placeholder="e.g. Video Club 30" /></label>
               <label><span>Duration days</span><input type="number" id="f-subscriptionDurationDays" min="1" step="1" placeholder="30" /></label>
@@ -2421,7 +2422,7 @@
             : '';
           return '<tr>' +
             '<td>' + img + '</td>' +
-            '<td>' + escHtml(pName) + '</td>' +
+            '<td>' + escHtml(pName) + (p.subscriptionPlan && p.subscriptionDurationDays ? '<br><small style="display:inline-block;margin-top:3px;padding:2px 6px;border-radius:999px;background:#ffedd5;color:#9a3412;">Subscription · ' + escHtml(p.subscriptionDurationDays) + ' days</small>' : '') + '</td>' +
             '<td>' + (p.price !== undefined ? Number(p.price).toFixed(2) : '–') + '</td>' +
             '<td>' + escHtml(p.sku || '') + '</td>' +
             '<td>' + escHtml(p.categoryId || '') + (p.active === false ? ' <small style="color:#b91c1c;">(hidden)</small>' : '') + '</td>' +
@@ -2486,6 +2487,13 @@
       const fVideoUrl      = document.getElementById('f-videoUrl');
       const fSubscriptionPlan = document.getElementById('f-subscriptionPlan');
       const fSubscriptionDurationDays = document.getElementById('f-subscriptionDurationDays');
+      const fGrantsSubscription = document.getElementById('f-grantsSubscription');
+      function syncSubscriptionFields() {
+        const enabled = !!(fGrantsSubscription && fGrantsSubscription.checked);
+        if (fSubscriptionPlan) fSubscriptionPlan.disabled = !enabled;
+        if (fSubscriptionDurationDays) fSubscriptionDurationDays.disabled = !enabled;
+      }
+      if (fGrantsSubscription) fGrantsSubscription.addEventListener('change', syncSubscriptionFields);
       function readLocalizedField(elInput, enInput) {
         const elVal = (elInput.value || '').trim();
         const enVal = (enInput.value || '').trim();
@@ -2709,6 +2717,8 @@
         if (fVideoUrl)    fVideoUrl.value     = '';
         if (fSubscriptionPlan) fSubscriptionPlan.value = '';
         if (fSubscriptionDurationDays) fSubscriptionDurationDays.value = '';
+        if (fGrantsSubscription) fGrantsSubscription.checked = false;
+        syncSubscriptionFields();
       }
 
       function fillDigitalFields(p) {
@@ -2718,6 +2728,8 @@
         if (fVideoUrl)    fVideoUrl.value     = p.videoUrl   || '';
         if (fSubscriptionPlan) fSubscriptionPlan.value = p.subscriptionPlan || '';
         if (fSubscriptionDurationDays) fSubscriptionDurationDays.value = p.subscriptionDurationDays || '';
+        if (fGrantsSubscription) fGrantsSubscription.checked = !!(p.subscriptionPlan && p.subscriptionDurationDays);
+        syncSubscriptionFields();
       }
 
       function readDigitalFields() {
@@ -2726,8 +2738,8 @@
           contentDescription: fContentDesc ? fContentDesc.value.trim() || undefined : undefined,
           manualUrl:  fManualUrl ? fManualUrl.value.trim()  || undefined : undefined,
           videoUrl:   fVideoUrl  ? fVideoUrl.value.trim()   || undefined : undefined,
-          subscriptionPlan: fSubscriptionPlan ? fSubscriptionPlan.value.trim() || undefined : undefined,
-          subscriptionDurationDays: fSubscriptionDurationDays && fSubscriptionDurationDays.value ? parseInt(fSubscriptionDurationDays.value, 10) : undefined
+          subscriptionPlan: fGrantsSubscription && fGrantsSubscription.checked && fSubscriptionPlan ? fSubscriptionPlan.value.trim() : '',
+          subscriptionDurationDays: fGrantsSubscription && fGrantsSubscription.checked && fSubscriptionDurationDays && fSubscriptionDurationDays.value ? parseInt(fSubscriptionDurationDays.value, 10) : null
         };
       }
 
