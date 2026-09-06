@@ -95,6 +95,7 @@
     },
     "showSubscriptionsCard": true,
     "heroOverlay": {
+      "showOverlay": true,
       "showKicker": true,
       "showTitle": true,
       "showSubtitle": true,

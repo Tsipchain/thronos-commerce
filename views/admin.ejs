@@ -912,6 +912,9 @@
 
         <% const _hoAdmin = (rawConfig.homepage && rawConfig.homepage.heroOverlay) || {}; %>
         <h4 style="margin:18px 0 8px;font-size:.88rem;">Στοιχεία Hero Overlay</h4>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;margin-bottom:8px;">
+          <input type="checkbox" name="heroOverlayShowOverlay" value="1" <%= _hoAdmin.showOverlay !== false ? 'checked' : '' %> /> Εμφάνιση overlay (απενεργοποιεί όλα τα στοιχεία)
+        </label>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 16px;">
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
             <input type="checkbox" name="heroOverlayShowKicker" value="1" <%= _hoAdmin.showKicker !== false ? 'checked' : '' %> /> Kicker (eyebrow)
@@ -2323,15 +2326,22 @@
           · change from <strong>Branding → KIT wizard display</strong>.</span>
         </div>
         <div id="kit-builder-config-panel" style="display:none;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-bottom:10px;background:#eff6ff;">
-          <h4 style="margin:0 0 6px;font-size:.84rem;">Builder visual config</h4>
+          <h4 style="margin:0 0 6px;font-size:.84rem;">Builder visual config (ανεξάρτητο από Hero/Intro)</h4>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <label style="font-size:.78rem;">Banner image <input id="kit-bc-banner" type="text" placeholder="/tenants/.../banner.jpg" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Builder banner <input id="kit-bc-banner" type="text" placeholder="/tenants/.../builder-banner.jpg" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Mobile banner <input id="kit-bc-mobile-banner" type="text" placeholder="/tenants/.../builder-banner-m.jpg" style="width:100%;" /></label>
             <label style="font-size:.78rem;">Video URL <input id="kit-bc-video" type="text" placeholder="https://..." style="width:100%;" /></label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-video" /> Show video CTA
+            </label>
             <label style="font-size:.78rem;">Title (EL) <input id="kit-bc-title-el" type="text" placeholder="Τίτλος builder" style="width:100%;" /></label>
             <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
             <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
             <label style="font-size:.78rem;">Subtitle (EN) <input id="kit-bc-subtitle-en" type="text" style="width:100%;" /></label>
             <label style="font-size:.78rem;grid-column:span 2;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
+            </label>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -2344,6 +2354,7 @@
               <select id="kg-type"><option value="radio">radio</option><option value="checkbox">checkbox</option></select>
               <input id="kg-order" type="number" placeholder="order" min="0" step="1" />
               <label class="checkbox-label"><input id="kg-required" type="checkbox" /><span>required</span></label>
+              <label class="checkbox-label"><input id="kg-allow-skip" type="checkbox" /><span>allow skip</span></label>
               <button class="button" type="button" id="kg-add">Add group</button>
             </div>
           </div>
@@ -3380,12 +3391,15 @@
         panel.style.display = isSbs ? '' : 'none';
         var bc = p.builderConfig || {};
         document.getElementById('kit-bc-banner').value = bc.bannerImage || '';
+        document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
         document.getElementById('kit-bc-video').value = bc.videoUrl || '';
+        document.getElementById('kit-bc-show-video').checked = bc.showVideo !== false;
         document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
         document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
         document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
         document.getElementById('kit-bc-subtitle-en').value = (bc.subtitle && bc.subtitle.en) || '';
         document.getElementById('kit-bc-helper-el').value = bc.helperText || '';
+        document.getElementById('kit-bc-show-trust').checked = bc.showTrustRow !== false;
       }
       document.getElementById('kit-builder-type').addEventListener('change', function() {
         if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
@@ -3393,8 +3407,8 @@
         syncBuilderConfigPanel(products[kitBuilderIdx]);
       });
       (function() {
-        var bcFields = ['kit-bc-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el'];
-        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText' };
+        var bcFields = ['kit-bc-banner','kit-bc-mobile-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el'];
+        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText' };
         bcFields.forEach(function(fId) {
           document.getElementById(fId).addEventListener('input', function() {
             if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
@@ -3408,6 +3422,15 @@
             } else {
               p.builderConfig[parts[0]] = this.value;
             }
+          });
+        });
+        ['kit-bc-show-video','kit-bc-show-trust'].forEach(function(fId) {
+          var key = fId === 'kit-bc-show-video' ? 'showVideo' : 'showTrustRow';
+          document.getElementById(fId).addEventListener('change', function() {
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            if (!p.builderConfig) p.builderConfig = {};
+            p.builderConfig[key] = this.checked;
           });
         });
       })();
@@ -3440,20 +3463,16 @@
         const gid = (document.getElementById('kg-id').value || '').trim();
         if (!gid) return alert('Group id required');
         product.kitOptions = Array.isArray(product.kitOptions) ? product.kitOptions : [];
+        var isRequired = document.getElementById('kg-required').checked;
+        var allowSkip = document.getElementById('kg-allow-skip').checked;
         product.kitOptions.push({
           id: gid,
           label: (document.getElementById('kg-label').value || gid).trim(),
-          required: document.getElementById('kg-required').checked,
+          required: isRequired,
+          allowSkip: !isRequired && allowSkip,
           inputType: (document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : suggestGroupTypeById(gid)),
           order: parseInt(document.getElementById('kg-order').value, 10) || 0,
-          choices: document.getElementById('kg-required').checked ? [] : [{
-            id: 'skip',
-            label: 'Δεν το χρειάζομαι / Το έχω ήδη',
-            description: '',
-            image: '',
-            linkedProductId: '',
-            priceDelta: 0
-          }]
+          choices: []
         });
         kitBuilderGroupIdx = product.kitOptions.length - 1;
         renderKitBuilder();

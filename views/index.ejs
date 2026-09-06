@@ -193,8 +193,11 @@
       .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.78); z-index:2200; display:none; padding:16px; overflow-y:auto; }
       .sbs-builder-backdrop.open { display:block; }
       .sbs-builder { max-width:960px; margin:0 auto; background:#f8fafc; border-radius:14px; box-shadow:0 22px 52px rgba(0,0,0,.4); overflow:hidden; }
-      .sbs-builder-head { padding:14px 18px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
+      .sbs-banner { width:100%; max-height:180px; overflow:hidden; }
+      .sbs-banner img { width:100%; height:180px; object-fit:cover; display:block; }
+      .sbs-builder-head { padding:14px 18px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:flex-start; }
       .sbs-builder-head h3 { margin:0; font-size:1.05rem; }
+      .sbs-subtitle { margin:2px 0 0; font-size:.78rem; color:#64748b; }
       .sbs-builder-head .sbs-close { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b; }
       .sbs-progress { display:flex; gap:0; padding:0 18px; border-bottom:1px solid #e5e7eb; overflow-x:auto; }
       .sbs-progress-step { flex:1; min-width:0; padding:10px 8px; text-align:center; font-size:.76rem; font-weight:600; color:#94a3b8; border-bottom:3px solid transparent; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1535,6 +1538,7 @@
         <% } else { %>
           <div class="eko-hero-no-img">
         <% } %>
+            <% if (_ho.showOverlay !== false) { %>
             <% if (_ho.showKicker !== false) { %><p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p><% } %>
             <% if (_ho.showTitle !== false) { %><h2 class="eko-hero-title"><%= heroTitleText %></h2><% } %>
             <% if (_ho.showSubtitle !== false && heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
@@ -1552,6 +1556,7 @@
               <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= _hsc.url || sparePartsHref %>"><%= _scLabel %></a>
               <% } %>
             </div>
+            <% } %>
           </div>
       </section>
       <% } %>
@@ -1905,8 +1910,12 @@
     </div>
     <div id="sbs-builder-backdrop" class="sbs-builder-backdrop" aria-hidden="true">
       <div class="sbs-builder" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Builder βήμα-βήμα' : 'Step-by-step builder' %>">
+        <div id="sbs-banner" class="sbs-banner" style="display:none;"></div>
         <div class="sbs-builder-head">
-          <h3 id="sbs-title"></h3>
+          <div>
+            <h3 id="sbs-title"></h3>
+            <p id="sbs-subtitle" class="sbs-subtitle"></p>
+          </div>
           <button type="button" class="sbs-close" id="sbs-close">&#10005;</button>
         </div>
         <div class="sbs-progress" id="sbs-progress"></div>
@@ -1917,17 +1926,21 @@
             <div class="sbs-option-grid" id="sbs-option-grid"></div>
           </div>
           <div class="sbs-summary" id="sbs-summary">
-            <h4><%= lang === 'el' ? 'Σύνοψη' : 'Summary' %></h4>
+            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My selection' %></h4>
             <div class="sbs-summary-list" id="sbs-summary-list"></div>
             <div class="sbs-summary-total">
               <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
               <span id="sbs-total">0.00 &euro;</span>
             </div>
+            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" style="display:none;margin-top:10px;width:100%;padding:10px;border-radius:8px;font-size:.88rem;font-weight:700;cursor:pointer;border:none;"><%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart' %></button>
           </div>
         </div>
         <div class="sbs-nav">
           <button type="button" id="sbs-back"><%= lang === 'el' ? '← Πίσω' : '← Back' %></button>
-          <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Επόμενο →' : 'Next →' %></button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" id="sbs-skip" style="display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
+            <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Επόμενο →' : 'Next →' %></button>
+          </div>
         </div>
       </div>
     </div>
@@ -2559,7 +2572,9 @@
         var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
         if (!sbsKits.length) return;
         var sbsState = { product: null, step: 0, selections: {} };
+        var elBanner = document.getElementById('sbs-banner');
         var elTitle = document.getElementById('sbs-title');
+        var elSubtitle = document.getElementById('sbs-subtitle');
         var elProgress = document.getElementById('sbs-progress');
         var elStepTitle = document.getElementById('sbs-step-title');
         var elStepHelper = document.getElementById('sbs-step-helper');
@@ -2568,14 +2583,16 @@
         var elTotal = document.getElementById('sbs-total');
         var btnBack = document.getElementById('sbs-back');
         var btnNext = document.getElementById('sbs-next');
+        var btnSkip = document.getElementById('sbs-skip');
+        var btnCartSidebar = document.getElementById('sbs-cart-btn');
         var LANG = '<%= lang %>';
         function resolveF(v) {
           if (!v) return '';
           if (typeof v === 'string') return v;
           return v[LANG] || v.el || v.en || '';
         }
+        function escAttr(s) { var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
         function computeDelta(choice, product) {
-          if (choice.id === 'skip') return 0;
           if (product.kitPayMode === 'parts_only' && choice.linkedProductId) {
             var linked = catalogById[choice.linkedProductId];
             if (linked) return Number(linked.price) || 0;
@@ -2593,11 +2610,12 @@
             var cls = 'sbs-progress-step';
             if (i === sbsState.step) cls += ' active';
             else if (sbsState.selections[g.id]) cls += ' done';
+            else if (i < sbsState.step) cls += ' done';
             var div = document.createElement('div');
             div.className = cls;
-            div.innerHTML = '<span class="sbs-step-num">' + (i+1) + '</span> ' + resolveF(g.label);
+            div.innerHTML = '<span class="sbs-step-num">' + (i+1) + '</span> ' + escAttr(resolveF(g.label));
             div.addEventListener('click', function() {
-              if (i < sbsState.step || sbsState.selections[g.id]) {
+              if (i <= sbsState.step || sbsState.selections[g.id]) {
                 sbsState.step = i;
                 renderStep();
               }
@@ -2609,7 +2627,9 @@
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           renderProgress();
           renderSummary();
-          if (sbsState.step >= groups.length) {
+          var allDone = sbsState.step >= groups.length;
+          btnCartSidebar.style.display = allDone ? '' : 'none';
+          if (allDone) {
             elStepTitle.textContent = LANG === 'el' ? 'Ολοκλήρωση' : 'Finish';
             elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
             elOptionGrid.innerHTML = '';
@@ -2617,12 +2637,17 @@
             btnNext.textContent = LANG === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart';
             btnNext.className = 'sbs-add-cart';
             btnNext.disabled = false;
+            btnSkip.style.display = 'none';
             return;
           }
           var g = groups[sbsState.step];
+          var canSkip = !g.required && g.allowSkip;
           elStepTitle.textContent = resolveF(g.label);
-          elStepHelper.textContent = g.required ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required') : (LANG === 'el' ? 'Προαιρετικό' : 'Optional');
+          elStepHelper.textContent = g.required
+            ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required')
+            : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip');
           btnBack.style.display = sbsState.step > 0 ? '' : 'none';
+          btnSkip.style.display = canSkip ? '' : 'none';
           btnNext.textContent = LANG === 'el' ? 'Επόμενο →' : 'Next →';
           btnNext.className = 'sbs-next';
           btnNext.disabled = g.required && !sbsState.selections[g.id];
@@ -2632,10 +2657,11 @@
             div.className = 'sbs-option' + (sbsState.selections[g.id] === c.id ? ' selected' : '');
             var delta = computeDelta(c, sbsState.product);
             var html = '';
-            if (c.image) html += '<img class="sbs-option-img" src="' + c.image + '" alt="' + resolveF(c.label) + '" onerror="this.style.display=\'none\'" />';
-            html += '<div class="sbs-option-label">' + resolveF(c.label) + '</div>';
-            if (c.description) html += '<div class="sbs-option-desc">' + resolveF(c.description) + '</div>';
-            if (delta > 0) html += '<div class="sbs-option-price">+' + delta.toFixed(2) + ' &euro;</div>';
+            if (c.image) html += '<img class="sbs-option-img" src="' + escAttr(c.image) + '" alt="' + escAttr(resolveF(c.label)) + '" onerror="this.style.display=\'none\'" />';
+            html += '<div class="sbs-option-label">' + escAttr(resolveF(c.label)) + '</div>';
+            var desc = resolveF(c.description);
+            if (desc) html += '<div class="sbs-option-desc">' + escAttr(desc) + '</div>';
+            if (delta > 0) html += '<div class="sbs-option-price">' + delta.toFixed(2) + ' &euro;</div>';
             else if (delta === 0 && sbsState.product.kitPayMode !== 'parts_only') html += '<div class="sbs-option-price">' + (LANG === 'el' ? 'Περιλαμβάνεται' : 'Included') + '</div>';
             div.innerHTML = html;
             div.addEventListener('click', function() {
@@ -2659,9 +2685,10 @@
             if (choice) {
               var delta = computeDelta(choice, sbsState.product);
               total += delta;
-              div.innerHTML = '<span class="sbs-sum-label">' + resolveF(g.label) + ': ' + resolveF(choice.label) + '</span><span class="sbs-sum-price">+' + delta.toFixed(2) + ' &euro;</span>';
+              var thumb = choice.image ? '<img src="' + escAttr(choice.image) + '" style="width:28px;height:28px;object-fit:cover;border-radius:4px;margin-right:6px;vertical-align:middle;" onerror="this.style.display=\'none\'" />' : '';
+              div.innerHTML = '<span class="sbs-sum-label">' + thumb + escAttr(resolveF(g.label)) + ': <strong>' + escAttr(resolveF(choice.label)) + '</strong></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span>';
             } else {
-              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + resolveF(g.label) + ': —</span><span class="sbs-sum-price">—</span>';
+              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + escAttr(resolveF(g.label)) + ': —</span><span class="sbs-sum-price">—</span>';
             }
             elSummaryList.appendChild(div);
           });
@@ -2673,14 +2700,26 @@
           sbsState.product = product;
           sbsState.step = 0;
           sbsState.selections = {};
-          elTitle.textContent = resolveF(product.name);
+          var bc = product.builderConfig || {};
+          var bannerSrc = bc.bannerImage || '';
+          if (bannerSrc) {
+            elBanner.innerHTML = '<img src="' + escAttr(bannerSrc) + '" alt="" onerror="this.parentNode.style.display=\'none\'" />';
+            elBanner.style.display = '';
+          } else {
+            elBanner.style.display = 'none';
+          }
+          elTitle.textContent = resolveF(bc.title) || resolveF(product.name);
+          elSubtitle.textContent = resolveF(bc.subtitle) || '';
+          elSubtitle.style.display = resolveF(bc.subtitle) ? '' : 'none';
           backdrop.classList.add('open');
           backdrop.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
           renderStep();
         }
         function closeSbs() {
           backdrop.classList.remove('open');
           backdrop.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
         }
         document.getElementById('sbs-close').addEventListener('click', closeSbs);
         backdrop.addEventListener('click', function(e){ if (e.target === backdrop) closeSbs(); });
@@ -2690,15 +2729,19 @@
         btnBack.addEventListener('click', function(){
           if (sbsState.step > 0) { sbsState.step -= 1; renderStep(); }
         });
-        btnNext.addEventListener('click', function(){
+        btnSkip.addEventListener('click', function(){
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           if (sbsState.step < groups.length) {
             var g = groups[sbsState.step];
-            if (g.required && !sbsState.selections[g.id]) return;
-            sbsState.step += 1;
-            renderStep();
-            return;
+            if (!g.required) {
+              delete sbsState.selections[g.id];
+              sbsState.step += 1;
+              renderStep();
+            }
           }
+        });
+        function addToCartFromBuilder() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           var selected = [];
           groups.forEach(function(g) {
             var cid = sbsState.selections[g.id];
@@ -2715,6 +2758,16 @@
           var finalPrice = selected.reduce(function(sum, o){ return sum + o.priceDelta; }, sbsState.product.kitPayMode === 'parts_only' ? 0 : (Number(sbsState.product.price) || 0));
           var optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
           var cartKey = sbsState.product.id + '::sbs::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
+          var snapshot = {
+            type: 'step_by_step',
+            builderType: 'step_by_step',
+            productId: sbsState.product.id,
+            steps: selected.map(function(o){
+              return { stepId: o.groupId, stepLabel: o.groupLabel, optionId: o.choiceId, optionLabel: o.choiceLabel, linkedProductId: o.linkedProductId, price: o.priceDelta };
+            }),
+            total: finalPrice,
+            timestamp: new Date().toISOString()
+          };
           if (window.thrcAddToCart) {
             if (sbsState.product.kitPayMode === 'parts_only') {
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
@@ -2723,7 +2776,8 @@
                   window.thrcAddToCart({
                     id: linked.id, name: resolveF(linked.name),
                     price: Number(linked.price) || 0, imageUrl: linked.imageUrl || '',
-                    cartKey: linked.id + '::from-kit:' + sbsState.product.id + ':' + opt.groupId
+                    cartKey: linked.id + '::from-kit:' + sbsState.product.id + ':' + opt.groupId,
+                    sourceKitId: sbsState.product.id, sourceKitOption: opt.groupLabel + ': ' + opt.choiceLabel
                   });
                 }
               });
@@ -2731,7 +2785,8 @@
                 id: sbsState.product.id, name: resolveF(sbsState.product.name) + ' (summary)',
                 price: 0, imageUrl: sbsState.product.imageUrl || '',
                 selectedOptions: selected, optionSummary: optionSummary,
-                finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true
+                finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true,
+                builderSnapshot: snapshot
               });
             } else {
               window.thrcAddToCart({
@@ -2739,12 +2794,24 @@
                 price: finalPrice, imageUrl: sbsState.product.imageUrl || '',
                 selectedOptions: selected, optionSummary: optionSummary,
                 finalUnitPrice: finalPrice, cartKey: cartKey,
-                builderSnapshot: { type: 'step_by_step', steps: selected, total: finalPrice }
+                builderSnapshot: snapshot
               });
             }
           }
           closeSbs();
+        }
+        btnNext.addEventListener('click', function(){
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          if (sbsState.step < groups.length) {
+            var g = groups[sbsState.step];
+            if (g.required && !sbsState.selections[g.id]) return;
+            sbsState.step += 1;
+            renderStep();
+            return;
+          }
+          addToCartFromBuilder();
         });
+        btnCartSidebar.addEventListener('click', function(){ addToCartFromBuilder(); });
         window.openSbsBuilder = openSbs;
         var origOpen = window.openKitWizard;
         if (origOpen) {
