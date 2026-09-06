@@ -15,7 +15,10 @@
         "el": "Επίλεξε ανταλλακτικά σε 5 βήματα και δες το κόστος σε πραγματικό χρόνο.",
         "en": "Select parts in 5 steps and see the cost in real time."
       },
-      "helperText": "Κάθε βήμα αντιστοιχεί σε ένα μέρος της κατασκευής. Διάλεξε ό,τι ταιριάζει στις διαστάσεις σου.",
+      "helperText": {
+        "el": "Κάθε βήμα αντιστοιχεί σε ένα μέρος της κατασκευής. Διάλεξε ό,τι ταιριάζει στις διαστάσεις σου.",
+        "en": "Each step corresponds to a part of the build. Choose what fits your dimensions."
+      },
       "showVideo": false,
       "showTrustRow": true
     },

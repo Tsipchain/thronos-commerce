@@ -2628,7 +2628,9 @@
           renderProgress();
           renderSummary();
           var allDone = sbsState.step >= groups.length;
+          var allRequiredValid = groups.every(function(g) { return !g.required || !!sbsState.selections[g.id]; });
           btnCartSidebar.style.display = allDone ? '' : 'none';
+          btnCartSidebar.disabled = !allRequiredValid;
           if (allDone) {
             elStepTitle.textContent = LANG === 'el' ? 'Ολοκλήρωση' : 'Finish';
             elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
@@ -2636,7 +2638,7 @@
             btnBack.style.display = sbsState.step > 0 ? '' : 'none';
             btnNext.textContent = LANG === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart';
             btnNext.className = 'sbs-add-cart';
-            btnNext.disabled = false;
+            btnNext.disabled = !allRequiredValid;
             btnSkip.style.display = 'none';
             return;
           }
@@ -2677,7 +2679,7 @@
           var total = Number(sbsState.product.price) || 0;
           elSummaryList.innerHTML = '';
           if (sbsState.product.kitPayMode === 'parts_only') total = 0;
-          groups.forEach(function(g) {
+          groups.forEach(function(g, gi) {
             var sel = sbsState.selections[g.id];
             var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
             var div = document.createElement('div');
@@ -2687,8 +2689,10 @@
               total += delta;
               var thumb = choice.image ? '<img src="' + escAttr(choice.image) + '" style="width:28px;height:28px;object-fit:cover;border-radius:4px;margin-right:6px;vertical-align:middle;" onerror="this.style.display=\'none\'" />' : '';
               div.innerHTML = '<span class="sbs-sum-label">' + thumb + escAttr(resolveF(g.label)) + ': <strong>' + escAttr(resolveF(choice.label)) + '</strong></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span>';
+            } else if (gi < sbsState.step && !g.required && g.allowSkip) {
+              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + escAttr(resolveF(g.label)) + ': <em>' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</em></span><span class="sbs-sum-price" style="color:#94a3b8;">0,00 &euro;</span>';
             } else {
-              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + escAttr(resolveF(g.label)) + ': —</span><span class="sbs-sum-price">—</span>';
+              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + escAttr(resolveF(g.label)) + ': —</span><span class="sbs-sum-price" style="color:#94a3b8;">—</span>';
             }
             elSummaryList.appendChild(div);
           });

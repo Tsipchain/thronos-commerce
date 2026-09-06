@@ -2338,7 +2338,8 @@
             <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
             <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
             <label style="font-size:.78rem;">Subtitle (EN) <input id="kit-bc-subtitle-en" type="text" style="width:100%;" /></label>
-            <label style="font-size:.78rem;grid-column:span 2;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Helper text (EN) <input id="kit-bc-helper-en" type="text" style="width:100%;" /></label>
             <label style="font-size:.78rem;">
               <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
             </label>
@@ -3398,7 +3399,8 @@
         document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
         document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
         document.getElementById('kit-bc-subtitle-en').value = (bc.subtitle && bc.subtitle.en) || '';
-        document.getElementById('kit-bc-helper-el').value = bc.helperText || '';
+        document.getElementById('kit-bc-helper-el').value = (bc.helperText && typeof bc.helperText === 'object') ? (bc.helperText.el || '') : (bc.helperText || '');
+        document.getElementById('kit-bc-helper-en').value = (bc.helperText && typeof bc.helperText === 'object') ? (bc.helperText.en || '') : '';
         document.getElementById('kit-bc-show-trust').checked = bc.showTrustRow !== false;
       }
       document.getElementById('kit-builder-type').addEventListener('change', function() {
@@ -3407,8 +3409,8 @@
         syncBuilderConfigPanel(products[kitBuilderIdx]);
       });
       (function() {
-        var bcFields = ['kit-bc-banner','kit-bc-mobile-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el'];
-        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText' };
+        var bcFields = ['kit-bc-banner','kit-bc-mobile-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el','kit-bc-helper-en'];
+        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText.el', 'kit-bc-helper-en':'helperText.en' };
         bcFields.forEach(function(fId) {
           document.getElementById(fId).addEventListener('input', function() {
             if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;

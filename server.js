@@ -1401,10 +1401,13 @@ function normalizeProductRecord(product) {
     if (normalized.builderConfig && typeof normalized.builderConfig === 'object') {
       normalized.builderConfig = {
         bannerImage: normalizeMediaPath(normalized.builderConfig.bannerImage || '', { allowAbsoluteUrl: true }),
+        mobileBannerImage: normalizeMediaPath(normalized.builderConfig.mobileBannerImage || '', { allowAbsoluteUrl: true }),
         title: normalized.builderConfig.title || '',
         subtitle: normalized.builderConfig.subtitle || '',
         helperText: normalized.builderConfig.helperText || '',
         videoUrl: normalizeMediaPath(normalized.builderConfig.videoUrl || '', { allowAbsoluteUrl: true }),
+        showVideo: normalized.builderConfig.showVideo !== false,
+        showTrustRow: normalized.builderConfig.showTrustRow !== false,
       };
     }
   }
@@ -4957,6 +4960,7 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
   }
   config.homepage.heroOverlay = config.homepage.heroOverlay || {};
+  config.homepage.heroOverlay.showOverlay = readCheckbox(req.body, 'heroOverlayShowOverlay', config.homepage.heroOverlay.showOverlay !== false);
   config.homepage.heroOverlay.showKicker = readCheckbox(req.body, 'heroOverlayShowKicker', config.homepage.heroOverlay.showKicker !== false);
   config.homepage.heroOverlay.showTitle = readCheckbox(req.body, 'heroOverlayShowTitle', config.homepage.heroOverlay.showTitle !== false);
   config.homepage.heroOverlay.showSubtitle = readCheckbox(req.body, 'heroOverlayShowSubtitle', config.homepage.heroOverlay.showSubtitle !== false);
