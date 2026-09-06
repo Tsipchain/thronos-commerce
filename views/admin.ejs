@@ -2232,6 +2232,10 @@
                      style="padding:7px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:.85rem;"
                      placeholder="https://youtu.be/..." />
             </label>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:10px;">
+              <label><span>Video subscription plan <small>(leave empty for normal products)</small></span><input type="text" id="f-subscriptionPlan" placeholder="e.g. Video Club 30" /></label>
+              <label><span>Duration days</span><input type="number" id="f-subscriptionDurationDays" min="1" step="1" placeholder="30" /></label>
+            </div>
           </div>
           <% } %>
 
@@ -2480,6 +2484,8 @@
       const fContentDesc   = document.getElementById('f-contentDescription');
       const fManualUrl     = document.getElementById('f-manualUrl');
       const fVideoUrl      = document.getElementById('f-videoUrl');
+      const fSubscriptionPlan = document.getElementById('f-subscriptionPlan');
+      const fSubscriptionDurationDays = document.getElementById('f-subscriptionDurationDays');
       function readLocalizedField(elInput, enInput) {
         const elVal = (elInput.value || '').trim();
         const enVal = (enInput.value || '').trim();
@@ -2701,6 +2707,8 @@
         if (fContentDesc) fContentDesc.value  = '';
         if (fManualUrl)   fManualUrl.value    = '';
         if (fVideoUrl)    fVideoUrl.value     = '';
+        if (fSubscriptionPlan) fSubscriptionPlan.value = '';
+        if (fSubscriptionDurationDays) fSubscriptionDurationDays.value = '';
       }
 
       function fillDigitalFields(p) {
@@ -2708,6 +2716,8 @@
         if (fContentDesc) fContentDesc.value  = p.contentDescription || '';
         if (fManualUrl)   fManualUrl.value    = p.manualUrl  || '';
         if (fVideoUrl)    fVideoUrl.value     = p.videoUrl   || '';
+        if (fSubscriptionPlan) fSubscriptionPlan.value = p.subscriptionPlan || '';
+        if (fSubscriptionDurationDays) fSubscriptionDurationDays.value = p.subscriptionDurationDays || '';
       }
 
       function readDigitalFields() {
@@ -2715,7 +2725,9 @@
           hasDigitalContent: fHasDigital  ? fHasDigital.checked || undefined : undefined,
           contentDescription: fContentDesc ? fContentDesc.value.trim() || undefined : undefined,
           manualUrl:  fManualUrl ? fManualUrl.value.trim()  || undefined : undefined,
-          videoUrl:   fVideoUrl  ? fVideoUrl.value.trim()   || undefined : undefined
+          videoUrl:   fVideoUrl  ? fVideoUrl.value.trim()   || undefined : undefined,
+          subscriptionPlan: fSubscriptionPlan ? fSubscriptionPlan.value.trim() || undefined : undefined,
+          subscriptionDurationDays: fSubscriptionDurationDays && fSubscriptionDurationDays.value ? parseInt(fSubscriptionDurationDays.value, 10) : undefined
         };
       }
 

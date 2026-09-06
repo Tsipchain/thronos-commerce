@@ -27,6 +27,7 @@ const RailwayRegistry = require('./utils/railway-registry');
 const { getCustomerSubscriptionStatus } = require('./lib/subscription-status');
 const { createVideoStorage, safeKey: safeVideoStorageKey } = require('./lib/video-storage');
 const { normalizeVideo, listVideos, slugify: slugifyVideo } = require('./lib/video-library');
+const { activatePaidSubscription, applyManualSubscriptionAction } = require('./lib/customer-subscriptions');
 
 function safeRequire(mod) {
   try { return require(mod); } catch (e) { return null; }
@@ -1383,6 +1384,11 @@ function normalizeProductRecord(product) {
     .filter((url) => url && url !== normalized.imageUrl);
   normalized.galleryImages = galleryImages;
   normalized.gallery = galleryImages; // backward compatibility for existing templates/data
+  normalized.subscriptionPlan = String(normalized.subscriptionPlan || '').trim();
+  const subscriptionDurationDays = Number(normalized.subscriptionDurationDays);
+  normalized.subscriptionDurationDays = normalized.subscriptionPlan && Number.isInteger(subscriptionDurationDays) && subscriptionDurationDays > 0
+    ? subscriptionDurationDays
+    : null;
   return normalized;
 }
 
@@ -1462,6 +1468,13 @@ function subscriberRows(req) {
       orders: customerOrders.map((order) => ({ id: order.id, createdAt: order.createdAt || null, paymentStatus: order.paymentStatus || 'UNKNOWN', total: order.total }))
     };
   });
+}
+
+function activateCustomerSubscriptionForPaidOrder(req, order) {
+  const users = loadTenantUsers(req);
+  const result = activatePaidSubscription(users, order, loadTenantProducts(req));
+  if (result.activated) saveTenantUsers(req, users);
+  return result;
 }
 
 function saveTenantProducts(req, products) {
@@ -3490,6 +3503,7 @@ app.get('/checkout/stripe-success', async (req, res) => {
   }
   order.proofHash = proofHash;
   appendTenantOrder(req, order);
+  activateCustomerSubscriptionForPaidOrder(req, order);
   createFinancialLedgerEntries(req, order);
 
   // Stock deduction
@@ -3928,6 +3942,26 @@ app.get('/admin/subscribers/:id', (req, res) => {
   const selected = rows.find((row) => row.id === req.params.id);
   if (!selected) return res.status(404).send('Subscriber not found.');
   res.render('admin-subscribers', { config, tenant: req.tenant, subscribers: rows, status: 'all', search: '', selected });
+});
+
+app.post('/admin/subscribers/:id/subscription', async (req, res) => {
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).send('Invalid admin password.');
+  const users = loadTenantUsers(req);
+  const customer = users.find((row) => row.id === req.params.id);
+  if (!customer) return res.status(404).send('Subscriber not found.');
+  try {
+    applyManualSubscriptionAction(customer, {
+      action: req.body.action,
+      plan: req.body.plan,
+      durationDays: req.body.durationDays ? Number(req.body.durationDays) : null,
+      expiresAt: req.body.expiresAt
+    });
+    saveTenantUsers(req, users);
+    return res.redirect(buildTenantLink(req, `/admin/subscribers/${encodeURIComponent(customer.id)}`));
+  } catch (error) {
+    return res.status(400).send(error.message);
+  }
 });
 
 // Admin panel
@@ -5796,15 +5830,52 @@ app.get('/content/:slug/stream', async (req, res) => {
     const localPath = provider.localPath(video.videoStorageKey);
     if (!fs.existsSync(localPath)) return res.sendStatus(404);
     res.setHeader('Cache-Control', 'private, no-store');
-    return res.sendFile(localPath);
+    const stat = fs.statSync(localPath);
+    const contentType = path.extname(localPath).toLowerCase() === '.webm' ? 'video/webm' : 'video/mp4';
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', contentType);
+    const range = String(req.headers.range || '');
+    if (!range) {
+      res.setHeader('Content-Length', stat.size);
+      return fs.createReadStream(localPath).pipe(res);
+    }
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match || (!match[1] && !match[2])) {
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
+      return res.sendStatus(416);
+    }
+    let start;
+    let end;
+    if (!match[1]) {
+      const suffixLength = Number(match[2]);
+      if (!Number.isInteger(suffixLength) || suffixLength <= 0) {
+        res.setHeader('Content-Range', `bytes */${stat.size}`);
+        return res.sendStatus(416);
+      }
+      start = Math.max(0, stat.size - suffixLength);
+      end = stat.size - 1;
+    } else {
+      start = Number(match[1]);
+      end = match[2] ? Number(match[2]) : stat.size - 1;
+    }
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start >= stat.size || end < start) {
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
+      return res.sendStatus(416);
+    }
+    end = Math.min(end, stat.size - 1);
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+    res.setHeader('Content-Length', end - start + 1);
+    return fs.createReadStream(localPath, { start, end }).pipe(res);
   } catch (error) {
     console.error('[videos] stream failed:', error.message);
     return res.sendStatus(404);
   }
 });
 
-app.get('/content/:slugOrOrderId', (req, res, next) => {
-  const video = loadTenantVideos(req).find((row) => row.slug === req.params.slugOrOrderId && row.published);
+app.get('/content/:identifier', (req, res) => {
+  const identifier = String(req.params.identifier || '');
+  const video = loadTenantVideos(req).find((row) => row.slug === identifier && row.published);
   if (video) {
     const config = localizeConfigContent(loadTenantConfig(req), req.lang);
     const customer = currentCustomer(req);
@@ -5817,12 +5888,9 @@ app.get('/content/:slugOrOrderId', (req, res, next) => {
       config, tenant: req.tenant, user: req.session.user || null, subscription, video, allowed, playbackUrl
     });
   }
-  return next();
-});
-
-app.get('/content/:orderId', requireUser, (req, res) => {
+  if (!req.session.user) return res.redirect(buildTenantLink(req, '/login'));
   const orders = loadTenantOrders(req);
-  const order  = orders.find((o) => o.id === req.params.orderId);
+  const order  = orders.find((o) => o.id === identifier);
   if (!order) return res.status(404).send('Η παραγγελία δεν βρέθηκε.');
   if (normalizeEmail(order.userEmail) !== normalizeEmail(req.session.user.email)) {
     return res.status(403).send('Δεν έχετε πρόσβαση σε αυτό το περιεχόμενο.');
@@ -7555,6 +7623,9 @@ console.log('[boot] Env audit:', {
   THRONOS_NODE_URL: !!process.env.THRONOS_NODE_URL,
 });
 console.log('[boot] DATA_ROOT:', DATA_ROOT);
+if (process.env.NODE_ENV === 'production' && String(process.env.VIDEO_STORAGE_PROVIDER || 'local').toLowerCase() === 'local') {
+  console.warn('[boot] WARNING: VIDEO_STORAGE_PROVIDER=local requires a persistent volume in production. Railway ephemeral storage will not survive deployments; configure a Railway Volume or private S3-compatible storage.');
+}
 {
   const env = resolveAssistantEnv();
   console.log('[boot] assistant env sources', {
