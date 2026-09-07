@@ -1406,6 +1406,9 @@ function normalizeProductRecord(product) {
         subtitle: normalized.builderConfig.subtitle || '',
         helperText: normalized.builderConfig.helperText || '',
         videoUrl: normalizeMediaPath(normalized.builderConfig.videoUrl || '', { allowAbsoluteUrl: true }),
+        showTitle: normalized.builderConfig.showTitle !== false,
+        showSubtitle: normalized.builderConfig.showSubtitle !== false,
+        showHelperText: normalized.builderConfig.showHelperText !== false,
         showVideo: normalized.builderConfig.showVideo !== false,
         showTrustRow: normalized.builderConfig.showTrustRow !== false,
       };

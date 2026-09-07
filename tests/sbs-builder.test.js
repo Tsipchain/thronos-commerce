@@ -393,3 +393,166 @@ test('SBS builder escapes attribute values to prevent XSS', () => {
   assert.match(index, /escAttr\(resolveF\(c\.label\)\)/);
   assert.match(index, /escAttr\(resolveF\(g\.label\)\)/);
 });
+
+// === Section 19a: Admin step/group controls ===
+
+test('Admin has moveKitGroup function for reordering steps', () => {
+  assert.match(admin, /window\.moveKitGroup\s*=\s*function\s*\(idx,\s*dir\)/);
+});
+
+test('moveKitGroup swaps array elements without regenerating IDs', () => {
+  assert.match(admin, /var tmp = opts\[idx\];\s*opts\[idx\] = opts\[target\];\s*opts\[target\] = tmp/);
+  assert.doesNotMatch(admin, /moveKitGroup[\s\S]{0,200}generateId/);
+});
+
+test('Admin has moveKitChoice function for reordering choices', () => {
+  assert.match(admin, /window\.moveKitChoice\s*=\s*function\s*\(idx,\s*dir\)/);
+});
+
+test('moveKitChoice swaps array elements without regenerating IDs', () => {
+  assert.match(admin, /moveKitChoice[\s\S]{0,300}var tmp = choices\[idx\]/);
+  assert.doesNotMatch(admin, /moveKitChoice[\s\S]{0,200}generateId/);
+});
+
+test('Admin has editKitGroup for inline field editing with dot-notation', () => {
+  assert.match(admin, /window\.editKitGroup\s*=\s*function\s*\(idx,\s*path,\s*value\)/);
+  assert.match(admin, /parts = path\.split\('\.'\)/);
+});
+
+test('Admin has editKitChoice for inline field editing with dot-notation', () => {
+  assert.match(admin, /window\.editKitChoice\s*=\s*function\s*\(idx,\s*path,\s*value\)/);
+});
+
+test('Group cards render move up/down buttons', () => {
+  assert.match(admin, /moveKitGroup\(.*,\s*-1\)/);
+  assert.match(admin, /moveKitGroup\(.*,\s*1\)/);
+});
+
+test('Choice cards render move up/down buttons', () => {
+  assert.match(admin, /moveKitChoice\(.*,\s*-1\)/);
+  assert.match(admin, /moveKitChoice\(.*,\s*1\)/);
+});
+
+test('Group inline editing includes label EL/EN, description EL/EN, required, allowSkip', () => {
+  assert.match(admin, /editKitGroup\(.*\\?'label\.el\\?'/);
+  assert.match(admin, /editKitGroup\(.*\\?'label\.en\\?'/);
+  assert.match(admin, /editKitGroup\(.*\\?'description\.el\\?'/);
+  assert.match(admin, /editKitGroup\(.*\\?'description\.en\\?'/);
+  assert.match(admin, /editKitGroup\(.*\\?'required\\?'/);
+  assert.match(admin, /editKitGroup\(.*\\?'allowSkip\\?'/);
+});
+
+test('Choice inline editing includes label EL/EN, description EL/EN, priceDelta', () => {
+  assert.match(admin, /editKitChoice\(.*\\?'label\.el\\?'/);
+  assert.match(admin, /editKitChoice\(.*\\?'label\.en\\?'/);
+  assert.match(admin, /editKitChoice\(.*\\?'description\.el\\?'/);
+  assert.match(admin, /editKitChoice\(.*\\?'description\.en\\?'/);
+  assert.match(admin, /editKitChoice\(.*\\?'priceDelta\\?'/);
+});
+
+// === Section 19b: Visual flag persistence ===
+
+test('normalizeProductRecord preserves showTitle, showSubtitle, showHelperText', () => {
+  assert.match(server, /showTitle:\s*normalized\.builderConfig\.showTitle\s*!==\s*false/);
+  assert.match(server, /showSubtitle:\s*normalized\.builderConfig\.showSubtitle\s*!==\s*false/);
+  assert.match(server, /showHelperText:\s*normalized\.builderConfig\.showHelperText\s*!==\s*false/);
+});
+
+test('Admin has showTitle, showSubtitle, showHelperText checkboxes', () => {
+  assert.match(admin, /id="kit-bc-show-title"/);
+  assert.match(admin, /id="kit-bc-show-subtitle"/);
+  assert.match(admin, /id="kit-bc-show-helper"/);
+});
+
+test('syncBuilderConfigPanel loads showTitle, showSubtitle, showHelperText from product', () => {
+  assert.match(admin, /kit-bc-show-title.*showTitle/);
+  assert.match(admin, /kit-bc-show-subtitle.*showSubtitle/);
+  assert.match(admin, /kit-bc-show-helper.*showHelperText/);
+});
+
+test('Checkbox change listeners update builderConfig for all show flags', () => {
+  assert.match(admin, /showTitle.*showSubtitle.*showHelperText/s);
+});
+
+// === Section 19c: Mobile banner fallback ===
+
+test('Storefront uses mobileBannerImage on mobile with fallback to bannerImage', () => {
+  assert.match(index, /isMobile && bc\.mobileBannerImage/);
+  assert.match(index, /bannerSrc = bc\.bannerImage/);
+});
+
+test('isMobile detection exists in storefront', () => {
+  assert.match(index, /var isMobile = window\.innerWidth <= 700/);
+});
+
+// === Section 19d: helperText rendering ===
+
+test('Storefront renders helperText element', () => {
+  assert.match(index, /id="sbs-helper-text"/);
+  assert.match(index, /var elHelperText = document\.getElementById\('sbs-helper-text'\)/);
+});
+
+test('helperText uses resolveF and never outputs [object Object]', () => {
+  assert.match(index, /resolveF\(bc\.helperText\)/);
+  assert.match(index, /elHelperText\.textContent = helperText/);
+  assert.doesNotMatch(index, /elHelperText\.textContent = bc\.helperText[^.]/);
+});
+
+test('helperText respects showHelperText visibility flag', () => {
+  assert.match(index, /bc\.showHelperText !== false && helperText/);
+});
+
+// === Section 19e: Title/subtitle visibility flags ===
+
+test('showTitle flag controls title visibility in storefront', () => {
+  assert.match(index, /bc\.showTitle !== false/);
+  assert.match(index, /elTitle\.style\.display/);
+});
+
+test('showSubtitle flag controls subtitle visibility in storefront', () => {
+  assert.match(index, /bc\.showSubtitle !== false/);
+  assert.match(index, /elSubtitle\.style\.display/);
+});
+
+// === Section 19f: Stable IDs ===
+
+test('All kitOption group IDs in products.json are unique', () => {
+  const allGroupIds = [];
+  for (const p of products) {
+    if (p.kitOptions) {
+      for (const g of p.kitOptions) allGroupIds.push(g.id);
+    }
+  }
+  const unique = new Set(allGroupIds);
+  assert.strictEqual(unique.size, allGroupIds.length, 'No duplicate group IDs');
+});
+
+test('All kitOption choice IDs within each group are unique', () => {
+  for (const p of products) {
+    if (!p.kitOptions) continue;
+    for (const g of p.kitOptions) {
+      const ids = g.choices.map(c => c.id);
+      const unique = new Set(ids);
+      assert.strictEqual(unique.size, ids.length, `Group ${g.id} has unique choice IDs`);
+    }
+  }
+});
+
+test('All product IDs in products.json are unique', () => {
+  const ids = products.map(p => p.id);
+  const unique = new Set(ids);
+  assert.strictEqual(unique.size, ids.length, 'No duplicate product IDs');
+});
+
+// === Section 19g: No fake skip products ===
+
+test('No fake skip product exists in products.json', () => {
+  const skip = products.find(p => /skip|παράλειψη/i.test(p.id) || /skip|παράλειψη/i.test(JSON.stringify(p.name)));
+  assert.ok(!skip, 'No fake skip/Παράλειψη product in catalog');
+});
+
+test('allowSkip is the canonical skip mechanism, not a fake product', () => {
+  assert.match(index, /g\.allowSkip/);
+  const fakeSkip = kitOptions.flatMap(g => g.choices).find(c => /skip|παράλειψη/i.test(c.id));
+  assert.ok(!fakeSkip, 'No fake skip choice inside kitOptions');
+});

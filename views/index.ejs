@@ -1915,6 +1915,7 @@
           <div>
             <h3 id="sbs-title"></h3>
             <p id="sbs-subtitle" class="sbs-subtitle"></p>
+            <p id="sbs-helper-text" class="sbs-subtitle" style="display:none;font-size:.82rem;color:#64748b;margin-top:2px;"></p>
           </div>
           <button type="button" class="sbs-close" id="sbs-close">&#10005;</button>
         </div>
@@ -2585,6 +2586,8 @@
         var btnNext = document.getElementById('sbs-next');
         var btnSkip = document.getElementById('sbs-skip');
         var btnCartSidebar = document.getElementById('sbs-cart-btn');
+        var elHelperText = document.getElementById('sbs-helper-text');
+        var isMobile = window.innerWidth <= 700;
         var LANG = '<%= lang %>';
         function resolveF(v) {
           if (!v) return '';
@@ -2705,16 +2708,23 @@
           sbsState.step = 0;
           sbsState.selections = {};
           var bc = product.builderConfig || {};
-          var bannerSrc = bc.bannerImage || '';
+          var bannerSrc = (isMobile && bc.mobileBannerImage) ? bc.mobileBannerImage : (bc.bannerImage || '');
+          if (!bannerSrc && isMobile) bannerSrc = bc.bannerImage || '';
           if (bannerSrc) {
             elBanner.innerHTML = '<img src="' + escAttr(bannerSrc) + '" alt="" onerror="this.parentNode.style.display=\'none\'" />';
             elBanner.style.display = '';
           } else {
             elBanner.style.display = 'none';
           }
-          elTitle.textContent = resolveF(bc.title) || resolveF(product.name);
-          elSubtitle.textContent = resolveF(bc.subtitle) || '';
-          elSubtitle.style.display = resolveF(bc.subtitle) ? '' : 'none';
+          var titleText = resolveF(bc.title) || resolveF(product.name);
+          elTitle.textContent = titleText;
+          elTitle.style.display = (bc.showTitle !== false && titleText) ? '' : 'none';
+          var subtitleText = resolveF(bc.subtitle) || '';
+          elSubtitle.textContent = subtitleText;
+          elSubtitle.style.display = (bc.showSubtitle !== false && subtitleText) ? '' : 'none';
+          var helperText = resolveF(bc.helperText) || '';
+          elHelperText.textContent = helperText;
+          elHelperText.style.display = (bc.showHelperText !== false && helperText) ? '' : 'none';
           backdrop.classList.add('open');
           backdrop.setAttribute('aria-hidden', 'false');
           document.body.style.overflow = 'hidden';
