@@ -190,6 +190,59 @@
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
+      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.86); z-index:2200; display:none; padding:15px 20px; overflow:hidden; }
+      .sbs-builder-backdrop.open { display:block; }
+      .sbs-builder { width:min(1500px,calc(100vw - 40px)); height:min(900px,calc(100vh - 30px)); margin:0 auto; background:#111318; color:#f4f4f5; border:1px solid rgba(196,144,46,.32); border-radius:12px; box-shadow:0 24px 60px rgba(0,0,0,.65); overflow:hidden; display:flex; flex-direction:column; }
+      .sbs-banner { width:100%; height:150px; flex:0 0 150px; overflow:hidden; position:relative; background:#090a0d; }
+      .sbs-banner img { width:100%; height:100%; object-fit:cover; display:block; }
+      .sbs-builder-head { padding:12px 24px; border-bottom:1px solid #2b2d34; display:flex; justify-content:space-between; align-items:flex-start; background:#15171c; }
+      .sbs-builder-head h3 { margin:0; font-size:1.2rem; color:#fff; }
+      .sbs-subtitle { margin:3px 0 0; font-size:.82rem; color:#a1a1aa; }
+      .sbs-builder-head .sbs-close { background:#24262d; border:1px solid #3f3f46; width:36px;height:36px;border-radius:50%;font-size:1.05rem;cursor:pointer;color:#e4e4e7; }
+      .sbs-progress { display:flex; gap:0; padding:14px 28px 12px; border-bottom:1px solid #2b2d34; overflow-x:auto; background:#181a20; }
+      .sbs-progress-step { flex:1; min-width:130px; position:relative; padding:0 8px; text-align:center; font-size:.7rem; font-weight:700; color:#71717a; cursor:pointer; white-space:normal; text-transform:uppercase; }
+      .sbs-progress-step:not(:last-child)::after { content:""; position:absolute; top:15px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:#34363e; }
+      .sbs-progress-step.active,.sbs-progress-step.done { color:#e7a536; }
+      .sbs-progress-step.done::after { background:#c4902e; }
+      .sbs-progress-step .sbs-step-num { position:relative;z-index:1;display:flex;width:30px;height:30px;border-radius:50%;background:#292b32;border:2px solid #454750;color:#a1a1aa;font-size:.78rem;align-items:center;justify-content:center;margin:0 auto 7px; }
+      .sbs-progress-step.active .sbs-step-num,.sbs-progress-step.done .sbs-step-num { background:#c4902e;border-color:#e0aa4d;color:#111; }
+      .sbs-builder-body { display:grid; grid-template-columns:minmax(0,7fr) minmax(320px,3fr); gap:0; min-height:0; flex:1; overflow:hidden; }
+      .sbs-step-content { padding:24px 28px; overflow-y:auto; min-height:0; background:#111318; }
+      .sbs-step-title { font-size:1.15rem;font-weight:800;margin:0 0 5px;padding-left:12px;border-left:4px solid #c4902e;color:#fff; }
+      .sbs-step-helper { font-size:.82rem;color:#a1a1aa;margin:0 0 18px;padding-left:16px; }
+      .sbs-option-grid { display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .sbs-option { position:relative;border:1px solid #353740;border-radius:10px;padding:12px;background:#1a1c22;cursor:pointer;transition:border-color .15s,transform .15s,background .15s;min-width:0; }
+      .sbs-option:hover { border-color:#8a672d;transform:translateY(-2px);background:#202228; }
+      .sbs-option.selected { border:2px solid #d5942e;background:#242016;box-shadow:0 0 0 2px rgba(196,144,46,.15); }
+      .sbs-option.selected::after { content:"✓";position:absolute;top:9px;right:9px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#c4902e;color:#111;font-weight:900; }
+      .sbs-option-img { width:100%;height:180px;object-fit:contain;border-radius:6px;margin-bottom:10px;background:#0d0e12; }
+      .sbs-option-label { font-size:.92rem;font-weight:750;color:#fafafa; }
+      .sbs-option-desc { font-size:.75rem;color:#92929c;margin-top:4px;line-height:1.35; }
+      .sbs-option-price { font-size:.9rem;font-weight:800;color:#e0a23d;margin-top:9px; }
+      .sbs-summary { background:#17191e;border-left:1px solid #353740;padding:22px;display:flex;flex-direction:column;min-height:0; }
+      .sbs-summary h4 { margin:0;font-size:1.15rem;font-weight:800;color:#fff; }
+      .sbs-summary-subtitle { margin:3px 0 15px;color:#92929c;font-size:.76rem; }
+      .sbs-summary-list { flex:1;overflow-y:auto;min-height:0; }
+      .sbs-summary-item { display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #2d2f36;font-size:.76rem; }
+      .sbs-summary-thumb { width:42px;height:42px;object-fit:contain;border-radius:6px;background:#0d0e12; }
+      .sbs-summary-thumb.empty { display:grid;place-items:center;color:#555862;font-size:1.1rem; }
+      .sbs-summary-name { display:block;color:#f4f4f5;font-weight:700;margin-bottom:2px; }
+      .sbs-summary-choice { display:block;color:#92929c; }
+      .sbs-summary-change { border:0;background:none;color:#d89a35;padding:2px 0;font-size:.7rem;cursor:pointer; }
+      .sbs-summary-item .sbs-sum-price { font-weight:700;color:#e0a23d;white-space:nowrap; }
+      .sbs-summary-total { margin-top:12px;padding-top:14px;border-top:2px solid #c4902e;display:flex;justify-content:space-between;font-size:1.02rem;font-weight:800; }
+      .sbs-nav { padding:13px 24px;border-top:1px solid #30323a;display:flex;justify-content:space-between;gap:10px;background:#181a20; }
+      .sbs-nav button { padding:10px 22px;border-radius:6px;font-size:.86rem;font-weight:700;cursor:pointer;border:1px solid #454750;background:#24262d;color:#e4e4e7; }
+      .sbs-nav button:hover { border-color:#c4902e; }
+      .sbs-nav .sbs-next,.sbs-nav .sbs-add-cart,.sbs-add-cart { background:#c4902e;color:#111;border-color:#c4902e; }
+      .sbs-nav .sbs-next:hover,.sbs-nav .sbs-add-cart:hover,.sbs-add-cart:hover { background:#dda43e; }
+      .sbs-nav .sbs-next:disabled { opacity:.5; cursor:default; }
+      .sbs-nav .sbs-add-cart { background:#c4902e; color:#fff; border-color:#c4902e; }
+      .sbs-nav .sbs-add-cart:hover { background:#b37d24; }
+      @media (max-width:700px) {
+        .sbs-builder-backdrop{padding:0}.sbs-builder{width:100vw;height:100dvh;max-height:none;border:0;border-radius:0}.sbs-banner{height:110px;flex-basis:110px}.sbs-builder-head{padding:10px 14px}.sbs-progress{padding:10px 8px}.sbs-progress-step{min-width:92px;font-size:.61rem}.sbs-builder-body{grid-template-columns:1fr;overflow-y:auto}.sbs-step-content{overflow:visible;padding:18px 14px}.sbs-option-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sbs-option-img{height:125px}.sbs-summary{border-left:0;border-top:1px solid #353740;min-height:330px}.sbs-nav{position:sticky;bottom:0;padding:10px 12px;z-index:2}.sbs-nav button{padding:10px 14px}
+      }
+      @media(max-width:390px){.sbs-option-grid{grid-template-columns:1fr}.sbs-option-img{height:155px}}
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
         backdrop-filter: blur(5px);
@@ -578,6 +631,7 @@
         width: 100%; height: clamp(220px, 30vw, 340px);
         object-fit: cover; display: block;
       }
+      .eko-hero-img-mobile { display: none; }
       .eko-hero-overlay {
         position: absolute; inset: 0;
         /* gradient up from bottom for strong text contrast */
@@ -1116,6 +1170,8 @@
         body.eukolakis-classic .eko-projects-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         body.eukolakis-classic .eko-project-card-img { height: 100px; }
         body.eukolakis-classic .eko-hero-img { height: clamp(180px, 52vw, 240px); }
+        body.eukolakis-classic .eko-hero-img-mobile { display: block; }
+        body.eukolakis-classic .eko-hero-img:not(.eko-hero-img-mobile) { display: none; }
         body.eukolakis-classic .eko-section-header { flex-wrap: wrap; gap: 6px; }
         body.eukolakis-classic .eko-section-title { font-size: .82rem; }
         body.eukolakis-classic .eko-section-link { font-size: .68rem; }
@@ -1473,30 +1529,46 @@
       <% const spareToolsCardMode = (theme.spareToolsCardMode === 'compact') ? 'compact' : 'prominent'; %>
       <%/* ── Eukolaki Classic industrial hero banner — visibility controlled solely by homeBlockVisibility.hero ── */%>
       <% if (isEukolakisClassic && !activeCategory && homeBlockVisibility.hero !== false) { %>
+      <% const _ho = homepage.heroOverlay || {}; %>
+      <% const _hpc = homepage.heroPrimaryCta || {}; %>
+      <% const _hsc = homepage.heroSecondaryCta || {}; %>
       <section class="eko-hero">
         <% const heroTitleText = resolveField(homepage.heroTitle, lang) || config.storeName; %>
         <% const heroSubText = resolveField(homepage.heroSubtitle, lang); %>
         <% const hasRealHeroImage = homepage.heroImage && (!headerBannerAudit || headerBannerAudit.exists); %>
         <% if (hasRealHeroImage) { %>
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
+          <% if (homepage.heroMobileImage) { %><img class="eko-hero-img eko-hero-img-mobile" src="<%= homepage.heroMobileImage %>" alt="<%= heroTitleText %>" loading="eager" /><% } %>
+          <% if (_ho.showOverlay !== false) { %>
           <div class="eko-hero-overlay">
+          <% } %>
         <% } else { %>
+          <% if (_ho.showOverlay !== false) { %>
           <div class="eko-hero-no-img">
+          <% } %>
         <% } %>
-            <p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p>
-            <h2 class="eko-hero-title"><%= heroTitleText %></h2>
-            <% if (heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
+          <% if (_ho.showOverlay !== false) { %>
+            <% if (_ho.showKicker !== false) { %><p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p><% } %>
+            <% if (_ho.showTitle !== false) { %><h2 class="eko-hero-title"><%= heroTitleText %></h2><% } %>
+            <% if (_ho.showSubtitle !== false && heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
+            <% if (_ho.showPrimaryCta !== false || _ho.showSecondaryCta !== false) { %>
             <div class="eko-hero-actions">
-              <% if (topPrimaryKit1) { %>
-              <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>">
-                <%= lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →' %>
-              </a>
+              <% if (_ho.showPrimaryCta !== false && topPrimaryKit1) { %>
+              <% const _pcLabel = resolveField(_hpc.label, lang) || (lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →'); %>
+              <% if (_hpc.action === 'link' && _hpc.url) { %>
+              <a class="eko-hero-cta eko-hero-cta-primary" href="<%= _hpc.url %>"><%= _pcLabel %></a>
+              <% } else { %>
+              <a class="eko-hero-cta eko-hero-cta-primary" href="#" data-kit-launch="<%= topPrimaryKit1.id %>"><%= _pcLabel %></a>
               <% } %>
-              <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= sparePartsHref %>">
-                <%= lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts' %>
-              </a>
+              <% } %>
+              <% if (_ho.showSecondaryCta !== false) { %>
+              <% const _scLabel = resolveField(_hsc.label, lang) || (lang === 'el' ? 'Ανταλλακτικά' : 'Spare Parts'); %>
+              <a class="eko-hero-cta eko-hero-cta-secondary" href="<%= _hsc.url || sparePartsHref %>"><%= _scLabel %></a>
+              <% } %>
             </div>
+            <% } %>
           </div>
+          <% } %>
       </section>
       <% } %>
       <%/* ── Eukolaki Classic industrial category tile grid ── */%>
@@ -1844,6 +1916,44 @@
         </div>
         <div style="padding:14px 16px;">
           <img id="kit-full-image-el" src="" alt="" style="display:block;width:100%;max-height:78vh;object-fit:contain;border-radius:10px;background:#0f172a;" />
+        </div>
+      </div>
+    </div>
+    <div id="sbs-builder-backdrop" class="sbs-builder-backdrop" aria-hidden="true">
+      <div class="sbs-builder" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Builder βήμα-βήμα' : 'Step-by-step builder' %>">
+        <div id="sbs-banner" class="sbs-banner" style="display:none;"></div>
+        <div class="sbs-builder-head">
+          <div>
+            <h3 id="sbs-title"></h3>
+            <p id="sbs-subtitle" class="sbs-subtitle"></p>
+            <p id="sbs-helper-text" class="sbs-subtitle" style="display:none;font-size:.82rem;color:#64748b;margin-top:2px;"></p>
+          </div>
+          <button type="button" class="sbs-close" id="sbs-close">&#10005;</button>
+        </div>
+        <div class="sbs-progress" id="sbs-progress"></div>
+        <div class="sbs-builder-body">
+          <div class="sbs-step-content" id="sbs-step-content">
+            <h4 class="sbs-step-title" id="sbs-step-title"></h4>
+            <p class="sbs-step-helper" id="sbs-step-helper"></p>
+            <div class="sbs-option-grid" id="sbs-option-grid"></div>
+          </div>
+          <div class="sbs-summary" id="sbs-summary">
+            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My Selection' %></h4>
+            <p class="sbs-summary-subtitle"><%= lang === 'el' ? 'Το δικό σου EUKOLAKI DIY Roll Kit' : 'Your own EUKOLAKI DIY Roll Kit' %></p>
+            <div class="sbs-summary-list" id="sbs-summary-list"></div>
+            <div class="sbs-summary-total">
+              <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
+              <span id="sbs-total">0.00 &euro;</span>
+            </div>
+            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" style="display:none;margin-top:10px;width:100%;padding:10px;border-radius:8px;font-size:.88rem;font-weight:700;cursor:pointer;border:none;"><%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart' %></button>
+          </div>
+        </div>
+        <div class="sbs-nav">
+          <button type="button" id="sbs-back"><%= lang === 'el' ? '← Πίσω' : '← Back' %></button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" id="sbs-skip" style="display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
+            <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Συνέχεια →' : 'Continue →' %></button>
+          </div>
         </div>
       </div>
     </div>
@@ -2314,13 +2424,19 @@
           el.addEventListener('click', function(e){
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
             e.preventDefault();
-            openWizard(el.getAttribute('data-kit-launch'));
+            const productId = el.getAttribute('data-kit-launch');
+            const targetKit = kitById[productId];
+            if (targetKit && targetKit.builderType === 'step_by_step' && window.openSbsBuilder) return window.openSbsBuilder(productId);
+            openWizard(productId);
           });
         });
         document.querySelectorAll('.kit-clickable').forEach(function(card){
           card.addEventListener('click', function(e){
             if (e.target.closest('a,button,input,textarea,select,label')) return;
-            openWizard(card.getAttribute('data-kit-product-id'));
+            const productId = card.getAttribute('data-kit-product-id');
+            const targetKit = kitById[productId];
+            if (targetKit && targetKit.builderType === 'step_by_step' && window.openSbsBuilder) return window.openSbsBuilder(productId);
+            openWizard(productId);
           });
         });
         document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
@@ -2462,6 +2578,300 @@
         }
         }
       }
+      (function sbsBuilderInit(){
+        var backdrop = document.getElementById('sbs-builder-backdrop');
+        if (!backdrop) return;
+        var kitDataEl = document.getElementById('kit-products-json');
+        var catalogDataEl = document.getElementById('catalog-products-json');
+        if (!kitDataEl || !catalogDataEl) return;
+        var allKits = JSON.parse(kitDataEl.textContent);
+        var catalog = JSON.parse(catalogDataEl.textContent);
+        var catalogById = {};
+        catalog.forEach(function(p){ catalogById[p.id] = p; });
+        var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
+        if (!sbsKits.length) return;
+        var sbsState = { product: null, step: 0, selections: {}, skipped: {} };
+        var elBanner = document.getElementById('sbs-banner');
+        var elTitle = document.getElementById('sbs-title');
+        var elSubtitle = document.getElementById('sbs-subtitle');
+        var elProgress = document.getElementById('sbs-progress');
+        var elStepTitle = document.getElementById('sbs-step-title');
+        var elStepHelper = document.getElementById('sbs-step-helper');
+        var elOptionGrid = document.getElementById('sbs-option-grid');
+        var elSummaryList = document.getElementById('sbs-summary-list');
+        var elTotal = document.getElementById('sbs-total');
+        var btnBack = document.getElementById('sbs-back');
+        var btnNext = document.getElementById('sbs-next');
+        var btnSkip = document.getElementById('sbs-skip');
+        var btnCartSidebar = document.getElementById('sbs-cart-btn');
+        var elHelperText = document.getElementById('sbs-helper-text');
+        var isMobile = window.innerWidth <= 700;
+        var LANG = '<%= lang %>';
+        function resolveF(v) {
+          if (!v) return '';
+          if (typeof v === 'string') return v;
+          return v[LANG] || v.el || v.en || '';
+        }
+        function escAttr(s) { var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+        function computeDelta(choice, product) {
+          if (product.kitPayMode === 'parts_only' && choice.linkedProductId) {
+            var linked = catalogById[choice.linkedProductId];
+            if (linked) return Number(linked.price) || 0;
+          }
+          if (choice.useLinkedPriceDelta && choice.linkedProductId) {
+            var lp = catalogById[choice.linkedProductId];
+            if (lp) return Number(lp.price) || 0;
+          }
+          return Number(choice.priceDelta) || 0;
+        }
+        function renderProgress() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          elProgress.innerHTML = '';
+          groups.forEach(function(g, i) {
+            var cls = 'sbs-progress-step';
+            if (i === sbsState.step) cls += ' active';
+            else if (sbsState.selections[g.id]) cls += ' done';
+            else if (i < sbsState.step) cls += ' done';
+            var div = document.createElement('div');
+            div.className = cls;
+            div.innerHTML = '<span class="sbs-step-num">' + (i < sbsState.step ? '&#10003;' : (i+1)) + '</span><span class="sbs-step-label">' + escAttr(resolveF(g.label)) + '</span>';
+            div.addEventListener('click', function() {
+              if (i <= sbsState.step || sbsState.selections[g.id]) {
+                sbsState.step = i;
+                renderStep();
+              }
+            });
+            elProgress.appendChild(div);
+          });
+        }
+        function renderStep() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          renderProgress();
+          renderSummary();
+          var allDone = sbsState.step >= groups.length;
+          var allRequiredValid = groups.every(function(g) { return !g.required || !!sbsState.selections[g.id]; });
+          btnCartSidebar.style.display = allDone ? '' : 'none';
+          btnCartSidebar.disabled = !allRequiredValid;
+          if (allDone) {
+            elStepTitle.textContent = LANG === 'el' ? 'Ολοκλήρωση' : 'Finish';
+            elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
+            elOptionGrid.innerHTML = '';
+            btnBack.style.display = sbsState.step > 0 ? '' : 'none';
+            btnNext.textContent = LANG === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart';
+            btnNext.className = 'sbs-add-cart';
+            btnNext.disabled = !allRequiredValid;
+            btnSkip.style.display = 'none';
+            return;
+          }
+          var g = groups[sbsState.step];
+          var canSkip = !g.required && g.allowSkip;
+          elStepTitle.textContent = (LANG === 'el' ? 'Βήμα ' : 'Step ') + (sbsState.step + 1) + ': ' + (LANG === 'el' ? 'Επίλεξε ' : 'Choose ') + resolveF(g.label).toLocaleLowerCase();
+          elStepHelper.textContent = resolveF(g.description) || (g.required
+            ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required')
+            : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip'));
+          btnBack.style.display = sbsState.step > 0 ? '' : 'none';
+          btnSkip.style.display = canSkip ? '' : 'none';
+          btnNext.textContent = LANG === 'el' ? 'Συνέχεια →' : 'Continue →';
+          btnNext.className = 'sbs-next';
+          btnNext.disabled = g.required && !sbsState.selections[g.id];
+          elOptionGrid.innerHTML = '';
+          (g.choices || []).filter(function(c) { return c.enabled !== false; }).forEach(function(c) {
+            var div = document.createElement('div');
+            div.className = 'sbs-option' + (sbsState.selections[g.id] === c.id ? ' selected' : '');
+            var delta = computeDelta(c, sbsState.product);
+            var html = '';
+            if (c.image) html += '<img class="sbs-option-img" src="' + escAttr(c.image) + '" alt="' + escAttr(resolveF(c.label)) + '" onerror="this.style.display=\'none\'" />';
+            html += '<div class="sbs-option-label">' + escAttr(resolveF(c.label)) + '</div>';
+            var desc = resolveF(c.description);
+            if (desc) html += '<div class="sbs-option-desc">' + escAttr(desc) + '</div>';
+            if (delta > 0) html += '<div class="sbs-option-price">' + delta.toFixed(2) + ' &euro;</div>';
+            else if (delta === 0 && sbsState.product.kitPayMode !== 'parts_only') html += '<div class="sbs-option-price">' + (LANG === 'el' ? 'Περιλαμβάνεται' : 'Included') + '</div>';
+            div.innerHTML = html;
+            div.addEventListener('click', function() {
+              sbsState.selections[g.id] = c.id;
+              delete sbsState.skipped[g.id];
+              btnNext.disabled = false;
+              renderStep();
+            });
+            elOptionGrid.appendChild(div);
+          });
+        }
+        function renderSummary() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          var total = Number(sbsState.product.price) || 0;
+          elSummaryList.innerHTML = '';
+          if (sbsState.product.kitPayMode === 'parts_only') total = 0;
+          groups.forEach(function(g, gi) {
+            var sel = sbsState.selections[g.id];
+            var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
+            var div = document.createElement('div');
+            div.className = 'sbs-summary-item';
+            var stepName = escAttr(resolveF(g.label));
+            if (choice) {
+              var delta = computeDelta(choice, sbsState.product);
+              total += delta;
+              var thumb = choice.image ? '<img class="sbs-summary-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.visibility=\'hidden\'" />' : '<span class="sbs-summary-thumb empty">&#9633;</span>';
+              div.innerHTML = thumb + '<span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + escAttr(resolveF(choice.label)) + '</span><button type="button" class="sbs-summary-change" data-sbs-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span>';
+            } else if (sbsState.skipped[g.id]) {
+              div.innerHTML = '<span class="sbs-summary-thumb empty">&#8212;</span><span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span><button type="button" class="sbs-summary-change" data-sbs-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button></span><span class="sbs-sum-price">0,00 &euro;</span>';
+            } else {
+              div.innerHTML = '<span class="sbs-summary-thumb empty">&#9633;</span><span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price">0,00 &euro;</span>';
+            }
+            elSummaryList.appendChild(div);
+          });
+          elSummaryList.querySelectorAll('[data-sbs-step]').forEach(function(button){ button.addEventListener('click', function(){ sbsState.step = Number(button.getAttribute('data-sbs-step')); renderStep(); }); });
+          elTotal.textContent = total.toFixed(2) + ' €';
+        }
+        function openSbs(productId) {
+          var product = sbsKits.find(function(k){ return k.id === productId; });
+          if (!product) return;
+          sbsState.product = product;
+          sbsState.step = 0;
+          sbsState.selections = {};
+          sbsState.skipped = {};
+          var bc = product.builderConfig || {};
+          var bannerSrc = (isMobile && bc.mobileBannerImage) ? bc.mobileBannerImage : (bc.bannerImage || '');
+          if (!bannerSrc && isMobile) bannerSrc = bc.bannerImage || '';
+          if (bannerSrc) {
+            elBanner.innerHTML = '<img src="' + escAttr(bannerSrc) + '" alt="" onerror="this.parentNode.style.display=\'none\'" />';
+            elBanner.style.display = '';
+          } else {
+            elBanner.style.display = 'none';
+          }
+          var titleText = resolveF(bc.title) || resolveF(product.name);
+          elTitle.textContent = titleText;
+          elTitle.style.display = (bc.showTitle !== false && titleText) ? '' : 'none';
+          var subtitleText = resolveF(bc.subtitle) || '';
+          elSubtitle.textContent = subtitleText;
+          elSubtitle.style.display = (bc.showSubtitle !== false && subtitleText) ? '' : 'none';
+          var helperText = resolveF(bc.helperText) || '';
+          elHelperText.textContent = helperText;
+          elHelperText.style.display = (bc.showHelperText !== false && helperText) ? '' : 'none';
+          backdrop.classList.add('open');
+          backdrop.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+          renderStep();
+        }
+        function closeSbs() {
+          backdrop.classList.remove('open');
+          backdrop.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
+        document.getElementById('sbs-close').addEventListener('click', closeSbs);
+        backdrop.addEventListener('click', function(e){ if (e.target === backdrop) closeSbs(); });
+        document.addEventListener('keydown', function(e){
+          if (e.key === 'Escape' && backdrop.classList.contains('open')) closeSbs();
+        });
+        btnBack.addEventListener('click', function(){
+          if (sbsState.step > 0) { sbsState.step -= 1; renderStep(); }
+        });
+        btnSkip.addEventListener('click', function(){
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          if (sbsState.step < groups.length) {
+            var g = groups[sbsState.step];
+            if (!g.required) {
+              delete sbsState.selections[g.id];
+              sbsState.skipped[g.id] = true;
+              sbsState.step += 1;
+              renderStep();
+            }
+          }
+        });
+        function addToCartFromBuilder() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          var selected = [];
+          groups.forEach(function(g) {
+            var cid = sbsState.selections[g.id];
+            if (!cid) return;
+            var choice = (g.choices || []).find(function(c){ return c.id === cid; });
+            if (!choice) return;
+            selected.push({
+              groupId: g.id, groupLabel: resolveF(g.label),
+              choiceId: choice.id, choiceLabel: resolveF(choice.label),
+              linkedProductId: choice.linkedProductId || null,
+              priceDelta: computeDelta(choice, sbsState.product)
+            });
+          });
+          var finalPrice = selected.reduce(function(sum, o){ return sum + o.priceDelta; }, sbsState.product.kitPayMode === 'parts_only' ? 0 : (Number(sbsState.product.price) || 0));
+          var optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
+          var cartKey = sbsState.product.id + '::sbs::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
+          var snapshot = {
+            type: 'step_by_step',
+            builderType: 'step_by_step',
+            productId: sbsState.product.id,
+            steps: groups.map(function(g){
+              var o = selected.find(function(entry){ return entry.groupId === g.id; });
+              if (!o) return { stepId: g.id, stepTitle: resolveF(g.label), skipped: true, optionId: null, optionTitle: null, linkedProductId: null, variantId: null, sku: null, unitPrice: 0, linePrice: 0 };
+              return { stepId: o.groupId, stepTitle: o.groupLabel, skipped: false, optionId: o.choiceId, optionTitle: o.choiceLabel, linkedProductId: o.linkedProductId, variantId: o.selectedVariantId || null, sku: o.selectedVariantSku || null, unitPrice: o.priceDelta, linePrice: o.priceDelta };
+            }),
+            total: finalPrice,
+            timestamp: new Date().toISOString()
+          };
+          if (window.thrcAddToCart) {
+            if (sbsState.product.kitPayMode === 'parts_only') {
+              selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
+                var linked = catalogById[opt.linkedProductId];
+                if (linked) {
+                  window.thrcAddToCart({
+                    id: linked.id, name: resolveF(linked.name),
+                    price: Number(linked.price) || 0, imageUrl: linked.imageUrl || '',
+                    cartKey: linked.id + '::from-kit:' + sbsState.product.id + ':' + opt.groupId,
+                    sourceKitId: sbsState.product.id, sourceKitOption: opt.groupLabel + ': ' + opt.choiceLabel
+                  });
+                }
+              });
+              window.thrcAddToCart({
+                id: sbsState.product.id, name: resolveF(sbsState.product.name) + ' (summary)',
+                price: 0, imageUrl: sbsState.product.imageUrl || '',
+                selectedOptions: selected, optionSummary: optionSummary,
+                finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true,
+                builderType: 'step_by_step', builderSnapshot: snapshot
+              });
+            } else {
+              window.thrcAddToCart({
+                id: sbsState.product.id, name: resolveF(sbsState.product.name),
+                price: finalPrice, imageUrl: sbsState.product.imageUrl || '',
+                selectedOptions: selected, optionSummary: optionSummary,
+                finalUnitPrice: finalPrice, cartKey: cartKey,
+                builderType: 'step_by_step', builderSnapshot: snapshot
+              });
+            }
+          }
+          closeSbs();
+        }
+        btnNext.addEventListener('click', function(){
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          if (sbsState.step < groups.length) {
+            var g = groups[sbsState.step];
+            if (g.required && !sbsState.selections[g.id]) return;
+            sbsState.step += 1;
+            renderStep();
+            return;
+          }
+          addToCartFromBuilder();
+        });
+        btnCartSidebar.addEventListener('click', function(){ addToCartFromBuilder(); });
+        window.openSbsBuilder = openSbs;
+        var origOpen = window.openKitWizard;
+        if (origOpen) {
+          window.openKitWizard = function(pid) {
+            var sbsProduct = sbsKits.find(function(k){ return k.id === pid; });
+            if (sbsProduct) return openSbs(pid);
+            origOpen(pid);
+          };
+        }
+        document.querySelectorAll('[data-kit-launch]').forEach(function(el){
+          var pid = el.getAttribute('data-kit-launch');
+          if (sbsKits.find(function(k){ return k.id === pid; })) {
+            el.addEventListener('click', function(e){
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              openSbs(pid);
+            }, true);
+          }
+        });
+      })();
       if (productPreOpenEffect === 'exposure') {
         const exposureOverlay = document.getElementById('exposure-overlay');
         const openWithExposure = function(href) {
@@ -2641,7 +3051,7 @@
 <% if (_vaCfg.vaEnabled && ['customer','both'].includes(_vaCfg.vaMode)) { %>
 <style>
   #thrc-chat-fab {
-    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+    position: fixed; bottom: 20px; left: 20px; right: auto; z-index: 1100;
     width: 56px; height: 56px; border-radius: 50%;
     background: var(--eko-accent, #c4902e); color: #fff;
     border: none; cursor: pointer; font-size: 24px;
@@ -2651,7 +3061,7 @@
   }
   #thrc-chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
   #thrc-chat-panel {
-    position: fixed; bottom: 96px; right: 28px; z-index: 9999;
+    position: fixed; bottom: 88px; left: 20px; right: auto; z-index: 1100;
     width: 340px; max-height: 480px;
     background: var(--eko-surface, #1a1a1a); border: 1px solid var(--eko-border, #333);
     border-radius: 16px; overflow: hidden;
@@ -2703,7 +3113,8 @@
   }
   #thrc-chat-send:disabled { opacity: .5; cursor: default; }
   @media (max-width: 420px) {
-    #thrc-chat-panel { width: calc(100vw - 24px); right: 12px; }
+    #thrc-chat-fab { left: 12px; right: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
+    #thrc-chat-panel { width: calc(100vw - 24px); left: 12px; right: auto; bottom: calc(80px + env(safe-area-inset-bottom)); }
   }
 </style>
 
@@ -2759,6 +3170,7 @@
   }
 
   closeBtn.addEventListener('click', function() { panel.hidden = true; });
+  document.addEventListener('thrc:cart-open', function() { panel.hidden = true; });
 
   function sendMessage() {
     var msg = input.value.trim();
