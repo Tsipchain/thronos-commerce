@@ -42,7 +42,7 @@
     "kitOptions": [
       {
         "id": "tampakiera-karoulaki",
-        "label": { "el": "Ταμπακιέρα + Καρουλάκι", "en": "Drum Box + Spool" },
+        "label": { "el": "Ταμπακιέρα + Καρουλάκι", "en": "Shutter Box + Roller" },
         "order": 0,
         "required": true,
         "inputType": "radio",

@@ -61,13 +61,13 @@ test('Summary sidebar renders "Η επιλογή μου" heading', () => {
 });
 
 test('Summary shows thumbnails and prices for selected options', () => {
-  assert.match(index, /sbs-sum-label.*img src.*sbs-sum-price/s);
+  assert.match(index, /sbs-summary-thumb.*sbs-summary-choice.*sbs-sum-price/s);
 });
 
 test('Summary shows "Παράλειψη" with 0,00€ for skipped optional steps', () => {
   assert.match(index, /Παράλειψη/);
   assert.match(index, /0,00 &euro;/);
-  assert.match(index, /gi < sbsState\.step && !g\.required && g\.allowSkip/);
+  assert.match(index, /sbsState\.skipped\[g\.id\]/);
 });
 
 test('Summary total accumulates only selected option deltas', () => {
@@ -340,7 +340,7 @@ test('SBS builder has responsive breakpoint at 700px', () => {
 });
 
 test('SBS builder body uses grid layout with summary sidebar', () => {
-  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*1fr\s+280px/s);
+  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,7fr\)\s+minmax\(320px,3fr\)/s);
 });
 
 // === Section 16: Builder bilingual support ===

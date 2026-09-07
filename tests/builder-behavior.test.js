@@ -154,9 +154,13 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       const survivingStepIds = roll.kitOptions.map((step) => step.id).filter((id) => id !== deletedStepId).reverse();
       roll.kitOptions = roll.kitOptions.filter((step) => step.id !== deletedStepId).reverse();
       const first = roll.kitOptions[0];
+      const stableStepId = first.id;
+      first.label = { el: 'Δοκιμαστικός τίτλος βήματος', en: 'Test step title' };
+      first.description = { el: 'Δοκιμαστική περιγραφή βήματος', en: 'Test step description' };
       const deletedOptionId = first.choices[0].id;
       const survivingOptionIds = first.choices.slice(1).map((choice) => choice.id).reverse();
       first.choices = first.choices.slice(1).reverse();
+      first.choices[0].label = { el: 'Δοκιμαστικός τίτλος επιλογής', en: 'Test choice title' };
       const saveBody = new URLSearchParams({ productsJson: JSON.stringify(products) }).toString();
       const saved = await request(port, '/admin/products', { method: 'POST', body: saveBody, headers: form(saveBody, cookie) });
       assert.equal(saved.status, 200, fixture.errors());
@@ -165,6 +169,10 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       assert.equal(reloaded.kitOptions.some((step) => step.id === deletedStepId), false);
       assert.deepEqual(reloaded.kitOptions[0].choices.map((choice) => choice.id), survivingOptionIds);
       assert.equal(reloaded.kitOptions[0].choices.some((choice) => choice.id === deletedOptionId), false);
+      assert.equal(reloaded.kitOptions[0].id, stableStepId);
+      assert.deepEqual(reloaded.kitOptions[0].label, { el: 'Δοκιμαστικός τίτλος βήματος', en: 'Test step title' });
+      assert.deepEqual(reloaded.kitOptions[0].description, { el: 'Δοκιμαστική περιγραφή βήματος', en: 'Test step description' });
+      assert.deepEqual(reloaded.kitOptions[0].choices[0].label, { el: 'Δοκιμαστικός τίτλος επιλογής', en: 'Test choice title' });
     });
     await t.test('classic Slide Door builder still renders and accepts canonical checkout pricing', async () => {
       const storefront = await request(port, '/?skipIntro=1');
@@ -176,6 +184,40 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       const order = JSON.parse(fs.readFileSync(path.join(fixture.tempRoot, 'tenants/eukolakis/orders.json'), 'utf8')).at(-1);
       assert.equal(order.items[0].builderType, undefined);
       assert.equal(order.items[0].price, 2.5);
+    });
+    await t.test('rendered SBS payload keeps the Roll Kit five-step grouping and per-step choices', async () => {
+      const canonicalProducts = JSON.parse(fs.readFileSync(path.join(root, 'data/tenants/eukolakis/products.json'), 'utf8'));
+      fs.writeFileSync(productsFile, JSON.stringify(canonicalProducts, null, 2));
+      const storefront = await request(port, '/?skipIntro=1');
+      assert.equal(storefront.status, 200);
+      const script = storefront.body.match(/<script id="kit-products-json" type="application\/json">([\s\S]*?)<\/script>/);
+      assert.ok(script, 'rendered kit payload exists');
+      const kits = JSON.parse(script[1]);
+      const roll = kits.find((product) => product.id === 'eukolaki-diy-roll-kit');
+      assert.ok(roll, 'rendered Roll Kit exists');
+      assert.equal(roll.builderType, 'step_by_step');
+      assert.deepEqual(roll.kitOptions.map((group) => group.id), ['tampakiera-karoulaki', 'aristeri-plevra', 'dexia-plevra', 'tirantes', 'exoterika-stoper']);
+      assert.deepEqual(roll.kitOptions.map((group) => group.label), ['Ταμπακιέρα + Καρουλάκι', 'Αριστερή Πλευρά', 'Δεξιά Πλευρά', 'Τιράντες', 'Εξωτερικά Στόπερ']);
+      assert.deepEqual(roll.kitOptions.map((group) => group.choices.map((choice) => choice.label)), [
+        ['Λευκό', 'Καφέ', 'Μαύρο'],
+        ['Δίσκος 145mm', 'Δίσκος 120mm', 'Κούπα'],
+        ['Δίσκος 145mm', 'Δίσκος 120mm', 'Κούπα'],
+        ['Απλές', 'Με έλασμα αλουμινίου'],
+        ['Λευκό', 'Καφέ', 'Μαύρο']
+      ]);
+      assert.equal(roll.kitOptions.some((group) => group.id === 'spare-parts' || group.label === 'spare-parts'), false);
+      assert.match(storefront.body, /Η επιλογή μου/);
+      assert.match(storefront.body, /Συνέχεια →/);
+      assert.match(storefront.body, /Παράλειψη/);
+      const englishStorefront = await request(port, '/?skipIntro=1&lang=en');
+      assert.equal(englishStorefront.status, 200);
+      const englishScript = englishStorefront.body.match(/<script id="kit-products-json" type="application\/json">([\s\S]*?)<\/script>/);
+      const englishRoll = JSON.parse(englishScript[1]).find((product) => product.id === 'eukolaki-diy-roll-kit');
+      assert.equal(englishRoll.kitOptions[0].label, 'Shutter Box + Roller');
+      assert.equal(englishRoll.kitOptions[1].label, 'Left Side');
+      assert.match(englishStorefront.body, /My Selection/);
+      assert.match(englishStorefront.body, /Continue →/);
+      assert.match(englishStorefront.body, />Skip</);
     });
     await t.test('Admin hero checkboxes persist false and Eukolakis render obeys master and individual flags', async () => {
       const loginBody = new URLSearchParams({ password: 'builder-admin' }).toString();

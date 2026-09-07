@@ -190,54 +190,59 @@
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
-      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.78); z-index:2200; display:none; padding:16px; overflow-y:auto; }
+      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.86); z-index:2200; display:none; padding:15px 20px; overflow:hidden; }
       .sbs-builder-backdrop.open { display:block; }
-      .sbs-builder { max-width:960px; margin:0 auto; background:#f8fafc; border-radius:14px; box-shadow:0 22px 52px rgba(0,0,0,.4); overflow:hidden; }
-      .sbs-banner { width:100%; max-height:180px; overflow:hidden; }
-      .sbs-banner img { width:100%; height:180px; object-fit:cover; display:block; }
-      .sbs-builder-head { padding:14px 18px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:flex-start; }
-      .sbs-builder-head h3 { margin:0; font-size:1.05rem; }
-      .sbs-subtitle { margin:2px 0 0; font-size:.78rem; color:#64748b; }
-      .sbs-builder-head .sbs-close { background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b; }
-      .sbs-progress { display:flex; gap:0; padding:0 18px; border-bottom:1px solid #e5e7eb; overflow-x:auto; }
-      .sbs-progress-step { flex:1; min-width:0; padding:10px 8px; text-align:center; font-size:.76rem; font-weight:600; color:#94a3b8; border-bottom:3px solid transparent; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .sbs-progress-step.active { color:#0f766e; border-bottom-color:#0f766e; }
-      .sbs-progress-step.done { color:#10b981; border-bottom-color:#10b981; }
-      .sbs-progress-step .sbs-step-num { display:inline-flex; width:20px; height:20px; border-radius:50%; background:#e2e8f0; color:#475569; font-size:.7rem; align-items:center; justify-content:center; margin-right:4px; }
-      .sbs-progress-step.active .sbs-step-num { background:#0f766e; color:#fff; }
-      .sbs-progress-step.done .sbs-step-num { background:#10b981; color:#fff; }
-      .sbs-builder-body { display:grid; grid-template-columns:1fr 280px; gap:0; min-height:380px; }
-      .sbs-step-content { padding:18px; overflow-y:auto; max-height:calc(100vh - 220px); }
-      .sbs-step-title { font-size:.95rem; font-weight:700; margin:0 0 4px; }
-      .sbs-step-helper { font-size:.78rem; color:#64748b; margin:0 0 14px; }
-      .sbs-option-grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); }
-      .sbs-option { border:2px solid #e2e8f0; border-radius:10px; padding:12px; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
-      .sbs-option:hover { border-color:#94a3b8; }
-      .sbs-option.selected { border-color:#0f766e; box-shadow:0 0 0 3px rgba(15,118,110,.12); }
-      .sbs-option-img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; margin-bottom:8px; background:#111; }
-      .sbs-option-label { font-size:.85rem; font-weight:600; }
-      .sbs-option-desc { font-size:.74rem; color:#64748b; margin-top:2px; }
-      .sbs-option-price { font-size:.78rem; font-weight:700; color:#0f766e; margin-top:4px; }
-      .sbs-summary { background:#f1f5f9; border-left:1px solid #e2e8f0; padding:18px; display:flex; flex-direction:column; }
-      .sbs-summary h4 { margin:0 0 12px; font-size:.88rem; font-weight:700; }
-      .sbs-summary-list { flex:1; overflow-y:auto; }
-      .sbs-summary-item { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:.78rem; }
-      .sbs-summary-item .sbs-sum-label { color:#334155; }
-      .sbs-summary-item .sbs-sum-price { font-weight:600; color:#0f766e; }
-      .sbs-summary-total { margin-top:auto; padding-top:12px; border-top:2px solid #0f766e; display:flex; justify-content:space-between; font-size:.92rem; font-weight:700; }
-      .sbs-nav { padding:14px 18px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; gap:10px; }
-      .sbs-nav button { padding:8px 20px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:1px solid #d1d5db; background:#fff; color:#334155; }
-      .sbs-nav button:hover { background:#f1f5f9; }
-      .sbs-nav .sbs-next { background:#0f766e; color:#fff; border-color:#0f766e; }
-      .sbs-nav .sbs-next:hover { background:#0d6b63; }
+      .sbs-builder { width:min(1500px,calc(100vw - 40px)); height:min(900px,calc(100vh - 30px)); margin:0 auto; background:#111318; color:#f4f4f5; border:1px solid rgba(196,144,46,.32); border-radius:12px; box-shadow:0 24px 60px rgba(0,0,0,.65); overflow:hidden; display:flex; flex-direction:column; }
+      .sbs-banner { width:100%; height:150px; flex:0 0 150px; overflow:hidden; position:relative; background:#090a0d; }
+      .sbs-banner img { width:100%; height:100%; object-fit:cover; display:block; }
+      .sbs-builder-head { padding:12px 24px; border-bottom:1px solid #2b2d34; display:flex; justify-content:space-between; align-items:flex-start; background:#15171c; }
+      .sbs-builder-head h3 { margin:0; font-size:1.2rem; color:#fff; }
+      .sbs-subtitle { margin:3px 0 0; font-size:.82rem; color:#a1a1aa; }
+      .sbs-builder-head .sbs-close { background:#24262d; border:1px solid #3f3f46; width:36px;height:36px;border-radius:50%;font-size:1.05rem;cursor:pointer;color:#e4e4e7; }
+      .sbs-progress { display:flex; gap:0; padding:14px 28px 12px; border-bottom:1px solid #2b2d34; overflow-x:auto; background:#181a20; }
+      .sbs-progress-step { flex:1; min-width:130px; position:relative; padding:0 8px; text-align:center; font-size:.7rem; font-weight:700; color:#71717a; cursor:pointer; white-space:normal; text-transform:uppercase; }
+      .sbs-progress-step:not(:last-child)::after { content:""; position:absolute; top:15px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:#34363e; }
+      .sbs-progress-step.active,.sbs-progress-step.done { color:#e7a536; }
+      .sbs-progress-step.done::after { background:#c4902e; }
+      .sbs-progress-step .sbs-step-num { position:relative;z-index:1;display:flex;width:30px;height:30px;border-radius:50%;background:#292b32;border:2px solid #454750;color:#a1a1aa;font-size:.78rem;align-items:center;justify-content:center;margin:0 auto 7px; }
+      .sbs-progress-step.active .sbs-step-num,.sbs-progress-step.done .sbs-step-num { background:#c4902e;border-color:#e0aa4d;color:#111; }
+      .sbs-builder-body { display:grid; grid-template-columns:minmax(0,7fr) minmax(320px,3fr); gap:0; min-height:0; flex:1; overflow:hidden; }
+      .sbs-step-content { padding:24px 28px; overflow-y:auto; min-height:0; background:#111318; }
+      .sbs-step-title { font-size:1.15rem;font-weight:800;margin:0 0 5px;padding-left:12px;border-left:4px solid #c4902e;color:#fff; }
+      .sbs-step-helper { font-size:.82rem;color:#a1a1aa;margin:0 0 18px;padding-left:16px; }
+      .sbs-option-grid { display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .sbs-option { position:relative;border:1px solid #353740;border-radius:10px;padding:12px;background:#1a1c22;cursor:pointer;transition:border-color .15s,transform .15s,background .15s;min-width:0; }
+      .sbs-option:hover { border-color:#8a672d;transform:translateY(-2px);background:#202228; }
+      .sbs-option.selected { border:2px solid #d5942e;background:#242016;box-shadow:0 0 0 2px rgba(196,144,46,.15); }
+      .sbs-option.selected::after { content:"✓";position:absolute;top:9px;right:9px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#c4902e;color:#111;font-weight:900; }
+      .sbs-option-img { width:100%;height:180px;object-fit:contain;border-radius:6px;margin-bottom:10px;background:#0d0e12; }
+      .sbs-option-label { font-size:.92rem;font-weight:750;color:#fafafa; }
+      .sbs-option-desc { font-size:.75rem;color:#92929c;margin-top:4px;line-height:1.35; }
+      .sbs-option-price { font-size:.9rem;font-weight:800;color:#e0a23d;margin-top:9px; }
+      .sbs-summary { background:#17191e;border-left:1px solid #353740;padding:22px;display:flex;flex-direction:column;min-height:0; }
+      .sbs-summary h4 { margin:0;font-size:1.15rem;font-weight:800;color:#fff; }
+      .sbs-summary-subtitle { margin:3px 0 15px;color:#92929c;font-size:.76rem; }
+      .sbs-summary-list { flex:1;overflow-y:auto;min-height:0; }
+      .sbs-summary-item { display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #2d2f36;font-size:.76rem; }
+      .sbs-summary-thumb { width:42px;height:42px;object-fit:contain;border-radius:6px;background:#0d0e12; }
+      .sbs-summary-thumb.empty { display:grid;place-items:center;color:#555862;font-size:1.1rem; }
+      .sbs-summary-name { display:block;color:#f4f4f5;font-weight:700;margin-bottom:2px; }
+      .sbs-summary-choice { display:block;color:#92929c; }
+      .sbs-summary-change { border:0;background:none;color:#d89a35;padding:2px 0;font-size:.7rem;cursor:pointer; }
+      .sbs-summary-item .sbs-sum-price { font-weight:700;color:#e0a23d;white-space:nowrap; }
+      .sbs-summary-total { margin-top:12px;padding-top:14px;border-top:2px solid #c4902e;display:flex;justify-content:space-between;font-size:1.02rem;font-weight:800; }
+      .sbs-nav { padding:13px 24px;border-top:1px solid #30323a;display:flex;justify-content:space-between;gap:10px;background:#181a20; }
+      .sbs-nav button { padding:10px 22px;border-radius:6px;font-size:.86rem;font-weight:700;cursor:pointer;border:1px solid #454750;background:#24262d;color:#e4e4e7; }
+      .sbs-nav button:hover { border-color:#c4902e; }
+      .sbs-nav .sbs-next,.sbs-nav .sbs-add-cart,.sbs-add-cart { background:#c4902e;color:#111;border-color:#c4902e; }
+      .sbs-nav .sbs-next:hover,.sbs-nav .sbs-add-cart:hover,.sbs-add-cart:hover { background:#dda43e; }
       .sbs-nav .sbs-next:disabled { opacity:.5; cursor:default; }
       .sbs-nav .sbs-add-cart { background:#c4902e; color:#fff; border-color:#c4902e; }
       .sbs-nav .sbs-add-cart:hover { background:#b37d24; }
       @media (max-width:700px) {
-        .sbs-builder-body { grid-template-columns:1fr; }
-        .sbs-summary { border-left:0; border-top:1px solid #e2e8f0; max-height:180px; }
-        .sbs-progress-step { font-size:.68rem; padding:8px 4px; }
+        .sbs-builder-backdrop{padding:0}.sbs-builder{width:100vw;height:100dvh;max-height:none;border:0;border-radius:0}.sbs-banner{height:110px;flex-basis:110px}.sbs-builder-head{padding:10px 14px}.sbs-progress{padding:10px 8px}.sbs-progress-step{min-width:92px;font-size:.61rem}.sbs-builder-body{grid-template-columns:1fr;overflow-y:auto}.sbs-step-content{overflow:visible;padding:18px 14px}.sbs-option-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sbs-option-img{height:125px}.sbs-summary{border-left:0;border-top:1px solid #353740;min-height:330px}.sbs-nav{position:sticky;bottom:0;padding:10px 12px;z-index:2}.sbs-nav button{padding:10px 14px}
       }
+      @media(max-width:390px){.sbs-option-grid{grid-template-columns:1fr}.sbs-option-img{height:155px}}
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
         backdrop-filter: blur(5px);
@@ -1933,7 +1938,8 @@
             <div class="sbs-option-grid" id="sbs-option-grid"></div>
           </div>
           <div class="sbs-summary" id="sbs-summary">
-            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My selection' %></h4>
+            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My Selection' %></h4>
+            <p class="sbs-summary-subtitle"><%= lang === 'el' ? 'Το δικό σου EUKOLAKI DIY Roll Kit' : 'Your own EUKOLAKI DIY Roll Kit' %></p>
             <div class="sbs-summary-list" id="sbs-summary-list"></div>
             <div class="sbs-summary-total">
               <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
@@ -1946,7 +1952,7 @@
           <button type="button" id="sbs-back"><%= lang === 'el' ? '← Πίσω' : '← Back' %></button>
           <div style="display:flex;gap:8px;">
             <button type="button" id="sbs-skip" style="display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
-            <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Επόμενο →' : 'Next →' %></button>
+            <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Συνέχεια →' : 'Continue →' %></button>
           </div>
         </div>
       </div>
@@ -2418,13 +2424,19 @@
           el.addEventListener('click', function(e){
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
             e.preventDefault();
-            openWizard(el.getAttribute('data-kit-launch'));
+            const productId = el.getAttribute('data-kit-launch');
+            const targetKit = kitById[productId];
+            if (targetKit && targetKit.builderType === 'step_by_step' && window.openSbsBuilder) return window.openSbsBuilder(productId);
+            openWizard(productId);
           });
         });
         document.querySelectorAll('.kit-clickable').forEach(function(card){
           card.addEventListener('click', function(e){
             if (e.target.closest('a,button,input,textarea,select,label')) return;
-            openWizard(card.getAttribute('data-kit-product-id'));
+            const productId = card.getAttribute('data-kit-product-id');
+            const targetKit = kitById[productId];
+            if (targetKit && targetKit.builderType === 'step_by_step' && window.openSbsBuilder) return window.openSbsBuilder(productId);
+            openWizard(productId);
           });
         });
         document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
@@ -2578,7 +2590,7 @@
         catalog.forEach(function(p){ catalogById[p.id] = p; });
         var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
         if (!sbsKits.length) return;
-        var sbsState = { product: null, step: 0, selections: {} };
+        var sbsState = { product: null, step: 0, selections: {}, skipped: {} };
         var elBanner = document.getElementById('sbs-banner');
         var elTitle = document.getElementById('sbs-title');
         var elSubtitle = document.getElementById('sbs-subtitle');
@@ -2622,7 +2634,7 @@
             else if (i < sbsState.step) cls += ' done';
             var div = document.createElement('div');
             div.className = cls;
-            div.innerHTML = '<span class="sbs-step-num">' + (i+1) + '</span> ' + escAttr(resolveF(g.label));
+            div.innerHTML = '<span class="sbs-step-num">' + (i < sbsState.step ? '&#10003;' : (i+1)) + '</span><span class="sbs-step-label">' + escAttr(resolveF(g.label)) + '</span>';
             div.addEventListener('click', function() {
               if (i <= sbsState.step || sbsState.selections[g.id]) {
                 sbsState.step = i;
@@ -2653,13 +2665,13 @@
           }
           var g = groups[sbsState.step];
           var canSkip = !g.required && g.allowSkip;
-          elStepTitle.textContent = resolveF(g.label);
-          elStepHelper.textContent = g.required
+          elStepTitle.textContent = (LANG === 'el' ? 'Βήμα ' : 'Step ') + (sbsState.step + 1) + ': ' + (LANG === 'el' ? 'Επίλεξε ' : 'Choose ') + resolveF(g.label).toLocaleLowerCase();
+          elStepHelper.textContent = resolveF(g.description) || (g.required
             ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required')
-            : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip');
+            : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip'));
           btnBack.style.display = sbsState.step > 0 ? '' : 'none';
           btnSkip.style.display = canSkip ? '' : 'none';
-          btnNext.textContent = LANG === 'el' ? 'Επόμενο →' : 'Next →';
+          btnNext.textContent = LANG === 'el' ? 'Συνέχεια →' : 'Continue →';
           btnNext.className = 'sbs-next';
           btnNext.disabled = g.required && !sbsState.selections[g.id];
           elOptionGrid.innerHTML = '';
@@ -2677,6 +2689,7 @@
             div.innerHTML = html;
             div.addEventListener('click', function() {
               sbsState.selections[g.id] = c.id;
+              delete sbsState.skipped[g.id];
               btnNext.disabled = false;
               renderStep();
             });
@@ -2693,18 +2706,20 @@
             var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
             var div = document.createElement('div');
             div.className = 'sbs-summary-item';
+            var stepName = escAttr(resolveF(g.label));
             if (choice) {
               var delta = computeDelta(choice, sbsState.product);
               total += delta;
-              var thumb = choice.image ? '<img src="' + escAttr(choice.image) + '" style="width:28px;height:28px;object-fit:cover;border-radius:4px;margin-right:6px;vertical-align:middle;" onerror="this.style.display=\'none\'" />' : '';
-              div.innerHTML = '<span class="sbs-sum-label">' + thumb + escAttr(resolveF(g.label)) + ': <strong>' + escAttr(resolveF(choice.label)) + '</strong></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span>';
-            } else if (gi < sbsState.step && !g.required && g.allowSkip) {
-              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + escAttr(resolveF(g.label)) + ': <em>' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</em></span><span class="sbs-sum-price" style="color:#94a3b8;">0,00 &euro;</span>';
+              var thumb = choice.image ? '<img class="sbs-summary-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.visibility=\'hidden\'" />' : '<span class="sbs-summary-thumb empty">&#9633;</span>';
+              div.innerHTML = thumb + '<span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + escAttr(resolveF(choice.label)) + '</span><button type="button" class="sbs-summary-change" data-sbs-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span>';
+            } else if (sbsState.skipped[g.id]) {
+              div.innerHTML = '<span class="sbs-summary-thumb empty">&#8212;</span><span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span><button type="button" class="sbs-summary-change" data-sbs-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button></span><span class="sbs-sum-price">0,00 &euro;</span>';
             } else {
-              div.innerHTML = '<span class="sbs-sum-label" style="color:#94a3b8;">' + escAttr(resolveF(g.label)) + ': —</span><span class="sbs-sum-price" style="color:#94a3b8;">—</span>';
+              div.innerHTML = '<span class="sbs-summary-thumb empty">&#9633;</span><span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price">0,00 &euro;</span>';
             }
             elSummaryList.appendChild(div);
           });
+          elSummaryList.querySelectorAll('[data-sbs-step]').forEach(function(button){ button.addEventListener('click', function(){ sbsState.step = Number(button.getAttribute('data-sbs-step')); renderStep(); }); });
           elTotal.textContent = total.toFixed(2) + ' €';
         }
         function openSbs(productId) {
@@ -2713,6 +2728,7 @@
           sbsState.product = product;
           sbsState.step = 0;
           sbsState.selections = {};
+          sbsState.skipped = {};
           var bc = product.builderConfig || {};
           var bannerSrc = (isMobile && bc.mobileBannerImage) ? bc.mobileBannerImage : (bc.bannerImage || '');
           if (!bannerSrc && isMobile) bannerSrc = bc.bannerImage || '';
@@ -2755,6 +2771,7 @@
             var g = groups[sbsState.step];
             if (!g.required) {
               delete sbsState.selections[g.id];
+              sbsState.skipped[g.id] = true;
               sbsState.step += 1;
               renderStep();
             }

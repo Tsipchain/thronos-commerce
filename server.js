@@ -357,7 +357,7 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
         linkedVariant: linkedVariant || undefined
       };
     });
-    if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
+    if (product.builderType !== 'step_by_step' && group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
       hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
     }
     return { ...group, label: resolveTranslatable(group.label, lang) || group.id, choices: hydratedChoices };
