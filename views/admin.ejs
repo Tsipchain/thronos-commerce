@@ -913,22 +913,28 @@
         <% const _hoAdmin = (rawConfig.homepage && rawConfig.homepage.heroOverlay) || {}; %>
         <h4 style="margin:18px 0 8px;font-size:.88rem;">Στοιχεία Hero Overlay</h4>
         <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;margin-bottom:8px;">
+          <input type="hidden" name="heroOverlayShowOverlay" value="0" />
           <input type="checkbox" name="heroOverlayShowOverlay" value="1" <%= _hoAdmin.showOverlay !== false ? 'checked' : '' %> /> Εμφάνιση overlay (απενεργοποιεί όλα τα στοιχεία)
         </label>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 16px;">
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowKicker" value="0" />
             <input type="checkbox" name="heroOverlayShowKicker" value="1" <%= _hoAdmin.showKicker !== false ? 'checked' : '' %> /> Kicker (eyebrow)
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowTitle" value="0" />
             <input type="checkbox" name="heroOverlayShowTitle" value="1" <%= _hoAdmin.showTitle !== false ? 'checked' : '' %> /> Τίτλος
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowSubtitle" value="0" />
             <input type="checkbox" name="heroOverlayShowSubtitle" value="1" <%= _hoAdmin.showSubtitle !== false ? 'checked' : '' %> /> Υπότιτλος
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowPrimaryCta" value="0" />
             <input type="checkbox" name="heroOverlayShowPrimaryCta" value="1" <%= _hoAdmin.showPrimaryCta !== false ? 'checked' : '' %> /> Primary CTA
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowSecondaryCta" value="0" />
             <input type="checkbox" name="heroOverlayShowSecondaryCta" value="1" <%= _hoAdmin.showSecondaryCta !== false ? 'checked' : '' %> /> Secondary CTA
           </label>
         </div>

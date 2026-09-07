@@ -95,12 +95,12 @@
     },
     "showSubscriptionsCard": true,
     "heroOverlay": {
-      "showOverlay": true,
-      "showKicker": true,
-      "showTitle": true,
-      "showSubtitle": true,
-      "showPrimaryCta": true,
-      "showSecondaryCta": true
+      "showOverlay": false,
+      "showKicker": false,
+      "showTitle": false,
+      "showSubtitle": false,
+      "showPrimaryCta": false,
+      "showSecondaryCta": false
     },
     "heroPrimaryCta": {
       "label": { "el": "Ξεκίνα Roll Kit →", "en": "Start Roll Kit →" },

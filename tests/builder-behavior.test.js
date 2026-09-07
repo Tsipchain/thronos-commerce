@@ -46,10 +46,15 @@ async function startFixture() {
   fs.writeFileSync(productsFile, JSON.stringify(products, null, 2));
   const configFile = path.join(tempRoot, 'tenants/eukolakis/config.json');
   const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-  config.homepage.heroImage = '/hero-A.jpg';
+  config.homepage.heroImage = '/tenants/eukolakis/media/hero-A.jpg';
+  config.homepage.heroTitle = { el: 'ΜΟΝΑΔΙΚΟΣ HERO ΤΙΤΛΟΣ', en: 'UNIQUE HERO TITLE' };
+  config.homepage.heroSubtitle = { el: 'ΜΟΝΑΔΙΚΟΣ HERO ΥΠΟΤΙΤΛΟΣ', en: 'UNIQUE HERO SUBTITLE' };
+  config.homepage.heroOverlay = { showOverlay: true, showKicker: true, showTitle: true, showSubtitle: true, showPrimaryCta: true, showSecondaryCta: true };
   config.homepage.introImage = '/intro-B.jpg';
   config.homepage.introImageSource = 'dedicated';
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
+  fs.mkdirSync(path.join(tempRoot, 'tenants/eukolakis/media'), { recursive: true });
+  fs.writeFileSync(path.join(tempRoot, 'tenants/eukolakis/media/hero-A.jpg'), 'hero fixture');
   const port = 36000 + Math.floor(Math.random() * 1000);
   const child = spawn(process.execPath, ['server.js'], { cwd: root, env: { ...process.env, PORT: String(port), NODE_ENV: 'test', THRC_DATA_ROOT: tempRoot, SESSION_SECRET: 'builder-test-secret', THRONOS_ROOT_ADMIN_PASSWORD: 'root-test', EMAIL_ENABLED: 'false' }, stdio: ['ignore', 'pipe', 'pipe'] });
   let errors = '';
@@ -171,6 +176,57 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       const order = JSON.parse(fs.readFileSync(path.join(fixture.tempRoot, 'tenants/eukolakis/orders.json'), 'utf8')).at(-1);
       assert.equal(order.items[0].builderType, undefined);
       assert.equal(order.items[0].price, 2.5);
+    });
+    await t.test('Admin hero checkboxes persist false and Eukolakis render obeys master and individual flags', async () => {
+      const loginBody = new URLSearchParams({ password: 'builder-admin' }).toString();
+      const login = await request(port, '/admin/login', { method: 'POST', body: loginBody, headers: form(loginBody) });
+      const cookie = login.headers['set-cookie'][0].split(';')[0];
+      const names = ['heroOverlayShowOverlay', 'heroOverlayShowKicker', 'heroOverlayShowTitle', 'heroOverlayShowSubtitle', 'heroOverlayShowPrimaryCta', 'heroOverlayShowSecondaryCta'];
+      const disabledParams = new URLSearchParams();
+      names.forEach((name) => disabledParams.append(name, '0'));
+      const disabledBody = disabledParams.toString();
+      const disabledSave = await request(port, '/admin/settings', { method: 'POST', body: disabledBody, headers: form(disabledBody, cookie) });
+      assert.equal(disabledSave.status, 200, fixture.errors());
+      let persisted = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+      assert.deepEqual(persisted.homepage.heroOverlay, {
+        showOverlay: false,
+        showKicker: false,
+        showTitle: false,
+        showSubtitle: false,
+        showPrimaryCta: false,
+        showSecondaryCta: false
+      });
+      const adminReload = await request(port, '/admin', { headers: { Cookie: cookie } });
+      names.forEach((name) => {
+        const checkbox = adminReload.body.match(new RegExp(`<input type="checkbox" name="${name}"[^>]*>`));
+        assert.ok(checkbox, `${name} checkbox renders after save`);
+        assert.doesNotMatch(checkbox[0], /checked/);
+      });
+      let storefront = await request(port, '/?skipIntro=1');
+      assert.equal(storefront.status, 200);
+      assert.match(storefront.body, /class="eko-hero-img" src="\/tenants\/eukolakis\/media\/hero-A\.jpg"/);
+      assert.doesNotMatch(storefront.body, /class="eko-hero-overlay"|class="eko-hero-eyebrow"|class="eko-hero-title"|class="eko-hero-subtitle"|class="eko-hero-actions"|class="eko-hero-cta/);
+
+      const titleOnlyParams = new URLSearchParams();
+      names.forEach((name) => titleOnlyParams.append(name, '0'));
+      titleOnlyParams.append('heroOverlayShowOverlay', '1');
+      titleOnlyParams.append('heroOverlayShowTitle', '1');
+      const titleOnlyBody = titleOnlyParams.toString();
+      const titleOnlySave = await request(port, '/admin/settings', { method: 'POST', body: titleOnlyBody, headers: form(titleOnlyBody, cookie) });
+      assert.equal(titleOnlySave.status, 200, fixture.errors());
+      persisted = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+      assert.deepEqual(persisted.homepage.heroOverlay, {
+        showOverlay: true,
+        showKicker: false,
+        showTitle: true,
+        showSubtitle: false,
+        showPrimaryCta: false,
+        showSecondaryCta: false
+      });
+      storefront = await request(port, '/?skipIntro=1');
+      assert.match(storefront.body, /class="eko-hero-overlay"/);
+      assert.match(storefront.body, /class="eko-hero-title">ΜΟΝΑΔΙΚΟΣ HERO ΤΙΤΛΟΣ<\/h2>/);
+      assert.doesNotMatch(storefront.body, /class="eko-hero-eyebrow"|class="eko-hero-subtitle"|class="eko-hero-actions"|class="eko-hero-cta/);
     });
     await t.test('intro dedicated and logo modes never inherit hero', async () => {
       let intro = await request(port, '/intro');

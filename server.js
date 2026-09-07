@@ -1297,6 +1297,12 @@ function loadTenantConfig(req) {
     { hero: true, kits: true, spare: true, subscriptions: true },
     (cfg.homepage && cfg.homepage.blockVisibility) || {}
   );
+  // Nested legacy defaults apply only when a flag was never stored. Explicit
+  // false values written by Admin must survive normalization and rendering.
+  cfg.homepage.heroOverlay = Object.assign(
+    { showOverlay: true, showKicker: true, showTitle: true, showSubtitle: true, showPrimaryCta: true, showSecondaryCta: true },
+    (cfg.homepage && cfg.homepage.heroOverlay) || {}
+  );
   cfg.homepage.blockContent = Object.assign(
     {
       kitsTitle: '', spareTitle: '', subscriptionsTitle: '',
@@ -5016,12 +5022,12 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
   }
   config.homepage.heroOverlay = config.homepage.heroOverlay || {};
-  config.homepage.heroOverlay.showOverlay = readCheckbox(req.body, 'heroOverlayShowOverlay', config.homepage.heroOverlay.showOverlay !== false);
-  config.homepage.heroOverlay.showKicker = readCheckbox(req.body, 'heroOverlayShowKicker', config.homepage.heroOverlay.showKicker !== false);
-  config.homepage.heroOverlay.showTitle = readCheckbox(req.body, 'heroOverlayShowTitle', config.homepage.heroOverlay.showTitle !== false);
-  config.homepage.heroOverlay.showSubtitle = readCheckbox(req.body, 'heroOverlayShowSubtitle', config.homepage.heroOverlay.showSubtitle !== false);
-  config.homepage.heroOverlay.showPrimaryCta = readCheckbox(req.body, 'heroOverlayShowPrimaryCta', config.homepage.heroOverlay.showPrimaryCta !== false);
-  config.homepage.heroOverlay.showSecondaryCta = readCheckbox(req.body, 'heroOverlayShowSecondaryCta', config.homepage.heroOverlay.showSecondaryCta !== false);
+  config.homepage.heroOverlay.showOverlay = readCheckbox(req.body, 'heroOverlayShowOverlay', false);
+  config.homepage.heroOverlay.showKicker = readCheckbox(req.body, 'heroOverlayShowKicker', false);
+  config.homepage.heroOverlay.showTitle = readCheckbox(req.body, 'heroOverlayShowTitle', false);
+  config.homepage.heroOverlay.showSubtitle = readCheckbox(req.body, 'heroOverlayShowSubtitle', false);
+  config.homepage.heroOverlay.showPrimaryCta = readCheckbox(req.body, 'heroOverlayShowPrimaryCta', false);
+  config.homepage.heroOverlay.showSecondaryCta = readCheckbox(req.body, 'heroOverlayShowSecondaryCta', false);
   config.homepage.heroPrimaryCta = config.homepage.heroPrimaryCta || {};
   if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `heroPrimaryCtaLabel_${lang}`))) {
     config.homepage.heroPrimaryCta.label = buildTranslatableFromBody(req.body, 'heroPrimaryCtaLabel', config.homepage.heroPrimaryCta.label || '');

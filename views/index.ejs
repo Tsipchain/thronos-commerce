@@ -1534,14 +1534,19 @@
         <% if (hasRealHeroImage) { %>
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
           <% if (homepage.heroMobileImage) { %><img class="eko-hero-img eko-hero-img-mobile" src="<%= homepage.heroMobileImage %>" alt="<%= heroTitleText %>" loading="eager" /><% } %>
+          <% if (_ho.showOverlay !== false) { %>
           <div class="eko-hero-overlay">
+          <% } %>
         <% } else { %>
+          <% if (_ho.showOverlay !== false) { %>
           <div class="eko-hero-no-img">
+          <% } %>
         <% } %>
-            <% if (_ho.showOverlay !== false) { %>
+          <% if (_ho.showOverlay !== false) { %>
             <% if (_ho.showKicker !== false) { %><p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p><% } %>
             <% if (_ho.showTitle !== false) { %><h2 class="eko-hero-title"><%= heroTitleText %></h2><% } %>
             <% if (_ho.showSubtitle !== false && heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
+            <% if (_ho.showPrimaryCta !== false || _ho.showSecondaryCta !== false) { %>
             <div class="eko-hero-actions">
               <% if (_ho.showPrimaryCta !== false && topPrimaryKit1) { %>
               <% const _pcLabel = resolveField(_hpc.label, lang) || (lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →'); %>
@@ -1558,6 +1563,7 @@
             </div>
             <% } %>
           </div>
+          <% } %>
       </section>
       <% } %>
       <%/* ── Eukolaki Classic industrial category tile grid ── */%>
