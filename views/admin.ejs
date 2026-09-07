@@ -905,6 +905,65 @@
           </div>
           <small class="helper">Συνιστώμενο μέγεθος: <strong>1600 × 600 px</strong>. Κρατήστε το κείμενο στο κέντρο (το mobile κόβει τα άκρα).</small>
         </label>
+        <label><span>Εικόνα hero — mobile</span>
+          <input type="text" name="homepageHeroMobileImage" value="<%= (rawConfig.homepage && rawConfig.homepage.heroMobileImage) || '' %>" placeholder="/tenants/<%= tenant.id %>/media/hero-mobile.jpg" />
+          <small class="helper">Προαιρετική εικόνα για κινητά (< 640px). Αν δεν συμπληρωθεί, χρησιμοποιείται η desktop εικόνα.</small>
+        </label>
+
+        <% const _hoAdmin = (rawConfig.homepage && rawConfig.homepage.heroOverlay) || {}; %>
+        <h4 style="margin:18px 0 8px;font-size:.88rem;">Στοιχεία Hero Overlay</h4>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;margin-bottom:8px;">
+          <input type="hidden" name="heroOverlayShowOverlay" value="0" />
+          <input type="checkbox" name="heroOverlayShowOverlay" value="1" <%= _hoAdmin.showOverlay !== false ? 'checked' : '' %> /> Εμφάνιση overlay (απενεργοποιεί όλα τα στοιχεία)
+        </label>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 16px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowKicker" value="0" />
+            <input type="checkbox" name="heroOverlayShowKicker" value="1" <%= _hoAdmin.showKicker !== false ? 'checked' : '' %> /> Kicker (eyebrow)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowTitle" value="0" />
+            <input type="checkbox" name="heroOverlayShowTitle" value="1" <%= _hoAdmin.showTitle !== false ? 'checked' : '' %> /> Τίτλος
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowSubtitle" value="0" />
+            <input type="checkbox" name="heroOverlayShowSubtitle" value="1" <%= _hoAdmin.showSubtitle !== false ? 'checked' : '' %> /> Υπότιτλος
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowPrimaryCta" value="0" />
+            <input type="checkbox" name="heroOverlayShowPrimaryCta" value="1" <%= _hoAdmin.showPrimaryCta !== false ? 'checked' : '' %> /> Primary CTA
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;">
+            <input type="hidden" name="heroOverlayShowSecondaryCta" value="0" />
+            <input type="checkbox" name="heroOverlayShowSecondaryCta" value="1" <%= _hoAdmin.showSecondaryCta !== false ? 'checked' : '' %> /> Secondary CTA
+          </label>
+        </div>
+
+        <% const _hpcAdmin = (rawConfig.homepage && rawConfig.homepage.heroPrimaryCta) || {}; %>
+        <% const _hscAdmin = (rawConfig.homepage && rawConfig.homepage.heroSecondaryCta) || {}; %>
+        <h4 style="margin:18px 0 8px;font-size:.88rem;">CTA Κουμπιά Hero</h4>
+        <label><span>Primary CTA — ετικέτα (EL / EN)</span>
+          <input type="text" name="heroPrimaryCtaLabel_el" value="<%= resolveField(_hpcAdmin.label, 'el') %>" placeholder="Ξεκίνα Roll Kit →" />
+          <input type="text" name="heroPrimaryCtaLabel_en" value="<%= resolveField(_hpcAdmin.label, 'en') %>" placeholder="Start Roll Kit →" />
+        </label>
+        <label><span>Primary CTA — ενέργεια</span>
+          <select name="heroPrimaryCtaAction">
+            <option value="kit-launch" <%= (_hpcAdmin.action || 'kit-launch') === 'kit-launch' ? 'selected' : '' %>>Άνοιγμα Kit Wizard</option>
+            <option value="link" <%= _hpcAdmin.action === 'link' ? 'selected' : '' %>>Link σε URL</option>
+          </select>
+        </label>
+        <label><span>Primary CTA — URL (μόνο αν link)</span>
+          <input type="text" name="heroPrimaryCtaUrl" value="<%= _hpcAdmin.url || '' %>" placeholder="/product/..." />
+        </label>
+        <label><span>Secondary CTA — ετικέτα (EL / EN)</span>
+          <input type="text" name="heroSecondaryCtaLabel_el" value="<%= resolveField(_hscAdmin.label, 'el') %>" placeholder="Ανταλλακτικά" />
+          <input type="text" name="heroSecondaryCtaLabel_en" value="<%= resolveField(_hscAdmin.label, 'en') %>" placeholder="Spare Parts" />
+        </label>
+        <label><span>Secondary CTA — URL</span>
+          <input type="text" name="heroSecondaryCtaUrl" value="<%= _hscAdmin.url || '' %>" placeholder="/?category=spare-parts" />
+          <small class="helper">Αν δεν συμπληρωθεί, δείχνει στην κατηγορία ανταλλακτικών.</small>
+        </label>
+
         <h3 class="settings-section-heading"><%= homepageLabels.featuredSectionTitle %></h3>
         <p class="helper"><%= homepageLabels.featuredSectionHelper %></p>
 
@@ -1043,6 +1102,18 @@
             <strong>Montage</strong>: τα στοιχεία εμφανίζονται το ένα μετά το άλλο (premium εφέ).&nbsp;
             <strong>Βίντεο</strong>: παίζει βίντεο — αν δεν έχει οριστεί URL, εμφανίζεται αυτόματα montage.
           </small>
+        </label>
+
+        <%# ── Intro image source ── %>
+        <label><span>Εικόνα εισαγωγής</span>
+          <select name="homepageIntroImageSource">
+            <option value="dedicated" <%= ((rawConfig.homepage && rawConfig.homepage.introImageSource) || 'dedicated') === 'dedicated' ? 'selected' : '' %>>Αποκλειστική εικόνα εισαγωγής</option>
+            <option value="logo" <%= (rawConfig.homepage && rawConfig.homepage.introImageSource) === 'logo' ? 'selected' : '' %>>Λογότυπο καταστήματος</option>
+          </select>
+          <small class="helper">Η εικόνα εισαγωγής είναι ανεξάρτητη από το hero. Χρησιμοποιήστε «Αποκλειστική» για ξεχωριστή εικόνα ή «Λογότυπο» για το logo.</small>
+        </label>
+        <label><span>Αποκλειστική εικόνα intro</span>
+          <input type="text" name="homepageIntroImage" value="<%= (rawConfig.homepage && rawConfig.homepage.introImage) || '' %>" placeholder="/tenants/<%= tenant.id %>/media/intro.jpg" />
         </label>
 
         <%# ── Tagline (used by basic + assembly modes) ── %>
@@ -2252,11 +2323,46 @@
       <div class="modal">
         <h3 style="margin-top:0;">KIT Builder</h3>
         <p class="helper" id="kit-builder-title"></p>
-        <p class="helper" style="margin-top:-6px;">
-          Storefront wizard mode:
+        <div style="display:flex;gap:12px;align-items:center;margin:8px 0;">
+          <label style="font-size:.82rem;font-weight:600;">Builder type:
+            <select id="kit-builder-type" style="margin-left:4px;">
+              <option value="classic">Classic wizard</option>
+              <option value="step_by_step">Step-by-step builder</option>
+            </select>
+          </label>
+          <span class="helper" style="font-size:.76rem;">Storefront wizard mode:
           <strong><%= ((config.theme && config.theme.kitWizardDisplay) || ((config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'cinematic' : 'sequential')) %></strong>
-          · change from <strong>Branding → KIT wizard display</strong>.
-        </p>
+          · change from <strong>Branding → KIT wizard display</strong>.</span>
+        </div>
+        <div id="kit-builder-config-panel" style="display:none;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-bottom:10px;background:#eff6ff;">
+          <h4 style="margin:0 0 6px;font-size:.84rem;">Builder visual config (ανεξάρτητο από Hero/Intro)</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <label style="font-size:.78rem;">Builder banner <input id="kit-bc-banner" type="text" placeholder="/tenants/.../builder-banner.jpg" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Mobile banner <input id="kit-bc-mobile-banner" type="text" placeholder="/tenants/.../builder-banner-m.jpg" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Video URL <input id="kit-bc-video" type="text" placeholder="https://..." style="width:100%;" /></label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-video" /> Show video CTA
+            </label>
+            <label style="font-size:.78rem;">Title (EL) <input id="kit-bc-title-el" type="text" placeholder="Τίτλος builder" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Subtitle (EN) <input id="kit-bc-subtitle-en" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">Helper text (EN) <input id="kit-bc-helper-en" type="text" style="width:100%;" /></label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-title" checked /> Show title
+            </label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-subtitle" checked /> Show subtitle
+            </label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-helper" checked /> Show helper text
+            </label>
+            <label style="font-size:.78rem;">
+              <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
+            </label>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <h4>Option Groups</h4>
@@ -2267,6 +2373,7 @@
               <select id="kg-type"><option value="radio">radio</option><option value="checkbox">checkbox</option></select>
               <input id="kg-order" type="number" placeholder="order" min="0" step="1" />
               <label class="checkbox-label"><input id="kg-required" type="checkbox" /><span>required</span></label>
+              <label class="checkbox-label"><input id="kg-allow-skip" type="checkbox" /><span>allow skip</span></label>
               <button class="button" type="button" id="kg-add">Add group</button>
             </div>
           </div>
@@ -3227,10 +3334,35 @@
         document.getElementById('kit-builder-title').textContent = (product.name && (product.name.el || product.name.en)) || product.id;
         const groupList = document.getElementById('kit-groups-list');
         groupList.innerHTML = product.kitOptions.map(function(g, idx) {
-          const selected = idx === kitBuilderGroupIdx ? 'background:#eef2ff;' : '';
-          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-bottom:6px;' + selected + '">' +
-            '<strong>' + escHtml(g.label || g.id) + '</strong> <small>(' + escHtml(g.inputType || 'radio') + (g.required ? ', required' : '') + ')</small>' +
-            '<div style="margin-top:4px;"><button type="button" onclick="selectKitGroup(' + idx + ')">Edit</button> <button type="button" onclick="removeKitGroup(' + idx + ')">Remove</button></div></div>';
+          const selected = idx === kitBuilderGroupIdx ? 'background:#eef2ff;border-color:#818cf8;' : '';
+          const labelEl = (g.label && typeof g.label === 'object') ? (g.label.el || '') : (g.label || '');
+          const labelEn = (g.label && typeof g.label === 'object') ? (g.label.en || '') : '';
+          const descEl = (g.description && typeof g.description === 'object') ? (g.description.el || '') : (g.description || '');
+          const descEn = (g.description && typeof g.description === 'object') ? (g.description.en || '') : '';
+          var html = '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:6px;' + selected + '">';
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+          html += '<strong>' + escHtml(labelEl || g.id) + '</strong>';
+          html += '<small style="color:#64748b;">#' + escHtml(g.id) + ' · ' + escHtml(g.inputType || 'radio') + (g.required ? ' · required' : '') + (g.allowSkip ? ' · skip' : '') + ' · ord:' + (g.order||0) + '</small>';
+          html += '</div>';
+          if (idx === kitBuilderGroupIdx) {
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;font-size:.76rem;">';
+            html += '<label>Label EL<input type="text" value="' + escHtml(labelEl) + '" onchange="editKitGroup(' + idx + ',\'label.el\',this.value)" style="width:100%;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:.76rem;" /></label>';
+            html += '<label>Label EN<input type="text" value="' + escHtml(labelEn) + '" onchange="editKitGroup(' + idx + ',\'label.en\',this.value)" style="width:100%;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:.76rem;" /></label>';
+            html += '<label>Desc EL<input type="text" value="' + escHtml(descEl) + '" onchange="editKitGroup(' + idx + ',\'description.el\',this.value)" style="width:100%;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:.76rem;" /></label>';
+            html += '<label>Desc EN<input type="text" value="' + escHtml(descEn) + '" onchange="editKitGroup(' + idx + ',\'description.en\',this.value)" style="width:100%;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:.76rem;" /></label>';
+            html += '<label>Image<input type="text" value="' + escHtml(g.image || '') + '" onchange="editKitGroup(' + idx + ',\'image\',this.value)" placeholder="/tenants/.../step.jpg" style="width:100%;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:.76rem;" /></label>';
+            html += '<label>Order<input type="number" value="' + (g.order||0) + '" onchange="editKitGroup(' + idx + ',\'order\',parseInt(this.value,10)||0)" style="width:100%;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:.76rem;" /></label>';
+            html += '<label class="checkbox-label"><input type="checkbox" ' + (g.required ? 'checked' : '') + ' onchange="editKitGroup(' + idx + ',\'required\',this.checked)" /><span>Required</span></label>';
+            html += '<label class="checkbox-label"><input type="checkbox" ' + (g.allowSkip ? 'checked' : '') + ' onchange="editKitGroup(' + idx + ',\'allowSkip\',this.checked)" /><span>Allow skip</span></label>';
+            html += '</div>';
+          }
+          html += '<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">';
+          html += '<button type="button" onclick="selectKitGroup(' + idx + ')" style="font-size:.76rem;padding:2px 8px;">Edit</button>';
+          if (idx > 0) html += '<button type="button" onclick="moveKitGroup(' + idx + ',-1)" style="font-size:.76rem;padding:2px 6px;" title="Move up">↑</button>';
+          if (idx < product.kitOptions.length - 1) html += '<button type="button" onclick="moveKitGroup(' + idx + ',1)" style="font-size:.76rem;padding:2px 6px;" title="Move down">↓</button>';
+          html += '<button type="button" onclick="removeKitGroup(' + idx + ')" style="font-size:.76rem;padding:2px 8px;color:#dc2626;">Remove</button>';
+          html += '</div></div>';
+          return html;
         }).join('');
         const preview = document.getElementById('kit-builder-preview');
         preview.innerHTML = product.kitOptions.map(function(g){
@@ -3257,9 +3389,14 @@
           const fixedVariant = fixedVariantId ? linkedVariants.find(function(v){ return v.id === fixedVariantId; }) : null;
           const linkedPrice = fixedVariant ? (Number(fixedVariant.price) || 0).toFixed(2) : (linked ? (Number(linked.price) || 0).toFixed(2) : '0.00');
           const thumb = c.image || (fixedVariant && fixedVariant.imageUrl) || (linked && linked.imageUrl) || '';
+          const isDisabled = c.enabled === false;
+          const labelEl = (c.label && typeof c.label === 'object') ? (c.label.el || '') : (c.label || '');
+          const labelEn = (c.label && typeof c.label === 'object') ? (c.label.en || '') : '';
+          const descEl = (c.description && typeof c.description === 'object') ? (c.description.el || '') : (c.description || '');
+          const descEn = (c.description && typeof c.description === 'object') ? (c.description.en || '') : '';
           const variantSelect = linkedVariants.length
-            ? ('<div style="margin-top:6px;"><label style="font-size:.74rem;color:#475569;display:block;">Variant (optional)</label>' +
-                '<select onchange="setKitChoiceVariant(' + idx + ', this.value)" style="width:100%;max-width:240px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;">' +
+            ? ('<div style="margin-top:4px;"><label style="font-size:.72rem;color:#475569;display:block;">Variant</label>' +
+                '<select onchange="setKitChoiceVariant(' + idx + ', this.value)" style="width:100%;padding:3px;border:1px solid #cbd5e1;border-radius:4px;font-size:.74rem;">' +
                 '<option value="">Customer chooses</option>' +
                 linkedVariants.map(function(v){
                   const vLabel = (v.label && (v.label.el || v.label.en)) || v.label || v.id;
@@ -3267,18 +3404,77 @@
                 }).join('') +
                 '</select></div>')
             : '';
-          return '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:6px;background:#fff;word-break:break-word;">' +
-            (thumb ? '<img src="' + escHtml(thumb) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;" />' : '<span style="display:inline-flex;width:44px;height:44px;border-radius:6px;background:#f1f5f9;align-items:center;justify-content:center;margin-right:6px;">🧩</span>') +
-            '<strong>' + escHtml(c.label || c.id) + '</strong> <small>' + escHtml(c.linkedProductId || '') + '</small>' +
-            (linked ? '<div style="font-size:.78rem;color:#334155;">' + escHtml(linkedName) + ' · ' + linkedPrice + '€</div>' : '') +
-            variantSelect +
-            '<div>Δ: ' + (Number(c.priceDelta)||0).toFixed(2) + '€ ' + (c.useLinkedPriceDelta ? '(linked)' : '') + '</div>' +
-            '<button type="button" onclick="removeKitChoice(' + idx + ')">Remove</button></div>';
+          var html = '<div style="border:1px solid ' + (isDisabled ? '#fecaca' : '#e5e7eb') + ';border-radius:6px;padding:8px;margin-bottom:6px;background:' + (isDisabled ? '#fef2f2' : '#fff') + ';word-break:break-word;' + (isDisabled ? 'opacity:.6;' : '') + '">';
+          html += '<div style="display:flex;gap:6px;align-items:flex-start;">';
+          html += (thumb ? '<img src="' + escHtml(thumb) + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0;" />' : '<span style="display:inline-flex;width:44px;height:44px;border-radius:6px;background:#f1f5f9;align-items:center;justify-content:center;flex-shrink:0;">&#x1F9E9;</span>');
+          html += '<div style="flex:1;min-width:0;">';
+          html += '<strong>' + escHtml(labelEl || c.id) + '</strong> <small style="color:#94a3b8;">#' + escHtml(c.id) + '</small>';
+          if (linked) html += '<div style="font-size:.76rem;color:#334155;">' + escHtml(linkedName) + ' · ' + linkedPrice + '€</div>';
+          html += '</div></div>';
+          html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:6px;font-size:.72rem;">';
+          html += '<label>Label EL<input type="text" value="' + escHtml(labelEl) + '" onchange="editKitChoice(' + idx + ',\'label.el\',this.value)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label>Label EN<input type="text" value="' + escHtml(labelEn) + '" onchange="editKitChoice(' + idx + ',\'label.en\',this.value)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label>Desc EL<input type="text" value="' + escHtml(descEl) + '" onchange="editKitChoice(' + idx + ',\'description.el\',this.value)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label>Desc EN<input type="text" value="' + escHtml(descEn) + '" onchange="editKitChoice(' + idx + ',\'description.en\',this.value)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label>Image<input type="text" value="' + escHtml(c.image || '') + '" onchange="editKitChoice(' + idx + ',\'image\',this.value)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label>Price Δ<input type="number" step="0.01" value="' + (Number(c.priceDelta)||0).toFixed(2) + '" onchange="editKitChoice(' + idx + ',\'priceDelta\',parseFloat(this.value)||0)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label>SKU<input type="text" value="' + escHtml(c.sku || '') + '" onchange="editKitChoice(' + idx + ',\'sku\',this.value)" style="width:100%;padding:2px 4px;border:1px solid #cbd5e1;border-radius:3px;font-size:.72rem;" /></label>';
+          html += '<label class="checkbox-label" style="font-size:.72rem;"><input type="checkbox" ' + (c.useLinkedPriceDelta ? 'checked' : '') + ' onchange="editKitChoice(' + idx + ',\'useLinkedPriceDelta\',this.checked)" /><span>Use linked Δ</span></label>';
+          html += '</div>';
+          variantSelect && (html += variantSelect);
+          html += '<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">';
+          if (idx > 0) html += '<button type="button" onclick="moveKitChoice(' + idx + ',-1)" style="font-size:.72rem;padding:1px 5px;" title="Move up">&#8593;</button>';
+          if (idx < group.choices.length - 1) html += '<button type="button" onclick="moveKitChoice(' + idx + ',1)" style="font-size:.72rem;padding:1px 5px;" title="Move down">&#8595;</button>';
+          html += '<label class="checkbox-label" style="font-size:.72rem;margin-left:auto;"><input type="checkbox" ' + (c.enabled !== false ? 'checked' : '') + ' onchange="editKitChoice(' + idx + ',\'enabled\',this.checked)" /><span>Enabled</span></label>';
+          html += '<button type="button" onclick="removeKitChoice(' + idx + ')" style="font-size:.72rem;padding:1px 6px;color:#dc2626;">Remove</button>';
+          html += '</div></div>';
+          return html;
         }).join('') || '<em>No choices yet.</em>';
       }
       window.selectKitGroup = function(idx) { kitBuilderGroupIdx = idx; renderKitBuilder(); };
-      window.removeKitGroup = function(idx) { products[kitBuilderIdx].kitOptions.splice(idx, 1); if (kitBuilderGroupIdx === idx) kitBuilderGroupIdx = -1; renderKitBuilder(); };
+      window.removeKitGroup = function(idx) { products[kitBuilderIdx].kitOptions.splice(idx, 1); if (kitBuilderGroupIdx === idx) kitBuilderGroupIdx = -1; else if (kitBuilderGroupIdx > idx) kitBuilderGroupIdx -= 1; renderKitBuilder(); };
+      window.moveKitGroup = function(idx, dir) {
+        var opts = products[kitBuilderIdx].kitOptions;
+        var target = idx + dir;
+        if (target < 0 || target >= opts.length) return;
+        var tmp = opts[idx]; opts[idx] = opts[target]; opts[target] = tmp;
+        opts[idx].order = idx; opts[target].order = target;
+        if (kitBuilderGroupIdx === idx) kitBuilderGroupIdx = target;
+        else if (kitBuilderGroupIdx === target) kitBuilderGroupIdx = idx;
+        renderKitBuilder();
+      };
+      window.editKitGroup = function(idx, path, value) {
+        var g = products[kitBuilderIdx].kitOptions[idx];
+        if (!g) return;
+        var parts = path.split('.');
+        if (parts.length === 2) {
+          if (!g[parts[0]] || typeof g[parts[0]] !== 'object') g[parts[0]] = {};
+          g[parts[0]][parts[1]] = value;
+        } else {
+          g[parts[0]] = value;
+        }
+        renderKitBuilder();
+      };
       window.removeKitChoice = function(idx) { products[kitBuilderIdx].kitOptions[kitBuilderGroupIdx].choices.splice(idx, 1); renderKitBuilder(); };
+      window.moveKitChoice = function(idx, dir) {
+        var choices = products[kitBuilderIdx].kitOptions[kitBuilderGroupIdx].choices;
+        var target = idx + dir;
+        if (target < 0 || target >= choices.length) return;
+        var tmp = choices[idx]; choices[idx] = choices[target]; choices[target] = tmp;
+        renderKitBuilder();
+      };
+      window.editKitChoice = function(idx, path, value) {
+        var c = products[kitBuilderIdx].kitOptions[kitBuilderGroupIdx].choices[idx];
+        if (!c) return;
+        var parts = path.split('.');
+        if (parts.length === 2) {
+          if (!c[parts[0]] || typeof c[parts[0]] !== 'object') c[parts[0]] = {};
+          c[parts[0]][parts[1]] = value;
+        } else {
+          c[parts[0]] = value;
+        }
+        renderKitBuilder();
+      };
       window.setKitChoiceVariant = function(idx, value) {
         const product = products[kitBuilderIdx];
         const group = product && product.kitOptions && product.kitOptions[kitBuilderGroupIdx];
@@ -3290,9 +3486,67 @@
         if (!products[i] || products[i].type !== 'KIT') return;
         kitBuilderIdx = i;
         kitBuilderGroupIdx = -1;
+        var p = products[i];
+        var btSel = document.getElementById('kit-builder-type');
+        btSel.value = p.builderType || 'classic';
+        syncBuilderConfigPanel(p);
         openKitBuilderModal();
         renderKitBuilder();
       };
+      function syncBuilderConfigPanel(p) {
+        var panel = document.getElementById('kit-builder-config-panel');
+        var isSbs = (p.builderType === 'step_by_step');
+        panel.style.display = isSbs ? '' : 'none';
+        var bc = p.builderConfig || {};
+        document.getElementById('kit-bc-banner').value = bc.bannerImage || '';
+        document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
+        document.getElementById('kit-bc-video').value = bc.videoUrl || '';
+        document.getElementById('kit-bc-show-video').checked = bc.showVideo !== false;
+        document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
+        document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
+        document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
+        document.getElementById('kit-bc-subtitle-en').value = (bc.subtitle && bc.subtitle.en) || '';
+        document.getElementById('kit-bc-helper-el').value = (bc.helperText && typeof bc.helperText === 'object') ? (bc.helperText.el || '') : (bc.helperText || '');
+        document.getElementById('kit-bc-helper-en').value = (bc.helperText && typeof bc.helperText === 'object') ? (bc.helperText.en || '') : '';
+        document.getElementById('kit-bc-show-title').checked = bc.showTitle !== false;
+        document.getElementById('kit-bc-show-subtitle').checked = bc.showSubtitle !== false;
+        document.getElementById('kit-bc-show-helper').checked = bc.showHelperText !== false;
+        document.getElementById('kit-bc-show-trust').checked = bc.showTrustRow !== false;
+      }
+      document.getElementById('kit-builder-type').addEventListener('change', function() {
+        if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+        products[kitBuilderIdx].builderType = this.value;
+        syncBuilderConfigPanel(products[kitBuilderIdx]);
+      });
+      (function() {
+        var bcFields = ['kit-bc-banner','kit-bc-mobile-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el','kit-bc-helper-en'];
+        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText.el', 'kit-bc-helper-en':'helperText.en' };
+        bcFields.forEach(function(fId) {
+          document.getElementById(fId).addEventListener('input', function() {
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            if (!p.builderConfig) p.builderConfig = {};
+            var path = bcMap[fId];
+            var parts = path.split('.');
+            if (parts.length === 2) {
+              if (!p.builderConfig[parts[0]]) p.builderConfig[parts[0]] = {};
+              p.builderConfig[parts[0]][parts[1]] = this.value;
+            } else {
+              p.builderConfig[parts[0]] = this.value;
+            }
+          });
+        });
+        var showFlags = {'kit-bc-show-video':'showVideo','kit-bc-show-title':'showTitle','kit-bc-show-subtitle':'showSubtitle','kit-bc-show-helper':'showHelperText','kit-bc-show-trust':'showTrustRow'};
+        Object.keys(showFlags).forEach(function(fId) {
+          var key = showFlags[fId];
+          document.getElementById(fId).addEventListener('change', function() {
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            if (!p.builderConfig) p.builderConfig = {};
+            p.builderConfig[key] = this.checked;
+          });
+        });
+      })();
       window.makeProductKit = function(i) {
         const existing = products[i];
         if (!existing) return;
@@ -3322,20 +3576,16 @@
         const gid = (document.getElementById('kg-id').value || '').trim();
         if (!gid) return alert('Group id required');
         product.kitOptions = Array.isArray(product.kitOptions) ? product.kitOptions : [];
+        var isRequired = document.getElementById('kg-required').checked;
+        var allowSkip = document.getElementById('kg-allow-skip').checked;
         product.kitOptions.push({
           id: gid,
           label: (document.getElementById('kg-label').value || gid).trim(),
-          required: document.getElementById('kg-required').checked,
+          required: isRequired,
+          allowSkip: !isRequired && allowSkip,
           inputType: (document.getElementById('kg-type').value === 'checkbox' ? 'checkbox' : suggestGroupTypeById(gid)),
           order: parseInt(document.getElementById('kg-order').value, 10) || 0,
-          choices: document.getElementById('kg-required').checked ? [] : [{
-            id: 'skip',
-            label: 'Δεν το χρειάζομαι / Το έχω ήδη',
-            description: '',
-            image: '',
-            linkedProductId: '',
-            priceDelta: 0
-          }]
+          choices: []
         });
         kitBuilderGroupIdx = product.kitOptions.length - 1;
         renderKitBuilder();

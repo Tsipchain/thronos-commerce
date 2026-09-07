@@ -2,7 +2,7 @@
 <%# Include this in any storefront page EXCEPT /checkout.                     %>
 <style>
   #floating-cart {
-    position: fixed; right: 24px; bottom: 24px; z-index: 900;
+    position: fixed; right: 24px; bottom: 24px; z-index: 1200;
     width: 52px; height: 52px; border-radius: 50%;
     background: var(--primary-color, #4f46e5); color: #fff;
     display: flex; align-items: center; justify-content: center;
@@ -17,7 +17,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   #cart-panel {
-    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 901;
+    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 1201;
     width: 300px; background: #fff; border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,.18); padding: 16px;
   }
@@ -122,6 +122,7 @@
       savePos(nl, nt);
       if (Math.abs(cx - startX) < 4 && Math.abs(cy - startY) < 4) {
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        if (panel.style.display === 'block') document.dispatchEvent(new CustomEvent('thrc:cart-open'));
       }
     }
 
@@ -201,7 +202,14 @@
         itemsEl.innerHTML = cart.map(function(item) {
           const safeId   = String(item.id).replace(/'/g, "\\'");
           const safeName = (item.name || '?').replace(/</g, '&lt;');
-          const optionSummary = item.optionSummary ? '<small style=\"display:block;color:#6b7280;\">' + String(item.optionSummary).replace(/</g,'&lt;') + '</small>' : '';
+          const snapshotSteps = item.builderSnapshot && Array.isArray(item.builderSnapshot.steps)
+            ? item.builderSnapshot.steps.map(function(step) {
+                const title = String(step.stepTitle || '').replace(/</g, '&lt;');
+                const choice = String(step.skipped ? '<%= lang === "el" ? "Παράλειψη" : "Skipped" %>' : (step.optionTitle || '')).replace(/</g, '&lt;');
+                return '<small style="display:block;color:#6b7280;"><strong>' + title + '</strong><br>' + choice + '</small>';
+              }).join('')
+            : '';
+          const optionSummary = snapshotSteps || (item.optionSummary ? '<small style=\"display:block;color:#6b7280;\">' + String(item.optionSummary).replace(/</g,'&lt;') + '</small>' : '');
           return '<li>' +
             '<span class="ci-name">' + safeName + optionSummary + ' &times;' + (item.qty || 1) + '</span>' +
             '<span class="ci-price">' + ((item.price || 0) * (item.qty || 1)).toFixed(2) + ' &euro;</span>' +
@@ -227,6 +235,7 @@
       saveCart(cart);
       renderCart();
       panel.style.display = 'block';
+      document.dispatchEvent(new CustomEvent('thrc:cart-open'));
     };
 
     window.thrcRemoveFromCart = function(id) { removeItem(id); };
