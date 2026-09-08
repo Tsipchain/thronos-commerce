@@ -2503,6 +2503,7 @@
           }).sort().join('&');
           if (window.thrcAddToCart) {
             if (state.product.kitPayMode === 'parts_only') {
+              const atomicCartKey = cartKey + '::summary';
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
                 const linked = catalogById[opt.linkedProductId];
                 if (linked) {
@@ -2516,7 +2517,8 @@
                     imageUrl: (variant && variant.imageUrl) || linked.imageUrl || '',
                     variantId: variant ? variant.id : undefined,
                     variantLabel: variant ? (variant.label || variant.id) : undefined,
-                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId + (opt.selectedVariantId ? (':' + opt.selectedVariantId) : '')
+                    cartKey: atomicCartKey + '::component:' + opt.groupId,
+                    sourceKitCartKey: atomicCartKey
                   });
                 }
               });
@@ -2528,7 +2530,7 @@
                 selectedOptions: selected,
                 optionSummary: optionSummary || undefined,
                 finalUnitPrice: 0,
-                cartKey: cartKey + '::summary',
+                cartKey: atomicCartKey,
                 isKitSummary: true
               });
             } else {
@@ -2809,13 +2811,15 @@
           };
           if (window.thrcAddToCart) {
             if (sbsState.product.kitPayMode === 'parts_only') {
+              var atomicCartKey = cartKey + '::summary';
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
                 var linked = catalogById[opt.linkedProductId];
                 if (linked) {
                   window.thrcAddToCart({
                     id: linked.id, name: resolveF(linked.name),
                     price: Number(linked.price) || 0, imageUrl: linked.imageUrl || '',
-                    cartKey: linked.id + '::from-kit:' + sbsState.product.id + ':' + opt.groupId,
+                    cartKey: atomicCartKey + '::component:' + opt.groupId,
+                    sourceKitCartKey: atomicCartKey,
                     sourceKitId: sbsState.product.id, sourceKitOption: opt.groupLabel + ': ' + opt.choiceLabel
                   });
                 }
@@ -2824,7 +2828,7 @@
                 id: sbsState.product.id, name: resolveF(sbsState.product.name) + ' (summary)',
                 price: 0, imageUrl: sbsState.product.imageUrl || '',
                 selectedOptions: selected, optionSummary: optionSummary,
-                finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true,
+                finalUnitPrice: 0, cartKey: atomicCartKey, isKitSummary: true,
                 builderType: 'step_by_step', builderSnapshot: snapshot
               });
             } else {

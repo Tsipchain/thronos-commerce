@@ -133,6 +133,21 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       assert.equal(canonical.total, 14.5);
       assert.doesNotMatch(JSON.stringify(canonical), /FORGED CLIENT LABEL|forged-client-label/);
     });
+    await t.test('loose product quantity survives the server session and checkout uses canonical unit price', async () => {
+      const snapshotBody = JSON.stringify({ items: [{ id: 'part-disc-145', qty: 2, price: 0.01 }] });
+      const saved = await request(port, '/api/checkout/cart-snapshot', { method: 'POST', body: snapshotBody, headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(snapshotBody) } });
+      assert.equal(saved.status, 200);
+      const cookie = saved.headers['set-cookie'][0].split(';')[0];
+      const body = checkoutBody([]);
+      const checkedOut = await request(port, '/checkout', { method: 'POST', body, headers: form(body, cookie) });
+      assert.equal(checkedOut.status, 303, fixture.errors());
+      const order = JSON.parse(fs.readFileSync(path.join(fixture.tempRoot, 'tenants/eukolakis/orders.json'), 'utf8')).at(-1);
+      assert.equal(order.items[0].id, 'part-disc-145');
+      assert.equal(order.items[0].qty, 2);
+      assert.equal(order.items[0].price, 4.5);
+      assert.equal(order.items[0].builderSnapshot, undefined);
+      assert.equal(order.subtotalBeforeDiscount, 9);
+    });
     await t.test('historical order snapshot survives builder mutation', () => {
       const original = structuredClone(purchasedOrder.items.find((entry) => entry.builderSnapshot).builderSnapshot);
       const products = JSON.parse(fs.readFileSync(productsFile, 'utf8'));
