@@ -43,7 +43,7 @@
       <% } else if (product.stock !== 0) { %>
         <a class="button" data-exposure-link href="<%= withTenantLink('/product/' + product.id, lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.viewProduct') %></a>
         <button class="btn-cart" type="button"
-          onclick="window.thrcAddToCart && window.thrcAddToCart({id:'<%= product.id %>',name:'<%= product.name.replace(/'/g,"\\'") %>',price:<%= Number(product.price) || 0 %>,imageUrl:'<%= (product.imageUrl||'').replace(/'/g,"\\'") %>'})">
+          onclick="window.thrcAddToCart && window.thrcAddToCart({id:'<%= product.id %>',name:'<%= product.name.replace(/'/g,"\\'") %>',price:<%= Number(product.price) || 0 %>,stock:<%= Number.isFinite(Number(product.stock)) ? Number(product.stock) : 'null' %>,imageUrl:'<%= (product.imageUrl||'').replace(/'/g,"\\'") %>'})">
           <%= t('storefront.addToCart') %>
         </button>
       <% } else { %>
