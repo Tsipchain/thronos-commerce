@@ -4,6 +4,11 @@
     "type": "KIT",
     "builderType": "step_by_step",
     "builderConfig": {
+      "logoImage": "",
+      "mobileLogoImage": "",
+      "showLogo": true,
+      "logoPosition": "left",
+      "logoSize": "medium",
       "bannerImage": "/tenants/eukolakis/media/kits/roll-main.jpg",
       "mobileBannerImage": "",
       "videoUrl": "",
@@ -19,8 +24,52 @@
         "el": "Κάθε βήμα αντιστοιχεί σε ένα μέρος της κατασκευής. Διάλεξε ό,τι ταιριάζει στις διαστάσεις σου.",
         "en": "Each step corresponds to a part of the build. Choose what fits your dimensions."
       },
+      "slogan": {
+        "el": "ΦΤΙΑΞ' ΤΟ ΜΟΝΟΣ ΣΟΥ!",
+        "en": "DO IT YOURSELF!"
+      },
+      "sloganSecondary": {
+        "el": "Το ρολό στα χέρια σου!",
+        "en": "Your shutter in your hands!"
+      },
+      "showSlogan": true,
       "showVideo": false,
-      "showTrustRow": true
+      "showTrustRow": true,
+      "showVideoCTA": false,
+      "videoCTATitle": {
+        "el": "Δες το βίντεο εγκατάστασης",
+        "en": "Watch the installation video"
+      },
+      "videoCTASubtitle": {
+        "el": "Βήμα-βήμα η τοποθέτηση",
+        "en": "Step-by-step installation guide"
+      },
+      "benefits": [
+        {
+          "icon": "tools",
+          "title": { "el": "Εύκολη εγκατάσταση", "en": "Easy installation" },
+          "enabled": true
+        },
+        {
+          "icon": "quality",
+          "title": { "el": "Ποιοτικά εξαρτήματα", "en": "Quality components" },
+          "enabled": true
+        },
+        {
+          "icon": "delivery",
+          "title": { "el": "Άμεση αποστολή", "en": "Fast delivery" },
+          "enabled": true
+        }
+      ],
+      "trustItems": [
+        { "title": { "el": "Ασφαλείς συναλλαγές", "en": "Secure payments" }, "icon": "shield" },
+        { "title": { "el": "Γρήγορη παράδοση", "en": "Fast delivery" }, "icon": "delivery" },
+        { "title": { "el": "Ελληνική υποστήριξη", "en": "Greek support" }, "icon": "support" }
+      ],
+      "summarySubtitle": {
+        "el": "Το δικό σου EUKOLAKI DIY Roll Kit",
+        "en": "Your EUKOLAKI DIY Roll Kit"
+      }
     },
     "kitPayMode": "parts_only",
     "name": {

@@ -2327,32 +2327,119 @@
         </div>
         <div id="kit-builder-config-panel" style="display:none;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-bottom:10px;background:#eff6ff;">
           <h4 style="margin:0 0 6px;font-size:.84rem;">Builder visual config (ανεξάρτητο από Hero/Intro)</h4>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <label style="font-size:.78rem;">Builder banner <input id="kit-bc-banner" type="text" placeholder="/tenants/.../builder-banner.jpg" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Mobile banner <input id="kit-bc-mobile-banner" type="text" placeholder="/tenants/.../builder-banner-m.jpg" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Video URL <input id="kit-bc-video" type="text" placeholder="https://..." style="width:100%;" /></label>
-            <label style="font-size:.78rem;">
-              <input type="checkbox" id="kit-bc-show-video" /> Show video CTA
-            </label>
-            <label style="font-size:.78rem;">Title (EL) <input id="kit-bc-title-el" type="text" placeholder="Τίτλος builder" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Subtitle (EN) <input id="kit-bc-subtitle-en" type="text" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">Helper text (EN) <input id="kit-bc-helper-en" type="text" style="width:100%;" /></label>
-            <label style="font-size:.78rem;">
-              <input type="checkbox" id="kit-bc-show-title" checked /> Show title
-            </label>
-            <label style="font-size:.78rem;">
-              <input type="checkbox" id="kit-bc-show-subtitle" checked /> Show subtitle
-            </label>
-            <label style="font-size:.78rem;">
-              <input type="checkbox" id="kit-bc-show-helper" checked /> Show helper text
-            </label>
-            <label style="font-size:.78rem;">
-              <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
-            </label>
-          </div>
+
+          <details open style="margin-bottom:8px;">
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">A. Branding (Logo)</summary>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+              <label style="font-size:.78rem;">Builder logo <input id="kit-bc-logo" type="text" placeholder="/tenants/.../builder-logo.png" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Mobile logo <input id="kit-bc-mobile-logo" type="text" placeholder="/tenants/.../builder-logo-m.png" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-logo" checked /> Show logo
+              </label>
+              <label style="font-size:.78rem;">Position
+                <select id="kit-bc-logo-position" style="width:100%;">
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </label>
+              <label style="font-size:.78rem;">Size
+                <select id="kit-bc-logo-size" style="width:100%;">
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details open style="margin-bottom:8px;">
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">B. Hero / Banner</summary>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+              <label style="font-size:.78rem;">Builder banner <input id="kit-bc-banner" type="text" placeholder="/tenants/.../builder-banner.jpg" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Mobile banner <input id="kit-bc-mobile-banner" type="text" placeholder="/tenants/.../builder-banner-m.jpg" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Title (EL) <input id="kit-bc-title-el" type="text" placeholder="Τίτλος builder" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Subtitle (EN) <input id="kit-bc-subtitle-en" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Helper text (EL) <input id="kit-bc-helper-el" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Helper text (EN) <input id="kit-bc-helper-en" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Slogan (EL) <input id="kit-bc-slogan-el" type="text" placeholder="Banner slogan EL" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Slogan (EN) <input id="kit-bc-slogan-en" type="text" placeholder="Banner slogan EN" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Secondary slogan (EL) <input id="kit-bc-slogan2-el" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Secondary slogan (EN) <input id="kit-bc-slogan2-en" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-title" checked /> Show title
+              </label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-subtitle" checked /> Show subtitle
+              </label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-helper" checked /> Show helper text
+              </label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-slogan" checked /> Show slogan
+              </label>
+            </div>
+          </details>
+
+          <details style="margin-bottom:8px;">
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">C. Benefits strip</summary>
+            <div style="margin-top:4px;">
+              <div id="kit-bc-benefits-list" style="font-size:.78rem;"></div>
+              <div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:4px;margin-top:4px;align-items:end;">
+                <label style="font-size:.76rem;">Icon
+                  <select id="kit-bc-benefit-icon" style="width:100%;">
+                    <option value="tools">tools</option>
+                    <option value="quality">quality</option>
+                    <option value="delivery">delivery</option>
+                    <option value="shield">shield</option>
+                    <option value="support">support</option>
+                  </select>
+                </label>
+                <label style="font-size:.76rem;">Title EL <input id="kit-bc-benefit-el" type="text" style="width:100%;" /></label>
+                <label style="font-size:.76rem;">Title EN <input id="kit-bc-benefit-en" type="text" style="width:100%;" /></label>
+                <button class="button" type="button" id="kit-bc-benefit-add" style="font-size:.76rem;padding:2px 8px;">Add</button>
+              </div>
+            </div>
+          </details>
+
+          <details style="margin-bottom:8px;">
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">D. Summary / Trust / Video CTA</summary>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+              <label style="font-size:.78rem;">Summary subtitle (EL) <input id="kit-bc-summary-sub-el" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Summary subtitle (EN) <input id="kit-bc-summary-sub-en" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
+              </label>
+              <label style="font-size:.78rem;">
+                <input type="checkbox" id="kit-bc-show-video" /> Show video CTA
+              </label>
+              <label style="font-size:.78rem;">Video URL <input id="kit-bc-video" type="text" placeholder="https://..." style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Video CTA title (EL) <input id="kit-bc-vcta-title-el" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Video CTA title (EN) <input id="kit-bc-vcta-title-en" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Video CTA subtitle (EL) <input id="kit-bc-vcta-sub-el" type="text" style="width:100%;" /></label>
+              <label style="font-size:.78rem;">Video CTA subtitle (EN) <input id="kit-bc-vcta-sub-en" type="text" style="width:100%;" /></label>
+            </div>
+            <div style="margin-top:6px;">
+              <span style="font-size:.78rem;font-weight:600;">Trust items</span>
+              <div id="kit-bc-trust-list" style="font-size:.78rem;"></div>
+              <div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:4px;margin-top:4px;align-items:end;">
+                <label style="font-size:.76rem;">Icon
+                  <select id="kit-bc-trust-icon" style="width:100%;">
+                    <option value="tools">tools</option>
+                    <option value="quality">quality</option>
+                    <option value="delivery">delivery</option>
+                    <option value="shield">shield</option>
+                    <option value="support">support</option>
+                  </select>
+                </label>
+                <label style="font-size:.76rem;">Title EL <input id="kit-bc-trust-el" type="text" style="width:100%;" /></label>
+                <label style="font-size:.76rem;">Title EN <input id="kit-bc-trust-en" type="text" style="width:100%;" /></label>
+                <button class="button" type="button" id="kit-bc-trust-add" style="font-size:.76rem;padding:2px 8px;">Add</button>
+              </div>
+            </div>
+          </details>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
@@ -3489,20 +3576,90 @@
         var isSbs = (p.builderType === 'step_by_step');
         panel.style.display = isSbs ? '' : 'none';
         var bc = p.builderConfig || {};
+        document.getElementById('kit-bc-logo').value = bc.logoImage || '';
+        document.getElementById('kit-bc-mobile-logo').value = bc.mobileLogoImage || '';
+        document.getElementById('kit-bc-show-logo').checked = bc.showLogo !== false;
+        document.getElementById('kit-bc-logo-position').value = bc.logoPosition || 'left';
+        document.getElementById('kit-bc-logo-size').value = bc.logoSize || 'medium';
         document.getElementById('kit-bc-banner').value = bc.bannerImage || '';
         document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
         document.getElementById('kit-bc-video').value = bc.videoUrl || '';
-        document.getElementById('kit-bc-show-video').checked = bc.showVideo !== false;
+        document.getElementById('kit-bc-show-video').checked = bc.showVideoCTA === true;
         document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
         document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
         document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
         document.getElementById('kit-bc-subtitle-en').value = (bc.subtitle && bc.subtitle.en) || '';
         document.getElementById('kit-bc-helper-el').value = (bc.helperText && typeof bc.helperText === 'object') ? (bc.helperText.el || '') : (bc.helperText || '');
         document.getElementById('kit-bc-helper-en').value = (bc.helperText && typeof bc.helperText === 'object') ? (bc.helperText.en || '') : '';
+        document.getElementById('kit-bc-slogan-el').value = (bc.slogan && bc.slogan.el) || '';
+        document.getElementById('kit-bc-slogan-en').value = (bc.slogan && bc.slogan.en) || '';
+        document.getElementById('kit-bc-slogan2-el').value = (bc.sloganSecondary && bc.sloganSecondary.el) || '';
+        document.getElementById('kit-bc-slogan2-en').value = (bc.sloganSecondary && bc.sloganSecondary.en) || '';
         document.getElementById('kit-bc-show-title').checked = bc.showTitle !== false;
         document.getElementById('kit-bc-show-subtitle').checked = bc.showSubtitle !== false;
         document.getElementById('kit-bc-show-helper').checked = bc.showHelperText !== false;
+        document.getElementById('kit-bc-show-slogan').checked = bc.showSlogan !== false;
         document.getElementById('kit-bc-show-trust').checked = bc.showTrustRow !== false;
+        document.getElementById('kit-bc-summary-sub-el').value = (bc.summarySubtitle && bc.summarySubtitle.el) || '';
+        document.getElementById('kit-bc-summary-sub-en').value = (bc.summarySubtitle && bc.summarySubtitle.en) || '';
+        document.getElementById('kit-bc-vcta-title-el').value = (bc.videoCTATitle && bc.videoCTATitle.el) || '';
+        document.getElementById('kit-bc-vcta-title-en').value = (bc.videoCTATitle && bc.videoCTATitle.en) || '';
+        document.getElementById('kit-bc-vcta-sub-el').value = (bc.videoCTASubtitle && bc.videoCTASubtitle.el) || '';
+        document.getElementById('kit-bc-vcta-sub-en').value = (bc.videoCTASubtitle && bc.videoCTASubtitle.en) || '';
+        renderBenefitsList(bc);
+        renderTrustList(bc);
+      }
+      function renderBenefitsList(bc) {
+        var cont = document.getElementById('kit-bc-benefits-list');
+        var arr = Array.isArray(bc.benefits) ? bc.benefits : [];
+        cont.innerHTML = arr.map(function(b, i) {
+          var tEl = (b.title && b.title.el) || '';
+          var tEn = (b.title && b.title.en) || '';
+          return '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;">' +
+            '<span style="font-size:.74rem;background:#dbeafe;padding:1px 4px;border-radius:3px;">' + (b.icon || 'tools') + '</span>' +
+            '<span>' + tEl + ' / ' + tEn + '</span>' +
+            '<label style="margin-left:auto;font-size:.74rem;"><input type="checkbox" data-benefit-idx="' + i + '" ' + (b.enabled !== false ? 'checked' : '') + ' /> on</label>' +
+            '<button type="button" data-benefit-rm="' + i + '" style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;">x</button></div>';
+        }).join('');
+        cont.querySelectorAll('[data-benefit-idx]').forEach(function(cb) {
+          cb.addEventListener('change', function() {
+            var idx = parseInt(this.getAttribute('data-benefit-idx'));
+            var p = products[kitBuilderIdx]; if (!p) return;
+            if (!p.builderConfig) p.builderConfig = {};
+            if (!Array.isArray(p.builderConfig.benefits)) p.builderConfig.benefits = [];
+            if (p.builderConfig.benefits[idx]) p.builderConfig.benefits[idx].enabled = this.checked;
+          });
+        });
+        cont.querySelectorAll('[data-benefit-rm]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-benefit-rm'));
+            var p = products[kitBuilderIdx]; if (!p) return;
+            if (!p.builderConfig) p.builderConfig = {};
+            if (Array.isArray(p.builderConfig.benefits)) p.builderConfig.benefits.splice(idx, 1);
+            renderBenefitsList(p.builderConfig);
+          });
+        });
+      }
+      function renderTrustList(bc) {
+        var cont = document.getElementById('kit-bc-trust-list');
+        var arr = Array.isArray(bc.trustItems) ? bc.trustItems : [];
+        cont.innerHTML = arr.map(function(t, i) {
+          var tEl = (t.title && t.title.el) || '';
+          var tEn = (t.title && t.title.en) || '';
+          return '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;">' +
+            '<span style="font-size:.74rem;background:#dbeafe;padding:1px 4px;border-radius:3px;">' + (t.icon || 'shield') + '</span>' +
+            '<span>' + tEl + ' / ' + tEn + '</span>' +
+            '<button type="button" data-trust-rm="' + i + '" style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;">x</button></div>';
+        }).join('');
+        cont.querySelectorAll('[data-trust-rm]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-trust-rm'));
+            var p = products[kitBuilderIdx]; if (!p) return;
+            if (!p.builderConfig) p.builderConfig = {};
+            if (Array.isArray(p.builderConfig.trustItems)) p.builderConfig.trustItems.splice(idx, 1);
+            renderTrustList(p.builderConfig);
+          });
+        });
       }
       document.getElementById('kit-builder-type').addEventListener('change', function() {
         if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
@@ -3510,9 +3667,19 @@
         syncBuilderConfigPanel(products[kitBuilderIdx]);
       });
       (function() {
-        var bcFields = ['kit-bc-banner','kit-bc-mobile-banner','kit-bc-video','kit-bc-title-el','kit-bc-title-en','kit-bc-subtitle-el','kit-bc-subtitle-en','kit-bc-helper-el','kit-bc-helper-en'];
-        var bcMap = { 'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl', 'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en', 'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en', 'kit-bc-helper-el':'helperText.el', 'kit-bc-helper-en':'helperText.en' };
-        bcFields.forEach(function(fId) {
+        var bcMap = {
+          'kit-bc-logo':'logoImage', 'kit-bc-mobile-logo':'mobileLogoImage',
+          'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl',
+          'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en',
+          'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en',
+          'kit-bc-helper-el':'helperText.el', 'kit-bc-helper-en':'helperText.en',
+          'kit-bc-slogan-el':'slogan.el', 'kit-bc-slogan-en':'slogan.en',
+          'kit-bc-slogan2-el':'sloganSecondary.el', 'kit-bc-slogan2-en':'sloganSecondary.en',
+          'kit-bc-summary-sub-el':'summarySubtitle.el', 'kit-bc-summary-sub-en':'summarySubtitle.en',
+          'kit-bc-vcta-title-el':'videoCTATitle.el', 'kit-bc-vcta-title-en':'videoCTATitle.en',
+          'kit-bc-vcta-sub-el':'videoCTASubtitle.el', 'kit-bc-vcta-sub-en':'videoCTASubtitle.en'
+        };
+        Object.keys(bcMap).forEach(function(fId) {
           document.getElementById(fId).addEventListener('input', function() {
             if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
             var p = products[kitBuilderIdx];
@@ -3527,7 +3694,21 @@
             }
           });
         });
-        var showFlags = {'kit-bc-show-video':'showVideo','kit-bc-show-title':'showTitle','kit-bc-show-subtitle':'showSubtitle','kit-bc-show-helper':'showHelperText','kit-bc-show-trust':'showTrustRow'};
+        var selectMap = { 'kit-bc-logo-position':'logoPosition', 'kit-bc-logo-size':'logoSize' };
+        Object.keys(selectMap).forEach(function(fId) {
+          document.getElementById(fId).addEventListener('change', function() {
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            if (!p.builderConfig) p.builderConfig = {};
+            p.builderConfig[selectMap[fId]] = this.value;
+          });
+        });
+        var showFlags = {
+          'kit-bc-show-logo':'showLogo', 'kit-bc-show-slogan':'showSlogan',
+          'kit-bc-show-video':'showVideoCTA', 'kit-bc-show-title':'showTitle',
+          'kit-bc-show-subtitle':'showSubtitle', 'kit-bc-show-helper':'showHelperText',
+          'kit-bc-show-trust':'showTrustRow'
+        };
         Object.keys(showFlags).forEach(function(fId) {
           var key = showFlags[fId];
           document.getElementById(fId).addEventListener('change', function() {
@@ -3536,6 +3717,34 @@
             if (!p.builderConfig) p.builderConfig = {};
             p.builderConfig[key] = this.checked;
           });
+        });
+        document.getElementById('kit-bc-benefit-add').addEventListener('click', function() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          if (!Array.isArray(p.builderConfig.benefits)) p.builderConfig.benefits = [];
+          var icon = document.getElementById('kit-bc-benefit-icon').value;
+          var tEl = document.getElementById('kit-bc-benefit-el').value.trim();
+          var tEn = document.getElementById('kit-bc-benefit-en').value.trim();
+          if (!tEl && !tEn) return;
+          p.builderConfig.benefits.push({ icon: icon, title: { el: tEl, en: tEn }, enabled: true });
+          document.getElementById('kit-bc-benefit-el').value = '';
+          document.getElementById('kit-bc-benefit-en').value = '';
+          renderBenefitsList(p.builderConfig);
+        });
+        document.getElementById('kit-bc-trust-add').addEventListener('click', function() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          if (!Array.isArray(p.builderConfig.trustItems)) p.builderConfig.trustItems = [];
+          var icon = document.getElementById('kit-bc-trust-icon').value;
+          var tEl = document.getElementById('kit-bc-trust-el').value.trim();
+          var tEn = document.getElementById('kit-bc-trust-en').value.trim();
+          if (!tEl && !tEn) return;
+          p.builderConfig.trustItems.push({ icon: icon, title: { el: tEl, en: tEn } });
+          document.getElementById('kit-bc-trust-el').value = '';
+          document.getElementById('kit-bc-trust-en').value = '';
+          renderTrustList(p.builderConfig);
         });
       })();
       window.makeProductKit = function(i) {
