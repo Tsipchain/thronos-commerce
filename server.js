@@ -1406,18 +1406,35 @@ function normalizeProductRecord(product) {
     const _bt = String(normalized.builderType || 'classic').trim();
     normalized.builderType = ['classic', 'step_by_step'].includes(_bt) ? _bt : 'classic';
     if (normalized.builderConfig && typeof normalized.builderConfig === 'object') {
+      const _bc = normalized.builderConfig;
+      const _logoPos = ['left','center','right'].includes(_bc.logoPosition) ? _bc.logoPosition : 'left';
+      const _logoSize = ['small','medium','large'].includes(_bc.logoSize) ? _bc.logoSize : 'medium';
       normalized.builderConfig = {
-        bannerImage: normalizeMediaPath(normalized.builderConfig.bannerImage || '', { allowAbsoluteUrl: true }),
-        mobileBannerImage: normalizeMediaPath(normalized.builderConfig.mobileBannerImage || '', { allowAbsoluteUrl: true }),
-        title: normalized.builderConfig.title || '',
-        subtitle: normalized.builderConfig.subtitle || '',
-        helperText: normalized.builderConfig.helperText || '',
-        videoUrl: normalizeMediaPath(normalized.builderConfig.videoUrl || '', { allowAbsoluteUrl: true }),
-        showTitle: normalized.builderConfig.showTitle !== false,
-        showSubtitle: normalized.builderConfig.showSubtitle !== false,
-        showHelperText: normalized.builderConfig.showHelperText !== false,
-        showVideo: normalized.builderConfig.showVideo !== false,
-        showTrustRow: normalized.builderConfig.showTrustRow !== false,
+        logoImage: normalizeMediaPath(_bc.logoImage || '', { allowAbsoluteUrl: true }),
+        mobileLogoImage: normalizeMediaPath(_bc.mobileLogoImage || '', { allowAbsoluteUrl: true }),
+        showLogo: _bc.showLogo !== false,
+        logoPosition: _logoPos,
+        logoSize: _logoSize,
+        bannerImage: normalizeMediaPath(_bc.bannerImage || '', { allowAbsoluteUrl: true }),
+        mobileBannerImage: normalizeMediaPath(_bc.mobileBannerImage || '', { allowAbsoluteUrl: true }),
+        title: _bc.title || '',
+        subtitle: _bc.subtitle || '',
+        helperText: _bc.helperText || '',
+        slogan: _bc.slogan || '',
+        sloganSecondary: _bc.sloganSecondary || '',
+        showSlogan: _bc.showSlogan !== false,
+        videoUrl: normalizeMediaPath(_bc.videoUrl || '', { allowAbsoluteUrl: true }),
+        showTitle: _bc.showTitle !== false,
+        showSubtitle: _bc.showSubtitle !== false,
+        showHelperText: _bc.showHelperText !== false,
+        showVideo: _bc.showVideo !== false,
+        showTrustRow: _bc.showTrustRow !== false,
+        showVideoCTA: _bc.showVideoCTA === true,
+        videoCTATitle: _bc.videoCTATitle || '',
+        videoCTASubtitle: _bc.videoCTASubtitle || '',
+        benefits: Array.isArray(_bc.benefits) ? _bc.benefits : [],
+        trustItems: Array.isArray(_bc.trustItems) ? _bc.trustItems : [],
+        summarySubtitle: _bc.summarySubtitle || '',
       };
     }
   }
@@ -5022,12 +5039,12 @@ app.post('/admin/settings', async (req, res) => {
     config.homepage.subscriptionVideoCard.ctaLabel = buildTranslatableFromBody(req.body, 'homepageSubscriptionVideoCtaLabel', config.homepage.subscriptionVideoCard.ctaLabel || '');
   }
   config.homepage.heroOverlay = config.homepage.heroOverlay || {};
-  config.homepage.heroOverlay.showOverlay = readCheckbox(req.body, 'heroOverlayShowOverlay', false);
-  config.homepage.heroOverlay.showKicker = readCheckbox(req.body, 'heroOverlayShowKicker', false);
-  config.homepage.heroOverlay.showTitle = readCheckbox(req.body, 'heroOverlayShowTitle', false);
-  config.homepage.heroOverlay.showSubtitle = readCheckbox(req.body, 'heroOverlayShowSubtitle', false);
-  config.homepage.heroOverlay.showPrimaryCta = readCheckbox(req.body, 'heroOverlayShowPrimaryCta', false);
-  config.homepage.heroOverlay.showSecondaryCta = readCheckbox(req.body, 'heroOverlayShowSecondaryCta', false);
+  config.homepage.heroOverlay.showOverlay = readCheckbox(req.body, 'heroOverlayShowOverlay', config.homepage.heroOverlay.showOverlay !== false);
+  config.homepage.heroOverlay.showKicker = readCheckbox(req.body, 'heroOverlayShowKicker', config.homepage.heroOverlay.showKicker !== false);
+  config.homepage.heroOverlay.showTitle = readCheckbox(req.body, 'heroOverlayShowTitle', config.homepage.heroOverlay.showTitle !== false);
+  config.homepage.heroOverlay.showSubtitle = readCheckbox(req.body, 'heroOverlayShowSubtitle', config.homepage.heroOverlay.showSubtitle !== false);
+  config.homepage.heroOverlay.showPrimaryCta = readCheckbox(req.body, 'heroOverlayShowPrimaryCta', config.homepage.heroOverlay.showPrimaryCta !== false);
+  config.homepage.heroOverlay.showSecondaryCta = readCheckbox(req.body, 'heroOverlayShowSecondaryCta', config.homepage.heroOverlay.showSecondaryCta !== false);
   config.homepage.heroPrimaryCta = config.homepage.heroPrimaryCta || {};
   if (CONTENT_LANGS.some((lang) => hasBodyField(req.body, `heroPrimaryCtaLabel_${lang}`))) {
     config.homepage.heroPrimaryCta.label = buildTranslatableFromBody(req.body, 'heroPrimaryCtaLabel', config.homepage.heroPrimaryCta.label || '');
@@ -5048,9 +5065,6 @@ app.post('/admin/settings', async (req, res) => {
   if (hasBodyField(req.body, 'homepageIntroImageSource')) {
     const _src = String(req.body.homepageIntroImageSource || 'dedicated').trim();
     config.homepage.introImageSource = ['dedicated', 'logo'].includes(_src) ? _src : 'dedicated';
-  }
-  if (hasBodyField(req.body, 'homepageIntroImage')) {
-    config.homepage.introImage = normalizeMediaPath(homepageIntroImage || '', { allowAbsoluteUrl: true });
   }
   config.homepage.introEnabled = readCheckbox(req.body, 'homepageIntroEnabled', config.homepage.introEnabled);
   if (hasBodyField(req.body, 'homepageIntroMode')) {

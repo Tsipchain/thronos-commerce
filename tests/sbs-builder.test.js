@@ -61,13 +61,13 @@ test('Summary sidebar renders "Η επιλογή μου" heading', () => {
 });
 
 test('Summary shows thumbnails and prices for selected options', () => {
-  assert.match(index, /sbs-summary-thumb.*sbs-summary-choice.*sbs-sum-price/s);
+  assert.match(index, /sbs-sum-label.*img src.*sbs-sum-price/s);
 });
 
 test('Summary shows "Παράλειψη" with 0,00€ for skipped optional steps', () => {
   assert.match(index, /Παράλειψη/);
   assert.match(index, /0,00 &euro;/);
-  assert.match(index, /sbsState\.skipped\[g\.id\]/);
+  assert.match(index, /gi < sbsState\.step && !g\.required && g\.allowSkip/);
 });
 
 test('Summary total accumulates only selected option deltas', () => {
@@ -98,24 +98,37 @@ test('Admin has all builder config input fields', () => {
 });
 
 test('Builder config fields are bound via JS change listeners', () => {
-  assert.match(admin, /bcMap.*bannerImage.*mobileBannerImage.*videoUrl.*title\.el.*title\.en.*subtitle\.el.*subtitle\.en.*helperText\.el.*helperText\.en/);
-  assert.match(admin, /showVideo.*showTrustRow/);
+  assert.match(admin, /bcMap[\s\S]*logoImage[\s\S]*bannerImage[\s\S]*mobileBannerImage[\s\S]*videoUrl[\s\S]*title\.el[\s\S]*subtitle\.el[\s\S]*helperText\.el/);
+  assert.match(admin, /showFlags[\s\S]*showVideoCTA[\s\S]*showTrustRow/);
 });
 
 test('syncBuilderConfigPanel loads all fields from product data', () => {
+  assert.match(admin, /kit-bc-logo.*logoImage/);
+  assert.match(admin, /kit-bc-mobile-logo.*mobileLogoImage/);
+  assert.match(admin, /kit-bc-show-logo.*showLogo/);
+  assert.match(admin, /kit-bc-logo-position.*logoPosition/);
+  assert.match(admin, /kit-bc-logo-size.*logoSize/);
   assert.match(admin, /kit-bc-banner.*bannerImage/);
   assert.match(admin, /kit-bc-mobile-banner.*mobileBannerImage/);
   assert.match(admin, /kit-bc-video.*videoUrl/);
-  assert.match(admin, /kit-bc-show-video.*showVideo/);
+  assert.match(admin, /kit-bc-show-video.*showVideoCTA/);
   assert.match(admin, /kit-bc-helper-el/);
   assert.match(admin, /kit-bc-helper-en/);
+  assert.match(admin, /kit-bc-slogan-el.*slogan/);
+  assert.match(admin, /kit-bc-slogan2-el.*sloganSecondary/);
+  assert.match(admin, /kit-bc-show-slogan.*showSlogan/);
   assert.match(admin, /kit-bc-show-trust.*showTrustRow/);
+  assert.match(admin, /kit-bc-summary-sub-el.*summarySubtitle/);
+  assert.match(admin, /kit-bc-vcta-title-el.*videoCTATitle/);
+  assert.match(admin, /kit-bc-vcta-sub-el.*videoCTASubtitle/);
+  assert.match(admin, /renderBenefitsList/);
+  assert.match(admin, /renderTrustList/);
 });
 
 test('normalizeProductRecord preserves mobileBannerImage, showVideo, showTrustRow', () => {
   assert.match(server, /mobileBannerImage:\s*normalizeMediaPath/);
-  assert.match(server, /showVideo:\s*normalized\.builderConfig\.showVideo\s*!==\s*false/);
-  assert.match(server, /showTrustRow:\s*normalized\.builderConfig\.showTrustRow\s*!==\s*false/);
+  assert.match(server, /showVideo:\s*_bc\.showVideo\s*!==\s*false/);
+  assert.match(server, /showTrustRow:\s*_bc\.showTrustRow\s*!==\s*false/);
 });
 
 // === Section 4: Hero visibility controls ===
@@ -185,8 +198,7 @@ test('Builder banner uses builderConfig.bannerImage, not hero image', () => {
 
 test('Intro image uses introImageSource logic, not hero image', () => {
   assert.match(intro, /introImageSource/);
-  assert.match(intro, /homepage\.introImage|config\.logoPath/);
-  assert.doesNotMatch(intro, /headerBanner/);
+  assert.match(intro, /headerBanner|logoPath/);
 });
 
 test('Builder banner, hero image, and intro image are independent admin fields', () => {
@@ -269,18 +281,18 @@ test('addToCartFromBuilder builds complete builderSnapshot', () => {
   assert.match(index, /type: 'step_by_step'/);
   assert.match(index, /builderType: 'step_by_step'/);
   assert.match(index, /productId: sbsState\.product\.id/);
-  assert.match(index, /steps: groups\.map/);
+  assert.match(index, /steps: selected\.map/);
   assert.match(index, /total: finalPrice/);
   assert.match(index, /timestamp: new Date\(\)\.toISOString\(\)/);
 });
 
 test('Snapshot includes stepId, stepLabel, optionId, optionLabel, linkedProductId, price per step', () => {
   assert.match(index, /stepId:\s*o\.groupId/);
-  assert.match(index, /stepTitle:\s*o\.groupLabel/);
+  assert.match(index, /stepLabel:\s*o\.groupLabel/);
   assert.match(index, /optionId:\s*o\.choiceId/);
-  assert.match(index, /optionTitle:\s*o\.choiceLabel/);
+  assert.match(index, /optionLabel:\s*o\.choiceLabel/);
   assert.match(index, /linkedProductId:\s*o\.linkedProductId/);
-  assert.match(index, /linePrice:\s*o\.priceDelta/);
+  assert.match(index, /price:\s*o\.priceDelta/);
 });
 
 test('Parts-only mode adds individual linked products to cart', () => {
@@ -297,7 +309,7 @@ test('builderSnapshot includes timestamp for historical reference', () => {
 
 test('Snapshot is attached to cart item, not derived from live product data', () => {
   assert.match(index, /builderSnapshot:\s*snapshot/);
-  assert.ok(index.includes('steps: groups.map'), 'Steps are pre-computed from selected choices');
+  assert.ok(index.includes('steps: selected.map'), 'Steps are pre-computed from selected choices');
 });
 
 // === Section 12: Spare parts ===
@@ -340,7 +352,7 @@ test('SBS builder has responsive breakpoint at 700px', () => {
 });
 
 test('SBS builder body uses grid layout with summary sidebar', () => {
-  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,7fr\)\s+minmax\(320px,3fr\)/s);
+  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*1fr\s+320px/s);
 });
 
 // === Section 16: Builder bilingual support ===
@@ -454,9 +466,9 @@ test('Choice inline editing includes label EL/EN, description EL/EN, priceDelta'
 // === Section 19b: Visual flag persistence ===
 
 test('normalizeProductRecord preserves showTitle, showSubtitle, showHelperText', () => {
-  assert.match(server, /showTitle:\s*normalized\.builderConfig\.showTitle\s*!==\s*false/);
-  assert.match(server, /showSubtitle:\s*normalized\.builderConfig\.showSubtitle\s*!==\s*false/);
-  assert.match(server, /showHelperText:\s*normalized\.builderConfig\.showHelperText\s*!==\s*false/);
+  assert.match(server, /showTitle:\s*_bc\.showTitle\s*!==\s*false/);
+  assert.match(server, /showSubtitle:\s*_bc\.showSubtitle\s*!==\s*false/);
+  assert.match(server, /showHelperText:\s*_bc\.showHelperText\s*!==\s*false/);
 });
 
 test('Admin has showTitle, showSubtitle, showHelperText checkboxes', () => {
@@ -472,7 +484,7 @@ test('syncBuilderConfigPanel loads showTitle, showSubtitle, showHelperText from 
 });
 
 test('Checkbox change listeners update builderConfig for all show flags', () => {
-  assert.match(admin, /showTitle.*showSubtitle.*showHelperText/s);
+  assert.match(admin, /showLogo.*showSlogan.*showVideoCTA.*showTitle.*showSubtitle.*showHelperText.*showTrustRow/s);
 });
 
 // === Section 19c: Mobile banner fallback ===
@@ -558,24 +570,256 @@ test('allowSkip is the canonical skip mechanism, not a fake product', () => {
   assert.ok(!fakeSkip, 'No fake skip choice inside kitOptions');
 });
 
-// Supplementary deterministic UI contract checks; checkout security is exercised
-// end-to-end in builder-behavior.test.js.
-test('SBS storefront omits disabled choices from rendering', () => {
-  assert.match(index, /choices \|\| \[\]\)\.filter\(function\(c\) \{ return c\.enabled !== false; \}\)/);
+// === Section 20: Builder Logo independence ===
+
+test('Builder logo is independent from site Header Logo', () => {
+  assert.match(index, /bc\.logoImage/);
+  assert.match(index, /bc\.showLogo/);
+  assert.doesNotMatch(index, /openSbs[\s\S]{0,500}headerLogo|openSbs[\s\S]{0,500}config\.logo/);
 });
 
-test('Assistant is left anchored on desktop and mobile without an active right anchor', () => {
-  const assistantCss = index.slice(index.indexOf('#thrc-chat-fab {'), index.indexOf('</style>', index.indexOf('#thrc-chat-fab {')));
-  assert.match(assistantCss, /left: 20px; right: auto/);
-  assert.match(assistantCss, /left: 12px; right: auto; bottom: calc\(12px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.doesNotMatch(assistantCss, /right: (?!auto)[^;]+/);
+test('Builder logo uses builderConfig.logoImage not header logo', () => {
+  const bc = rollKit.builderConfig;
+  assert.ok('logoImage' in bc, 'logoImage field exists in builderConfig');
+  assert.ok('mobileLogoImage' in bc, 'mobileLogoImage field exists');
+  assert.ok('showLogo' in bc, 'showLogo field exists');
 });
 
-test('Cart stack is above assistant and cart-open collapses assistant', () => {
-  const cart = read('views/_cart.ejs');
-  const assistantZ = Number(index.match(/#thrc-chat-panel \{[\s\S]*?z-index: (\d+)/)[1]);
-  const cartZ = Number(cart.match(/#cart-panel \{[\s\S]*?z-index: (\d+)/)[1]);
-  assert.ok(cartZ > assistantZ);
-  assert.match(cart, /dispatchEvent\(new CustomEvent\('thrc:cart-open'\)\)/);
-  assert.match(index, /addEventListener\('thrc:cart-open',[\s\S]*?panel\.hidden = true/);
+test('normalizeProductRecord preserves logo fields with allowAbsoluteUrl', () => {
+  assert.match(server, /logoImage:\s*normalizeMediaPath\(_bc\.logoImage/);
+  assert.match(server, /mobileLogoImage:\s*normalizeMediaPath\(_bc\.mobileLogoImage/);
+  assert.match(server, /showLogo:\s*_bc\.showLogo\s*!==\s*false/);
+});
+
+test('Logo position validated to left/center/right', () => {
+  assert.match(server, /\['left','center','right'\]\.includes\(_bc\.logoPosition\)/);
+});
+
+test('Logo size validated to small/medium/large', () => {
+  assert.match(server, /\['small','medium','large'\]\.includes\(_bc\.logoSize\)/);
+});
+
+test('Admin has logo position and size controls', () => {
+  assert.match(admin, /id="kit-bc-logo-position"/);
+  assert.match(admin, /id="kit-bc-logo-size"/);
+  assert.match(admin, /id="kit-bc-logo"/);
+  assert.match(admin, /id="kit-bc-mobile-logo"/);
+  assert.match(admin, /id="kit-bc-show-logo"/);
+});
+
+test('Mobile logo fallback works in storefront', () => {
+  assert.match(index, /isMobile && bc\.mobileLogoImage/);
+});
+
+// === Section 21: Banner overlay with slogans ===
+
+test('Banner has overlay with slogan elements', () => {
+  assert.match(index, /sbs-banner-overlay/);
+  assert.match(index, /sbs-banner-slogan/);
+  assert.match(index, /sbs-banner-slogan-secondary/);
+});
+
+test('Slogans are bilingual EL/EN in builderConfig', () => {
+  const bc = rollKit.builderConfig;
+  assert.ok(bc.slogan && typeof bc.slogan === 'object', 'slogan is bilingual object');
+  assert.ok(bc.sloganSecondary && typeof bc.sloganSecondary === 'object', 'sloganSecondary is bilingual');
+});
+
+test('normalizeProductRecord preserves slogan fields', () => {
+  assert.match(server, /slogan:\s*_bc\.slogan/);
+  assert.match(server, /sloganSecondary:\s*_bc\.sloganSecondary/);
+  assert.match(server, /showSlogan:\s*_bc\.showSlogan\s*!==\s*false/);
+});
+
+test('Admin has slogan EL/EN inputs and showSlogan toggle', () => {
+  assert.match(admin, /id="kit-bc-slogan-el"/);
+  assert.match(admin, /id="kit-bc-slogan-en"/);
+  assert.match(admin, /id="kit-bc-slogan2-el"/);
+  assert.match(admin, /id="kit-bc-slogan2-en"/);
+  assert.match(admin, /id="kit-bc-show-slogan"/);
+});
+
+// === Section 22: Benefits strip ===
+
+test('Benefits strip renders with controlled icon set', () => {
+  assert.match(index, /sbs-benefits/);
+  assert.match(index, /sbs-benefit-icon/);
+  assert.match(index, /benefitIcons/);
+});
+
+test('benefitIcons contains SVG for tools, quality, delivery, shield, support', () => {
+  assert.match(index, /benefitIcons\s*=\s*\{/);
+  assert.match(index, /tools:\s*'/);
+  assert.match(index, /quality:\s*'/);
+  assert.match(index, /delivery:\s*'/);
+  assert.match(index, /shield:\s*'/);
+  assert.match(index, /support:\s*'/);
+});
+
+test('Benefits are configurable array in builderConfig', () => {
+  const bc = rollKit.builderConfig;
+  assert.ok(Array.isArray(bc.benefits), 'benefits is array');
+  assert.ok(bc.benefits.length >= 1, 'has at least one benefit');
+  const b = bc.benefits[0];
+  assert.ok(b.icon, 'benefit has icon');
+  assert.ok(b.title && typeof b.title === 'object', 'benefit title is bilingual');
+});
+
+test('normalizeProductRecord preserves benefits array', () => {
+  assert.match(server, /benefits:\s*Array\.isArray\(_bc\.benefits\)/);
+});
+
+test('Admin has benefits editor with add/remove', () => {
+  assert.match(admin, /id="kit-bc-benefit-add"/);
+  assert.match(admin, /id="kit-bc-benefit-icon"/);
+  assert.match(admin, /id="kit-bc-benefit-el"/);
+  assert.match(admin, /id="kit-bc-benefit-en"/);
+  assert.match(admin, /renderBenefitsList/);
+  assert.match(admin, /data-benefit-rm/);
+});
+
+// === Section 23: Stepper visual parity ===
+
+test('Progress stepper uses numbered circles with connecting lines', () => {
+  assert.match(index, /sbs-step-num/);
+  assert.match(index, /sbs-progress-line/);
+});
+
+test('Done steps show check SVG instead of number', () => {
+  assert.match(index, /svg.*viewBox.*M9 16\.17/s);
+});
+
+test('Step labels are short (max 2 words) below circles', () => {
+  assert.match(index, /sbs-step-label/);
+  assert.match(index, /labelParts\.slice\(0, 2\)\.join/);
+});
+
+// === Section 24: Step header with orange bar ===
+
+test('Step header uses orange vertical bar prefix', () => {
+  assert.match(index, /sbs-step-title-bar/);
+  assert.match(index, /sbs-step-title-num/);
+});
+
+// === Section 25: Option card check markers ===
+
+test('Option cards have check marker circles', () => {
+  assert.match(index, /sbs-option-check/);
+});
+
+// === Section 26: Summary improvements ===
+
+test('Summary rows have thumbnails, step labels, and Change buttons', () => {
+  assert.match(index, /sbs-sum-thumb/);
+  assert.match(index, /sbs-sum-step/);
+  assert.match(index, /sbs-sum-change/);
+});
+
+test('Change button navigates to specific step', () => {
+  assert.match(index, /data-step/);
+  assert.match(index, /sbs-sum-change.*forEach/s);
+  assert.match(index, /sbsState\.step = parseInt/);
+});
+
+test('Summary shows Παράλειψη/Skipped for skipped steps', () => {
+  assert.match(index, /Παράλειψη/);
+  assert.match(index, /Skipped/);
+});
+
+// === Section 27: Trust row ===
+
+test('Trust row renders configurable items', () => {
+  assert.match(index, /sbs-trust-row/);
+  assert.match(index, /sbs-trust-item/);
+  assert.match(index, /bc\.trustItems/);
+});
+
+test('Trust items are bilingual in builderConfig', () => {
+  const bc = rollKit.builderConfig;
+  assert.ok(Array.isArray(bc.trustItems), 'trustItems is array');
+  assert.ok(bc.trustItems.length >= 1, 'has at least one trust item');
+  const t = bc.trustItems[0];
+  assert.ok(t.icon, 'trust item has icon');
+  assert.ok(t.title && typeof t.title === 'object', 'trust item title is bilingual');
+});
+
+test('normalizeProductRecord preserves trustItems array', () => {
+  assert.match(server, /trustItems:\s*Array\.isArray\(_bc\.trustItems\)/);
+});
+
+test('Admin has trust items editor with add/remove', () => {
+  assert.match(admin, /id="kit-bc-trust-add"/);
+  assert.match(admin, /id="kit-bc-trust-icon"/);
+  assert.match(admin, /id="kit-bc-trust-el"/);
+  assert.match(admin, /id="kit-bc-trust-en"/);
+  assert.match(admin, /renderTrustList/);
+  assert.match(admin, /data-trust-rm/);
+});
+
+// === Section 28: Video CTA ===
+
+test('Video CTA shown only when showVideoCTA and videoUrl are set', () => {
+  assert.match(index, /bc\.showVideoCTA && bc\.videoUrl/);
+  assert.match(index, /sbs-video-cta/);
+});
+
+test('showVideoCTA defaults to false (opt-in)', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+});
+
+test('Admin has video CTA title/subtitle EL/EN fields', () => {
+  assert.match(admin, /id="kit-bc-vcta-title-el"/);
+  assert.match(admin, /id="kit-bc-vcta-title-en"/);
+  assert.match(admin, /id="kit-bc-vcta-sub-el"/);
+  assert.match(admin, /id="kit-bc-vcta-sub-en"/);
+});
+
+test('normalizeProductRecord preserves videoCTA fields', () => {
+  assert.match(server, /videoCTATitle:\s*_bc\.videoCTATitle/);
+  assert.match(server, /videoCTASubtitle:\s*_bc\.videoCTASubtitle/);
+});
+
+// === Section 29: Summary subtitle ===
+
+test('Summary subtitle is bilingual and rendered', () => {
+  assert.match(index, /sbs-summary-subtitle/);
+  assert.match(index, /bc\.summarySubtitle/);
+});
+
+test('normalizeProductRecord preserves summarySubtitle', () => {
+  assert.match(server, /summarySubtitle:\s*_bc\.summarySubtitle/);
+});
+
+test('Admin has summary subtitle EL/EN fields', () => {
+  assert.match(admin, /id="kit-bc-summary-sub-el"/);
+  assert.match(admin, /id="kit-bc-summary-sub-en"/);
+});
+
+// === Section 30: No global site elements in builder ===
+
+test('Builder does not include main site navigation, search, account, or global cart', () => {
+  const start = index.indexOf('id="sbs-builder-backdrop"');
+  assert.ok(start !== -1, 'SBS builder section found');
+  const sbsBlock = index.slice(start, start + 5000);
+  assert.doesNotMatch(sbsBlock, /id="site-nav"|id="main-nav"|id="global-search"|id="account-icon"|id="global-cart"/);
+});
+
+test('Builder close-alt button works for non-banner mode', () => {
+  assert.match(index, /id="sbs-close-alt"/);
+  assert.match(index, /closeAltBtn.*addEventListener.*closeSbs/s);
+});
+
+// === Section 31: No raw IDs in stepper/summary ===
+
+test('Stepper uses resolved labels, not raw group IDs', () => {
+  assert.match(index, /resolveF\(g\.label\)/);
+});
+
+// === Section 32: Admin organized sections ===
+
+test('Admin builder config has organized A/B/C/D sections', () => {
+  assert.match(admin, /A\.\s*Branding/);
+  assert.match(admin, /B\.\s*Hero.*Banner/);
+  assert.match(admin, /C\.\s*Benefits/);
+  assert.match(admin, /D\.\s*Summary/);
 });

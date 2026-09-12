@@ -190,59 +190,105 @@
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
-      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.86); z-index:2200; display:none; padding:15px 20px; overflow:hidden; }
+      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.88); z-index:2200; display:none; overflow-y:auto; }
       .sbs-builder-backdrop.open { display:block; }
-      .sbs-builder { width:min(1500px,calc(100vw - 40px)); height:min(900px,calc(100vh - 30px)); margin:0 auto; background:#111318; color:#f4f4f5; border:1px solid rgba(196,144,46,.32); border-radius:12px; box-shadow:0 24px 60px rgba(0,0,0,.65); overflow:hidden; display:flex; flex-direction:column; }
-      .sbs-banner { width:100%; height:150px; flex:0 0 150px; overflow:hidden; position:relative; background:#090a0d; }
+      .sbs-builder { max-width:1120px; margin:0 auto; background:#1a1f2e; color:#e2e8f0; border-radius:0; min-height:100vh; box-shadow:none; overflow:hidden; }
+      .sbs-banner { width:100%; position:relative; overflow:hidden; height:280px; }
       .sbs-banner img { width:100%; height:100%; object-fit:cover; display:block; }
-      .sbs-builder-head { padding:12px 24px; border-bottom:1px solid #2b2d34; display:flex; justify-content:space-between; align-items:flex-start; background:#15171c; }
-      .sbs-builder-head h3 { margin:0; font-size:1.2rem; color:#fff; }
-      .sbs-subtitle { margin:3px 0 0; font-size:.82rem; color:#a1a1aa; }
-      .sbs-builder-head .sbs-close { background:#24262d; border:1px solid #3f3f46; width:36px;height:36px;border-radius:50%;font-size:1.05rem;cursor:pointer;color:#e4e4e7; }
-      .sbs-progress { display:flex; gap:0; padding:14px 28px 12px; border-bottom:1px solid #2b2d34; overflow-x:auto; background:#181a20; }
-      .sbs-progress-step { flex:1; min-width:130px; position:relative; padding:0 8px; text-align:center; font-size:.7rem; font-weight:700; color:#71717a; cursor:pointer; white-space:normal; text-transform:uppercase; }
-      .sbs-progress-step:not(:last-child)::after { content:""; position:absolute; top:15px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:#34363e; }
-      .sbs-progress-step.active,.sbs-progress-step.done { color:#e7a536; }
-      .sbs-progress-step.done::after { background:#c4902e; }
-      .sbs-progress-step .sbs-step-num { position:relative;z-index:1;display:flex;width:30px;height:30px;border-radius:50%;background:#292b32;border:2px solid #454750;color:#a1a1aa;font-size:.78rem;align-items:center;justify-content:center;margin:0 auto 7px; }
-      .sbs-progress-step.active .sbs-step-num,.sbs-progress-step.done .sbs-step-num { background:#c4902e;border-color:#e0aa4d;color:#111; }
-      .sbs-builder-body { display:grid; grid-template-columns:minmax(0,7fr) minmax(320px,3fr); gap:0; min-height:0; flex:1; overflow:hidden; }
-      .sbs-step-content { padding:24px 28px; overflow-y:auto; min-height:0; background:#111318; }
-      .sbs-step-title { font-size:1.15rem;font-weight:800;margin:0 0 5px;padding-left:12px;border-left:4px solid #c4902e;color:#fff; }
-      .sbs-step-helper { font-size:.82rem;color:#a1a1aa;margin:0 0 18px;padding-left:16px; }
-      .sbs-option-grid { display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr)); }
-      .sbs-option { position:relative;border:1px solid #353740;border-radius:10px;padding:12px;background:#1a1c22;cursor:pointer;transition:border-color .15s,transform .15s,background .15s;min-width:0; }
-      .sbs-option:hover { border-color:#8a672d;transform:translateY(-2px);background:#202228; }
-      .sbs-option.selected { border:2px solid #d5942e;background:#242016;box-shadow:0 0 0 2px rgba(196,144,46,.15); }
-      .sbs-option.selected::after { content:"✓";position:absolute;top:9px;right:9px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#c4902e;color:#111;font-weight:900; }
-      .sbs-option-img { width:100%;height:180px;object-fit:contain;border-radius:6px;margin-bottom:10px;background:#0d0e12; }
-      .sbs-option-label { font-size:.92rem;font-weight:750;color:#fafafa; }
-      .sbs-option-desc { font-size:.75rem;color:#92929c;margin-top:4px;line-height:1.35; }
-      .sbs-option-price { font-size:.9rem;font-weight:800;color:#e0a23d;margin-top:9px; }
-      .sbs-summary { background:#17191e;border-left:1px solid #353740;padding:22px;display:flex;flex-direction:column;min-height:0; }
-      .sbs-summary h4 { margin:0;font-size:1.15rem;font-weight:800;color:#fff; }
-      .sbs-summary-subtitle { margin:3px 0 15px;color:#92929c;font-size:.76rem; }
-      .sbs-summary-list { flex:1;overflow-y:auto;min-height:0; }
-      .sbs-summary-item { display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #2d2f36;font-size:.76rem; }
-      .sbs-summary-thumb { width:42px;height:42px;object-fit:contain;border-radius:6px;background:#0d0e12; }
-      .sbs-summary-thumb.empty { display:grid;place-items:center;color:#555862;font-size:1.1rem; }
-      .sbs-summary-name { display:block;color:#f4f4f5;font-weight:700;margin-bottom:2px; }
-      .sbs-summary-choice { display:block;color:#92929c; }
-      .sbs-summary-change { border:0;background:none;color:#d89a35;padding:2px 0;font-size:.7rem;cursor:pointer; }
-      .sbs-summary-item .sbs-sum-price { font-weight:700;color:#e0a23d;white-space:nowrap; }
-      .sbs-summary-total { margin-top:12px;padding-top:14px;border-top:2px solid #c4902e;display:flex;justify-content:space-between;font-size:1.02rem;font-weight:800; }
-      .sbs-nav { padding:13px 24px;border-top:1px solid #30323a;display:flex;justify-content:space-between;gap:10px;background:#181a20; }
-      .sbs-nav button { padding:10px 22px;border-radius:6px;font-size:.86rem;font-weight:700;cursor:pointer;border:1px solid #454750;background:#24262d;color:#e4e4e7; }
-      .sbs-nav button:hover { border-color:#c4902e; }
-      .sbs-nav .sbs-next,.sbs-nav .sbs-add-cart,.sbs-add-cart { background:#c4902e;color:#111;border-color:#c4902e; }
-      .sbs-nav .sbs-next:hover,.sbs-nav .sbs-add-cart:hover,.sbs-add-cart:hover { background:#dda43e; }
-      .sbs-nav .sbs-next:disabled { opacity:.5; cursor:default; }
-      .sbs-nav .sbs-add-cart { background:#c4902e; color:#fff; border-color:#c4902e; }
-      .sbs-nav .sbs-add-cart:hover { background:#b37d24; }
+      .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(10,15,30,.82) 0%,rgba(10,15,30,.5) 60%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:28px 36px; }
+      .sbs-banner-logo { max-height:48px; width:auto; margin-bottom:12px; object-fit:contain; }
+      .sbs-banner-logo.logo-center { align-self:center; }
+      .sbs-banner-logo.logo-right { align-self:flex-end; }
+      .sbs-banner-logo.logo-small { max-height:32px; }
+      .sbs-banner-logo.logo-large { max-height:64px; }
+      .sbs-banner-slogan { font-size:1.8rem; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:.04em; line-height:1.15; margin:0; }
+      .sbs-banner-slogan-secondary { font-size:.95rem; font-weight:500; color:rgba(255,255,255,.78); margin:4px 0 0; }
+      .sbs-banner-close { position:absolute; top:14px; right:16px; background:rgba(255,255,255,.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+      .sbs-banner-close:hover { background:rgba(255,255,255,.28); }
+      .sbs-benefits { display:flex; gap:0; background:#0f1420; border-bottom:1px solid rgba(255,255,255,.08); }
+      .sbs-benefit { flex:1; display:flex; align-items:center; gap:8px; padding:10px 16px; font-size:.76rem; color:rgba(255,255,255,.7); border-right:1px solid rgba(255,255,255,.06); }
+      .sbs-benefit:last-child { border-right:none; }
+      .sbs-benefit-icon { width:20px; height:20px; flex-shrink:0; fill:#e8922d; }
+      .sbs-benefit-text { font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+      .sbs-builder-head { padding:16px 24px 10px; display:flex; justify-content:space-between; align-items:flex-start; }
+      .sbs-builder-head h3 { margin:0; font-size:1.1rem; font-weight:700; color:#fff; }
+      .sbs-subtitle { margin:3px 0 0; font-size:.8rem; color:rgba(255,255,255,.55); }
+      .sbs-builder-head .sbs-close { background:none; border:none; font-size:1.3rem; cursor:pointer; color:rgba(255,255,255,.5); }
+      .sbs-progress { display:flex; align-items:flex-start; padding:8px 24px 16px; gap:0; position:relative; }
+      .sbs-progress-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; cursor:pointer; padding:0 4px; }
+      .sbs-step-num { display:flex; width:34px; height:34px; border-radius:50%; background:#2d3348; color:#64748b; font-size:.82rem; font-weight:700; align-items:center; justify-content:center; border:2px solid #3d4560; position:relative; z-index:2; transition:all .2s; }
+      .sbs-progress-step.active .sbs-step-num { background:#e8922d; color:#fff; border-color:#e8922d; box-shadow:0 0 0 4px rgba(232,146,45,.2); }
+      .sbs-progress-step.done .sbs-step-num { background:#e8922d; color:#fff; border-color:#e8922d; }
+      .sbs-progress-step .sbs-step-label { font-size:.68rem; font-weight:600; color:#64748b; margin-top:5px; text-align:center; max-width:80px; line-height:1.2; }
+      .sbs-progress-step.active .sbs-step-label { color:#e8922d; }
+      .sbs-progress-step.done .sbs-step-label { color:rgba(255,255,255,.7); }
+      .sbs-progress-line { position:absolute; top:17px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:#3d4560; z-index:1; }
+      .sbs-progress-step.done .sbs-progress-line { background:#e8922d; }
+      .sbs-progress-step:last-child .sbs-progress-line { display:none; }
+      .sbs-builder-body { display:grid; grid-template-columns:1fr 320px; gap:0; min-height:400px; }
+      .sbs-step-content { padding:20px 24px; overflow-y:auto; max-height:calc(100vh - 400px); background:#1a1f2e; }
+      .sbs-step-title { font-size:1rem; font-weight:700; margin:0 0 6px; color:#fff; display:flex; align-items:center; gap:8px; }
+      .sbs-step-title-bar { width:4px; height:22px; background:#e8922d; border-radius:2px; flex-shrink:0; }
+      .sbs-step-title-num { color:#e8922d; font-weight:700; }
+      .sbs-step-helper { font-size:.78rem; color:rgba(255,255,255,.45); margin:0 0 16px; padding-left:12px; }
+      .sbs-option-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
+      .sbs-option { border:2px solid #2d3348; border-radius:10px; padding:10px; cursor:pointer; transition:border-color .15s, box-shadow .15s; background:#222839; position:relative; }
+      .sbs-option:hover { border-color:#4a5580; }
+      .sbs-option.selected { border-color:#e8922d; box-shadow:0 0 0 3px rgba(232,146,45,.15); }
+      .sbs-option-check { position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%; border:2px solid #3d4560; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+      .sbs-option.selected .sbs-option-check { background:#e8922d; border-color:#e8922d; }
+      .sbs-option-check svg { width:12px; height:12px; fill:#fff; opacity:0; }
+      .sbs-option.selected .sbs-option-check svg { opacity:1; }
+      .sbs-option-img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; margin-bottom:10px; background:#111827; }
+      .sbs-option-label { font-size:.88rem; font-weight:600; color:#e2e8f0; }
+      .sbs-option-desc { font-size:.74rem; color:rgba(255,255,255,.45); margin-top:3px; }
+      .sbs-option-price { font-size:.82rem; font-weight:700; color:#e8922d; margin-top:6px; }
+      .sbs-summary { background:#111827; border-left:1px solid rgba(255,255,255,.06); padding:20px; display:flex; flex-direction:column; }
+      .sbs-summary h4 { margin:0 0 4px; font-size:.92rem; font-weight:700; color:#e8922d; }
+      .sbs-summary-subtitle { font-size:.74rem; color:rgba(255,255,255,.45); margin:0 0 14px; }
+      .sbs-summary-list { flex:1; overflow-y:auto; }
+      .sbs-summary-item { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.78rem; }
+      .sbs-summary-item .sbs-sum-thumb { width:36px; height:36px; object-fit:cover; border-radius:4px; flex-shrink:0; background:#1a1f2e; }
+      .sbs-summary-item .sbs-sum-info { flex:1; min-width:0; }
+      .sbs-summary-item .sbs-sum-step { font-size:.66rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.04em; }
+      .sbs-summary-item .sbs-sum-label { color:#e2e8f0; font-weight:500; display:block; }
+      .sbs-summary-item .sbs-sum-price { font-weight:600; color:#e8922d; flex-shrink:0; }
+      .sbs-summary-item .sbs-sum-change { font-size:.7rem; color:#e8922d; cursor:pointer; background:none; border:none; padding:0; font-weight:600; flex-shrink:0; margin-left:4px; }
+      .sbs-summary-item .sbs-sum-change:hover { text-decoration:underline; }
+      .sbs-summary-total { margin-top:auto; padding-top:14px; border-top:2px solid #e8922d; display:flex; justify-content:space-between; font-size:1rem; font-weight:700; color:#fff; }
+      .sbs-add-cart { width:100%; padding:12px; border-radius:8px; font-size:.92rem; font-weight:700; cursor:pointer; border:none; background:#e8922d; color:#fff; margin-top:12px; text-transform:uppercase; letter-spacing:.03em; transition:background .15s; }
+      .sbs-add-cart:hover { background:#d4831f; }
+      .sbs-add-cart:disabled { opacity:.45; cursor:default; }
+      .sbs-trust-row { display:flex; gap:12px; padding:10px 0; margin-top:8px; border-top:1px solid rgba(255,255,255,.06); }
+      .sbs-trust-item { display:flex; align-items:center; gap:4px; font-size:.66rem; color:rgba(255,255,255,.5); }
+      .sbs-trust-icon { width:14px; height:14px; fill:rgba(255,255,255,.4); flex-shrink:0; }
+      .sbs-video-cta { display:flex; align-items:center; gap:10px; background:#1a1f2e; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:10px 14px; margin-top:12px; cursor:pointer; transition:border-color .15s; }
+      .sbs-video-cta:hover { border-color:#e8922d; }
+      .sbs-video-cta-icon { width:32px; height:32px; fill:#e8922d; flex-shrink:0; }
+      .sbs-video-cta-text { font-size:.78rem; color:rgba(255,255,255,.7); }
+      .sbs-video-cta-text strong { color:#fff; display:block; font-size:.82rem; }
+      .sbs-nav { padding:14px 24px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:10px; background:#111827; }
+      .sbs-nav button { padding:8px 22px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:1px solid rgba(255,255,255,.15); background:transparent; color:rgba(255,255,255,.7); }
+      .sbs-nav button:hover { background:rgba(255,255,255,.06); }
+      .sbs-nav .sbs-next { background:#e8922d; color:#fff; border-color:#e8922d; }
+      .sbs-nav .sbs-next:hover { background:#d4831f; }
+      .sbs-nav .sbs-next:disabled { opacity:.45; cursor:default; }
       @media (max-width:700px) {
-        .sbs-builder-backdrop{padding:0}.sbs-builder{width:100vw;height:100dvh;max-height:none;border:0;border-radius:0}.sbs-banner{height:110px;flex-basis:110px}.sbs-builder-head{padding:10px 14px}.sbs-progress{padding:10px 8px}.sbs-progress-step{min-width:92px;font-size:.61rem}.sbs-builder-body{grid-template-columns:1fr;overflow-y:auto}.sbs-step-content{overflow:visible;padding:18px 14px}.sbs-option-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sbs-option-img{height:125px}.sbs-summary{border-left:0;border-top:1px solid #353740;min-height:330px}.sbs-nav{position:sticky;bottom:0;padding:10px 12px;z-index:2}.sbs-nav button{padding:10px 14px}
+        .sbs-builder { min-height:100dvh; }
+        .sbs-banner { height:180px; }
+        .sbs-banner-slogan { font-size:1.2rem; }
+        .sbs-banner-overlay { padding:16px 20px; }
+        .sbs-benefits { flex-wrap:wrap; }
+        .sbs-benefit { flex:0 0 auto; min-width:0; padding:8px 10px; font-size:.68rem; }
+        .sbs-builder-body { grid-template-columns:1fr; }
+        .sbs-summary { border-left:0; border-top:1px solid rgba(255,255,255,.06); max-height:220px; }
+        .sbs-progress { overflow-x:auto; padding:8px 12px 12px; gap:0; }
+        .sbs-step-num { width:28px; height:28px; font-size:.72rem; }
+        .sbs-progress-step .sbs-step-label { font-size:.6rem; max-width:60px; }
+        .sbs-option-grid { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+        .sbs-step-content { padding:14px 16px; max-height:calc(100vh - 340px); }
+        .sbs-trust-row { flex-wrap:wrap; }
       }
-      @media(max-width:390px){.sbs-option-grid{grid-template-columns:1fr}.sbs-option-img{height:155px}}
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
         backdrop-filter: blur(5px);
@@ -1539,7 +1585,6 @@
         <% if (hasRealHeroImage) { %>
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
           <% if (homepage.heroMobileImage) { %><img class="eko-hero-img eko-hero-img-mobile" src="<%= homepage.heroMobileImage %>" alt="<%= heroTitleText %>" loading="eager" /><% } %>
-          <% if (_ho.showOverlay !== false) { %>
           <div class="eko-hero-overlay">
           <% } %>
         <% } else { %>
@@ -1547,11 +1592,10 @@
           <div class="eko-hero-no-img">
           <% } %>
         <% } %>
-          <% if (_ho.showOverlay !== false) { %>
+            <% if (_ho.showOverlay !== false) { %>
             <% if (_ho.showKicker !== false) { %><p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p><% } %>
             <% if (_ho.showTitle !== false) { %><h2 class="eko-hero-title"><%= heroTitleText %></h2><% } %>
             <% if (_ho.showSubtitle !== false && heroSubText) { %><p class="eko-hero-subtitle"><%= heroSubText %></p><% } %>
-            <% if (_ho.showPrimaryCta !== false || _ho.showSecondaryCta !== false) { %>
             <div class="eko-hero-actions">
               <% if (_ho.showPrimaryCta !== false && topPrimaryKit1) { %>
               <% const _pcLabel = resolveField(_hpc.label, lang) || (lang === 'el' ? 'Ξεκίνα Roll Kit →' : 'Start Roll Kit →'); %>
@@ -1921,14 +1965,22 @@
     </div>
     <div id="sbs-builder-backdrop" class="sbs-builder-backdrop" aria-hidden="true">
       <div class="sbs-builder" role="dialog" aria-modal="true" aria-label="<%= lang === 'el' ? 'Builder βήμα-βήμα' : 'Step-by-step builder' %>">
-        <div id="sbs-banner" class="sbs-banner" style="display:none;"></div>
-        <div class="sbs-builder-head">
+        <div id="sbs-banner" class="sbs-banner" style="display:none;">
+          <div class="sbs-banner-overlay" id="sbs-banner-overlay">
+            <img id="sbs-builder-logo" class="sbs-banner-logo" src="" alt="" style="display:none;" onerror="this.style.display='none'" />
+            <p id="sbs-banner-slogan" class="sbs-banner-slogan" style="display:none;"></p>
+            <p id="sbs-banner-slogan2" class="sbs-banner-slogan-secondary" style="display:none;"></p>
+          </div>
+          <button type="button" class="sbs-banner-close" id="sbs-close">&#10005;</button>
+        </div>
+        <div id="sbs-benefits" class="sbs-benefits" style="display:none;"></div>
+        <div class="sbs-builder-head" id="sbs-builder-head" style="display:none;">
           <div>
             <h3 id="sbs-title"></h3>
             <p id="sbs-subtitle" class="sbs-subtitle"></p>
-            <p id="sbs-helper-text" class="sbs-subtitle" style="display:none;font-size:.82rem;color:#64748b;margin-top:2px;"></p>
+            <p id="sbs-helper-text" class="sbs-subtitle" style="display:none;"></p>
           </div>
-          <button type="button" class="sbs-close" id="sbs-close">&#10005;</button>
+          <button type="button" class="sbs-close" id="sbs-close-alt">&#10005;</button>
         </div>
         <div class="sbs-progress" id="sbs-progress"></div>
         <div class="sbs-builder-body">
@@ -1938,21 +1990,23 @@
             <div class="sbs-option-grid" id="sbs-option-grid"></div>
           </div>
           <div class="sbs-summary" id="sbs-summary">
-            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My Selection' %></h4>
-            <p class="sbs-summary-subtitle"><%= lang === 'el' ? 'Το δικό σου EUKOLAKI DIY Roll Kit' : 'Your own EUKOLAKI DIY Roll Kit' %></p>
+            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My selection' %></h4>
+            <p class="sbs-summary-subtitle" id="sbs-summary-subtitle"></p>
             <div class="sbs-summary-list" id="sbs-summary-list"></div>
             <div class="sbs-summary-total">
               <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
               <span id="sbs-total">0.00 &euro;</span>
             </div>
-            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" style="display:none;margin-top:10px;width:100%;padding:10px;border-radius:8px;font-size:.88rem;font-weight:700;cursor:pointer;border:none;"><%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart' %></button>
+            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" style="display:none;"><%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart' %></button>
+            <div id="sbs-trust-row" class="sbs-trust-row" style="display:none;"></div>
+            <div id="sbs-video-cta" class="sbs-video-cta" style="display:none;"></div>
           </div>
         </div>
         <div class="sbs-nav">
           <button type="button" id="sbs-back"><%= lang === 'el' ? '← Πίσω' : '← Back' %></button>
           <div style="display:flex;gap:8px;">
             <button type="button" id="sbs-skip" style="display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
-            <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Συνέχεια →' : 'Continue →' %></button>
+            <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Επόμενο →' : 'Next →' %></button>
           </div>
         </div>
       </div>
@@ -2592,8 +2646,14 @@
         catalog.forEach(function(p){ catalogById[p.id] = p; });
         var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
         if (!sbsKits.length) return;
-        var sbsState = { product: null, step: 0, selections: {}, skipped: {} };
+        var sbsState = { product: null, step: 0, selections: {} };
         var elBanner = document.getElementById('sbs-banner');
+        var elBannerOverlay = document.getElementById('sbs-banner-overlay');
+        var elBuilderLogo = document.getElementById('sbs-builder-logo');
+        var elBannerSlogan = document.getElementById('sbs-banner-slogan');
+        var elBannerSlogan2 = document.getElementById('sbs-banner-slogan2');
+        var elBenefits = document.getElementById('sbs-benefits');
+        var elBuilderHead = document.getElementById('sbs-builder-head');
         var elTitle = document.getElementById('sbs-title');
         var elSubtitle = document.getElementById('sbs-subtitle');
         var elProgress = document.getElementById('sbs-progress');
@@ -2601,13 +2661,23 @@
         var elStepHelper = document.getElementById('sbs-step-helper');
         var elOptionGrid = document.getElementById('sbs-option-grid');
         var elSummaryList = document.getElementById('sbs-summary-list');
+        var elSummarySubtitle = document.getElementById('sbs-summary-subtitle');
         var elTotal = document.getElementById('sbs-total');
         var btnBack = document.getElementById('sbs-back');
         var btnNext = document.getElementById('sbs-next');
         var btnSkip = document.getElementById('sbs-skip');
         var btnCartSidebar = document.getElementById('sbs-cart-btn');
         var elHelperText = document.getElementById('sbs-helper-text');
+        var elTrustRow = document.getElementById('sbs-trust-row');
+        var elVideoCTA = document.getElementById('sbs-video-cta');
         var isMobile = window.innerWidth <= 700;
+        var benefitIcons = {
+          tools: '<svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>',
+          quality: '<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>',
+          delivery: '<svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>',
+          shield: '<svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>',
+          support: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>'
+        };
         var LANG = '<%= lang %>';
         function resolveF(v) {
           if (!v) return '';
@@ -2631,12 +2701,15 @@
           elProgress.innerHTML = '';
           groups.forEach(function(g, i) {
             var cls = 'sbs-progress-step';
+            var isDone = !!sbsState.selections[g.id] || (i < sbsState.step);
             if (i === sbsState.step) cls += ' active';
-            else if (sbsState.selections[g.id]) cls += ' done';
-            else if (i < sbsState.step) cls += ' done';
+            else if (isDone) cls += ' done';
             var div = document.createElement('div');
             div.className = cls;
-            div.innerHTML = '<span class="sbs-step-num">' + (i < sbsState.step ? '&#10003;' : (i+1)) + '</span><span class="sbs-step-label">' + escAttr(resolveF(g.label)) + '</span>';
+            var numContent = isDone && i !== sbsState.step ? '<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#fff;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : String(i+1);
+            var labelParts = resolveF(g.label).split(/\s+/);
+            var shortLabel = labelParts.length > 2 ? labelParts.slice(0, 2).join(' ') : resolveF(g.label);
+            div.innerHTML = '<span class="sbs-step-num">' + numContent + '</span><span class="sbs-step-label">' + escAttr(shortLabel) + '</span>' + (i < groups.length - 1 ? '<span class="sbs-progress-line"></span>' : '');
             div.addEventListener('click', function() {
               if (i <= sbsState.step || sbsState.selections[g.id]) {
                 sbsState.step = i;
@@ -2655,7 +2728,7 @@
           btnCartSidebar.style.display = allDone ? '' : 'none';
           btnCartSidebar.disabled = !allRequiredValid;
           if (allDone) {
-            elStepTitle.textContent = LANG === 'el' ? 'Ολοκλήρωση' : 'Finish';
+            elStepTitle.innerHTML = '<span class="sbs-step-title-bar"></span>' + escAttr(LANG === 'el' ? 'Ολοκλήρωση' : 'Finish');
             elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
             elOptionGrid.innerHTML = '';
             btnBack.style.display = sbsState.step > 0 ? '' : 'none';
@@ -2667,21 +2740,23 @@
           }
           var g = groups[sbsState.step];
           var canSkip = !g.required && g.allowSkip;
-          elStepTitle.textContent = (LANG === 'el' ? 'Βήμα ' : 'Step ') + (sbsState.step + 1) + ': ' + (LANG === 'el' ? 'Επίλεξε ' : 'Choose ') + resolveF(g.label).toLocaleLowerCase();
-          elStepHelper.textContent = resolveF(g.description) || (g.required
+          var stepPrefix = (LANG === 'el' ? 'Βήμα' : 'Step') + ' ' + (sbsState.step + 1) + ': ';
+          elStepTitle.innerHTML = '<span class="sbs-step-title-bar"></span><span class="sbs-step-title-num">' + escAttr(stepPrefix) + '</span>' + escAttr(resolveF(g.label));
+          elStepHelper.textContent = g.required
             ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required')
-            : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip'));
+            : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip');
           btnBack.style.display = sbsState.step > 0 ? '' : 'none';
           btnSkip.style.display = canSkip ? '' : 'none';
-          btnNext.textContent = LANG === 'el' ? 'Συνέχεια →' : 'Continue →';
+          btnNext.textContent = LANG === 'el' ? 'Επόμενο →' : 'Next →';
           btnNext.className = 'sbs-next';
           btnNext.disabled = g.required && !sbsState.selections[g.id];
           elOptionGrid.innerHTML = '';
-          (g.choices || []).filter(function(c) { return c.enabled !== false; }).forEach(function(c) {
+          (g.choices || []).forEach(function(c) {
+            if (c.enabled === false) return;
             var div = document.createElement('div');
             div.className = 'sbs-option' + (sbsState.selections[g.id] === c.id ? ' selected' : '');
             var delta = computeDelta(c, sbsState.product);
-            var html = '';
+            var html = '<span class="sbs-option-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>';
             if (c.image) html += '<img class="sbs-option-img" src="' + escAttr(c.image) + '" alt="' + escAttr(resolveF(c.label)) + '" onerror="this.style.display=\'none\'" />';
             html += '<div class="sbs-option-label">' + escAttr(resolveF(c.label)) + '</div>';
             var desc = resolveF(c.description);
@@ -2691,7 +2766,6 @@
             div.innerHTML = html;
             div.addEventListener('click', function() {
               sbsState.selections[g.id] = c.id;
-              delete sbsState.skipped[g.id];
               btnNext.disabled = false;
               renderStep();
             });
@@ -2708,20 +2782,26 @@
             var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
             var div = document.createElement('div');
             div.className = 'sbs-summary-item';
-            var stepName = escAttr(resolveF(g.label));
             if (choice) {
               var delta = computeDelta(choice, sbsState.product);
               total += delta;
-              var thumb = choice.image ? '<img class="sbs-summary-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.visibility=\'hidden\'" />' : '<span class="sbs-summary-thumb empty">&#9633;</span>';
-              div.innerHTML = thumb + '<span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + escAttr(resolveF(choice.label)) + '</span><button type="button" class="sbs-summary-change" data-sbs-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span>';
-            } else if (sbsState.skipped[g.id]) {
-              div.innerHTML = '<span class="sbs-summary-thumb empty">&#8212;</span><span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span><button type="button" class="sbs-summary-change" data-sbs-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button></span><span class="sbs-sum-price">0,00 &euro;</span>';
+              var thumb = choice.image ? '<img class="sbs-sum-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.display=\'none\'" />' : '';
+              var changeLabel = LANG === 'el' ? 'Αλλαγή' : 'Change';
+              div.innerHTML = thumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label">' + escAttr(resolveF(choice.label)) + '</span></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + changeLabel + '</button>';
+            } else if (gi < sbsState.step && !g.required && g.allowSkip) {
+              div.innerHTML = '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.35);font-style:italic;">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">0,00 &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button>';
             } else {
-              div.innerHTML = '<span class="sbs-summary-thumb empty">&#9633;</span><span><span class="sbs-summary-name">' + stepName + '</span><span class="sbs-summary-choice">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price">0,00 &euro;</span>';
+              div.innerHTML = '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.3);">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">—</span>';
             }
+            div.querySelectorAll('.sbs-sum-change').forEach(function(btn) {
+              btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                sbsState.step = parseInt(btn.getAttribute('data-step'), 10);
+                renderStep();
+              });
+            });
             elSummaryList.appendChild(div);
           });
-          elSummaryList.querySelectorAll('[data-sbs-step]').forEach(function(button){ button.addEventListener('click', function(){ sbsState.step = Number(button.getAttribute('data-sbs-step')); renderStep(); }); });
           elTotal.textContent = total.toFixed(2) + ' €';
         }
         function openSbs(productId) {
@@ -2730,18 +2810,59 @@
           sbsState.product = product;
           sbsState.step = 0;
           sbsState.selections = {};
-          sbsState.skipped = {};
           var bc = product.builderConfig || {};
           var bannerSrc = (isMobile && bc.mobileBannerImage) ? bc.mobileBannerImage : (bc.bannerImage || '');
           if (!bannerSrc && isMobile) bannerSrc = bc.bannerImage || '';
           if (bannerSrc) {
-            elBanner.innerHTML = '<img src="' + escAttr(bannerSrc) + '" alt="" onerror="this.parentNode.style.display=\'none\'" />';
+            var bannerImg = elBanner.querySelector('img.sbs-banner-bg');
+            if (!bannerImg) {
+              bannerImg = document.createElement('img');
+              bannerImg.className = 'sbs-banner-bg';
+              bannerImg.alt = '';
+              bannerImg.onerror = function(){ this.style.display='none'; };
+              elBanner.insertBefore(bannerImg, elBanner.firstChild);
+            }
+            bannerImg.src = bannerSrc;
+            bannerImg.style.display = '';
             elBanner.style.display = '';
           } else {
             elBanner.style.display = 'none';
           }
+          var logoSrc = (isMobile && bc.mobileLogoImage) ? bc.mobileLogoImage : (bc.logoImage || '');
+          if (!logoSrc && isMobile) logoSrc = bc.logoImage || '';
+          if (bc.showLogo !== false && logoSrc) {
+            elBuilderLogo.src = logoSrc;
+            elBuilderLogo.className = 'sbs-banner-logo' + (bc.logoPosition === 'center' ? ' logo-center' : bc.logoPosition === 'right' ? ' logo-right' : '') + (bc.logoSize === 'small' ? ' logo-small' : bc.logoSize === 'large' ? ' logo-large' : '');
+            elBuilderLogo.style.display = '';
+          } else {
+            elBuilderLogo.style.display = 'none';
+          }
+          var sloganText = resolveF(bc.slogan) || '';
+          elBannerSlogan.textContent = sloganText;
+          elBannerSlogan.style.display = (bc.showSlogan !== false && sloganText) ? '' : 'none';
+          var slogan2Text = resolveF(bc.sloganSecondary) || '';
+          elBannerSlogan2.textContent = slogan2Text;
+          elBannerSlogan2.style.display = (bc.showSlogan !== false && slogan2Text) ? '' : 'none';
+          var benefits = Array.isArray(bc.benefits) ? bc.benefits.filter(function(b){ return b.enabled !== false; }) : [];
+          if (benefits.length > 0) {
+            elBenefits.innerHTML = '';
+            benefits.forEach(function(b) {
+              var iconSvg = benefitIcons[b.icon] || benefitIcons.tools;
+              var d = document.createElement('div');
+              d.className = 'sbs-benefit';
+              d.innerHTML = '<span class="sbs-benefit-icon">' + iconSvg + '</span><span class="sbs-benefit-text">' + escAttr(resolveF(b.title)) + '</span>';
+              elBenefits.appendChild(d);
+            });
+            elBenefits.style.display = '';
+          } else {
+            elBenefits.style.display = 'none';
+          }
+          var hasBanner = !!bannerSrc;
           var titleText = resolveF(bc.title) || resolveF(product.name);
           elTitle.textContent = titleText;
+          var showHead = !hasBanner || (bc.showTitle !== false && titleText) || (bc.showSubtitle !== false && resolveF(bc.subtitle)) || (bc.showHelperText !== false && resolveF(bc.helperText));
+          if (hasBanner) showHead = false;
+          elBuilderHead.style.display = showHead ? '' : 'none';
           elTitle.style.display = (bc.showTitle !== false && titleText) ? '' : 'none';
           var subtitleText = resolveF(bc.subtitle) || '';
           elSubtitle.textContent = subtitleText;
@@ -2749,6 +2870,35 @@
           var helperText = resolveF(bc.helperText) || '';
           elHelperText.textContent = helperText;
           elHelperText.style.display = (bc.showHelperText !== false && helperText) ? '' : 'none';
+          var summSubtitle = resolveF(bc.summarySubtitle) || '';
+          elSummarySubtitle.textContent = summSubtitle;
+          elSummarySubtitle.style.display = summSubtitle ? '' : 'none';
+          var trustItems = Array.isArray(bc.trustItems) ? bc.trustItems : [];
+          if (bc.showTrustRow !== false && trustItems.length > 0) {
+            elTrustRow.innerHTML = '';
+            trustItems.forEach(function(t) {
+              var iconSvg = benefitIcons[t.icon] || benefitIcons.shield;
+              var d = document.createElement('div');
+              d.className = 'sbs-trust-item';
+              d.innerHTML = '<span class="sbs-trust-icon">' + iconSvg + '</span>' + escAttr(resolveF(t.title));
+              elTrustRow.appendChild(d);
+            });
+            elTrustRow.style.display = '';
+          } else {
+            elTrustRow.style.display = 'none';
+          }
+          if (bc.showVideoCTA && bc.videoUrl) {
+            var vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
+            var vSub = resolveF(bc.videoCTASubtitle) || '';
+            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span>';
+            elVideoCTA.style.display = '';
+            elVideoCTA.onclick = function() {
+              var url = bc.videoUrl;
+              if (url) window.open(url, '_blank', 'noopener');
+            };
+          } else {
+            elVideoCTA.style.display = 'none';
+          }
           backdrop.classList.add('open');
           backdrop.setAttribute('aria-hidden', 'false');
           document.body.style.overflow = 'hidden';
@@ -2760,6 +2910,8 @@
           document.body.style.overflow = '';
         }
         document.getElementById('sbs-close').addEventListener('click', closeSbs);
+        var closeAltBtn = document.getElementById('sbs-close-alt');
+        if (closeAltBtn) closeAltBtn.addEventListener('click', closeSbs);
         backdrop.addEventListener('click', function(e){ if (e.target === backdrop) closeSbs(); });
         document.addEventListener('keydown', function(e){
           if (e.key === 'Escape' && backdrop.classList.contains('open')) closeSbs();
@@ -2773,7 +2925,6 @@
             var g = groups[sbsState.step];
             if (!g.required) {
               delete sbsState.selections[g.id];
-              sbsState.skipped[g.id] = true;
               sbsState.step += 1;
               renderStep();
             }
@@ -2801,25 +2952,21 @@
             type: 'step_by_step',
             builderType: 'step_by_step',
             productId: sbsState.product.id,
-            steps: groups.map(function(g){
-              var o = selected.find(function(entry){ return entry.groupId === g.id; });
-              if (!o) return { stepId: g.id, stepTitle: resolveF(g.label), skipped: true, optionId: null, optionTitle: null, linkedProductId: null, variantId: null, sku: null, unitPrice: 0, linePrice: 0 };
-              return { stepId: o.groupId, stepTitle: o.groupLabel, skipped: false, optionId: o.choiceId, optionTitle: o.choiceLabel, linkedProductId: o.linkedProductId, variantId: o.selectedVariantId || null, sku: o.selectedVariantSku || null, unitPrice: o.priceDelta, linePrice: o.priceDelta };
+            steps: selected.map(function(o){
+              return { stepId: o.groupId, stepLabel: o.groupLabel, optionId: o.choiceId, optionLabel: o.choiceLabel, linkedProductId: o.linkedProductId, price: o.priceDelta };
             }),
             total: finalPrice,
             timestamp: new Date().toISOString()
           };
           if (window.thrcAddToCart) {
             if (sbsState.product.kitPayMode === 'parts_only') {
-              var atomicCartKey = cartKey + '::summary';
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
                 var linked = catalogById[opt.linkedProductId];
                 if (linked) {
                   window.thrcAddToCart({
                     id: linked.id, name: resolveF(linked.name),
                     price: Number(linked.price) || 0, imageUrl: linked.imageUrl || '',
-                    cartKey: atomicCartKey + '::component:' + opt.groupId,
-                    sourceKitCartKey: atomicCartKey,
+                    cartKey: linked.id + '::from-kit:' + sbsState.product.id + ':' + opt.groupId,
                     sourceKitId: sbsState.product.id, sourceKitOption: opt.groupLabel + ': ' + opt.choiceLabel
                   });
                 }
@@ -2828,8 +2975,8 @@
                 id: sbsState.product.id, name: resolveF(sbsState.product.name) + ' (summary)',
                 price: 0, imageUrl: sbsState.product.imageUrl || '',
                 selectedOptions: selected, optionSummary: optionSummary,
-                finalUnitPrice: 0, cartKey: atomicCartKey, isKitSummary: true,
-                builderType: 'step_by_step', builderSnapshot: snapshot
+                finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true,
+                builderSnapshot: snapshot
               });
             } else {
               window.thrcAddToCart({
@@ -2837,7 +2984,7 @@
                 price: finalPrice, imageUrl: sbsState.product.imageUrl || '',
                 selectedOptions: selected, optionSummary: optionSummary,
                 finalUnitPrice: finalPrice, cartKey: cartKey,
-                builderType: 'step_by_step', builderSnapshot: snapshot
+                builderSnapshot: snapshot
               });
             }
           }
