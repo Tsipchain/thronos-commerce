@@ -352,7 +352,7 @@ test('SBS builder has responsive breakpoint at 700px', () => {
 });
 
 test('SBS builder body uses grid layout with summary sidebar', () => {
-  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*1fr\s+320px/s);
+  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,\s*72fr\)\s+minmax\(280px,\s*28fr\)/s);
 });
 
 // === Section 16: Builder bilingual support ===
@@ -691,7 +691,7 @@ test('Done steps show check SVG instead of number', () => {
 
 test('Step labels are short (max 2 words) below circles', () => {
   assert.match(index, /sbs-step-label/);
-  assert.match(index, /labelParts\.slice\(0, 2\)\.join/);
+  assert.match(index, /parts\.slice\(0,\s*2\)\.join/);
 });
 
 // === Section 24: Step header with orange bar ===
@@ -822,4 +822,128 @@ test('Admin builder config has organized A/B/C/D sections', () => {
   assert.match(admin, /B\.\s*Hero.*Banner/);
   assert.match(admin, /C\.\s*Benefits/);
   assert.match(admin, /D\.\s*Summary/);
+});
+
+// === Section 33: Visual parity — no raw IDs visible ===
+
+test('Stepper has short label lookup map for known step IDs', () => {
+  assert.match(index, /stepShortLabels\s*=\s*\{/);
+  assert.match(index, /'tampakiera-karoulaki':\s*\{\s*el:\s*'Ταμπακιέρα'/);
+  assert.match(index, /'aristeri-plevra':\s*\{\s*el:\s*'Αριστερά'/);
+  assert.match(index, /'dexia-plevra':\s*\{\s*el:\s*'Δεξιά'/);
+  assert.match(index, /'tirantes':\s*\{\s*el:\s*'Τιράντες'/);
+  assert.match(index, /'exoterika-stoper':\s*\{\s*el:\s*'Στόπερ'/);
+});
+
+test('Stepper short labels include EN translations', () => {
+  assert.match(index, /en:\s*'Shutter Box'/);
+  assert.match(index, /en:\s*'Left'/);
+  assert.match(index, /en:\s*'Right'/);
+  assert.match(index, /en:\s*'Straps'/);
+  assert.match(index, /en:\s*'Stoppers'/);
+});
+
+test('renderProgress uses stepShortLabel helper, not raw g.id', () => {
+  assert.match(index, /stepShortLabel\(g\)/);
+  assert.doesNotMatch(index, /sbs-step-label[^<]*escAttr\(g\.id\)/);
+});
+
+test('Step heading uses localized label via resolveF(g.label)', () => {
+  assert.match(index, /elStepTitle\.innerHTML[\s\S]*?escAttr\(resolveF\(g\.label\)\)/);
+});
+
+test('Summary rows use resolveF(g.label) for step names', () => {
+  assert.match(index, /sbs-sum-step[^<]*escAttr\(resolveF\(g\.label\)\)/);
+});
+
+test('No raw step IDs rendered in visible builder text', () => {
+  const visibleIdPattern = /textContent\s*=\s*['"]?(tampakiera-karoulaki|aristeri-plevra|dexia-plevra|tirantes|exoterika-stoper)/;
+  assert.doesNotMatch(index, visibleIdPattern);
+});
+
+// === Section 34: Builder logo renders only from builderConfig ===
+
+test('Builder logo rendered only when showLogo and logoImage configured', () => {
+  assert.match(index, /bc\.showLogo\s*!==\s*false\s*&&\s*logoSrc/);
+  assert.match(index, /bc\.logoImage/);
+});
+
+test('Builder logo hidden when logoImage is empty', () => {
+  assert.match(index, /elBuilderLogo\.style\.display\s*=\s*'none'/);
+});
+
+// === Section 35: Benefits strip rendering ===
+
+test('Benefits strip renders from builderConfig.benefits array', () => {
+  assert.match(index, /bc\.benefits/);
+  assert.match(index, /sbs-benefit-icon/);
+  assert.match(index, /sbs-benefit-text/);
+});
+
+// === Section 36: Change action navigates to step ===
+
+test('Change button sets sbsState.step and re-renders', () => {
+  assert.match(index, /sbs-sum-change[\s\S]*?data-step/);
+  assert.match(index, /sbsState\.step\s*=\s*parseInt\(btn\.getAttribute\('data-step'\)/);
+});
+
+// === Section 37: Trust row visibility ===
+
+test('Trust row respects showTrustRow config flag', () => {
+  assert.match(index, /bc\.showTrustRow\s*!==\s*false/);
+});
+
+// === Section 38: Video CTA visibility ===
+
+test('Video CTA requires both showVideoCTA and videoUrl', () => {
+  assert.match(index, /bc\.showVideoCTA\s*&&\s*bc\.videoUrl/);
+});
+
+// === Section 39: EL/EN bilingual rendering ===
+
+test('Builder uses LANG variable for EL/EN rendering', () => {
+  assert.match(index, /LANG\s*===\s*'el'/);
+  assert.match(index, /Βήμα/);
+  assert.match(index, /Step/);
+});
+
+// === Section 40: No global nav inside builder ===
+
+test('Builder backdrop does not contain global nav elements', () => {
+  const backdropStart = index.indexOf('id="sbs-builder-backdrop"');
+  assert.ok(backdropStart > -1, 'sbs-builder-backdrop must exist');
+  const backdropEnd = index.indexOf('<!-- /sbs-builder-backdrop -->', backdropStart);
+  const builderSection = backdropEnd > -1
+    ? index.substring(backdropStart, backdropEnd)
+    : index.substring(backdropStart, backdropStart + 5000);
+  assert.doesNotMatch(builderSection, /id="main-nav"/);
+  assert.doesNotMatch(builderSection, /id="search-bar"/);
+  assert.doesNotMatch(builderSection, /id="account-menu"/);
+});
+
+// === Section 41: Builder max-width and proportions ===
+
+test('Builder max-width is 1500px for desktop', () => {
+  assert.match(index, /\.sbs-builder\s*\{[^}]*max-width:\s*1500px/);
+});
+
+test('Builder body grid uses ~72/28 split', () => {
+  assert.match(index, /\.sbs-builder-body\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*72fr\)\s+minmax\(280px,\s*28fr\)/);
+});
+
+// === Section 42: Mobile breakpoint at 768px ===
+
+test('Mobile breakpoint is 768px', () => {
+  assert.match(index, /@media\s*\(max-width:\s*768px\)/);
+});
+
+test('Mobile nav is sticky', () => {
+  assert.match(index, /\.sbs-nav\s*\{[^}]*position:\s*sticky/);
+});
+
+// === Section 43: Summary thumbnail placeholder for unselected ===
+
+test('Summary renders placeholder thumbs for unselected steps', () => {
+  assert.match(index, /emptyThumb\s*=/);
+  assert.match(index, /sbs-sum-thumb/);
 });

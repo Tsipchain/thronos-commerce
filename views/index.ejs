@@ -190,104 +190,107 @@
       .kit-choice .kit-choice-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#cbd5e1; }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] .kit-wizard-modal { box-shadow: 0 34px 64px rgba(2,6,23,.48); }
       .kit-wizard-backdrop[data-wizard-display="cinematic"] #kit-wizard-progress { color:#0f766e; font-weight:700; letter-spacing:.02em; }
-      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.88); z-index:2200; display:none; overflow-y:auto; }
+      .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.92); z-index:2200; display:none; overflow-y:auto; }
       .sbs-builder-backdrop.open { display:block; }
-      .sbs-builder { max-width:1120px; margin:0 auto; background:#1a1f2e; color:#e2e8f0; border-radius:0; min-height:100vh; box-shadow:none; overflow:hidden; }
-      .sbs-banner { width:100%; position:relative; overflow:hidden; height:280px; }
+      .sbs-builder { max-width:1500px; margin:0 auto; background:#131720; color:#e2e8f0; border-radius:0; min-height:100vh; box-shadow:none; overflow:hidden; }
+      .sbs-banner { width:100%; position:relative; overflow:hidden; height:240px; }
       .sbs-banner img { width:100%; height:100%; object-fit:cover; display:block; }
-      .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(10,15,30,.82) 0%,rgba(10,15,30,.5) 60%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:28px 36px; }
-      .sbs-banner-logo { max-height:48px; width:auto; margin-bottom:12px; object-fit:contain; }
+      .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(10,15,30,.82) 0%,rgba(10,15,30,.5) 60%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:24px 32px; }
+      .sbs-banner-logo { max-height:48px; width:auto; margin-bottom:10px; object-fit:contain; }
       .sbs-banner-logo.logo-center { align-self:center; }
       .sbs-banner-logo.logo-right { align-self:flex-end; }
       .sbs-banner-logo.logo-small { max-height:32px; }
       .sbs-banner-logo.logo-large { max-height:64px; }
-      .sbs-banner-slogan { font-size:1.8rem; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:.04em; line-height:1.15; margin:0; }
-      .sbs-banner-slogan-secondary { font-size:.95rem; font-weight:500; color:rgba(255,255,255,.78); margin:4px 0 0; }
-      .sbs-banner-close { position:absolute; top:14px; right:16px; background:rgba(255,255,255,.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+      .sbs-banner-slogan { font-size:1.6rem; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:.04em; line-height:1.15; margin:0; }
+      .sbs-banner-slogan-secondary { font-size:.88rem; font-weight:500; color:rgba(255,255,255,.78); margin:4px 0 0; }
+      .sbs-banner-close { position:absolute; top:12px; right:14px; background:rgba(255,255,255,.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); z-index:3; }
       .sbs-banner-close:hover { background:rgba(255,255,255,.28); }
-      .sbs-benefits { display:flex; gap:0; background:#0f1420; border-bottom:1px solid rgba(255,255,255,.08); }
-      .sbs-benefit { flex:1; display:flex; align-items:center; gap:8px; padding:10px 16px; font-size:.76rem; color:rgba(255,255,255,.7); border-right:1px solid rgba(255,255,255,.06); }
+      .sbs-benefits { display:flex; gap:0; background:#0b0f1a; border-bottom:1px solid rgba(255,255,255,.08); }
+      .sbs-benefit { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; font-size:.74rem; color:rgba(255,255,255,.7); border-right:1px solid rgba(255,255,255,.06); }
       .sbs-benefit:last-child { border-right:none; }
       .sbs-benefit-icon { width:20px; height:20px; flex-shrink:0; fill:#e8922d; }
       .sbs-benefit-text { font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
-      .sbs-builder-head { padding:16px 24px 10px; display:flex; justify-content:space-between; align-items:flex-start; }
-      .sbs-builder-head h3 { margin:0; font-size:1.1rem; font-weight:700; color:#fff; }
-      .sbs-subtitle { margin:3px 0 0; font-size:.8rem; color:rgba(255,255,255,.55); }
+      .sbs-builder-head { padding:14px 24px 8px; display:flex; justify-content:space-between; align-items:flex-start; }
+      .sbs-builder-head h3 { margin:0; font-size:1.05rem; font-weight:700; color:#fff; }
+      .sbs-subtitle { margin:3px 0 0; font-size:.78rem; color:rgba(255,255,255,.55); }
       .sbs-builder-head .sbs-close { background:none; border:none; font-size:1.3rem; cursor:pointer; color:rgba(255,255,255,.5); }
-      .sbs-progress { display:flex; align-items:flex-start; padding:8px 24px 16px; gap:0; position:relative; }
+      .sbs-progress { display:flex; align-items:flex-start; padding:6px 28px 14px; gap:0; position:relative; }
       .sbs-progress-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; cursor:pointer; padding:0 4px; }
-      .sbs-step-num { display:flex; width:34px; height:34px; border-radius:50%; background:#2d3348; color:#64748b; font-size:.82rem; font-weight:700; align-items:center; justify-content:center; border:2px solid #3d4560; position:relative; z-index:2; transition:all .2s; }
+      .sbs-step-num { display:flex; width:38px; height:38px; border-radius:50%; background:#1e2538; color:#64748b; font-size:.85rem; font-weight:700; align-items:center; justify-content:center; border:2px solid #3d4560; position:relative; z-index:2; transition:all .2s; }
       .sbs-progress-step.active .sbs-step-num { background:#e8922d; color:#fff; border-color:#e8922d; box-shadow:0 0 0 4px rgba(232,146,45,.2); }
       .sbs-progress-step.done .sbs-step-num { background:#e8922d; color:#fff; border-color:#e8922d; }
-      .sbs-progress-step .sbs-step-label { font-size:.68rem; font-weight:600; color:#64748b; margin-top:5px; text-align:center; max-width:80px; line-height:1.2; }
-      .sbs-progress-step.active .sbs-step-label { color:#e8922d; }
-      .sbs-progress-step.done .sbs-step-label { color:rgba(255,255,255,.7); }
-      .sbs-progress-line { position:absolute; top:17px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:#3d4560; z-index:1; }
+      .sbs-progress-step .sbs-step-label { font-size:.72rem; font-weight:600; color:#8694b0; margin-top:6px; text-align:center; max-width:90px; line-height:1.25; }
+      .sbs-progress-step.active .sbs-step-label { color:#e8922d; font-weight:700; }
+      .sbs-progress-step.done .sbs-step-label { color:rgba(255,255,255,.75); }
+      .sbs-progress-line { position:absolute; top:19px; left:calc(50% + 22px); right:calc(-50% + 22px); height:2px; background:#2d3348; z-index:1; }
       .sbs-progress-step.done .sbs-progress-line { background:#e8922d; }
       .sbs-progress-step:last-child .sbs-progress-line { display:none; }
-      .sbs-builder-body { display:grid; grid-template-columns:1fr 320px; gap:0; min-height:400px; }
-      .sbs-step-content { padding:20px 24px; overflow-y:auto; max-height:calc(100vh - 400px); background:#1a1f2e; }
-      .sbs-step-title { font-size:1rem; font-weight:700; margin:0 0 6px; color:#fff; display:flex; align-items:center; gap:8px; }
+      .sbs-builder-body { display:grid; grid-template-columns:minmax(0,72fr) minmax(280px,28fr); gap:0; min-height:380px; }
+      .sbs-step-content { padding:16px 24px; overflow-y:auto; max-height:calc(100vh - 380px); background:#131720; }
+      .sbs-step-title { font-size:1.05rem; font-weight:700; margin:0 0 4px; color:#fff; display:flex; align-items:center; gap:8px; }
       .sbs-step-title-bar { width:4px; height:22px; background:#e8922d; border-radius:2px; flex-shrink:0; }
       .sbs-step-title-num { color:#e8922d; font-weight:700; }
-      .sbs-step-helper { font-size:.78rem; color:rgba(255,255,255,.45); margin:0 0 16px; padding-left:12px; }
-      .sbs-option-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
-      .sbs-option { border:2px solid #2d3348; border-radius:10px; padding:10px; cursor:pointer; transition:border-color .15s, box-shadow .15s; background:#222839; position:relative; }
-      .sbs-option:hover { border-color:#4a5580; }
-      .sbs-option.selected { border-color:#e8922d; box-shadow:0 0 0 3px rgba(232,146,45,.15); }
-      .sbs-option-check { position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%; border:2px solid #3d4560; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+      .sbs-step-helper { font-size:.78rem; color:rgba(255,255,255,.45); margin:0 0 14px; padding-left:12px; }
+      .sbs-option-grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); }
+      .sbs-option { border:2px solid #1e2538; border-radius:10px; padding:8px; cursor:pointer; transition:border-color .15s, box-shadow .15s; background:#181d2c; position:relative; }
+      .sbs-option:hover { border-color:#3d4e72; }
+      .sbs-option.selected { border-color:#e8922d; box-shadow:0 0 0 3px rgba(232,146,45,.15); background:#1c2030; }
+      .sbs-option-check { position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%; border:2px solid #3d4560; display:flex; align-items:center; justify-content:center; transition:all .15s; }
       .sbs-option.selected .sbs-option-check { background:#e8922d; border-color:#e8922d; }
-      .sbs-option-check svg { width:12px; height:12px; fill:#fff; opacity:0; }
+      .sbs-option-check svg { width:13px; height:13px; fill:#fff; opacity:0; }
       .sbs-option.selected .sbs-option-check svg { opacity:1; }
-      .sbs-option-img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; margin-bottom:10px; background:#111827; }
-      .sbs-option-label { font-size:.88rem; font-weight:600; color:#e2e8f0; }
+      .sbs-option-img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; margin-bottom:8px; background:#0d1119; }
+      .sbs-option-label { font-size:.9rem; font-weight:700; color:#f1f5f9; }
       .sbs-option-desc { font-size:.74rem; color:rgba(255,255,255,.45); margin-top:3px; }
-      .sbs-option-price { font-size:.82rem; font-weight:700; color:#e8922d; margin-top:6px; }
-      .sbs-summary { background:#111827; border-left:1px solid rgba(255,255,255,.06); padding:20px; display:flex; flex-direction:column; }
-      .sbs-summary h4 { margin:0 0 4px; font-size:.92rem; font-weight:700; color:#e8922d; }
-      .sbs-summary-subtitle { font-size:.74rem; color:rgba(255,255,255,.45); margin:0 0 14px; }
+      .sbs-option-price { font-size:.85rem; font-weight:700; color:#e8922d; margin-top:5px; }
+      .sbs-summary { background:#0d1119; border-left:1px solid rgba(255,255,255,.08); padding:18px; display:flex; flex-direction:column; }
+      .sbs-summary h4 { margin:0 0 4px; font-size:.95rem; font-weight:700; color:#e8922d; }
+      .sbs-summary-subtitle { font-size:.74rem; color:rgba(255,255,255,.45); margin:0 0 12px; }
       .sbs-summary-list { flex:1; overflow-y:auto; }
       .sbs-summary-item { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.78rem; }
-      .sbs-summary-item .sbs-sum-thumb { width:36px; height:36px; object-fit:cover; border-radius:4px; flex-shrink:0; background:#1a1f2e; }
+      .sbs-summary-item .sbs-sum-thumb { width:38px; height:38px; object-fit:cover; border-radius:4px; flex-shrink:0; background:#181d2c; }
       .sbs-summary-item .sbs-sum-info { flex:1; min-width:0; }
       .sbs-summary-item .sbs-sum-step { font-size:.66rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.04em; }
-      .sbs-summary-item .sbs-sum-label { color:#e2e8f0; font-weight:500; display:block; }
-      .sbs-summary-item .sbs-sum-price { font-weight:600; color:#e8922d; flex-shrink:0; }
+      .sbs-summary-item .sbs-sum-label { color:#e2e8f0; font-weight:600; display:block; }
+      .sbs-summary-item .sbs-sum-price { font-weight:700; color:#e8922d; flex-shrink:0; }
       .sbs-summary-item .sbs-sum-change { font-size:.7rem; color:#e8922d; cursor:pointer; background:none; border:none; padding:0; font-weight:600; flex-shrink:0; margin-left:4px; }
       .sbs-summary-item .sbs-sum-change:hover { text-decoration:underline; }
-      .sbs-summary-total { margin-top:auto; padding-top:14px; border-top:2px solid #e8922d; display:flex; justify-content:space-between; font-size:1rem; font-weight:700; color:#fff; }
-      .sbs-add-cart { width:100%; padding:12px; border-radius:8px; font-size:.92rem; font-weight:700; cursor:pointer; border:none; background:#e8922d; color:#fff; margin-top:12px; text-transform:uppercase; letter-spacing:.03em; transition:background .15s; }
+      .sbs-summary-total { margin-top:auto; padding-top:14px; border-top:2px solid #e8922d; display:flex; justify-content:space-between; align-items:baseline; font-size:1.05rem; font-weight:800; color:#fff; }
+      .sbs-summary-total .sbs-total-value { color:#e8922d; font-size:1.15rem; }
+      .sbs-add-cart { width:100%; padding:14px; border-radius:8px; font-size:.95rem; font-weight:700; cursor:pointer; border:none; background:#e8922d; color:#fff; margin-top:12px; text-transform:uppercase; letter-spacing:.03em; transition:background .15s; }
       .sbs-add-cart:hover { background:#d4831f; }
-      .sbs-add-cart:disabled { opacity:.45; cursor:default; }
-      .sbs-trust-row { display:flex; gap:12px; padding:10px 0; margin-top:8px; border-top:1px solid rgba(255,255,255,.06); }
-      .sbs-trust-item { display:flex; align-items:center; gap:4px; font-size:.66rem; color:rgba(255,255,255,.5); }
-      .sbs-trust-icon { width:14px; height:14px; fill:rgba(255,255,255,.4); flex-shrink:0; }
-      .sbs-video-cta { display:flex; align-items:center; gap:10px; background:#1a1f2e; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:10px 14px; margin-top:12px; cursor:pointer; transition:border-color .15s; }
+      .sbs-add-cart:disabled { opacity:.4; cursor:default; background:#3d4560; color:rgba(255,255,255,.5); }
+      .sbs-trust-row { display:flex; gap:0; padding:10px 0; margin-top:8px; border-top:1px solid rgba(255,255,255,.06); }
+      .sbs-trust-item { flex:1; display:flex; align-items:center; gap:5px; font-size:.68rem; color:rgba(255,255,255,.55); }
+      .sbs-trust-icon { width:15px; height:15px; fill:rgba(255,255,255,.45); flex-shrink:0; }
+      .sbs-video-cta { display:flex; align-items:center; gap:10px; background:#181d2c; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:10px 14px; margin-top:12px; cursor:pointer; transition:border-color .15s; }
       .sbs-video-cta:hover { border-color:#e8922d; }
       .sbs-video-cta-icon { width:32px; height:32px; fill:#e8922d; flex-shrink:0; }
       .sbs-video-cta-text { font-size:.78rem; color:rgba(255,255,255,.7); }
       .sbs-video-cta-text strong { color:#fff; display:block; font-size:.82rem; }
-      .sbs-nav { padding:14px 24px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:10px; background:#111827; }
-      .sbs-nav button { padding:8px 22px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:1px solid rgba(255,255,255,.15); background:transparent; color:rgba(255,255,255,.7); }
+      .sbs-nav { padding:12px 24px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:10px; background:#0d1119; }
+      .sbs-nav button { padding:9px 22px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; border:1px solid rgba(255,255,255,.15); background:transparent; color:rgba(255,255,255,.7); }
       .sbs-nav button:hover { background:rgba(255,255,255,.06); }
       .sbs-nav .sbs-next { background:#e8922d; color:#fff; border-color:#e8922d; }
       .sbs-nav .sbs-next:hover { background:#d4831f; }
       .sbs-nav .sbs-next:disabled { opacity:.45; cursor:default; }
-      @media (max-width:700px) {
+      @media (max-width:768px) {
         .sbs-builder { min-height:100dvh; }
-        .sbs-banner { height:180px; }
-        .sbs-banner-slogan { font-size:1.2rem; }
-        .sbs-banner-overlay { padding:16px 20px; }
+        .sbs-banner { height:160px; }
+        .sbs-banner-slogan { font-size:1.1rem; }
+        .sbs-banner-overlay { padding:14px 18px; }
         .sbs-benefits { flex-wrap:wrap; }
-        .sbs-benefit { flex:0 0 auto; min-width:0; padding:8px 10px; font-size:.68rem; }
+        .sbs-benefit { flex:0 0 auto; min-width:0; padding:8px 10px; font-size:.66rem; }
         .sbs-builder-body { grid-template-columns:1fr; }
-        .sbs-summary { border-left:0; border-top:1px solid rgba(255,255,255,.06); max-height:220px; }
-        .sbs-progress { overflow-x:auto; padding:8px 12px 12px; gap:0; }
-        .sbs-step-num { width:28px; height:28px; font-size:.72rem; }
-        .sbs-progress-step .sbs-step-label { font-size:.6rem; max-width:60px; }
+        .sbs-summary { border-left:0; border-top:1px solid rgba(255,255,255,.06); max-height:240px; }
+        .sbs-progress { overflow-x:auto; padding:6px 12px 10px; gap:0; }
+        .sbs-step-num { width:30px; height:30px; font-size:.74rem; }
+        .sbs-progress-step .sbs-step-label { font-size:.62rem; max-width:64px; }
         .sbs-option-grid { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
-        .sbs-step-content { padding:14px 16px; max-height:calc(100vh - 340px); }
+        .sbs-step-content { padding:12px 14px; max-height:calc(100vh - 320px); }
         .sbs-trust-row { flex-wrap:wrap; }
+        .sbs-video-cta { width:100%; box-sizing:border-box; }
+        .sbs-nav { position:sticky; bottom:0; z-index:2; padding:10px 14px; }
       }
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
@@ -1997,7 +2000,7 @@
             <div class="sbs-summary-list" id="sbs-summary-list"></div>
             <div class="sbs-summary-total">
               <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
-              <span id="sbs-total">0.00 &euro;</span>
+              <span id="sbs-total" class="sbs-total-value">0.00 &euro;</span>
             </div>
             <button type="button" id="sbs-cart-btn" class="sbs-add-cart" style="display:none;"><%= lang === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart' %></button>
             <div id="sbs-trust-row" class="sbs-trust-row" style="display:none;"></div>
@@ -2698,6 +2701,20 @@
           }
           return Number(choice.priceDelta) || 0;
         }
+        var stepShortLabels = {
+          'tampakiera-karoulaki': { el: 'Ταμπακιέρα', en: 'Shutter Box' },
+          'aristeri-plevra': { el: 'Αριστερά', en: 'Left' },
+          'dexia-plevra': { el: 'Δεξιά', en: 'Right' },
+          'tirantes': { el: 'Τιράντες', en: 'Straps' },
+          'exoterika-stoper': { el: 'Στόπερ', en: 'Stoppers' }
+        };
+        function stepShortLabel(g) {
+          var mapped = stepShortLabels[g.id];
+          if (mapped) return resolveF(mapped);
+          var full = resolveF(g.label);
+          var parts = full.split(/\s+/);
+          return parts.length > 2 ? parts.slice(0, 2).join(' ') : full;
+        }
         function renderProgress() {
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           elProgress.innerHTML = '';
@@ -2709,9 +2726,7 @@
             var div = document.createElement('div');
             div.className = cls;
             var numContent = isDone && i !== sbsState.step ? '<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#fff;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : String(i+1);
-            var labelParts = resolveF(g.label).split(/\s+/);
-            var shortLabel = labelParts.length > 2 ? labelParts.slice(0, 2).join(' ') : resolveF(g.label);
-            div.innerHTML = '<span class="sbs-step-num">' + numContent + '</span><span class="sbs-step-label">' + escAttr(shortLabel) + '</span>' + (i < groups.length - 1 ? '<span class="sbs-progress-line"></span>' : '');
+            div.innerHTML = '<span class="sbs-step-num">' + numContent + '</span><span class="sbs-step-label">' + escAttr(stepShortLabel(g)) + '</span>' + (i < groups.length - 1 ? '<span class="sbs-progress-line"></span>' : '');
             div.addEventListener('click', function() {
               if (i <= sbsState.step || sbsState.selections[g.id]) {
                 sbsState.step = i;
@@ -2744,8 +2759,9 @@
           var canSkip = !g.required && g.allowSkip;
           var stepPrefix = (LANG === 'el' ? 'Βήμα' : 'Step') + ' ' + (sbsState.step + 1) + ': ';
           elStepTitle.innerHTML = '<span class="sbs-step-title-bar"></span><span class="sbs-step-title-num">' + escAttr(stepPrefix) + '</span>' + escAttr(resolveF(g.label));
+          var helperFromConfig = resolveF((sbsState.product.builderConfig || {}).helperText);
           elStepHelper.textContent = g.required
-            ? (LANG === 'el' ? 'Απαιτείται επιλογή' : 'Selection required')
+            ? (LANG === 'el' ? 'Επίλεξε χρώμα' : 'Choose color')
             : (LANG === 'el' ? 'Προαιρετικό — μπορείτε να παραλείψετε' : 'Optional — you can skip');
           btnBack.style.display = sbsState.step > 0 ? '' : 'none';
           btnSkip.style.display = canSkip ? '' : 'none';
@@ -2779,6 +2795,8 @@
           var total = Number(sbsState.product.price) || 0;
           elSummaryList.innerHTML = '';
           if (sbsState.product.kitPayMode === 'parts_only') total = 0;
+          var changeLabel = LANG === 'el' ? 'Αλλαγή' : 'Change';
+          var emptyThumb = '<span class="sbs-sum-thumb" style="display:flex;align-items:center;justify-content:center;color:#3d4560;font-size:.9rem;">—</span>';
           groups.forEach(function(g, gi) {
             var sel = sbsState.selections[g.id];
             var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
@@ -2787,13 +2805,12 @@
             if (choice) {
               var delta = computeDelta(choice, sbsState.product);
               total += delta;
-              var thumb = choice.image ? '<img class="sbs-sum-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.display=\'none\'" />' : '';
-              var changeLabel = LANG === 'el' ? 'Αλλαγή' : 'Change';
+              var thumb = choice.image ? '<img class="sbs-sum-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.display=\'none\'" />' : emptyThumb;
               div.innerHTML = thumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label">' + escAttr(resolveF(choice.label)) + '</span></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + changeLabel + '</button>';
             } else if (gi < sbsState.step && !g.required && g.allowSkip) {
-              div.innerHTML = '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.35);font-style:italic;">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">0,00 &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + (LANG === 'el' ? 'Αλλαγή' : 'Change') + '</button>';
+              div.innerHTML = emptyThumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.35);font-style:italic;">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">0,00 &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + changeLabel + '</button>';
             } else {
-              div.innerHTML = '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.3);">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">—</span>';
+              div.innerHTML = emptyThumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(resolveF(g.label)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.3);">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">—</span>';
             }
             div.querySelectorAll('.sbs-sum-change').forEach(function(btn) {
               btn.addEventListener('click', function(e) {
