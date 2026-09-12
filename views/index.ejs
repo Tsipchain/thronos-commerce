@@ -1586,8 +1586,11 @@
           <img class="eko-hero-img" src="<%= homepage.heroImage %>" alt="<%= heroTitleText %>" loading="eager" />
           <% if (homepage.heroMobileImage) { %><img class="eko-hero-img eko-hero-img-mobile" src="<%= homepage.heroMobileImage %>" alt="<%= heroTitleText %>" loading="eager" /><% } %>
           <div class="eko-hero-overlay">
+          <% } %>
         <% } else { %>
+          <% if (_ho.showOverlay !== false) { %>
           <div class="eko-hero-no-img">
+          <% } %>
         <% } %>
             <% if (_ho.showOverlay !== false) { %>
             <% if (_ho.showKicker !== false) { %><p class="eko-hero-eyebrow"><%= lang === 'el' ? 'DIY Kits & Ανταλλακτικά' : 'DIY Kits & Spare Parts' %></p><% } %>
@@ -1609,6 +1612,7 @@
             </div>
             <% } %>
           </div>
+          <% } %>
       </section>
       <% } %>
       <%/* ── Eukolaki Classic industrial category tile grid ── */%>
@@ -2474,13 +2478,19 @@
           el.addEventListener('click', function(e){
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
             e.preventDefault();
-            openWizard(el.getAttribute('data-kit-launch'));
+            const productId = el.getAttribute('data-kit-launch');
+            const targetKit = kitById[productId];
+            if (targetKit && targetKit.builderType === 'step_by_step' && window.openSbsBuilder) return window.openSbsBuilder(productId);
+            openWizard(productId);
           });
         });
         document.querySelectorAll('.kit-clickable').forEach(function(card){
           card.addEventListener('click', function(e){
             if (e.target.closest('a,button,input,textarea,select,label')) return;
-            openWizard(card.getAttribute('data-kit-product-id'));
+            const productId = card.getAttribute('data-kit-product-id');
+            const targetKit = kitById[productId];
+            if (targetKit && targetKit.builderType === 'step_by_step' && window.openSbsBuilder) return window.openSbsBuilder(productId);
+            openWizard(productId);
           });
         });
         document.getElementById('kit-wizard-close').addEventListener('click', closeWizard);
@@ -2547,6 +2557,7 @@
           }).sort().join('&');
           if (window.thrcAddToCart) {
             if (state.product.kitPayMode === 'parts_only') {
+              const atomicCartKey = cartKey + '::summary';
               selected.filter(function(o){ return !!o.linkedProductId; }).forEach(function(opt){
                 const linked = catalogById[opt.linkedProductId];
                 if (linked) {
@@ -2560,7 +2571,8 @@
                     imageUrl: (variant && variant.imageUrl) || linked.imageUrl || '',
                     variantId: variant ? variant.id : undefined,
                     variantLabel: variant ? (variant.label || variant.id) : undefined,
-                    cartKey: linked.id + '::from-kit:' + state.product.id + ':' + opt.groupId + (opt.selectedVariantId ? (':' + opt.selectedVariantId) : '')
+                    cartKey: atomicCartKey + '::component:' + opt.groupId,
+                    sourceKitCartKey: atomicCartKey
                   });
                 }
               });
@@ -2572,7 +2584,7 @@
                 selectedOptions: selected,
                 optionSummary: optionSummary || undefined,
                 finalUnitPrice: 0,
-                cartKey: cartKey + '::summary',
+                cartKey: atomicCartKey,
                 isKitSummary: true
               });
             } else {
@@ -3190,7 +3202,7 @@
 <% if (_vaCfg.vaEnabled && ['customer','both'].includes(_vaCfg.vaMode)) { %>
 <style>
   #thrc-chat-fab {
-    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+    position: fixed; bottom: 20px; left: 20px; right: auto; z-index: 1100;
     width: 56px; height: 56px; border-radius: 50%;
     background: var(--eko-accent, #c4902e); color: #fff;
     border: none; cursor: pointer; font-size: 24px;
@@ -3200,7 +3212,7 @@
   }
   #thrc-chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
   #thrc-chat-panel {
-    position: fixed; bottom: 96px; right: 28px; z-index: 9999;
+    position: fixed; bottom: 88px; left: 20px; right: auto; z-index: 1100;
     width: 340px; max-height: 480px;
     background: var(--eko-surface, #1a1a1a); border: 1px solid var(--eko-border, #333);
     border-radius: 16px; overflow: hidden;
@@ -3252,7 +3264,8 @@
   }
   #thrc-chat-send:disabled { opacity: .5; cursor: default; }
   @media (max-width: 420px) {
-    #thrc-chat-panel { width: calc(100vw - 24px); right: 12px; }
+    #thrc-chat-fab { left: 12px; right: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
+    #thrc-chat-panel { width: calc(100vw - 24px); left: 12px; right: auto; bottom: calc(80px + env(safe-area-inset-bottom)); }
   }
 </style>
 
@@ -3308,6 +3321,7 @@
   }
 
   closeBtn.addEventListener('click', function() { panel.hidden = true; });
+  document.addEventListener('thrc:cart-open', function() { panel.hidden = true; });
 
   function sendMessage() {
     var msg = input.value.trim();

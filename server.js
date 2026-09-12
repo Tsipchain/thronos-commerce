@@ -357,7 +357,7 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
         linkedVariant: linkedVariant || undefined
       };
     });
-    if (group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
+    if (product.builderType !== 'step_by_step' && group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
       hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
     }
     return { ...group, label: resolveTranslatable(group.label, lang) || group.id, choices: hydratedChoices };
@@ -1297,6 +1297,12 @@ function loadTenantConfig(req) {
     { hero: true, kits: true, spare: true, subscriptions: true },
     (cfg.homepage && cfg.homepage.blockVisibility) || {}
   );
+  // Nested legacy defaults apply only when a flag was never stored. Explicit
+  // false values written by Admin must survive normalization and rendering.
+  cfg.homepage.heroOverlay = Object.assign(
+    { showOverlay: true, showKicker: true, showTitle: true, showSubtitle: true, showPrimaryCta: true, showSecondaryCta: true },
+    (cfg.homepage && cfg.homepage.heroOverlay) || {}
+  );
   cfg.homepage.blockContent = Object.assign(
     {
       kitsTitle: '', spareTitle: '', subscriptionsTitle: '',
@@ -1330,6 +1336,7 @@ function loadTenantConfig(req) {
     : 'basic';
   cfg.homepage.introTagline = String(cfg.homepage.introTagline || '').trim();
   cfg.homepage.introBackgroundUrl = normalizeMediaPath(cfg.homepage.introBackgroundUrl || '', { allowAbsoluteUrl: true });
+  cfg.homepage.introImage = normalizeMediaPath(cfg.homepage.introImage || '', { allowAbsoluteUrl: true });
   cfg.homepage.introEnterButtonUrl = normalizeMediaPath(cfg.homepage.introEnterButtonUrl || '', { allowAbsoluteUrl: true });
   cfg.homepage.blockOrder = Array.isArray(cfg.homepage.blockOrder)
     ? cfg.homepage.blockOrder.filter((key) => ['hero', 'kits', 'spare', 'subscriptions'].includes(String(key))).slice(0, 4)
@@ -3094,7 +3101,11 @@ app.post('/api/checkout/cart-snapshot', (req, res) => {
       qty: Math.max(1, parseInt(item.qty, 10) || 1),
       variantId: item.variantId ? String(item.variantId).trim() : '',
       isKitSummary: !!item.isKitSummary,
-      selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+      selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : [],
+      builderType: item.builderType === 'step_by_step' ? 'step_by_step' : undefined,
+      builderSnapshot: item.builderSnapshot && typeof item.builderSnapshot === 'object'
+        ? JSON.parse(JSON.stringify(item.builderSnapshot))
+        : undefined
     }))
     .slice(0, 120);
   const tenantId = req.tenant && req.tenant.id ? String(req.tenant.id) : '';
@@ -3150,7 +3161,11 @@ app.post('/checkout', async (req, res) => {
         qty: Math.max(1, parseInt(item.qty, 10) || 1),
         variantId: item.variantId ? String(item.variantId).trim() : '',
         isKitSummary: !!item.isKitSummary,
-        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : []
+        selectedOptions: Array.isArray(item.selectedOptions) ? item.selectedOptions : [],
+        builderType: item.builderType === 'step_by_step' ? 'step_by_step' : undefined,
+        builderSnapshot: item.builderSnapshot && typeof item.builderSnapshot === 'object'
+          ? JSON.parse(JSON.stringify(item.builderSnapshot))
+          : undefined
       }))
       .slice(0, 120);
   }
@@ -3175,6 +3190,7 @@ app.post('/checkout', async (req, res) => {
       let variantId = (ci.variantId || '').trim();
       let selectedOptions = [];
       let optionSummary = '';
+      let builderSnapshot;
       // Resolve variant price
       if (variantId && Array.isArray(found.variants)) {
         const variant = found.variants.find((v) => v.id === variantId);
@@ -3188,15 +3204,16 @@ app.post('/checkout', async (req, res) => {
       if (found.type === 'KIT' && Array.isArray(found.kitOptions)) {
         const rawOptions = Array.isArray(ci.selectedOptions) ? ci.selectedOptions : [];
         const selectedByGroup = {};
-        rawOptions.forEach((opt) => {
+        for (const opt of rawOptions) {
           const group = found.kitOptions.find((g) => g.id === opt.groupId);
-          if (!group) return;
+          if (!group) return res.status(400).send('Unknown builder step');
           const choice = (group.choices || []).find((c) => c.id === opt.choiceId);
-          if (!choice) return;
+          if (!choice) return res.status(400).send('Unknown builder option');
+          if (choice.enabled === false) return res.status(400).send('Disabled builder option');
           if (!selectedByGroup[group.id]) selectedByGroup[group.id] = [];
           if (group.inputType === 'checkbox') selectedByGroup[group.id].push(choice);
           else selectedByGroup[group.id] = [choice];
-        });
+        }
         const missingRequired = found.kitOptions.some((g) => g.required && (!selectedByGroup[g.id] || !selectedByGroup[g.id].length));
         if (missingRequired) continue;
         selectedOptions = [];
@@ -3268,6 +3285,45 @@ app.post('/checkout', async (req, res) => {
         } else {
           serverPrice += delta;
         }
+        if (found.builderType === 'step_by_step') {
+          builderSnapshot = {
+            version: 1,
+            builderType: 'step_by_step',
+            baseProductId: found.id,
+            resolvedAt: new Date().toISOString(),
+            steps: found.kitOptions.map((group) => {
+              const selected = selectedOptions.find((option) => option.groupId === group.id);
+              if (!selected) {
+                return {
+                  stepId: group.id,
+                  stepTitle: resolveTranslatable(group.label, req.lang) || group.id,
+                  skipped: true,
+                  optionId: null,
+                  optionTitle: null,
+                  linkedProductId: null,
+                  variantId: null,
+                  sku: null,
+                  unitPrice: 0,
+                  linePrice: 0
+                };
+              }
+              const canonicalChoice = (group.choices || []).find((choice) => choice.id === selected.choiceId) || {};
+              return {
+                stepId: group.id,
+                stepTitle: resolveTranslatable(group.label, req.lang) || group.id,
+                skipped: false,
+                optionId: selected.choiceId,
+                optionTitle: resolveTranslatable(canonicalChoice.label, req.lang) || selected.choiceId,
+                linkedProductId: selected.linkedProductId || null,
+                variantId: selected.selectedVariantId || null,
+                sku: selected.selectedVariantSku || canonicalChoice.sku || null,
+                unitPrice: Number(selected.priceDelta) || 0,
+                linePrice: Number(selected.priceDelta) || 0
+              };
+            }),
+            total: found.kitPayMode === 'parts_only' ? delta : serverPrice
+          };
+        }
         optionSummary = selectedOptions.map((o) => `${o.groupLabel}: ${o.choiceLabel}`).join(' | ');
       }
       enrichedItems.push({
@@ -3276,6 +3332,8 @@ app.post('/checkout', async (req, res) => {
         variantId:    variantId || undefined,
         variantLabel: variantLabel || undefined,
         selectedOptions: selectedOptions.length ? selectedOptions : undefined,
+        builderType: builderSnapshot ? 'step_by_step' : undefined,
+        builderSnapshot,
         optionSummary: optionSummary || undefined,
         basePrice: Number(found.price) || 0,
         finalUnitPrice: serverPrice,
@@ -4726,6 +4784,7 @@ app.post('/admin/settings', async (req, res) => {
     homepageIntroTagline,
     homepageIntroVideoUrl,
     homepageIntroPosterUrl,
+    homepageIntroImage,
     homepageBlockOrder,
     homepageBlockHero,
     homepageBlockKits,
