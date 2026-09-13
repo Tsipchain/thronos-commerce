@@ -1350,9 +1350,15 @@ test('markBuilderClean is called after syncBuilderConfigPanel loads', () => {
   assert.match(syncBlock, /markBuilderClean\(\)/);
 });
 
-test('markBuilderClean is called on form save', () => {
-  const saveSection = admin.substring(admin.indexOf('products-save-form'));
-  assert.match(saveSection, /markBuilderClean\(\)/);
+test('markBuilderClean is NOT called in form submit handler (dirty until reload)', () => {
+  const marker = 'Serialize before submit';
+  const serializeIdx = admin.indexOf(marker);
+  assert.ok(serializeIdx > 0, 'Serialize before submit section found');
+  const renderIdx = admin.indexOf('Initial render', serializeIdx);
+  assert.ok(renderIdx > serializeIdx, 'Initial render section found after serialize');
+  const submitBlock = admin.substring(serializeIdx, renderIdx);
+  assert.ok(submitBlock.includes('products-json-input'), 'submit handler serializes products');
+  assert.ok(!submitBlock.includes('markBuilderClean'), 'submit handler does NOT call markBuilderClean');
 });
 
 test('refreshLivePreview calls checkBuilderDirty', () => {
@@ -1415,4 +1421,86 @@ test('Storefront respects all show flags', () => {
   assert.match(index, /showSlogan !== false/);
   assert.match(index, /showTrustRow !== false/);
   assert.match(index, /showVideoCTA/);
+});
+
+// === Section 63: Asset replacement persistence (A → B) ===
+
+test('Server asset-upload deletes previous file before saving new URL', () => {
+  const uploadRoute = server.substring(server.indexOf("'/admin/builder/asset-upload'"));
+  const routeEnd = server.indexOf("'/admin/builder/asset-remove'");
+  const block = server.substring(server.indexOf("'/admin/builder/asset-upload'"), routeEnd);
+  assert.match(block, /previousUrl/, 'captures previous URL before overwriting');
+  assert.match(block, /unlinkSync/, 'deletes previous file');
+  assert.match(block, /product\.builderConfig\[field\] = url/, 'saves new URL to the correct field');
+});
+
+test('Server asset-upload increments imageVersion for cache-busting', () => {
+  const uploadRoute = server.substring(server.indexOf("'/admin/builder/asset-upload'"));
+  const routeEnd = server.indexOf("'/admin/builder/asset-remove'");
+  const block = server.substring(server.indexOf("'/admin/builder/asset-upload'"), routeEnd);
+  assert.match(block, /imageVersion.*\+ 1/, 'increments imageVersion after upload');
+  assert.match(block, /ok: true, url, imageVersion/, 'returns new URL and imageVersion');
+});
+
+test('Server asset-remove clears field and increments imageVersion', () => {
+  const removeIdx = server.indexOf("'/admin/builder/asset-remove'");
+  const nextRouteIdx = server.indexOf('// Favicon upload', removeIdx);
+  const block = server.substring(removeIdx, nextRouteIdx > removeIdx ? nextRouteIdx : removeIdx + 2000);
+  assert.match(block, /builderConfig\[field\] = ''/, 'clears the field to empty string');
+  assert.match(block, /imageVersion.*\+ 1/, 'increments imageVersion on remove');
+});
+
+test('Server asset-upload validates field against allowlist', () => {
+  const uploadIdx = server.indexOf("'/admin/builder/asset-upload'");
+  const block = server.substring(uploadIdx, uploadIdx + 1500);
+  assert.match(block, /allowedFields.*logoImage.*bannerImage/s, 'has allowlist for fields');
+  assert.match(block, /allowedFields\.includes\(field\)/, 'checks field against allowlist');
+});
+
+test('Admin preview applies cache-busting imageVersion to replaced assets', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList'));
+  assert.match(fnEnd, /bannerImg\.src = bSrc.*imageVersion/s, 'banner uses imageVersion');
+  assert.match(fnEnd, /logoImg\.src = lSrc.*imageVersion/s, 'logo uses imageVersion');
+});
+
+test('Storefront applies cache-busting version to banner and logo', () => {
+  assert.match(index, /bcVersion|imageVersion/, 'storefront uses version query parameter');
+});
+
+// === Section 64: Preview language resolution (EL/EN) ===
+
+test('Admin preview resolver favors EL then EN for bilingual objects', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList'));
+  assert.match(fnEnd, /v\.el \|\| v\.en/, 'preview _rf resolves el then en');
+});
+
+test('Storefront resolveF resolves by LANG then EL then EN', () => {
+  const fn = index.substring(index.indexOf('function resolveF'));
+  const fnEnd = fn.substring(0, fn.indexOf('function escAttr') > 0 ? fn.indexOf('function escAttr') : 200);
+  assert.match(fnEnd, /v\[LANG\] \|\| v\.el \|\| v\.en/, 'resolveF uses LANG > el > en fallback');
+});
+
+test('Storefront LANG variable is set from server-side lang', () => {
+  assert.match(index, /var LANG = '<%[=-] lang %>'/, 'LANG initialized from EJS lang variable');
+});
+
+test('Admin preview applies _rf to all text fields', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList'));
+  const fields = ['bc.slogan', 'bc.sloganSecondary', 'bc.title', 'bc.subtitle', 'bc.helperText'];
+  fields.forEach(f => {
+    assert.match(fnEnd, new RegExp('_rf\\(' + f.replace('.', '\\.') + '\\)'), 'preview resolves ' + f);
+  });
+});
+
+test('Server normalizeProductRecord preserves bilingual text structure', () => {
+  const normBlock = server.substring(server.indexOf('function normalizeProductRecord'));
+  const normEnd = normBlock.substring(0, normBlock.indexOf('return Object.assign') + 500);
+  const bilingualFields = ['title', 'subtitle', 'helperText', 'slogan', 'sloganSecondary',
+    'videoCTATitle', 'videoCTASubtitle', 'summarySubtitle'];
+  bilingualFields.forEach(f => {
+    assert.match(normEnd, new RegExp(f + ".*\\|\\| ''"), f + ' preserved with fallback');
+  });
 });
