@@ -2473,25 +2473,27 @@
             </div>
           </details>
 
-          <details style="margin-bottom:8px;">
-            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">E. Live Preview</summary>
-            <div id="kit-bc-live-preview" style="margin-top:4px;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;background:#1e293b;color:#fff;font-family:system-ui,-apple-system,sans-serif;max-width:100%;">
-              <div id="lp-banner" style="position:relative;min-height:60px;background:#0f172a;overflow:hidden;">
-                <img id="lp-banner-img" src="" alt="" style="width:100%;height:60px;object-fit:cover;display:none;" />
-                <img id="lp-logo-img" src="" alt="" style="position:absolute;top:6px;left:8px;max-height:28px;max-width:100px;object-fit:contain;display:none;" />
-                <div id="lp-slogan" style="position:absolute;bottom:4px;left:8px;font-size:.68rem;font-weight:600;display:none;"></div>
-                <div id="lp-slogan2" style="position:absolute;bottom:4px;right:8px;font-size:.6rem;color:#94a3b8;display:none;"></div>
+          <details open style="margin-bottom:8px;">
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">E. Builder Preview <span id="lp-unsaved" style="display:none;font-size:.66rem;font-weight:400;color:#f59e0b;background:#fefce8;padding:1px 6px;border-radius:3px;margin-left:6px;">Unsaved builder changes</span></summary>
+            <div id="kit-bc-live-preview" style="margin-top:4px;border:1px solid #475569;border-radius:8px;overflow:hidden;background:#1e293b;color:#fff;font-family:system-ui,-apple-system,sans-serif;max-width:100%;">
+              <div id="lp-banner" style="position:relative;min-height:80px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);overflow:hidden;">
+                <img id="lp-banner-img" src="" alt="" style="width:100%;height:80px;object-fit:cover;display:none;" onerror="this.style.display='none';" />
+                <div id="lp-logo-wrap" style="position:absolute;top:8px;left:10px;display:none;">
+                  <img id="lp-logo-img" src="" alt="" style="max-height:28px;max-width:120px;object-fit:contain;display:block;" onerror="this.parentElement.style.display='none';" />
+                </div>
+                <div id="lp-slogan" style="position:absolute;bottom:6px;left:10px;font-size:.72rem;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.6);display:none;"></div>
+                <div id="lp-slogan2" style="position:absolute;bottom:6px;right:10px;font-size:.64rem;color:#cbd5e1;text-shadow:0 1px 3px rgba(0,0,0,.6);display:none;"></div>
               </div>
-              <div id="lp-head" style="padding:6px 8px;">
-                <div id="lp-title" style="font-size:.78rem;font-weight:700;display:none;"></div>
-                <div id="lp-subtitle" style="font-size:.68rem;color:#94a3b8;display:none;"></div>
-                <div id="lp-helper" style="font-size:.64rem;color:#64748b;display:none;"></div>
+              <div id="lp-head" style="padding:8px 10px 4px;">
+                <div id="lp-title" style="font-size:.82rem;font-weight:700;line-height:1.2;display:none;"></div>
+                <div id="lp-subtitle" style="font-size:.72rem;color:#94a3b8;margin-top:2px;display:none;"></div>
+                <div id="lp-helper" style="font-size:.66rem;color:#64748b;margin-top:2px;display:none;"></div>
               </div>
-              <div id="lp-benefits" style="display:none;padding:2px 8px 4px;font-size:.62rem;color:#94a3b8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"></div>
-              <div id="lp-trust" style="display:none;padding:2px 8px 4px;font-size:.6rem;color:#64748b;border-top:1px solid #334155;"></div>
-              <div id="lp-video" style="display:none;padding:4px 8px;font-size:.64rem;color:#60a5fa;cursor:default;"></div>
+              <div id="lp-benefits" style="display:none;padding:4px 10px 6px;font-size:.66rem;color:#94a3b8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-top:1px solid #334155;"></div>
+              <div id="lp-trust" style="display:none;padding:4px 10px 6px;font-size:.64rem;color:#64748b;border-top:1px solid #334155;"></div>
+              <div id="lp-video" style="display:none;padding:6px 10px;font-size:.68rem;color:#60a5fa;border-top:1px solid #334155;cursor:default;"></div>
             </div>
-            <div style="font-size:.68rem;color:#6b7280;margin-top:3px;">Mini preview — updates as you edit fields above.</div>
+            <div style="font-size:.68rem;color:#6b7280;margin-top:3px;">Branding area preview — updates live as you edit. Changes are not saved until you submit the form.</div>
           </details>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -3684,23 +3686,47 @@
           else { img.src = ''; img.style.display = 'none'; }
         });
         refreshLivePreview(bc);
+        markBuilderClean();
+      }
+      var _bcSavedSnapshot = null;
+      function snapshotBuilderConfig(bc) {
+        try { return JSON.stringify(bc || {}); } catch(e) { return '{}'; }
+      }
+      function markBuilderClean() {
+        var p = (kitBuilderIdx >= 0 && products[kitBuilderIdx]) ? products[kitBuilderIdx] : null;
+        _bcSavedSnapshot = p ? snapshotBuilderConfig(p.builderConfig) : null;
+        var ind = document.getElementById('lp-unsaved');
+        if (ind) ind.style.display = 'none';
+      }
+      function checkBuilderDirty() {
+        var ind = document.getElementById('lp-unsaved');
+        if (!ind || _bcSavedSnapshot === null) return;
+        var p = (kitBuilderIdx >= 0 && products[kitBuilderIdx]) ? products[kitBuilderIdx] : null;
+        var current = p ? snapshotBuilderConfig(p.builderConfig) : '{}';
+        ind.style.display = (current !== _bcSavedSnapshot) ? '' : 'none';
       }
       function refreshLivePreview(bc) {
         if (!bc) { bc = (kitBuilderIdx >= 0 && products[kitBuilderIdx]) ? (products[kitBuilderIdx].builderConfig || {}) : {}; }
         var _lp = function(id) { return document.getElementById(id); };
         var _rf = function(v) { if (!v) return ''; if (typeof v === 'string') return v; return v.el || v.en || ''; };
         var bannerImg = _lp('lp-banner-img');
+        var logoWrap = _lp('lp-logo-wrap');
         var logoImg = _lp('lp-logo-img');
         var bSrc = bc.bannerImage || '';
-        if (bSrc) { bannerImg.src = bSrc; bannerImg.style.display = ''; } else { bannerImg.style.display = 'none'; }
+        if (bSrc) {
+          bannerImg.src = bSrc + (bSrc.includes('?') ? '&' : '?') + 'v=' + (bc.imageVersion || 1);
+          bannerImg.style.display = '';
+        } else { bannerImg.style.display = 'none'; }
         var lSrc = bc.logoImage || '';
         if (bc.showLogo !== false && lSrc) {
-          logoImg.src = lSrc; logoImg.style.display = '';
-          logoImg.style.left = bc.logoPosition === 'center' ? '50%' : bc.logoPosition === 'right' ? 'auto' : '8px';
-          logoImg.style.right = bc.logoPosition === 'right' ? '8px' : 'auto';
-          logoImg.style.transform = bc.logoPosition === 'center' ? 'translateX(-50%)' : '';
-          logoImg.style.maxHeight = bc.logoSize === 'small' ? '20px' : bc.logoSize === 'large' ? '36px' : '28px';
-        } else { logoImg.style.display = 'none'; }
+          logoImg.src = lSrc + (lSrc.includes('?') ? '&' : '?') + 'v=' + (bc.imageVersion || 1);
+          logoImg.style.display = 'block';
+          logoWrap.style.display = '';
+          logoWrap.style.left = bc.logoPosition === 'center' ? '50%' : bc.logoPosition === 'right' ? 'auto' : '10px';
+          logoWrap.style.right = bc.logoPosition === 'right' ? '10px' : 'auto';
+          logoWrap.style.transform = bc.logoPosition === 'center' ? 'translateX(-50%)' : '';
+          logoImg.style.maxHeight = bc.logoSize === 'small' ? '18px' : bc.logoSize === 'large' ? '40px' : '28px';
+        } else { logoWrap.style.display = 'none'; }
         var sloganEl = _lp('lp-slogan'); var s1 = _rf(bc.slogan);
         if (bc.showSlogan !== false && s1) { sloganEl.textContent = s1; sloganEl.style.display = ''; } else { sloganEl.style.display = 'none'; }
         var slogan2El = _lp('lp-slogan2'); var s2 = _rf(bc.sloganSecondary);
@@ -3716,7 +3742,8 @@
         var trustEl = _lp('lp-trust'); var trs = Array.isArray(bc.trustItems) ? bc.trustItems.filter(function(t){ return t.enabled !== false; }) : [];
         if (bc.showTrustRow !== false && trs.length) { trustEl.textContent = trs.map(function(t){ return _rf(t.title); }).join(' · '); trustEl.style.display = ''; } else { trustEl.style.display = 'none'; }
         var vidEl = _lp('lp-video');
-        if (bc.showVideoCTA && bc.videoUrl) { vidEl.textContent = '▶ ' + (_rf(bc.videoCTATitle) || 'Video'); vidEl.style.display = ''; } else { vidEl.style.display = 'none'; }
+        if (bc.showVideoCTA && bc.videoUrl) { vidEl.innerHTML = '<span style="margin-right:4px;">&#9654;</span> ' + (_rf(bc.videoCTATitle) || 'Video'); vidEl.style.display = ''; } else { vidEl.style.display = 'none'; }
+        checkBuilderDirty();
       }
       function renderBenefitsList(bc) {
         var cont = document.getElementById('kit-bc-benefits-list');
@@ -4126,6 +4153,7 @@
       if (saveForm) {
         saveForm.addEventListener('submit', function() {
           document.getElementById('products-json-input').value = JSON.stringify(products);
+          markBuilderClean();
         });
       }
 

@@ -1325,3 +1325,94 @@ test('withTenantLink used for admin builder endpoints in EJS', () => {
   assert.match(admin, /withTenantLink\(["']\/admin\/builder\/asset-upload["']\)/);
   assert.match(admin, /withTenantLink\(["']\/admin\/builder\/asset-remove["']\)/);
 });
+
+// === Section 60: Unsaved indicator ===
+
+test('Unsaved indicator element exists in preview', () => {
+  assert.match(admin, /id="lp-unsaved"/);
+  assert.match(admin, /Unsaved builder changes/);
+});
+
+test('snapshotBuilderConfig and markBuilderClean functions exist', () => {
+  assert.match(admin, /function snapshotBuilderConfig\(bc\)/);
+  assert.match(admin, /function markBuilderClean\(\)/);
+});
+
+test('checkBuilderDirty compares current state to saved snapshot', () => {
+  assert.match(admin, /function checkBuilderDirty\(\)/);
+  assert.match(admin, /current !== _bcSavedSnapshot/);
+});
+
+test('markBuilderClean is called after syncBuilderConfigPanel loads', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  const fnEnd = admin.indexOf('var _bcSavedSnapshot', syncFn.length ? 0 : undefined);
+  const syncBlock = admin.substring(admin.indexOf('function syncBuilderConfigPanel'), admin.indexOf('var _bcSavedSnapshot'));
+  assert.match(syncBlock, /markBuilderClean\(\)/);
+});
+
+test('markBuilderClean is called on form save', () => {
+  const saveSection = admin.substring(admin.indexOf('products-save-form'));
+  assert.match(saveSection, /markBuilderClean\(\)/);
+});
+
+test('refreshLivePreview calls checkBuilderDirty', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  assert.match(fn, /checkBuilderDirty\(\)/);
+});
+
+// === Section 61: Preview image error handling ===
+
+test('Banner preview image has onerror handler', () => {
+  assert.match(admin, /lp-banner-img.*onerror/s);
+});
+
+test('Logo preview image has onerror handler', () => {
+  assert.match(admin, /lp-logo-img.*onerror/s);
+});
+
+test('Logo uses contain sizing in preview', () => {
+  assert.match(admin, /lp-logo-img.*object-fit:contain/s);
+});
+
+test('Logo is wrapped in lp-logo-wrap for positioning', () => {
+  assert.match(admin, /id="lp-logo-wrap"/);
+});
+
+test('Preview uses cache-busting on banner and logo images', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList') > 0 ? fn.indexOf('function renderBenefitsList') : fn.length);
+  assert.match(fnEnd, /bannerImg\.src = bSrc.*imageVersion/s);
+  assert.match(fnEnd, /logoImg\.src = lSrc.*imageVersion/s);
+});
+
+// === Section 62: Storefront render verification ===
+
+test('Storefront resolves all bilingual text fields via resolveF', () => {
+  const fields = ['bc.title', 'bc.subtitle', 'bc.helperText', 'bc.slogan', 'bc.sloganSecondary',
+                  'bc.videoCTATitle', 'bc.videoCTASubtitle', 'bc.summarySubtitle'];
+  fields.forEach(f => {
+    assert.match(index, new RegExp('resolveF\\(' + f.replace('.', '\\.') + '\\)'), f + ' resolved via resolveF');
+  });
+});
+
+test('Storefront filters benefits and trust by enabled !== false', () => {
+  assert.match(index, /benefits.*filter.*enabled !== false/s);
+  assert.match(index, /trustItems.*filter.*enabled !== false/s);
+});
+
+test('Storefront applies logo position and size via CSS classes', () => {
+  assert.match(index, /logoPosition === 'center'/);
+  assert.match(index, /logoPosition === 'right'/);
+  assert.match(index, /logoSize === 'small'/);
+  assert.match(index, /logoSize === 'large'/);
+});
+
+test('Storefront respects all show flags', () => {
+  assert.match(index, /showLogo !== false/);
+  assert.match(index, /showTitle !== false/);
+  assert.match(index, /showSubtitle !== false/);
+  assert.match(index, /showHelperText !== false/);
+  assert.match(index, /showSlogan !== false/);
+  assert.match(index, /showTrustRow !== false/);
+  assert.match(index, /showVideoCTA/);
+});
