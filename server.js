@@ -1435,6 +1435,7 @@ function normalizeProductRecord(product) {
         benefits: Array.isArray(_bc.benefits) ? _bc.benefits : [],
         trustItems: Array.isArray(_bc.trustItems) ? _bc.trustItems : [],
         summarySubtitle: _bc.summarySubtitle || '',
+        imageVersion: Number(_bc.imageVersion) || 1,
       };
     }
   }
@@ -2519,6 +2520,24 @@ const categoryUpload = multer({
       const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
       const base = path.basename(file.originalname || 'category', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
       cb(null, `${Date.now()}-${base}${ext}`);
+    }
+  })
+});
+
+const builderAssetUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|webp|jpeg)$/.test(String(file.mimetype || ''))),
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join((req.tenantPaths && req.tenantPaths.media) || path.join(TENANTS_DIR, '_uploads'), 'builder');
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.png';
+      const safeExt = ['.png', '.webp', '.jpg', '.jpeg'].includes(ext) ? ext : '.png';
+      const base = path.basename(file.originalname || 'builder', ext).replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      cb(null, `${Date.now()}-${base}${safeExt}`);
     }
   })
 });
@@ -5859,6 +5878,75 @@ app.post('/admin/categories/image-remove', async (req, res) => {
   delete categories[idx].image;
   categories[idx].imageVersion = (Number(categories[idx].imageVersion) || 0) + 1;
   saveTenantCategories(req, categories);
+  return res.json({ ok: true });
+});
+
+// Builder asset upload (logo, mobile logo, banner, mobile banner)
+app.post('/admin/builder/asset-upload', (req, res) => {
+  builderAssetUpload.single('asset')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      console.error('[upload] builder:asset failed', uploadErr && uploadErr.message ? uploadErr.message : uploadErr);
+      return res.status(400).json({ ok: false, error: 'Builder asset upload failed. Check file type/size (max 5MB, png/jpg/webp).' });
+    }
+    const permissions = getSupportPermissions(req.tenant.supportTier);
+    if (!permissions.canUploadMedia || !permissions.canEditProducts) {
+      return res.status(403).json({ ok: false, error: 'Upload not allowed for this support tier.' });
+    }
+    const auth = await verifyAdminAction(req, req.body.password);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    const field = String(req.body.field || '').trim();
+    const allowedFields = ['logoImage', 'mobileLogoImage', 'bannerImage', 'mobileBannerImage'];
+    if (!allowedFields.includes(field)) return res.status(400).json({ ok: false, error: 'Invalid field: ' + field });
+    const productId = String(req.body.productId || '').trim();
+    if (!productId) return res.status(400).json({ ok: false, error: 'productId required' });
+    const products = loadTenantProducts(req);
+    const product = products.find((p) => p.id === productId);
+    if (!product) return res.status(404).json({ ok: false, error: 'Product not found' });
+    if (!product.builderConfig) product.builderConfig = {};
+    const previousUrl = typeof product.builderConfig[field] === 'string' ? product.builderConfig[field] : '';
+    const tenantMediaPrefix = `/tenants/${req.tenant.id}/media/builder/`;
+    if (previousUrl.startsWith(tenantMediaPrefix)) {
+      const oldFile = path.join(req.tenantPaths.media, 'builder', path.basename(previousUrl));
+      if (fs.existsSync(oldFile)) {
+        try { fs.unlinkSync(oldFile); } catch (_) {}
+      }
+    }
+    const url = `/tenants/${req.tenant.id}/media/builder/${req.file.filename}`;
+    product.builderConfig[field] = url;
+    product.builderConfig.imageVersion = (Number(product.builderConfig.imageVersion) || 0) + 1;
+    saveTenantProducts(req, products);
+    return res.json({ ok: true, url, imageVersion: product.builderConfig.imageVersion });
+  });
+});
+
+app.post('/admin/builder/asset-remove', async (req, res) => {
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditProducts || !permissions.canUploadMedia) {
+    return res.status(403).json({ ok: false, error: 'Not allowed for this support tier.' });
+  }
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Invalid admin password.' });
+  const field = String(req.body.field || '').trim();
+  const allowedFields = ['logoImage', 'mobileLogoImage', 'bannerImage', 'mobileBannerImage'];
+  if (!allowedFields.includes(field)) return res.status(400).json({ ok: false, error: 'Invalid field: ' + field });
+  const productId = String(req.body.productId || '').trim();
+  if (!productId) return res.status(400).json({ ok: false, error: 'productId required' });
+  const products = loadTenantProducts(req);
+  const product = products.find((p) => p.id === productId);
+  if (!product) return res.status(404).json({ ok: false, error: 'Product not found' });
+  if (!product.builderConfig) product.builderConfig = {};
+  const existingUrl = typeof product.builderConfig[field] === 'string' ? product.builderConfig[field] : '';
+  const tenantMediaPrefix = `/tenants/${req.tenant.id}/media/builder/`;
+  if (existingUrl.startsWith(tenantMediaPrefix)) {
+    const oldFile = path.join(req.tenantPaths.media, 'builder', path.basename(existingUrl));
+    if (fs.existsSync(oldFile)) {
+      try { fs.unlinkSync(oldFile); } catch (_) {}
+    }
+  }
+  product.builderConfig[field] = '';
+  product.builderConfig.imageVersion = (Number(product.builderConfig.imageVersion) || 0) + 1;
+  saveTenantProducts(req, products);
   return res.json({ ok: true });
 });
 

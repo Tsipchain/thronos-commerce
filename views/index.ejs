@@ -2844,6 +2844,7 @@
           sbsState.step = 0;
           sbsState.selections = {};
           var bc = product.builderConfig || {};
+          var bcVersion = bc.imageVersion || 1;
           var bannerSrc = (isMobile && bc.mobileBannerImage) ? bc.mobileBannerImage : (bc.bannerImage || '');
           if (!bannerSrc && isMobile) bannerSrc = bc.bannerImage || '';
           if (bannerSrc) {
@@ -2855,7 +2856,7 @@
               bannerImg.onerror = function(){ this.style.display='none'; };
               elBanner.insertBefore(bannerImg, elBanner.firstChild);
             }
-            bannerImg.src = bannerSrc;
+            bannerImg.src = bannerSrc + (bannerSrc.includes('?') ? '&' : '?') + 'v=' + bcVersion;
             bannerImg.style.display = '';
             elBanner.style.display = '';
           } else {
@@ -2864,7 +2865,7 @@
           var logoSrc = (isMobile && bc.mobileLogoImage) ? bc.mobileLogoImage : (bc.logoImage || '');
           if (!logoSrc && isMobile) logoSrc = bc.logoImage || '';
           if (bc.showLogo !== false && logoSrc) {
-            elBuilderLogo.src = logoSrc;
+            elBuilderLogo.src = logoSrc + (logoSrc.includes('?') ? '&' : '?') + 'v=' + bcVersion;
             elBuilderLogo.className = 'sbs-banner-logo' + (bc.logoPosition === 'center' ? ' logo-center' : bc.logoPosition === 'right' ? ' logo-right' : '') + (bc.logoSize === 'small' ? ' logo-small' : bc.logoSize === 'large' ? ' logo-large' : '');
             elBuilderLogo.style.display = '';
           } else {
@@ -2906,7 +2907,7 @@
           var summSubtitle = resolveF(bc.summarySubtitle) || '';
           elSummarySubtitle.textContent = summSubtitle;
           elSummarySubtitle.style.display = summSubtitle ? '' : 'none';
-          var trustItems = Array.isArray(bc.trustItems) ? bc.trustItems : [];
+          var trustItems = Array.isArray(bc.trustItems) ? bc.trustItems.filter(function(t){ return t.enabled !== false; }) : [];
           if (bc.showTrustRow !== false && trustItems.length > 0) {
             elTrustRow.innerHTML = '';
             trustItems.forEach(function(t) {

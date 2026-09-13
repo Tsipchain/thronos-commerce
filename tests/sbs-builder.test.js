@@ -967,3 +967,139 @@ test('SBS next button uses Συνέχεια / Continue label', () => {
 test('Video CTA includes arrow icon element', () => {
   assert.match(index, /sbs-video-cta-arrow/);
 });
+
+// === Section 46: Admin asset upload controls ===
+
+test('Admin has upload/remove controls for all 4 builder image fields', () => {
+  const fields = ['logoImage', 'mobileLogoImage', 'bannerImage', 'mobileBannerImage'];
+  fields.forEach(f => {
+    assert.match(admin, new RegExp('data-bc-upload="' + f + '"'), f + ' upload');
+    assert.match(admin, new RegExp('data-bc-remove="' + f + '"'), f + ' remove');
+  });
+});
+
+test('Admin has preview images for all 4 builder image fields', () => {
+  assert.match(admin, /id="kit-bc-logo-preview"/);
+  assert.match(admin, /id="kit-bc-mobile-logo-preview"/);
+  assert.match(admin, /id="kit-bc-banner-preview"/);
+  assert.match(admin, /id="kit-bc-mobile-banner-preview"/);
+});
+
+test('Admin upload handler posts to builder/asset-upload endpoint', () => {
+  assert.match(admin, /\/admin\/builder\/asset-upload/);
+  assert.match(admin, /fd\.append\('asset'/);
+  assert.match(admin, /fd\.append\('field', field\)/);
+  assert.match(admin, /fd\.append\('productId'/);
+});
+
+test('Admin remove handler posts to builder/asset-remove endpoint', () => {
+  assert.match(admin, /\/admin\/builder\/asset-remove/);
+});
+
+test('syncBuilderConfigPanel updates preview images on load', () => {
+  assert.match(admin, /kit-bc-logo-preview/);
+  assert.match(admin, /kit-bc-banner-preview/);
+  assert.match(admin, /_prevFields\.forEach/);
+});
+
+// === Section 47: Server asset upload/remove endpoints ===
+
+test('Server has builder asset upload endpoint', () => {
+  assert.match(server, /app\.post\('\/admin\/builder\/asset-upload'/);
+  assert.match(server, /builderAssetUpload\.single\('asset'\)/);
+});
+
+test('Server has builder asset remove endpoint', () => {
+  assert.match(server, /app\.post\('\/admin\/builder\/asset-remove'/);
+});
+
+test('Server asset upload validates field against allowlist', () => {
+  assert.match(server, /allowedFields.*=.*\['logoImage'.*'mobileLogoImage'.*'bannerImage'.*'mobileBannerImage'\]/);
+});
+
+test('Server asset upload increments imageVersion on upload', () => {
+  const uploadMatch = server.match(/imageVersion.*=.*\(Number\(.*imageVersion\).*\|\|.*0\).*\+.*1/);
+  assert.ok(uploadMatch, 'imageVersion incremented in upload');
+});
+
+test('Server asset upload deletes previous file before saving new one', () => {
+  assert.match(server, /previousUrl.*startsWith.*tenantMediaPrefix/);
+  assert.match(server, /fs\.unlinkSync\(oldFile\)/);
+});
+
+test('normalizeProductRecord preserves imageVersion', () => {
+  assert.match(server, /imageVersion:\s*Number\(_bc\.imageVersion\)\s*\|\|\s*1/);
+});
+
+// === Section 48: Storefront cache-busting ===
+
+test('Storefront applies imageVersion cache-busting to banner and logo', () => {
+  assert.match(index, /bcVersion/);
+  assert.match(index, /bc\.imageVersion\s*\|\|\s*1/);
+});
+
+// === Section 49: Benefit reorder ===
+
+test('Admin benefits have move up/down buttons', () => {
+  assert.match(admin, /data-benefit-up="/);
+  assert.match(admin, /data-benefit-down="/);
+});
+
+test('Admin benefit up handler swaps elements', () => {
+  assert.match(admin, /data-benefit-up.*addEventListener/s);
+  assert.match(admin, /tmp\s*=\s*a\[idx\];\s*a\[idx\]\s*=\s*a\[idx\s*-\s*1\];\s*a\[idx\s*-\s*1\]\s*=\s*tmp/);
+});
+
+// === Section 50: Trust item enable/disable and reorder ===
+
+test('Admin trust items have enable/disable toggle', () => {
+  assert.match(admin, /data-trust-idx="/);
+});
+
+test('Admin trust items have move up/down buttons', () => {
+  assert.match(admin, /data-trust-up="/);
+  assert.match(admin, /data-trust-down="/);
+});
+
+test('Trust item enable toggle updates builderConfig', () => {
+  assert.match(admin, /data-trust-idx.*addEventListener/s);
+  assert.match(admin, /trustItems\[idx\]\.enabled\s*=\s*this\.checked/);
+});
+
+test('New trust items are created with enabled:true', () => {
+  assert.match(admin, /trustItems\.push\(\{.*enabled:\s*true/);
+});
+
+test('Storefront filters trust items by enabled !== false', () => {
+  assert.match(index, /trustItems\.filter\(function\(t\)\{\s*return t\.enabled !== false/);
+});
+
+// === Section 51: Builder config persistence round-trip ===
+
+test('All admin bcMap text fields have corresponding syncBuilderConfigPanel load', () => {
+  const bcMapFields = [
+    'logoImage', 'mobileLogoImage', 'bannerImage', 'mobileBannerImage',
+    'videoUrl', 'title.el', 'title.en', 'subtitle.el', 'subtitle.en',
+    'helperText.el', 'helperText.en', 'slogan.el', 'slogan.en',
+    'sloganSecondary.el', 'sloganSecondary.en',
+    'summarySubtitle.el', 'summarySubtitle.en',
+    'videoCTATitle.el', 'videoCTATitle.en',
+    'videoCTASubtitle.el', 'videoCTASubtitle.en'
+  ];
+  bcMapFields.forEach(f => {
+    const field = f.includes('.') ? f.split('.')[0] : f;
+    assert.match(admin, new RegExp('bc\\.' + field), 'syncBuilderConfigPanel loads ' + f);
+  });
+});
+
+test('All admin checkbox flags have corresponding syncBuilderConfigPanel load', () => {
+  const flags = ['showLogo', 'showSlogan', 'showVideoCTA', 'showTitle', 'showSubtitle', 'showHelperText', 'showTrustRow'];
+  flags.forEach(f => {
+    assert.match(admin, new RegExp("bc\\." + f), 'sync loads ' + f);
+  });
+});
+
+test('All admin select fields have corresponding syncBuilderConfigPanel load', () => {
+  assert.match(admin, /bc\.logoPosition/);
+  assert.match(admin, /bc\.logoSize/);
+});

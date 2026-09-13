@@ -2331,8 +2331,24 @@
           <details open style="margin-bottom:8px;">
             <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">A. Branding (Logo)</summary>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
-              <label style="font-size:.78rem;">Builder logo <input id="kit-bc-logo" type="text" placeholder="/tenants/.../builder-logo.png" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">Mobile logo <input id="kit-bc-mobile-logo" type="text" placeholder="/tenants/.../builder-logo-m.png" style="width:100%;" /></label>
+              <div style="font-size:.78rem;">
+                <span>Builder logo</span>
+                <div style="display:flex;gap:4px;align-items:center;margin-top:2px;">
+                  <input id="kit-bc-logo" type="text" placeholder="/tenants/.../builder-logo.png" style="flex:1;font-size:.76rem;" />
+                  <label class="button" style="font-size:.7rem;padding:2px 6px;margin:0;cursor:pointer;">Upload<input type="file" accept="image/png,image/jpeg,image/webp" data-bc-upload="logoImage" style="display:none;" /></label>
+                  <button type="button" data-bc-remove="logoImage" style="font-size:.7rem;padding:2px 5px;background:#ef4444;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="Remove">x</button>
+                </div>
+                <img id="kit-bc-logo-preview" src="" alt="" style="display:none;max-height:36px;max-width:120px;object-fit:contain;margin-top:3px;background:#1e293b;border-radius:4px;padding:2px 4px;" />
+              </div>
+              <div style="font-size:.78rem;">
+                <span>Mobile logo</span>
+                <div style="display:flex;gap:4px;align-items:center;margin-top:2px;">
+                  <input id="kit-bc-mobile-logo" type="text" placeholder="/tenants/.../builder-logo-m.png" style="flex:1;font-size:.76rem;" />
+                  <label class="button" style="font-size:.7rem;padding:2px 6px;margin:0;cursor:pointer;">Upload<input type="file" accept="image/png,image/jpeg,image/webp" data-bc-upload="mobileLogoImage" style="display:none;" /></label>
+                  <button type="button" data-bc-remove="mobileLogoImage" style="font-size:.7rem;padding:2px 5px;background:#ef4444;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="Remove">x</button>
+                </div>
+                <img id="kit-bc-mobile-logo-preview" src="" alt="" style="display:none;max-height:36px;max-width:120px;object-fit:contain;margin-top:3px;background:#1e293b;border-radius:4px;padding:2px 4px;" />
+              </div>
               <label style="font-size:.78rem;">
                 <input type="checkbox" id="kit-bc-show-logo" checked /> Show logo
               </label>
@@ -2356,8 +2372,24 @@
           <details open style="margin-bottom:8px;">
             <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">B. Hero / Banner</summary>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
-              <label style="font-size:.78rem;">Builder banner <input id="kit-bc-banner" type="text" placeholder="/tenants/.../builder-banner.jpg" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">Mobile banner <input id="kit-bc-mobile-banner" type="text" placeholder="/tenants/.../builder-banner-m.jpg" style="width:100%;" /></label>
+              <div style="font-size:.78rem;">
+                <span>Builder banner</span>
+                <div style="display:flex;gap:4px;align-items:center;margin-top:2px;">
+                  <input id="kit-bc-banner" type="text" placeholder="/tenants/.../builder-banner.jpg" style="flex:1;font-size:.76rem;" />
+                  <label class="button" style="font-size:.7rem;padding:2px 6px;margin:0;cursor:pointer;">Upload<input type="file" accept="image/png,image/jpeg,image/webp" data-bc-upload="bannerImage" style="display:none;" /></label>
+                  <button type="button" data-bc-remove="bannerImage" style="font-size:.7rem;padding:2px 5px;background:#ef4444;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="Remove">x</button>
+                </div>
+                <img id="kit-bc-banner-preview" src="" alt="" style="display:none;max-height:40px;max-width:180px;object-fit:contain;margin-top:3px;background:#1e293b;border-radius:4px;padding:2px 4px;" />
+              </div>
+              <div style="font-size:.78rem;">
+                <span>Mobile banner</span>
+                <div style="display:flex;gap:4px;align-items:center;margin-top:2px;">
+                  <input id="kit-bc-mobile-banner" type="text" placeholder="/tenants/.../builder-banner-m.jpg" style="flex:1;font-size:.76rem;" />
+                  <label class="button" style="font-size:.7rem;padding:2px 6px;margin:0;cursor:pointer;">Upload<input type="file" accept="image/png,image/jpeg,image/webp" data-bc-upload="mobileBannerImage" style="display:none;" /></label>
+                  <button type="button" data-bc-remove="mobileBannerImage" style="font-size:.7rem;padding:2px 5px;background:#ef4444;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="Remove">x</button>
+                </div>
+                <img id="kit-bc-mobile-banner-preview" src="" alt="" style="display:none;max-height:40px;max-width:180px;object-fit:contain;margin-top:3px;background:#1e293b;border-radius:4px;padding:2px 4px;" />
+              </div>
               <label style="font-size:.78rem;">Title (EL) <input id="kit-bc-title-el" type="text" placeholder="Τίτλος builder" style="width:100%;" /></label>
               <label style="font-size:.78rem;">Title (EN) <input id="kit-bc-title-en" type="text" placeholder="Builder title" style="width:100%;" /></label>
               <label style="font-size:.78rem;">Subtitle (EL) <input id="kit-bc-subtitle-el" type="text" style="width:100%;" /></label>
@@ -3608,6 +3640,16 @@
         document.getElementById('kit-bc-vcta-sub-en').value = (bc.videoCTASubtitle && bc.videoCTASubtitle.en) || '';
         renderBenefitsList(bc);
         renderTrustList(bc);
+        var _prevFields = ['logoImage','mobileLogoImage','bannerImage','mobileBannerImage'];
+        var _prevInputMap = {logoImage:'kit-bc-logo',mobileLogoImage:'kit-bc-mobile-logo',bannerImage:'kit-bc-banner',mobileBannerImage:'kit-bc-mobile-banner'};
+        var _prevImgMap = {logoImage:'kit-bc-logo-preview',mobileLogoImage:'kit-bc-mobile-logo-preview',bannerImage:'kit-bc-banner-preview',mobileBannerImage:'kit-bc-mobile-banner-preview'};
+        _prevFields.forEach(function(f) {
+          var img = document.getElementById(_prevImgMap[f]);
+          if (!img) return;
+          var val = bc[f] || '';
+          if (val) { img.src = val; img.style.display = ''; }
+          else { img.src = ''; img.style.display = 'none'; }
+        });
       }
       function renderBenefitsList(bc) {
         var cont = document.getElementById('kit-bc-benefits-list');
@@ -3619,6 +3661,8 @@
             '<span style="font-size:.74rem;background:#dbeafe;padding:1px 4px;border-radius:3px;">' + (b.icon || 'tools') + '</span>' +
             '<span>' + tEl + ' / ' + tEn + '</span>' +
             '<label style="margin-left:auto;font-size:.74rem;"><input type="checkbox" data-benefit-idx="' + i + '" ' + (b.enabled !== false ? 'checked' : '') + ' /> on</label>' +
+            (i > 0 ? '<button type="button" data-benefit-up="' + i + '" style="background:#3b82f6;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;" title="Move up">&uarr;</button>' : '') +
+            (i < arr.length - 1 ? '<button type="button" data-benefit-down="' + i + '" style="background:#3b82f6;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;" title="Move down">&darr;</button>' : '') +
             '<button type="button" data-benefit-rm="' + i + '" style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;">x</button></div>';
         }).join('');
         cont.querySelectorAll('[data-benefit-idx]').forEach(function(cb) {
@@ -3639,6 +3683,23 @@
             renderBenefitsList(p.builderConfig);
           });
         });
+        cont.querySelectorAll('[data-benefit-up]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-benefit-up'));
+            var p = products[kitBuilderIdx]; if (!p || !p.builderConfig || !Array.isArray(p.builderConfig.benefits) || idx < 1) return;
+            var a = p.builderConfig.benefits; var tmp = a[idx]; a[idx] = a[idx - 1]; a[idx - 1] = tmp;
+            renderBenefitsList(p.builderConfig);
+          });
+        });
+        cont.querySelectorAll('[data-benefit-down]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-benefit-down'));
+            var p = products[kitBuilderIdx]; if (!p || !p.builderConfig || !Array.isArray(p.builderConfig.benefits)) return;
+            var a = p.builderConfig.benefits; if (idx >= a.length - 1) return;
+            var tmp = a[idx]; a[idx] = a[idx + 1]; a[idx + 1] = tmp;
+            renderBenefitsList(p.builderConfig);
+          });
+        });
       }
       function renderTrustList(bc) {
         var cont = document.getElementById('kit-bc-trust-list');
@@ -3649,6 +3710,9 @@
           return '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;">' +
             '<span style="font-size:.74rem;background:#dbeafe;padding:1px 4px;border-radius:3px;">' + (t.icon || 'shield') + '</span>' +
             '<span>' + tEl + ' / ' + tEn + '</span>' +
+            '<label style="margin-left:auto;font-size:.74rem;"><input type="checkbox" data-trust-idx="' + i + '" ' + (t.enabled !== false ? 'checked' : '') + ' /> on</label>' +
+            (i > 0 ? '<button type="button" data-trust-up="' + i + '" style="background:#3b82f6;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;" title="Move up">&uarr;</button>' : '') +
+            (i < arr.length - 1 ? '<button type="button" data-trust-down="' + i + '" style="background:#3b82f6;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;" title="Move down">&darr;</button>' : '') +
             '<button type="button" data-trust-rm="' + i + '" style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;">x</button></div>';
         }).join('');
         cont.querySelectorAll('[data-trust-rm]').forEach(function(btn) {
@@ -3657,6 +3721,32 @@
             var p = products[kitBuilderIdx]; if (!p) return;
             if (!p.builderConfig) p.builderConfig = {};
             if (Array.isArray(p.builderConfig.trustItems)) p.builderConfig.trustItems.splice(idx, 1);
+            renderTrustList(p.builderConfig);
+          });
+        });
+        cont.querySelectorAll('[data-trust-idx]').forEach(function(cb) {
+          cb.addEventListener('change', function() {
+            var idx = parseInt(this.getAttribute('data-trust-idx'));
+            var p = products[kitBuilderIdx]; if (!p) return;
+            if (!p.builderConfig) p.builderConfig = {};
+            if (!Array.isArray(p.builderConfig.trustItems)) p.builderConfig.trustItems = [];
+            if (p.builderConfig.trustItems[idx]) p.builderConfig.trustItems[idx].enabled = this.checked;
+          });
+        });
+        cont.querySelectorAll('[data-trust-up]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-trust-up'));
+            var p = products[kitBuilderIdx]; if (!p || !p.builderConfig || !Array.isArray(p.builderConfig.trustItems) || idx < 1) return;
+            var a = p.builderConfig.trustItems; var tmp = a[idx]; a[idx] = a[idx - 1]; a[idx - 1] = tmp;
+            renderTrustList(p.builderConfig);
+          });
+        });
+        cont.querySelectorAll('[data-trust-down]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-trust-down'));
+            var p = products[kitBuilderIdx]; if (!p || !p.builderConfig || !Array.isArray(p.builderConfig.trustItems)) return;
+            var a = p.builderConfig.trustItems; if (idx >= a.length - 1) return;
+            var tmp = a[idx]; a[idx] = a[idx + 1]; a[idx + 1] = tmp;
             renderTrustList(p.builderConfig);
           });
         });
@@ -3741,10 +3831,84 @@
           var tEl = document.getElementById('kit-bc-trust-el').value.trim();
           var tEn = document.getElementById('kit-bc-trust-en').value.trim();
           if (!tEl && !tEn) return;
-          p.builderConfig.trustItems.push({ icon: icon, title: { el: tEl, en: tEn } });
+          p.builderConfig.trustItems.push({ icon: icon, title: { el: tEl, en: tEn }, enabled: true });
           document.getElementById('kit-bc-trust-el').value = '';
           document.getElementById('kit-bc-trust-en').value = '';
           renderTrustList(p.builderConfig);
+        });
+        var previewMap = {
+          logoImage: 'kit-bc-logo-preview',
+          mobileLogoImage: 'kit-bc-mobile-logo-preview',
+          bannerImage: 'kit-bc-banner-preview',
+          mobileBannerImage: 'kit-bc-mobile-banner-preview'
+        };
+        var inputMap = {
+          logoImage: 'kit-bc-logo',
+          mobileLogoImage: 'kit-bc-mobile-logo',
+          bannerImage: 'kit-bc-banner',
+          mobileBannerImage: 'kit-bc-mobile-banner'
+        };
+        function updateAssetPreview(field) {
+          var imgEl = document.getElementById(previewMap[field]);
+          var inputEl = document.getElementById(inputMap[field]);
+          if (!imgEl || !inputEl) return;
+          var val = inputEl.value.trim();
+          if (val) { imgEl.src = val; imgEl.style.display = ''; }
+          else { imgEl.src = ''; imgEl.style.display = 'none'; }
+        }
+        Object.keys(inputMap).forEach(function(field) {
+          var el = document.getElementById(inputMap[field]);
+          if (el) el.addEventListener('input', function() { updateAssetPreview(field); });
+        });
+        document.querySelectorAll('[data-bc-upload]').forEach(function(fileInput) {
+          fileInput.addEventListener('change', function() {
+            var field = this.getAttribute('data-bc-upload');
+            if (!this.files || !this.files[0]) return;
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            var fd = new FormData();
+            fd.append('asset', this.files[0]);
+            fd.append('field', field);
+            fd.append('productId', p.id);
+            var self = this;
+            fetch('<%= withTenantLink("/admin/builder/asset-upload") %>', { method: 'POST', body: fd })
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                if (!d.ok) { alert('Upload failed: ' + (d.error || 'unknown')); return; }
+                if (!p.builderConfig) p.builderConfig = {};
+                p.builderConfig[field] = d.url;
+                p.builderConfig.imageVersion = d.imageVersion || 1;
+                var textEl = document.getElementById(inputMap[field]);
+                if (textEl) textEl.value = d.url;
+                updateAssetPreview(field);
+                self.value = '';
+              })
+              .catch(function(e) { alert('Upload error: ' + e.message); });
+          });
+        });
+        document.querySelectorAll('[data-bc-remove]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var field = this.getAttribute('data-bc-remove');
+            if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+            var p = products[kitBuilderIdx];
+            if (!confirm('Remove ' + field + ' image?')) return;
+            fetch('<%= withTenantLink("/admin/builder/asset-remove") %>', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ field: field, productId: p.id })
+            })
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                if (!d.ok) { alert('Remove failed: ' + (d.error || 'unknown')); return; }
+                if (!p.builderConfig) p.builderConfig = {};
+                p.builderConfig[field] = '';
+                p.builderConfig.imageVersion = d.imageVersion || 1;
+                var textEl = document.getElementById(inputMap[field]);
+                if (textEl) textEl.value = '';
+                updateAssetPreview(field);
+              })
+              .catch(function(e) { alert('Remove error: ' + e.message); });
+          });
         });
       })();
       window.makeProductKit = function(i) {
