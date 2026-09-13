@@ -967,3 +967,540 @@ test('SBS next button uses Συνέχεια / Continue label', () => {
 test('Video CTA includes arrow icon element', () => {
   assert.match(index, /sbs-video-cta-arrow/);
 });
+
+// === Section 46: Admin asset upload controls ===
+
+test('Admin has upload/remove controls for all 4 builder image fields', () => {
+  const fields = ['logoImage', 'mobileLogoImage', 'bannerImage', 'mobileBannerImage'];
+  fields.forEach(f => {
+    assert.match(admin, new RegExp('data-bc-upload="' + f + '"'), f + ' upload');
+    assert.match(admin, new RegExp('data-bc-remove="' + f + '"'), f + ' remove');
+  });
+});
+
+test('Admin has preview images for all 4 builder image fields', () => {
+  assert.match(admin, /id="kit-bc-logo-preview"/);
+  assert.match(admin, /id="kit-bc-mobile-logo-preview"/);
+  assert.match(admin, /id="kit-bc-banner-preview"/);
+  assert.match(admin, /id="kit-bc-mobile-banner-preview"/);
+});
+
+test('Admin upload handler posts to builder/asset-upload endpoint', () => {
+  assert.match(admin, /\/admin\/builder\/asset-upload/);
+  assert.match(admin, /fd\.append\('asset'/);
+  assert.match(admin, /fd\.append\('field', field\)/);
+  assert.match(admin, /fd\.append\('productId'/);
+});
+
+test('Admin remove handler posts to builder/asset-remove endpoint', () => {
+  assert.match(admin, /\/admin\/builder\/asset-remove/);
+});
+
+test('syncBuilderConfigPanel updates preview images on load', () => {
+  assert.match(admin, /kit-bc-logo-preview/);
+  assert.match(admin, /kit-bc-banner-preview/);
+  assert.match(admin, /_prevFields\.forEach/);
+});
+
+// === Section 47: Server asset upload/remove endpoints ===
+
+test('Server has builder asset upload endpoint', () => {
+  assert.match(server, /app\.post\('\/admin\/builder\/asset-upload'/);
+  assert.match(server, /builderAssetUpload\.single\('asset'\)/);
+});
+
+test('Server has builder asset remove endpoint', () => {
+  assert.match(server, /app\.post\('\/admin\/builder\/asset-remove'/);
+});
+
+test('Server asset upload validates field against allowlist', () => {
+  assert.match(server, /allowedFields.*=.*\['logoImage'.*'mobileLogoImage'.*'bannerImage'.*'mobileBannerImage'\]/);
+});
+
+test('Server asset upload increments imageVersion on upload', () => {
+  const uploadMatch = server.match(/imageVersion.*=.*\(Number\(.*imageVersion\).*\|\|.*0\).*\+.*1/);
+  assert.ok(uploadMatch, 'imageVersion incremented in upload');
+});
+
+test('Server asset upload deletes previous file before saving new one', () => {
+  assert.match(server, /previousUrl.*startsWith.*tenantMediaPrefix/);
+  assert.match(server, /fs\.unlinkSync\(oldFile\)/);
+});
+
+test('normalizeProductRecord preserves imageVersion', () => {
+  assert.match(server, /imageVersion:\s*Number\(_bc\.imageVersion\)\s*\|\|\s*1/);
+});
+
+// === Section 48: Storefront cache-busting ===
+
+test('Storefront applies imageVersion cache-busting to banner and logo', () => {
+  assert.match(index, /bcVersion/);
+  assert.match(index, /bc\.imageVersion\s*\|\|\s*1/);
+});
+
+// === Section 49: Benefit reorder ===
+
+test('Admin benefits have move up/down buttons', () => {
+  assert.match(admin, /data-benefit-up="/);
+  assert.match(admin, /data-benefit-down="/);
+});
+
+test('Admin benefit up handler swaps elements', () => {
+  assert.match(admin, /data-benefit-up.*addEventListener/s);
+  assert.match(admin, /tmp\s*=\s*a\[idx\];\s*a\[idx\]\s*=\s*a\[idx\s*-\s*1\];\s*a\[idx\s*-\s*1\]\s*=\s*tmp/);
+});
+
+// === Section 50: Trust item enable/disable and reorder ===
+
+test('Admin trust items have enable/disable toggle', () => {
+  assert.match(admin, /data-trust-idx="/);
+});
+
+test('Admin trust items have move up/down buttons', () => {
+  assert.match(admin, /data-trust-up="/);
+  assert.match(admin, /data-trust-down="/);
+});
+
+test('Trust item enable toggle updates builderConfig', () => {
+  assert.match(admin, /data-trust-idx.*addEventListener/s);
+  assert.match(admin, /trustItems\[idx\]\.enabled\s*=\s*this\.checked/);
+});
+
+test('New trust items are created with enabled:true', () => {
+  assert.match(admin, /trustItems\.push\(\{.*enabled:\s*true/);
+});
+
+test('Storefront filters trust items by enabled !== false', () => {
+  assert.match(index, /trustItems\.filter\(function\(t\)\{\s*return t\.enabled !== false/);
+});
+
+// === Section 51: Builder config persistence round-trip ===
+
+test('All admin bcMap text fields have corresponding syncBuilderConfigPanel load', () => {
+  const bcMapFields = [
+    'logoImage', 'mobileLogoImage', 'bannerImage', 'mobileBannerImage',
+    'videoUrl', 'title.el', 'title.en', 'subtitle.el', 'subtitle.en',
+    'helperText.el', 'helperText.en', 'slogan.el', 'slogan.en',
+    'sloganSecondary.el', 'sloganSecondary.en',
+    'summarySubtitle.el', 'summarySubtitle.en',
+    'videoCTATitle.el', 'videoCTATitle.en',
+    'videoCTASubtitle.el', 'videoCTASubtitle.en'
+  ];
+  bcMapFields.forEach(f => {
+    const field = f.includes('.') ? f.split('.')[0] : f;
+    assert.match(admin, new RegExp('bc\\.' + field), 'syncBuilderConfigPanel loads ' + f);
+  });
+});
+
+test('All admin checkbox flags have corresponding syncBuilderConfigPanel load', () => {
+  const flags = ['showLogo', 'showSlogan', 'showVideoCTA', 'showTitle', 'showSubtitle', 'showHelperText', 'showTrustRow'];
+  flags.forEach(f => {
+    assert.match(admin, new RegExp("bc\\." + f), 'sync loads ' + f);
+  });
+});
+
+test('All admin select fields have corresponding syncBuilderConfigPanel load', () => {
+  assert.match(admin, /bc\.logoPosition/);
+  assert.match(admin, /bc\.logoSize/);
+});
+
+// === Section 52: Builder logo CSS fix ===
+
+test('Banner background img uses sbs-banner-bg class selector, not generic img', () => {
+  assert.match(index, /\.sbs-banner\s+img\.sbs-banner-bg/);
+  assert.doesNotMatch(index, /\.sbs-banner\s+img\s*\{/);
+});
+
+test('Builder logo has max-width and display:block constraints', () => {
+  assert.match(index, /\.sbs-banner-logo\s*\{[^}]*max-width/);
+  assert.match(index, /\.sbs-banner-logo\s*\{[^}]*display:\s*block/);
+  assert.match(index, /\.sbs-banner-logo\s*\{[^}]*object-fit:\s*contain/);
+});
+
+test('Builder logo onerror hides gracefully', () => {
+  assert.match(index, /sbs-builder-logo.*onerror.*display.*none/s);
+});
+
+// === Section 53: Raw ID filtering ===
+
+test('stepShortLabel and stepHeadingLabel have raw ID detection', () => {
+  assert.match(index, /looksLikeRawId/);
+});
+
+test('stepHeadingLabels map covers all 5 known step IDs', () => {
+  const ids = ['tampakiera-karoulaki', 'aristeri-plevra', 'dexia-plevra', 'tirantes', 'exoterika-stoper'];
+  ids.forEach(id => {
+    assert.match(index, new RegExp("'" + id + "'"), id + ' in heading map');
+  });
+});
+
+test('stepShortLabels map covers all 5 known step IDs', () => {
+  const ids = ['tampakiera-karoulaki', 'aristeri-plevra', 'dexia-plevra', 'tirantes', 'exoterika-stoper'];
+  ids.forEach(id => {
+    assert.match(index, new RegExp("'" + id + "'"), id + ' in short map');
+  });
+});
+
+test('stepHeadingLabels has correct EL labels', () => {
+  assert.match(index, /Ταμπακιέρα \+ Καρουλάκι/);
+  assert.match(index, /Αριστερή Πλευρά/);
+  assert.match(index, /Δεξιά Πλευρά/);
+  assert.match(index, /Τιράντες/);
+  assert.match(index, /Εξωτερικά Στόπερ/);
+});
+
+test('stepHeadingLabels has correct EN labels', () => {
+  assert.match(index, /Shutter Box \+ Roller/);
+  assert.match(index, /Left Side/);
+  assert.match(index, /Right Side/);
+  assert.match(index, /External Stoppers/);
+});
+
+// === Section 54: Completion step layout ===
+
+test('Completion step has recap content block', () => {
+  assert.match(index, /sbs-completion-recap/);
+  assert.match(index, /sbs-completion-heading/);
+  assert.match(index, /sbs-completion-steps/);
+  assert.match(index, /sbs-completion-row/);
+});
+
+test('Completion step has bilingual heading and text', () => {
+  assert.match(index, /Οι επιλογές σας είναι έτοιμες/);
+  assert.match(index, /Your selections are ready/);
+});
+
+test('Completion recap rows use stepHeadingLabel for labels', () => {
+  assert.match(index, /stepHeadingLabel\(g\).*sbs-completion-step-val/s);
+});
+
+test('Completion recap CSS exists', () => {
+  assert.match(index, /\.sbs-completion-recap\s*\{/);
+  assert.match(index, /\.sbs-completion-row\s*\{/);
+  assert.match(index, /\.sbs-completion-step-name\s*\{/);
+});
+
+// === Section 55: False toggle persistence ===
+
+test('normalizeProductRecord preserves showLogo:false correctly', () => {
+  assert.match(server, /showLogo:\s*_bc\.showLogo\s*!==\s*false/);
+});
+
+test('normalizeProductRecord preserves showVideoCTA:false via === true', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+});
+
+test('normalizeProductRecord preserves all show* flags with !== false pattern', () => {
+  const neqFalse = ['showSlogan', 'showTitle', 'showSubtitle', 'showHelperText', 'showVideo', 'showTrustRow'];
+  neqFalse.forEach(flag => {
+    const re = new RegExp(flag + ':\\s*_bc\\.' + flag + '\\s*!==\\s*false');
+    assert.match(server, re, flag + ' uses !== false pattern');
+  });
+});
+
+test('syncBuilderConfigPanel reloads false show flags correctly', () => {
+  assert.match(admin, /kit-bc-show-logo.*\.checked\s*=\s*bc\.showLogo\s*!==\s*false/s);
+  assert.match(admin, /kit-bc-show-video.*\.checked\s*=\s*bc\.showVideoCTA\s*===\s*true/s);
+});
+
+test('showFlags listener writes boolean from checkbox.checked', () => {
+  assert.match(admin, /p\.builderConfig\[key\]\s*=\s*this\.checked/);
+});
+
+// === Section 56: Behavioral save/reload round-trip ===
+
+test('Product save includes builderConfig in POST payload', () => {
+  assert.match(admin, /builderConfig/);
+  assert.match(admin, /products\[kitBuilderIdx\]/);
+});
+
+test('normalizeProductRecord preserves bilingual text objects', () => {
+  assert.match(server, /title:\s*_bc\.title\s*\|\|\s*''/);
+  assert.match(server, /subtitle:\s*_bc\.subtitle\s*\|\|\s*''/);
+  assert.match(server, /helperText:\s*_bc\.helperText\s*\|\|\s*''/);
+  assert.match(server, /slogan:\s*_bc\.slogan\s*\|\|\s*''/);
+  assert.match(server, /sloganSecondary:\s*_bc\.sloganSecondary\s*\|\|\s*''/);
+});
+
+test('normalizeProductRecord preserves arrays for benefits and trustItems', () => {
+  assert.match(server, /benefits:\s*Array\.isArray\(_bc\.benefits\)/);
+  assert.match(server, /trustItems:\s*Array\.isArray\(_bc\.trustItems\)/);
+});
+
+test('normalizeProductRecord preserves imageVersion', () => {
+  assert.match(server, /imageVersion:\s*Number\(_bc\.imageVersion\)\s*\|\|\s*1/);
+});
+
+test('syncBuilderConfigPanel loads all bilingual fields on reload', () => {
+  const bilingualFields = [
+    'kit-bc-title-el', 'kit-bc-title-en',
+    'kit-bc-subtitle-el', 'kit-bc-subtitle-en',
+    'kit-bc-helper-el', 'kit-bc-helper-en',
+    'kit-bc-slogan-el', 'kit-bc-slogan-en',
+    'kit-bc-slogan2-el', 'kit-bc-slogan2-en',
+    'kit-bc-summary-sub-el', 'kit-bc-summary-sub-en',
+    'kit-bc-vcta-title-el', 'kit-bc-vcta-title-en',
+    'kit-bc-vcta-sub-el', 'kit-bc-vcta-sub-en'
+  ];
+  bilingualFields.forEach(id => {
+    assert.match(admin, new RegExp("getElementById\\('" + id + "'\\)"), id + ' is loaded in syncBuilderConfigPanel');
+  });
+});
+
+// === Section 57: Live preview panel ===
+
+test('Admin has live preview panel HTML', () => {
+  assert.match(admin, /kit-bc-live-preview/);
+  assert.match(admin, /lp-banner/);
+  assert.match(admin, /lp-logo-img/);
+  assert.match(admin, /lp-title/);
+  assert.match(admin, /lp-benefits/);
+  assert.match(admin, /lp-trust/);
+  assert.match(admin, /lp-video/);
+});
+
+test('refreshLivePreview function exists', () => {
+  assert.match(admin, /function refreshLivePreview\(bc\)/);
+});
+
+test('refreshLivePreview is called from text input listeners', () => {
+  const afterBcMap = admin.substring(admin.indexOf('bcMap[fId]'));
+  assert.match(afterBcMap, /refreshLivePreview\(p\.builderConfig\)/);
+});
+
+test('refreshLivePreview is called from show flag listeners', () => {
+  const showSection = admin.substring(admin.indexOf("p.builderConfig[key] = this.checked"));
+  assert.match(showSection, /refreshLivePreview\(p\.builderConfig\)/);
+});
+
+test('refreshLivePreview is called after benefit add', () => {
+  const afterBenAdd = admin.substring(admin.indexOf('kit-bc-benefit-add'));
+  assert.match(afterBenAdd, /renderBenefitsList[\s\S]*?refreshLivePreview/);
+});
+
+test('syncBuilderConfigPanel calls refreshLivePreview on load', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  assert.match(syncFn, /refreshLivePreview\(bc\)/);
+});
+
+// === Section 58: Option group raw ID display ===
+
+test('Group list flags groups with no customer-facing label', () => {
+  assert.match(admin, /var _isRawId = !_displayLabel/);
+  assert.match(admin, /raw ID<\/span>/);
+});
+
+test('Group list shows bilingual label when both languages present', () => {
+  assert.match(admin, /labelEl !== labelEn.*escHtml\(labelEn\)/s);
+});
+
+test('Choice list flags choices with no customer-facing label', () => {
+  assert.match(admin, /var _cIsRawId = !_cDisplayLabel/);
+});
+
+test('Choice list shows linked product price/image source indicators', () => {
+  assert.match(admin, /price:.*_priceSource/);
+  assert.match(admin, /img:.*_imgSource/);
+});
+
+// === Section 59: Multi-tenant safety ===
+
+test('No hardcoded tenant === eukolakis in server.js', () => {
+  const lines = server.split('\n');
+  lines.forEach((line, i) => {
+    if (/tenant\s*===?\s*['"]eukolakis['"]/.test(line) && !/test|comment/i.test(line)) {
+      assert.fail('Hardcoded tenant check at server.js:' + (i + 1));
+    }
+  });
+});
+
+test('Asset upload endpoint uses req.tenantPaths not hardcoded paths', () => {
+  const uploadSection = server.substring(server.indexOf('builder/asset-upload'));
+  const nextRoute = uploadSection.indexOf("app.post('") > 0 ? uploadSection.indexOf("app.post('") : uploadSection.length;
+  const chunk = uploadSection.substring(0, Math.min(nextRoute, 500));
+  assert.ok(!chunk.includes("'eukolakis'"), 'No hardcoded eukolakis in upload endpoint');
+});
+
+test('withTenantLink used for admin builder endpoints in EJS', () => {
+  assert.match(admin, /withTenantLink\(["']\/admin\/builder\/asset-upload["']\)/);
+  assert.match(admin, /withTenantLink\(["']\/admin\/builder\/asset-remove["']\)/);
+});
+
+// === Section 60: Unsaved indicator ===
+
+test('Unsaved indicator element exists in preview', () => {
+  assert.match(admin, /id="lp-unsaved"/);
+  assert.match(admin, /Unsaved builder changes/);
+});
+
+test('snapshotBuilderConfig and markBuilderClean functions exist', () => {
+  assert.match(admin, /function snapshotBuilderConfig\(bc\)/);
+  assert.match(admin, /function markBuilderClean\(\)/);
+});
+
+test('checkBuilderDirty compares current state to saved snapshot', () => {
+  assert.match(admin, /function checkBuilderDirty\(\)/);
+  assert.match(admin, /current !== _bcSavedSnapshot/);
+});
+
+test('markBuilderClean is called after syncBuilderConfigPanel loads', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  const fnEnd = admin.indexOf('var _bcSavedSnapshot', syncFn.length ? 0 : undefined);
+  const syncBlock = admin.substring(admin.indexOf('function syncBuilderConfigPanel'), admin.indexOf('var _bcSavedSnapshot'));
+  assert.match(syncBlock, /markBuilderClean\(\)/);
+});
+
+test('markBuilderClean is NOT called in form submit handler (dirty until reload)', () => {
+  const marker = 'Serialize before submit';
+  const serializeIdx = admin.indexOf(marker);
+  assert.ok(serializeIdx > 0, 'Serialize before submit section found');
+  const renderIdx = admin.indexOf('Initial render', serializeIdx);
+  assert.ok(renderIdx > serializeIdx, 'Initial render section found after serialize');
+  const submitBlock = admin.substring(serializeIdx, renderIdx);
+  assert.ok(submitBlock.includes('products-json-input'), 'submit handler serializes products');
+  assert.ok(!submitBlock.includes('markBuilderClean'), 'submit handler does NOT call markBuilderClean');
+});
+
+test('refreshLivePreview calls checkBuilderDirty', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  assert.match(fn, /checkBuilderDirty\(\)/);
+});
+
+// === Section 61: Preview image error handling ===
+
+test('Banner preview image has onerror handler', () => {
+  assert.match(admin, /lp-banner-img.*onerror/s);
+});
+
+test('Logo preview image has onerror handler', () => {
+  assert.match(admin, /lp-logo-img.*onerror/s);
+});
+
+test('Logo uses contain sizing in preview', () => {
+  assert.match(admin, /lp-logo-img.*object-fit:contain/s);
+});
+
+test('Logo is wrapped in lp-logo-wrap for positioning', () => {
+  assert.match(admin, /id="lp-logo-wrap"/);
+});
+
+test('Preview uses cache-busting on banner and logo images', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList') > 0 ? fn.indexOf('function renderBenefitsList') : fn.length);
+  assert.match(fnEnd, /bannerImg\.src = bSrc.*imageVersion/s);
+  assert.match(fnEnd, /logoImg\.src = lSrc.*imageVersion/s);
+});
+
+// === Section 62: Storefront render verification ===
+
+test('Storefront resolves all bilingual text fields via resolveF', () => {
+  const fields = ['bc.title', 'bc.subtitle', 'bc.helperText', 'bc.slogan', 'bc.sloganSecondary',
+                  'bc.videoCTATitle', 'bc.videoCTASubtitle', 'bc.summarySubtitle'];
+  fields.forEach(f => {
+    assert.match(index, new RegExp('resolveF\\(' + f.replace('.', '\\.') + '\\)'), f + ' resolved via resolveF');
+  });
+});
+
+test('Storefront filters benefits and trust by enabled !== false', () => {
+  assert.match(index, /benefits.*filter.*enabled !== false/s);
+  assert.match(index, /trustItems.*filter.*enabled !== false/s);
+});
+
+test('Storefront applies logo position and size via CSS classes', () => {
+  assert.match(index, /logoPosition === 'center'/);
+  assert.match(index, /logoPosition === 'right'/);
+  assert.match(index, /logoSize === 'small'/);
+  assert.match(index, /logoSize === 'large'/);
+});
+
+test('Storefront respects all show flags', () => {
+  assert.match(index, /showLogo !== false/);
+  assert.match(index, /showTitle !== false/);
+  assert.match(index, /showSubtitle !== false/);
+  assert.match(index, /showHelperText !== false/);
+  assert.match(index, /showSlogan !== false/);
+  assert.match(index, /showTrustRow !== false/);
+  assert.match(index, /showVideoCTA/);
+});
+
+// === Section 63: Asset replacement persistence (A → B) ===
+
+test('Server asset-upload deletes previous file before saving new URL', () => {
+  const uploadRoute = server.substring(server.indexOf("'/admin/builder/asset-upload'"));
+  const routeEnd = server.indexOf("'/admin/builder/asset-remove'");
+  const block = server.substring(server.indexOf("'/admin/builder/asset-upload'"), routeEnd);
+  assert.match(block, /previousUrl/, 'captures previous URL before overwriting');
+  assert.match(block, /unlinkSync/, 'deletes previous file');
+  assert.match(block, /product\.builderConfig\[field\] = url/, 'saves new URL to the correct field');
+});
+
+test('Server asset-upload increments imageVersion for cache-busting', () => {
+  const uploadRoute = server.substring(server.indexOf("'/admin/builder/asset-upload'"));
+  const routeEnd = server.indexOf("'/admin/builder/asset-remove'");
+  const block = server.substring(server.indexOf("'/admin/builder/asset-upload'"), routeEnd);
+  assert.match(block, /imageVersion.*\+ 1/, 'increments imageVersion after upload');
+  assert.match(block, /ok: true, url, imageVersion/, 'returns new URL and imageVersion');
+});
+
+test('Server asset-remove clears field and increments imageVersion', () => {
+  const removeIdx = server.indexOf("'/admin/builder/asset-remove'");
+  const nextRouteIdx = server.indexOf('// Favicon upload', removeIdx);
+  const block = server.substring(removeIdx, nextRouteIdx > removeIdx ? nextRouteIdx : removeIdx + 2000);
+  assert.match(block, /builderConfig\[field\] = ''/, 'clears the field to empty string');
+  assert.match(block, /imageVersion.*\+ 1/, 'increments imageVersion on remove');
+});
+
+test('Server asset-upload validates field against allowlist', () => {
+  const uploadIdx = server.indexOf("'/admin/builder/asset-upload'");
+  const block = server.substring(uploadIdx, uploadIdx + 1500);
+  assert.match(block, /allowedFields.*logoImage.*bannerImage/s, 'has allowlist for fields');
+  assert.match(block, /allowedFields\.includes\(field\)/, 'checks field against allowlist');
+});
+
+test('Admin preview applies cache-busting imageVersion to replaced assets', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList'));
+  assert.match(fnEnd, /bannerImg\.src = bSrc.*imageVersion/s, 'banner uses imageVersion');
+  assert.match(fnEnd, /logoImg\.src = lSrc.*imageVersion/s, 'logo uses imageVersion');
+});
+
+test('Storefront applies cache-busting version to banner and logo', () => {
+  assert.match(index, /bcVersion|imageVersion/, 'storefront uses version query parameter');
+});
+
+// === Section 64: Preview language resolution (EL/EN) ===
+
+test('Admin preview resolver favors EL then EN for bilingual objects', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList'));
+  assert.match(fnEnd, /v\.el \|\| v\.en/, 'preview _rf resolves el then en');
+});
+
+test('Storefront resolveF resolves by LANG then EL then EN', () => {
+  const fn = index.substring(index.indexOf('function resolveF'));
+  const fnEnd = fn.substring(0, fn.indexOf('function escAttr') > 0 ? fn.indexOf('function escAttr') : 200);
+  assert.match(fnEnd, /v\[LANG\] \|\| v\.el \|\| v\.en/, 'resolveF uses LANG > el > en fallback');
+});
+
+test('Storefront LANG variable is set from server-side lang', () => {
+  assert.match(index, /var LANG = '<%[=-] lang %>'/, 'LANG initialized from EJS lang variable');
+});
+
+test('Admin preview applies _rf to all text fields', () => {
+  const fn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  const fnEnd = fn.substring(0, fn.indexOf('function renderBenefitsList'));
+  const fields = ['bc.slogan', 'bc.sloganSecondary', 'bc.title', 'bc.subtitle', 'bc.helperText'];
+  fields.forEach(f => {
+    assert.match(fnEnd, new RegExp('_rf\\(' + f.replace('.', '\\.') + '\\)'), 'preview resolves ' + f);
+  });
+});
+
+test('Server normalizeProductRecord preserves bilingual text structure', () => {
+  const normBlock = server.substring(server.indexOf('function normalizeProductRecord'));
+  const normEnd = normBlock.substring(0, normBlock.indexOf('return Object.assign') + 500);
+  const bilingualFields = ['title', 'subtitle', 'helperText', 'slogan', 'sloganSecondary',
+    'videoCTATitle', 'videoCTASubtitle', 'summarySubtitle'];
+  bilingualFields.forEach(f => {
+    assert.match(normEnd, new RegExp(f + ".*\\|\\| ''"), f + ' preserved with fallback');
+  });
+});
