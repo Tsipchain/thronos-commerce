@@ -1179,3 +1179,149 @@ test('Completion recap CSS exists', () => {
   assert.match(index, /\.sbs-completion-row\s*\{/);
   assert.match(index, /\.sbs-completion-step-name\s*\{/);
 });
+
+// === Section 55: False toggle persistence ===
+
+test('normalizeProductRecord preserves showLogo:false correctly', () => {
+  assert.match(server, /showLogo:\s*_bc\.showLogo\s*!==\s*false/);
+});
+
+test('normalizeProductRecord preserves showVideoCTA:false via === true', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+});
+
+test('normalizeProductRecord preserves all show* flags with !== false pattern', () => {
+  const neqFalse = ['showSlogan', 'showTitle', 'showSubtitle', 'showHelperText', 'showVideo', 'showTrustRow'];
+  neqFalse.forEach(flag => {
+    const re = new RegExp(flag + ':\\s*_bc\\.' + flag + '\\s*!==\\s*false');
+    assert.match(server, re, flag + ' uses !== false pattern');
+  });
+});
+
+test('syncBuilderConfigPanel reloads false show flags correctly', () => {
+  assert.match(admin, /kit-bc-show-logo.*\.checked\s*=\s*bc\.showLogo\s*!==\s*false/s);
+  assert.match(admin, /kit-bc-show-video.*\.checked\s*=\s*bc\.showVideoCTA\s*===\s*true/s);
+});
+
+test('showFlags listener writes boolean from checkbox.checked', () => {
+  assert.match(admin, /p\.builderConfig\[key\]\s*=\s*this\.checked/);
+});
+
+// === Section 56: Behavioral save/reload round-trip ===
+
+test('Product save includes builderConfig in POST payload', () => {
+  assert.match(admin, /builderConfig/);
+  assert.match(admin, /products\[kitBuilderIdx\]/);
+});
+
+test('normalizeProductRecord preserves bilingual text objects', () => {
+  assert.match(server, /title:\s*_bc\.title\s*\|\|\s*''/);
+  assert.match(server, /subtitle:\s*_bc\.subtitle\s*\|\|\s*''/);
+  assert.match(server, /helperText:\s*_bc\.helperText\s*\|\|\s*''/);
+  assert.match(server, /slogan:\s*_bc\.slogan\s*\|\|\s*''/);
+  assert.match(server, /sloganSecondary:\s*_bc\.sloganSecondary\s*\|\|\s*''/);
+});
+
+test('normalizeProductRecord preserves arrays for benefits and trustItems', () => {
+  assert.match(server, /benefits:\s*Array\.isArray\(_bc\.benefits\)/);
+  assert.match(server, /trustItems:\s*Array\.isArray\(_bc\.trustItems\)/);
+});
+
+test('normalizeProductRecord preserves imageVersion', () => {
+  assert.match(server, /imageVersion:\s*Number\(_bc\.imageVersion\)\s*\|\|\s*1/);
+});
+
+test('syncBuilderConfigPanel loads all bilingual fields on reload', () => {
+  const bilingualFields = [
+    'kit-bc-title-el', 'kit-bc-title-en',
+    'kit-bc-subtitle-el', 'kit-bc-subtitle-en',
+    'kit-bc-helper-el', 'kit-bc-helper-en',
+    'kit-bc-slogan-el', 'kit-bc-slogan-en',
+    'kit-bc-slogan2-el', 'kit-bc-slogan2-en',
+    'kit-bc-summary-sub-el', 'kit-bc-summary-sub-en',
+    'kit-bc-vcta-title-el', 'kit-bc-vcta-title-en',
+    'kit-bc-vcta-sub-el', 'kit-bc-vcta-sub-en'
+  ];
+  bilingualFields.forEach(id => {
+    assert.match(admin, new RegExp("getElementById\\('" + id + "'\\)"), id + ' is loaded in syncBuilderConfigPanel');
+  });
+});
+
+// === Section 57: Live preview panel ===
+
+test('Admin has live preview panel HTML', () => {
+  assert.match(admin, /kit-bc-live-preview/);
+  assert.match(admin, /lp-banner/);
+  assert.match(admin, /lp-logo-img/);
+  assert.match(admin, /lp-title/);
+  assert.match(admin, /lp-benefits/);
+  assert.match(admin, /lp-trust/);
+  assert.match(admin, /lp-video/);
+});
+
+test('refreshLivePreview function exists', () => {
+  assert.match(admin, /function refreshLivePreview\(bc\)/);
+});
+
+test('refreshLivePreview is called from text input listeners', () => {
+  const afterBcMap = admin.substring(admin.indexOf('bcMap[fId]'));
+  assert.match(afterBcMap, /refreshLivePreview\(p\.builderConfig\)/);
+});
+
+test('refreshLivePreview is called from show flag listeners', () => {
+  const showSection = admin.substring(admin.indexOf("p.builderConfig[key] = this.checked"));
+  assert.match(showSection, /refreshLivePreview\(p\.builderConfig\)/);
+});
+
+test('refreshLivePreview is called after benefit add', () => {
+  const afterBenAdd = admin.substring(admin.indexOf('kit-bc-benefit-add'));
+  assert.match(afterBenAdd, /renderBenefitsList[\s\S]*?refreshLivePreview/);
+});
+
+test('syncBuilderConfigPanel calls refreshLivePreview on load', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  assert.match(syncFn, /refreshLivePreview\(bc\)/);
+});
+
+// === Section 58: Option group raw ID display ===
+
+test('Group list flags groups with no customer-facing label', () => {
+  assert.match(admin, /var _isRawId = !_displayLabel/);
+  assert.match(admin, /raw ID<\/span>/);
+});
+
+test('Group list shows bilingual label when both languages present', () => {
+  assert.match(admin, /labelEl !== labelEn.*escHtml\(labelEn\)/s);
+});
+
+test('Choice list flags choices with no customer-facing label', () => {
+  assert.match(admin, /var _cIsRawId = !_cDisplayLabel/);
+});
+
+test('Choice list shows linked product price/image source indicators', () => {
+  assert.match(admin, /price:.*_priceSource/);
+  assert.match(admin, /img:.*_imgSource/);
+});
+
+// === Section 59: Multi-tenant safety ===
+
+test('No hardcoded tenant === eukolakis in server.js', () => {
+  const lines = server.split('\n');
+  lines.forEach((line, i) => {
+    if (/tenant\s*===?\s*['"]eukolakis['"]/.test(line) && !/test|comment/i.test(line)) {
+      assert.fail('Hardcoded tenant check at server.js:' + (i + 1));
+    }
+  });
+});
+
+test('Asset upload endpoint uses req.tenantPaths not hardcoded paths', () => {
+  const uploadSection = server.substring(server.indexOf('builder/asset-upload'));
+  const nextRoute = uploadSection.indexOf("app.post('") > 0 ? uploadSection.indexOf("app.post('") : uploadSection.length;
+  const chunk = uploadSection.substring(0, Math.min(nextRoute, 500));
+  assert.ok(!chunk.includes("'eukolakis'"), 'No hardcoded eukolakis in upload endpoint');
+});
+
+test('withTenantLink used for admin builder endpoints in EJS', () => {
+  assert.match(admin, /withTenantLink\(["']\/admin\/builder\/asset-upload["']\)/);
+  assert.match(admin, /withTenantLink\(["']\/admin\/builder\/asset-remove["']\)/);
+});
