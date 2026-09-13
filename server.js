@@ -345,7 +345,7 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
         : (choice.useLinkedPriceDelta && linked ? effectiveLinkedPrice : (Number(choice.priceDelta) || 0));
       return {
         ...choice,
-        label: (resolveTranslatable(choice.label, lang) || '').trim() || linkedName || choice.id,
+        label: (resolveTranslatable(choice.label, lang) || '').trim() || linkedName || '',
         description: (resolveTranslatable(choice.description, lang) || '').trim() || (linkedDescription ? linkedDescription.slice(0, 140) : ''),
         image: (typeof choice.image === 'string' ? choice.image : '').trim() || effectiveLinkedImageUrl,
         priceDelta: computedPriceDelta,
@@ -360,7 +360,7 @@ function hydrateKitProduct(product, catalog, lang = DEFAULT_CONTENT_LANG, option
     if (product.builderType !== 'step_by_step' && group.allowSkip && !hydratedChoices.some((c) => c.id === 'skip')) {
       hydratedChoices.push({ id: 'skip', label: 'Δεν το χρειάζομαι / Το έχω ήδη', description: '', image: '', priceDelta: 0, linkedProductId: '', linkedPrice: 0 });
     }
-    return { ...group, label: resolveTranslatable(group.label, lang) || group.id, choices: hydratedChoices };
+    return { ...group, label: resolveTranslatable(group.label, lang) || '', choices: hydratedChoices };
   });
   return { ...product, kitPayMode, kitOptions: hydratedOptions };
 }

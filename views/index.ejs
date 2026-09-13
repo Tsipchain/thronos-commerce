@@ -2725,7 +2725,7 @@
         function stepHeadingLabel(g) {
           var mapped = stepHeadingLabels[g.id];
           if (mapped) return resolveF(mapped);
-          return resolveF(g.label) || g.id;
+          return resolveF(g.label) || '';
         }
         function renderProgress() {
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
