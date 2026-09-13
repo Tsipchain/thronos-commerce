@@ -27,9 +27,12 @@
       const _introBackgroundUrl = (homepage.introBackgroundUrl) || '';
       const _introAudit = introAssetAudit || {};
       const _bannerAudit = _introAudit.headerBanner || null;
-      const _brandIdentitySrc = (_bannerAudit && _bannerAudit.exists && _bannerAudit.url)
-        ? _bannerAudit.url
-        : (config.logoPath || '');
+      const _introImgSource = (homepage.introImageSource || 'dedicated').toLowerCase();
+      const _brandIdentitySrc = _introImgSource === 'logo'
+        ? (config.logoPath || '')
+        : (_bannerAudit && _bannerAudit.exists && _bannerAudit.url)
+          ? _bannerAudit.url
+          : (config.logoPath || '');
     %>
     <style>
       /* ── Theme tokens ────────────────────────────────────────────────────── */
