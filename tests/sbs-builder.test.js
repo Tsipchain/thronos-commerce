@@ -404,7 +404,7 @@ test('Admin has builderType select with both options', () => {
 test('SBS builder escapes attribute values to prevent XSS', () => {
   assert.match(index, /function escAttr\(s\)/);
   assert.match(index, /escAttr\(resolveF\(c\.label\)\)/);
-  assert.match(index, /escAttr\(resolveF\(g\.label\)\)/);
+  assert.match(index, /escAttr\(stepHeadingLabel\(g\)\)/);
 });
 
 // === Section 19a: Admin step/group controls ===
@@ -843,17 +843,24 @@ test('Stepper short labels include EN translations', () => {
   assert.match(index, /en:\s*'Stoppers'/);
 });
 
+test('Step heading has full label lookup map for known step IDs', () => {
+  assert.match(index, /stepHeadingLabels\s*=\s*\{/);
+  assert.match(index, /'tampakiera-karoulaki':\s*\{[^}]*el:\s*'Ταμπακιέρα \+ Καρουλάκι'/);
+  assert.match(index, /'tampakiera-karoulaki':\s*\{[^}]*en:\s*'Shutter Box \+ Roller'/);
+});
+
 test('renderProgress uses stepShortLabel helper, not raw g.id', () => {
   assert.match(index, /stepShortLabel\(g\)/);
   assert.doesNotMatch(index, /sbs-step-label[^<]*escAttr\(g\.id\)/);
 });
 
-test('Step heading uses localized label via resolveF(g.label)', () => {
-  assert.match(index, /elStepTitle\.innerHTML[\s\S]*?escAttr\(resolveF\(g\.label\)\)/);
+test('Step heading uses stepHeadingLabel for localized display', () => {
+  assert.match(index, /elStepTitle\.innerHTML[\s\S]*?escAttr\(stepHeadingLabel\(g\)\)/);
+  assert.match(index, /function stepHeadingLabel\(g\)/);
 });
 
-test('Summary rows use resolveF(g.label) for step names', () => {
-  assert.match(index, /sbs-sum-step[^<]*escAttr\(resolveF\(g\.label\)\)/);
+test('Summary rows use stepHeadingLabel for step names', () => {
+  assert.match(index, /sbs-sum-step[^<]*escAttr\(stepHeadingLabel\(g\)\)/);
 });
 
 test('No raw step IDs rendered in visible builder text', () => {
