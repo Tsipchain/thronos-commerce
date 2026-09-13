@@ -1103,3 +1103,79 @@ test('All admin select fields have corresponding syncBuilderConfigPanel load', (
   assert.match(admin, /bc\.logoPosition/);
   assert.match(admin, /bc\.logoSize/);
 });
+
+// === Section 52: Builder logo CSS fix ===
+
+test('Banner background img uses sbs-banner-bg class selector, not generic img', () => {
+  assert.match(index, /\.sbs-banner\s+img\.sbs-banner-bg/);
+  assert.doesNotMatch(index, /\.sbs-banner\s+img\s*\{/);
+});
+
+test('Builder logo has max-width and display:block constraints', () => {
+  assert.match(index, /\.sbs-banner-logo\s*\{[^}]*max-width/);
+  assert.match(index, /\.sbs-banner-logo\s*\{[^}]*display:\s*block/);
+  assert.match(index, /\.sbs-banner-logo\s*\{[^}]*object-fit:\s*contain/);
+});
+
+test('Builder logo onerror hides gracefully', () => {
+  assert.match(index, /sbs-builder-logo.*onerror.*display.*none/s);
+});
+
+// === Section 53: Raw ID filtering ===
+
+test('stepShortLabel and stepHeadingLabel have raw ID detection', () => {
+  assert.match(index, /looksLikeRawId/);
+});
+
+test('stepHeadingLabels map covers all 5 known step IDs', () => {
+  const ids = ['tampakiera-karoulaki', 'aristeri-plevra', 'dexia-plevra', 'tirantes', 'exoterika-stoper'];
+  ids.forEach(id => {
+    assert.match(index, new RegExp("'" + id + "'"), id + ' in heading map');
+  });
+});
+
+test('stepShortLabels map covers all 5 known step IDs', () => {
+  const ids = ['tampakiera-karoulaki', 'aristeri-plevra', 'dexia-plevra', 'tirantes', 'exoterika-stoper'];
+  ids.forEach(id => {
+    assert.match(index, new RegExp("'" + id + "'"), id + ' in short map');
+  });
+});
+
+test('stepHeadingLabels has correct EL labels', () => {
+  assert.match(index, /Ταμπακιέρα \+ Καρουλάκι/);
+  assert.match(index, /Αριστερή Πλευρά/);
+  assert.match(index, /Δεξιά Πλευρά/);
+  assert.match(index, /Τιράντες/);
+  assert.match(index, /Εξωτερικά Στόπερ/);
+});
+
+test('stepHeadingLabels has correct EN labels', () => {
+  assert.match(index, /Shutter Box \+ Roller/);
+  assert.match(index, /Left Side/);
+  assert.match(index, /Right Side/);
+  assert.match(index, /External Stoppers/);
+});
+
+// === Section 54: Completion step layout ===
+
+test('Completion step has recap content block', () => {
+  assert.match(index, /sbs-completion-recap/);
+  assert.match(index, /sbs-completion-heading/);
+  assert.match(index, /sbs-completion-steps/);
+  assert.match(index, /sbs-completion-row/);
+});
+
+test('Completion step has bilingual heading and text', () => {
+  assert.match(index, /Οι επιλογές σας είναι έτοιμες/);
+  assert.match(index, /Your selections are ready/);
+});
+
+test('Completion recap rows use stepHeadingLabel for labels', () => {
+  assert.match(index, /stepHeadingLabel\(g\).*sbs-completion-step-val/s);
+});
+
+test('Completion recap CSS exists', () => {
+  assert.match(index, /\.sbs-completion-recap\s*\{/);
+  assert.match(index, /\.sbs-completion-row\s*\{/);
+  assert.match(index, /\.sbs-completion-step-name\s*\{/);
+});

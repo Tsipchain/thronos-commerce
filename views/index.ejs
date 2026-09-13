@@ -194,13 +194,13 @@
       .sbs-builder-backdrop.open { display:block; }
       .sbs-builder { max-width:1500px; margin:0 auto; background:#111827; color:#e2e8f0; border-radius:0; min-height:100vh; box-shadow:0 0 80px rgba(0,0,0,.6); overflow:hidden; }
       .sbs-banner { width:100%; position:relative; overflow:hidden; height:220px; }
-      .sbs-banner img { width:100%; height:100%; object-fit:cover; display:block; }
+      .sbs-banner img.sbs-banner-bg { width:100%; height:100%; object-fit:cover; display:block; }
       .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(8,12,24,.88) 0%,rgba(8,12,24,.55) 55%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:22px 32px; }
-      .sbs-banner-logo { max-height:48px; width:auto; margin-bottom:8px; object-fit:contain; }
+      .sbs-banner-logo { display:block; max-height:48px; max-width:180px; width:auto; height:auto; margin-bottom:8px; object-fit:contain; }
       .sbs-banner-logo.logo-center { align-self:center; }
       .sbs-banner-logo.logo-right { align-self:flex-end; }
-      .sbs-banner-logo.logo-small { max-height:32px; }
-      .sbs-banner-logo.logo-large { max-height:64px; }
+      .sbs-banner-logo.logo-small { max-height:32px; max-width:140px; }
+      .sbs-banner-logo.logo-large { max-height:64px; max-width:240px; }
       .sbs-banner-slogan { font-size:1.5rem; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:.04em; line-height:1.15; margin:0; }
       .sbs-banner-slogan-secondary { font-size:.82rem; font-weight:500; color:rgba(255,255,255,.72); margin:3px 0 0; }
       .sbs-banner-close { position:absolute; top:12px; right:14px; background:rgba(255,255,255,.12); border:none; color:#fff; width:34px; height:34px; border-radius:50%; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); z-index:3; }
@@ -275,6 +275,15 @@
       .sbs-nav .sbs-next { background:#e8922d; color:#fff; border-color:#e8922d; box-shadow:0 2px 8px rgba(232,146,45,.2); }
       .sbs-nav .sbs-next:hover { background:#d4831f; }
       .sbs-nav .sbs-next:disabled { opacity:.4; cursor:default; box-shadow:none; }
+      .sbs-completion-recap { display:flex; flex-direction:column; align-items:center; padding:32px 20px 16px; text-align:center; }
+      .sbs-completion-icon { margin-bottom:14px; }
+      .sbs-completion-heading { color:#fff; font-size:1.15rem; font-weight:700; margin:0 0 6px; }
+      .sbs-completion-text { color:rgba(255,255,255,.55); font-size:.82rem; margin:0 0 20px; max-width:340px; }
+      .sbs-completion-steps { width:100%; max-width:400px; text-align:left; }
+      .sbs-completion-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.8rem; }
+      .sbs-completion-row:last-child { border-bottom:0; }
+      .sbs-completion-step-name { color:rgba(255,255,255,.7); flex:1; }
+      .sbs-completion-step-val { color:#fff; font-weight:600; text-align:right; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       @media (max-width:768px) {
         .sbs-builder { min-height:100dvh; }
         .sbs-banner { height:150px; }
@@ -2717,17 +2726,21 @@
           'tirantes': { el: 'Τιράντες', en: 'Straps' },
           'exoterika-stoper': { el: 'Εξωτερικά Στόπερ', en: 'External Stoppers' }
         };
+        function looksLikeRawId(s) { return /^[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+)*$/.test(s); }
         function stepShortLabel(g) {
           var mapped = stepShortLabels[g.id];
           if (mapped) return resolveF(mapped);
           var full = resolveF(g.label);
+          if (!full || looksLikeRawId(full)) return (LANG === 'el' ? 'Βήμα' : 'Step');
           var parts = full.split(/\s+/);
           return parts.length > 2 ? parts.slice(0, 2).join(' ') : full;
         }
         function stepHeadingLabel(g) {
           var mapped = stepHeadingLabels[g.id];
           if (mapped) return resolveF(mapped);
-          return resolveF(g.label) || '';
+          var label = resolveF(g.label) || '';
+          if (looksLikeRawId(label)) return (LANG === 'el' ? 'Βήμα' : 'Step');
+          return label;
         }
         function renderProgress() {
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
@@ -2761,7 +2774,22 @@
           if (allDone) {
             elStepTitle.innerHTML = '<span class="sbs-step-title-bar"></span>' + escAttr(LANG === 'el' ? 'Ολοκλήρωση' : 'Finish');
             elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
-            elOptionGrid.innerHTML = '';
+            var recapHtml = '<div class="sbs-completion-recap">';
+            recapHtml += '<div class="sbs-completion-icon"><svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="22" fill="none" stroke="#22c55e" stroke-width="3"/><path d="M14 24l7 7 13-13" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
+            recapHtml += '<h4 class="sbs-completion-heading">' + escAttr(LANG === 'el' ? 'Οι επιλογές σας είναι έτοιμες!' : 'Your selections are ready!') + '</h4>';
+            recapHtml += '<p class="sbs-completion-text">' + escAttr(LANG === 'el' ? 'Δείτε τη σύνοψη δεξιά και πατήστε «Προσθήκη στο καλάθι» για να ολοκληρώσετε.' : 'Review the summary on the right and click "Add to Cart" to complete.') + '</p>';
+            recapHtml += '<div class="sbs-completion-steps">';
+            groups.forEach(function(g, gi) {
+              var sel = sbsState.selections[g.id];
+              var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
+              var statusIcon = choice ? '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="#22c55e"/><path d="M6 10l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+                : (!g.required && g.allowSkip && gi < sbsState.step) ? '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="#64748b"/><path d="M7 10h6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>'
+                : '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="none" stroke="#ef4444" stroke-width="2"/><path d="M10 6v5M10 13v1" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>';
+              var label = choice ? escAttr(resolveF(choice.label)) : (gi < sbsState.step ? escAttr(LANG === 'el' ? 'Παράλειψη' : 'Skipped') : escAttr(LANG === 'el' ? 'Δεν επιλέχθηκε' : 'Not selected'));
+              recapHtml += '<div class="sbs-completion-row">' + statusIcon + '<span class="sbs-completion-step-name">' + escAttr(stepHeadingLabel(g)) + '</span><span class="sbs-completion-step-val">' + label + '</span></div>';
+            });
+            recapHtml += '</div></div>';
+            elOptionGrid.innerHTML = recapHtml;
             btnBack.style.display = sbsState.step > 0 ? '' : 'none';
             btnNext.textContent = LANG === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart';
             btnNext.className = 'sbs-add-cart';
