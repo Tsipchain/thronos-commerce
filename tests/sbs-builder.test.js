@@ -352,7 +352,7 @@ test('SBS builder has responsive breakpoint at 700px', () => {
 });
 
 test('SBS builder body uses grid layout with summary sidebar', () => {
-  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,\s*70fr\)\s+minmax\(280px,\s*30fr\)/s);
+  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,\s*70fr\)\s+minmax\(300px,\s*30fr\)/s);
 });
 
 // === Section 16: Builder bilingual support ===
@@ -930,12 +930,12 @@ test('Builder backdrop does not contain global nav elements', () => {
 
 // === Section 41: Builder max-width and proportions ===
 
-test('Builder max-width is 1500px for desktop', () => {
-  assert.match(index, /\.sbs-builder\s*\{[^}]*max-width:\s*1500px/);
+test('Builder max-width constrains desktop layout', () => {
+  assert.match(index, /\.sbs-builder\s*\{[^}]*max-width:\s*1280px/);
 });
 
 test('Builder body grid uses ~70/30 split', () => {
-  assert.match(index, /\.sbs-builder-body\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*70fr\)\s+minmax\(280px,\s*30fr\)/);
+  assert.match(index, /\.sbs-builder-body\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*70fr\)\s+minmax\(300px,\s*30fr\)/);
 });
 
 // === Section 42: Mobile breakpoint at 768px ===
