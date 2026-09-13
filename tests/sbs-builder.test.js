@@ -352,7 +352,7 @@ test('SBS builder has responsive breakpoint at 700px', () => {
 });
 
 test('SBS builder body uses grid layout with summary sidebar', () => {
-  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,\s*72fr\)\s+minmax\(280px,\s*28fr\)/s);
+  assert.match(index, /sbs-builder-body.*grid-template-columns:\s*minmax\(0,\s*70fr\)\s+minmax\(280px,\s*30fr\)/s);
 });
 
 // === Section 16: Builder bilingual support ===
@@ -934,8 +934,8 @@ test('Builder max-width is 1500px for desktop', () => {
   assert.match(index, /\.sbs-builder\s*\{[^}]*max-width:\s*1500px/);
 });
 
-test('Builder body grid uses ~72/28 split', () => {
-  assert.match(index, /\.sbs-builder-body\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*72fr\)\s+minmax\(280px,\s*28fr\)/);
+test('Builder body grid uses ~70/30 split', () => {
+  assert.match(index, /\.sbs-builder-body\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*70fr\)\s+minmax\(280px,\s*30fr\)/);
 });
 
 // === Section 42: Mobile breakpoint at 768px ===
@@ -953,4 +953,17 @@ test('Mobile nav is sticky', () => {
 test('Summary renders placeholder thumbs for unselected steps', () => {
   assert.match(index, /emptyThumb\s*=/);
   assert.match(index, /sbs-sum-thumb/);
+});
+
+// === Section 44: Navigation button text ===
+
+test('SBS next button uses Συνέχεια / Continue label', () => {
+  assert.match(index, /Συνέχεια →/);
+  assert.match(index, /Continue →/);
+});
+
+// === Section 45: Video CTA arrow icon ===
+
+test('Video CTA includes arrow icon element', () => {
+  assert.match(index, /sbs-video-cta-arrow/);
 });
