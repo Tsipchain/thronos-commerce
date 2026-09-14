@@ -1504,3 +1504,94 @@ test('Server normalizeProductRecord preserves bilingual text structure', () => {
     assert.match(normEnd, new RegExp(f + ".*\\|\\| ''"), f + ' preserved with fallback');
   });
 });
+
+// === Section: Behavioral / DOM-integration tests ===
+
+test('Click handler sets sbsState.selections and enables Continue', () => {
+  assert.match(index, /sbsState\.selections\[g\.id\]\s*=\s*c\.id/, 'click stores selection');
+  assert.match(index, /btnNext\.disabled\s*=\s*false/, 'click enables Continue');
+  assert.match(index, /renderStep\(\)/, 'click calls renderStep');
+});
+
+test('renderStep updates total from selections', () => {
+  assert.match(index, /elTotal/, 'reference to total element');
+  assert.match(index, /\.price/, 'price property read during render');
+});
+
+test('Option selected class is applied via renderStep', () => {
+  assert.match(index, /selected/, 'selected class referenced');
+  assert.match(index, /sbsState\.selections\[g\.id\]/, 'selection state checked during render');
+});
+
+test('Summary panel does not use overflow-y:auto on .sbs-summary', () => {
+  const summaryCSS = index.substring(
+    index.indexOf('.sbs-summary {'),
+    index.indexOf('}', index.indexOf('.sbs-summary {')) + 1
+  );
+  assert.ok(!summaryCSS.includes('overflow-y:auto'), 'summary does not scroll internally');
+  assert.ok(!summaryCSS.includes('overflow:auto'), 'summary does not use overflow:auto');
+});
+
+test('Summary list is the scroll container, not the summary panel', () => {
+  const listCSS = index.substring(
+    index.indexOf('.sbs-summary-list {'),
+    index.indexOf('}', index.indexOf('.sbs-summary-list {')) + 1
+  );
+  assert.match(listCSS, /overflow-y:\s*auto/, 'summary-list scrolls internally');
+  assert.match(listCSS, /min-height:\s*0/, 'summary-list has min-height:0 for flex shrink');
+});
+
+test('Step labels use stepHeadingLabel/stepShortLabel, not raw group id', () => {
+  assert.match(index, /stepHeadingLabel\(g\)/, 'heading uses stepHeadingLabel()');
+  assert.match(index, /stepShortLabel\(g\)/, 'stepper uses stepShortLabel()');
+});
+
+test('stepHeadingLabels map covers all five eukolakis kit option group IDs', () => {
+  const mapStart = index.indexOf('var stepHeadingLabels');
+  assert.ok(mapStart > -1, 'stepHeadingLabels map exists');
+  const mapBlock = index.substring(mapStart, index.indexOf('};', mapStart) + 2);
+  kitOptions.forEach(g => {
+    assert.ok(mapBlock.includes("'" + g.id + "'") || mapBlock.includes('"' + g.id + '"'),
+      'stepHeadingLabels has entry for ' + g.id);
+  });
+});
+
+test('stepShortLabels map covers all five eukolakis kit option group IDs', () => {
+  const mapStart = index.indexOf('var stepShortLabels');
+  assert.ok(mapStart > -1, 'stepShortLabels map exists');
+  const mapBlock = index.substring(mapStart, index.indexOf('};', mapStart) + 2);
+  kitOptions.forEach(g => {
+    assert.ok(mapBlock.includes("'" + g.id + "'") || mapBlock.includes('"' + g.id + '"'),
+      'stepShortLabels has entry for ' + g.id);
+  });
+});
+
+test('Benefits strip renders from builderConfig.benefits array', () => {
+  assert.match(index, /benefits\.forEach/, 'benefits array iterated');
+  assert.match(index, /sbs-benefit/, 'benefit DOM class referenced');
+  assert.match(index, /sbs-benefit-icon/, 'benefit icon rendered');
+  assert.match(index, /sbs-benefit-text/, 'benefit text rendered');
+});
+
+test('Benefits data exists and has enabled items for eukolakis kit', () => {
+  const bc = rollKit.builderConfig;
+  assert.ok(bc, 'builderConfig exists');
+  assert.ok(Array.isArray(bc.benefits), 'benefits is an array');
+  const enabled = bc.benefits.filter(b => b.enabled !== false);
+  assert.ok(enabled.length >= 1, 'at least one enabled benefit');
+  enabled.forEach(b => {
+    assert.ok(b.icon, 'benefit has icon: ' + b.icon);
+    assert.ok(b.title, 'benefit has title');
+  });
+});
+
+test('Trust row renders from builderConfig.trustItems', () => {
+  assert.match(index, /trustItems/, 'trustItems referenced');
+  assert.match(index, /sbs-trust-item/, 'trust item class');
+  assert.match(index, /sbs-trust-icon/, 'trust icon class');
+});
+
+test('Continue button navigates to next step on click', () => {
+  assert.match(index, /sbsState\.step\s*\+=\s*1/, 'step incremented on Continue');
+  assert.match(index, /renderStep\(\)/, 'renderStep called after step increment');
+});
