@@ -2050,6 +2050,7 @@
         }) : []
       };
     })) %></script>
+    <script id="tenant-videos-json" type="application/json"><%- safeJson(tenantVideos || []) %></script>
     <% } %>
     <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
       <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl || config.footer.youtubeUrl)) { %>
@@ -2672,6 +2673,9 @@
         catalog.forEach(function(p){ catalogById[p.id] = p; });
         var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
         if (!sbsKits.length) return;
+        var videosEl = document.getElementById('tenant-videos-json');
+        var tenantVideos = videosEl ? JSON.parse(videosEl.textContent || '[]') : [];
+        var COMING_SOON_URL = <%- safeJson(withTenantLink('/video/coming-soon')) %>;
         var sbsState = { product: null, step: 0, selections: {} };
         var elBanner = document.getElementById('sbs-banner');
         var elBannerOverlay = document.getElementById('sbs-banner-overlay');
@@ -2879,6 +2883,29 @@
           });
           elTotal.textContent = total.toFixed(2) + ' €';
         }
+        function resolveVideoForBuilder(product) {
+          var bc = product.builderConfig || {};
+          var src = bc.videoGuideSource || 'auto';
+          if (src === 'hidden' || (bc.showVideoCTA === false && src !== 'auto' && src !== 'select' && src !== 'coming_soon')) return null;
+          if (src === 'select' && bc.videoGuideId) {
+            var v = tenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; });
+            if (v) return { video: v, source: 'selected' };
+          }
+          if (src === 'coming_soon') return { video: null, source: 'coming_soon' };
+          if (src === 'auto' || (src === 'select' && !bc.videoGuideId)) {
+            var byProduct = tenantVideos.find(function(vd){ return vd.productId === product.id; });
+            if (byProduct) return { video: byProduct, source: 'product' };
+            if (product.categoryId) {
+              var byCat = tenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
+              if (byCat) return { video: byCat, source: 'category' };
+            }
+            var defGuide = tenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
+            if (defGuide) return { video: defGuide, source: 'default' };
+          }
+          if (bc.videoUrl) return { video: null, source: 'legacy_url', url: bc.videoUrl };
+          if (bc.showVideoCTA !== false && src === 'auto') return { video: null, source: 'coming_soon' };
+          return null;
+        }
         function openSbs(productId) {
           var product = sbsKits.find(function(k){ return k.id === productId; });
           if (!product) return;
@@ -2963,14 +2990,36 @@
           } else {
             elTrustRow.style.display = 'none';
           }
-          if (bc.showVideoCTA && bc.videoUrl) {
+          var resolved = resolveVideoForBuilder(product);
+          if (resolved) {
+            var hasVideo = resolved.video || resolved.url;
+            var vTitle, vSub;
+            if (hasVideo) {
+              vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
+              vSub = resolveF(bc.videoCTASubtitle) || (LANG === 'el' ? 'Βήμα-βήμα η τοποθέτηση' : 'Step-by-step installation guide');
+            } else {
+              vTitle = LANG === 'el' ? 'Βίντεο οδηγιών' : 'Installation guide';
+              vSub = LANG === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
+            }
+            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
+            elVideoCTA.style.display = '';
+            elVideoCTA.onclick = function() {
+              if (resolved.video) {
+                window.open(<%- safeJson(withTenantLink('/content/')) %> + encodeURIComponent(resolved.video.slug), '_blank', 'noopener');
+              } else if (resolved.url) {
+                window.open(resolved.url, '_blank', 'noopener');
+              } else {
+                var csUrl = COMING_SOON_URL + '?product=' + encodeURIComponent(resolveF(product.name) || '');
+                window.open(csUrl, '_blank', 'noopener');
+              }
+            };
+          } else if (bc.showVideoCTA && bc.videoUrl) {
             var vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
             var vSub = resolveF(bc.videoCTASubtitle) || '';
             elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
             elVideoCTA.style.display = '';
             elVideoCTA.onclick = function() {
-              var url = bc.videoUrl;
-              if (url) window.open(url, '_blank', 'noopener');
+              if (bc.videoUrl) window.open(bc.videoUrl, '_blank', 'noopener');
             };
           } else {
             elVideoCTA.style.display = 'none';

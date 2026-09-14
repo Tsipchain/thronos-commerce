@@ -26,7 +26,7 @@ const { getCloudflareClient, getTenantZoneId } = require('./utils/cloudflare-api
 const RailwayRegistry = require('./utils/railway-registry');
 const { getCustomerSubscriptionStatus } = require('./lib/subscription-status');
 const { createVideoStorage, safeKey: safeVideoStorageKey } = require('./lib/video-storage');
-const { normalizeVideo, listVideos, slugify: slugifyVideo } = require('./lib/video-library');
+const { normalizeVideo, listVideos, slugify: slugifyVideo, resolveVideoGuide } = require('./lib/video-library');
 const { activatePaidSubscription, applyManualSubscriptionAction } = require('./lib/customer-subscriptions');
 
 function safeRequire(mod) {
@@ -1430,6 +1430,8 @@ function normalizeProductRecord(product) {
         showVideo: _bc.showVideo !== false,
         showTrustRow: _bc.showTrustRow !== false,
         showVideoCTA: _bc.showVideoCTA === true,
+        videoGuideId: String(_bc.videoGuideId || '').trim(),
+        videoGuideSource: ['auto', 'select', 'coming_soon', 'hidden'].includes(_bc.videoGuideSource) ? _bc.videoGuideSource : 'auto',
         videoCTATitle: _bc.videoCTATitle || '',
         videoCTASubtitle: _bc.videoCTASubtitle || '',
         benefits: Array.isArray(_bc.benefits) ? _bc.benefits : [],
@@ -2865,6 +2867,12 @@ function buildAdminViewModel(req, extra) {
       publishedVideos: videos.filter((video) => video.published).length,
       draftVideos: videos.filter((video) => !video.published).length
     },
+    tenantVideos: videos.map((v) => ({
+      id: v.id, slug: v.slug, titleEl: v.titleEl, titleEn: v.titleEn,
+      thumbnailUrl: v.thumbnailUrl, category: v.category,
+      productId: v.productId, categoryId: v.categoryId,
+      published: v.published, featured: v.featured,
+    })),
     assetAudit,
     hasFavicon: hasConfiguredFavicon || fs.existsSync(req.tenantPaths.favicon),
     subscription: getSubscriptionInfo(req.tenant),
@@ -3027,6 +3035,11 @@ app.get('/', (req, res) => {
     const localizedConfig = localizeConfigContent(config, viewLang);
     const localizedAllProducts = hydratedAllProducts.map((p) => localizeProductContent(p, viewLang));
     const storefrontAssetAudit = buildTenantAssetAudit(req, config, categories);
+    const tenantVideos = loadTenantVideos(req).filter((v) => v.published).map((v) => ({
+      id: v.id, slug: v.slug, titleEl: v.titleEl, titleEn: v.titleEn,
+      thumbnailUrl: v.thumbnailUrl, category: v.category,
+      productId: v.productId, categoryId: v.categoryId, featured: v.featured,
+    }));
     res.render('index', {
       config: localizedConfig,
       categories: categories.map((c) => localizeCategoryContent(c, viewLang)),
@@ -3036,6 +3049,7 @@ app.get('/', (req, res) => {
       tenant: req.tenant,
       storefrontAssetAudit,
       subscription: getSubscriptionInfo(req.tenant),
+      tenantVideos,
     });
   } catch (err) {
     console.error('[storefront] index render failed:', err && err.stack ? err.stack : err);
@@ -4033,6 +4047,7 @@ app.post('/admin/videos/save', (req, res, next) => {
       thumbnailUrl: normalizeMediaPath(req.body.thumbnailUrl, { allowAbsoluteUrl: true }), sourceType,
       externalVideoUrl, videoStorageKey: existing && existing.videoStorageKey,
       durationSeconds: req.body.durationSeconds, category: req.body.category,
+      productId: req.body.productId, categoryId: req.body.categoryId,
       accessLevel: req.body.accessLevel, published: req.body.published === '1',
       featured: req.body.featured === '1', sortOrder: req.body.sortOrder
       }, req.tenant.id);
@@ -6057,6 +6072,13 @@ app.post(
     res.json({ ok: true, url, filename: req.file.filename });
   }
 );
+
+// ── Video guide coming-soon page ──────────────────────────────────────────────
+app.get('/video/coming-soon', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  const productName = String(req.query.product || '').trim();
+  res.render('video-coming-soon', { config, tenant: req.tenant, productName, lang: req.lang });
+});
 
 // ── Tenant video library and legacy purchased digital content ───────────────
 app.get('/content', (req, res) => {
