@@ -1532,13 +1532,27 @@ test('Summary panel does not use overflow-y:auto on .sbs-summary', () => {
   assert.ok(!summaryCSS.includes('overflow:auto'), 'summary does not use overflow:auto');
 });
 
-test('Summary list is the scroll container, not the summary panel', () => {
+test('Builder body is the scroll container, not summary or summary-list', () => {
+  const bodyCSS = index.substring(
+    index.indexOf('.sbs-builder-body {'),
+    index.indexOf('}', index.indexOf('.sbs-builder-body {')) + 1
+  );
+  assert.match(bodyCSS, /overflow-y:\s*auto/, 'builder-body scrolls');
   const listCSS = index.substring(
     index.indexOf('.sbs-summary-list {'),
     index.indexOf('}', index.indexOf('.sbs-summary-list {')) + 1
   );
-  assert.match(listCSS, /overflow-y:\s*auto/, 'summary-list scrolls internally');
-  assert.match(listCSS, /min-height:\s*0/, 'summary-list has min-height:0 for flex shrink');
+  assert.ok(!listCSS.includes('overflow-y:auto'), 'summary-list does not scroll internally');
+});
+
+test('Banner bg image uses absolute positioning for proper cover', () => {
+  const bgCSS = index.substring(
+    index.indexOf('.sbs-banner img.sbs-banner-bg'),
+    index.indexOf('}', index.indexOf('.sbs-banner img.sbs-banner-bg')) + 1
+  );
+  assert.match(bgCSS, /position:\s*absolute/, 'banner bg is absolutely positioned');
+  assert.match(bgCSS, /object-fit:\s*cover/, 'banner bg uses object-fit:cover');
+  assert.match(bgCSS, /inset:\s*0/, 'banner bg uses inset:0');
 });
 
 test('Step labels use stepHeadingLabel/stepShortLabel, not raw group id', () => {
