@@ -1056,9 +1056,10 @@ test('Admin trust items have enable/disable toggle', () => {
   assert.match(admin, /data-trust-idx="/);
 });
 
-test('Admin trust items have move up/down buttons', () => {
-  assert.match(admin, /data-trust-up="/);
-  assert.match(admin, /data-trust-down="/);
+test('Admin trust uses fixed 3-slot UI (no move buttons needed)', () => {
+  assert.match(admin, /trust-slot.*data-slot="0"/);
+  assert.match(admin, /trust-slot.*data-slot="1"/);
+  assert.match(admin, /trust-slot.*data-slot="2"/);
 });
 
 test('Trust item enable toggle updates builderConfig', () => {
@@ -1837,4 +1838,69 @@ test('P3: openKitBuilder catch fallback still opens the modal', () => {
 
 test('P4: openKitBuilder validates product type is KIT', () => {
   assert.match(admin, /products\[i\]\.type !== 'KIT'/);
+});
+
+// === Section Q: Trust triptych always visible ===
+
+test('Q1: Trust row renders in openSbs (visible during all steps)', () => {
+  assert.match(index, /showTrustRow !== false && trustItems\.length > 0/);
+  assert.match(index, /elTrustRow\.style\.display = ''/);
+});
+
+test('Q2: Trust row has default items when config is empty', () => {
+  assert.match(index, /defaultTrustItems\s*=\s*\[/);
+  assert.match(index, /Ασφαλείς πληρωμές/);
+  assert.match(index, /Γρήγορη αποστολή/);
+  assert.match(index, /Ελληνική υποστήριξη/);
+});
+
+test('Q3: Cart button is absent during steps (only visible on completion)', () => {
+  assert.match(index, /btnCartSidebar\.style\.display = allDone && builderComplete \? '' : 'none'/);
+});
+
+test('Q4: showTrustRow=false hides trust row', () => {
+  assert.match(index, /bc\.showTrustRow !== false/);
+  assert.match(index, /elTrustRow\.style\.display = 'none'/);
+});
+
+// === Section R: Admin trust 3-slot UI ===
+
+test('R1: Admin has 3 fixed trust slots', () => {
+  assert.match(admin, /trust-slot-enabled.*data-slot="0"/);
+  assert.match(admin, /trust-slot-enabled.*data-slot="1"/);
+  assert.match(admin, /trust-slot-enabled.*data-slot="2"/);
+});
+
+test('R2: Admin trust slots have icon selectors', () => {
+  assert.match(admin, /trust-slot-icon.*data-slot="0"/);
+  assert.match(admin, /trust-slot-icon.*data-slot="1"/);
+  assert.match(admin, /trust-slot-icon.*data-slot="2"/);
+});
+
+test('R3: Admin preview shows trust items', () => {
+  assert.match(admin, /lp-trust/);
+  assert.match(admin, /showTrustRow !== false && trs\.length/);
+});
+
+// === Section S: DOM hierarchy — summary panel order ===
+
+test('S1: DOM order is trust-row before video-cta before cart-btn', () => {
+  const trustPos = index.indexOf('id="sbs-trust-row"');
+  const videoPos = index.indexOf('id="sbs-video-cta"');
+  const cartPos = index.indexOf('id="sbs-cart-btn"');
+  assert.ok(trustPos > 0, 'trust row exists');
+  assert.ok(videoPos > 0, 'video CTA exists');
+  assert.ok(cartPos > 0, 'cart button exists');
+  assert.ok(trustPos < videoPos, 'trust row before video CTA');
+  assert.ok(videoPos < cartPos, 'video CTA before cart button');
+});
+
+test('S2: Step 1 heading uses mapped label, never raw ID', () => {
+  assert.match(index, /stepHeadingLabels/);
+  assert.match(index, /tampakiera-karoulaki.*Ταμπακιέρα \+ Καρουλάκι/);
+  assert.match(index, /tampakiera-karoulaki.*Shutter Box \+ Roller/);
+});
+
+test('S3: Admin Section D has merchant-friendly title', () => {
+  assert.match(admin, /Δεξιά στήλη.*Αξιοπιστία.*Βίντεο οδηγιών|Summary.*Trust.*Installation Video/);
 });

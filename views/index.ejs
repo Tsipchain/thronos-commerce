@@ -2023,9 +2023,9 @@
               <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
               <span id="sbs-total" class="sbs-total-value">0.00 &euro;</span>
             </div>
-            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" disabled><%= lang === 'el' ? 'ΠΡΟΣΘΗΚΗ ΣΤΟ ΚΑΛΑΘΙ' : 'ADD TO CART' %></button>
             <div id="sbs-trust-row" class="sbs-trust-row" style="display:none;"></div>
             <div id="sbs-video-cta" class="sbs-video-cta" style="display:none;"></div>
+            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" disabled><%= lang === 'el' ? 'ΠΡΟΣΘΗΚΗ ΣΤΟ ΚΑΛΑΘΙ' : 'ADD TO CART' %></button>
           </div>
         </div>
         <div class="sbs-nav">
@@ -2995,7 +2995,14 @@
           var summSubtitle = resolveF(bc.summarySubtitle) || '';
           elSummarySubtitle.textContent = summSubtitle;
           elSummarySubtitle.style.display = summSubtitle ? '' : 'none';
-          var trustItems = Array.isArray(bc.trustItems) ? bc.trustItems.filter(function(t){ return t.enabled !== false; }) : [];
+          var defaultTrustItems = [
+            { icon: 'shield', title: { el: 'Ασφαλείς πληρωμές', en: 'Secure payments' }, enabled: true },
+            { icon: 'delivery', title: { el: 'Γρήγορη αποστολή', en: 'Fast delivery' }, enabled: true },
+            { icon: 'support', title: { el: 'Ελληνική υποστήριξη', en: 'Greek support' }, enabled: true }
+          ];
+          var trustItems = Array.isArray(bc.trustItems) && bc.trustItems.length > 0
+            ? bc.trustItems.filter(function(t){ return t.enabled !== false; })
+            : defaultTrustItems;
           if (bc.showTrustRow !== false && trustItems.length > 0) {
             elTrustRow.innerHTML = '';
             trustItems.forEach(function(t) {
