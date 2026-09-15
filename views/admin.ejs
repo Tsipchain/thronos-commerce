@@ -3709,6 +3709,48 @@
           renderKitBuilder();
         } catch(e) { console.error('[kit-builder] openKitBuilder error:', e); openKitBuilderModal(); }
       };
+      var _adminTenantVideos = <%- JSON.stringify((tenantVideos || []).filter(function(v){ return v.published; })) %>;
+      function syncVideoSourceUI(bc) {
+        var src = (bc && bc.videoGuideSource) || 'auto';
+        var pickerWrap = document.getElementById('kit-bc-video-picker-wrap');
+        var autoInfo = document.getElementById('kit-bc-video-resolved-auto');
+        pickerWrap.style.display = src === 'select' ? '' : 'none';
+        autoInfo.style.display = (src === 'auto') ? '' : 'none';
+        if (src === 'select') {
+          var sel = document.getElementById('kit-bc-video-picker');
+          var cur = (bc && bc.videoGuideId) || '';
+          sel.innerHTML = '<option value="">— choose —</option>';
+          _adminTenantVideos.forEach(function(v) {
+            var opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = (v.titleEl || v.titleEn || v.slug) + (v.category ? ' [' + v.category + ']' : '');
+            if (v.id === cur) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        }
+      }
+      function syncVideoResolved(product) {
+        if (!product) return;
+        var bc = product.builderConfig || {};
+        var src = bc.videoGuideSource || 'auto';
+        var resolvedEl = document.getElementById('kit-bc-video-resolved');
+        var autoEl = document.getElementById('kit-bc-video-resolved-auto');
+        if (src === 'select') {
+          var v = bc.videoGuideId ? _adminTenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; }) : null;
+          resolvedEl.innerHTML = v ? '&#9654; ' + (v.titleEl || v.titleEn) + (v.thumbnailUrl ? ' <img src="' + v.thumbnailUrl + '" style="height:28px;vertical-align:middle;border-radius:3px;margin-left:4px;" />' : '') : '<em>No video selected</em>';
+        }
+        if (src === 'auto') {
+          var byProd = _adminTenantVideos.find(function(vd){ return vd.productId === product.id; });
+          if (byProd) { autoEl.textContent = 'Auto-resolved: ' + (byProd.titleEl || byProd.titleEn) + ' (product match)'; return; }
+          if (product.categoryId) {
+            var byCat = _adminTenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
+            if (byCat) { autoEl.textContent = 'Auto-resolved: ' + (byCat.titleEl || byCat.titleEn) + ' (category match)'; return; }
+          }
+          var defV = _adminTenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
+          if (defV) { autoEl.textContent = 'Auto-resolved: ' + (defV.titleEl || defV.titleEn) + ' (tenant default)'; return; }
+          autoEl.textContent = 'No video found — CTA will show Coming Soon page';
+        }
+      }
       function syncBuilderConfigPanel(p) {
         var panel = document.getElementById('kit-builder-config-panel');
         var isSbs = (p.builderType === 'step_by_step');
@@ -3723,8 +3765,8 @@
         document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
         document.getElementById('kit-bc-video').value = bc.videoUrl || '';
         document.getElementById('kit-bc-video-source').value = bc.videoGuideSource || 'auto';
-        try { syncVideoSourceUI(bc); } catch(_vse) {}
-        try { syncVideoResolved(products[kitBuilderIdx]); } catch(_vre) {}
+        syncVideoSourceUI(bc);
+        syncVideoResolved(products[kitBuilderIdx]);
         document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
         document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
         document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
@@ -4010,48 +4052,6 @@
             refreshLivePreview(p.builderConfig);
           });
         });
-        var _adminTenantVideos = <%- JSON.stringify((tenantVideos || []).filter(function(v){ return v.published; })) %>;
-        function syncVideoSourceUI(bc) {
-          var src = (bc && bc.videoGuideSource) || 'auto';
-          var pickerWrap = document.getElementById('kit-bc-video-picker-wrap');
-          var autoInfo = document.getElementById('kit-bc-video-resolved-auto');
-          pickerWrap.style.display = src === 'select' ? '' : 'none';
-          autoInfo.style.display = (src === 'auto') ? '' : 'none';
-          if (src === 'select') {
-            var sel = document.getElementById('kit-bc-video-picker');
-            var cur = (bc && bc.videoGuideId) || '';
-            sel.innerHTML = '<option value="">— choose —</option>';
-            _adminTenantVideos.forEach(function(v) {
-              var opt = document.createElement('option');
-              opt.value = v.id;
-              opt.textContent = (v.titleEl || v.titleEn || v.slug) + (v.category ? ' [' + v.category + ']' : '');
-              if (v.id === cur) opt.selected = true;
-              sel.appendChild(opt);
-            });
-          }
-        }
-        function syncVideoResolved(product) {
-          if (!product) return;
-          var bc = product.builderConfig || {};
-          var src = bc.videoGuideSource || 'auto';
-          var resolvedEl = document.getElementById('kit-bc-video-resolved');
-          var autoEl = document.getElementById('kit-bc-video-resolved-auto');
-          if (src === 'select') {
-            var v = bc.videoGuideId ? _adminTenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; }) : null;
-            resolvedEl.innerHTML = v ? '&#9654; ' + (v.titleEl || v.titleEn) + (v.thumbnailUrl ? ' <img src="' + v.thumbnailUrl + '" style="height:28px;vertical-align:middle;border-radius:3px;margin-left:4px;" />' : '') : '<em>No video selected</em>';
-          }
-          if (src === 'auto') {
-            var byProd = _adminTenantVideos.find(function(vd){ return vd.productId === product.id; });
-            if (byProd) { autoEl.textContent = 'Auto-resolved: ' + (byProd.titleEl || byProd.titleEn) + ' (product match)'; return; }
-            if (product.categoryId) {
-              var byCat = _adminTenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
-              if (byCat) { autoEl.textContent = 'Auto-resolved: ' + (byCat.titleEl || byCat.titleEn) + ' (category match)'; return; }
-            }
-            var defV = _adminTenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
-            if (defV) { autoEl.textContent = 'Auto-resolved: ' + (defV.titleEl || defV.titleEn) + ' (tenant default)'; return; }
-            autoEl.textContent = 'No video found — CTA will show Coming Soon page';
-          }
-        }
         document.getElementById('kit-bc-video-source').addEventListener('change', function() {
           if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
           var p = products[kitBuilderIdx];
