@@ -2464,8 +2464,8 @@
                     <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
                     <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
                   </select>
-                  <input type="text" class="trust-slot-el" data-slot="0" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="<%= lang === 'el' ? 'Τίτλος EL' : 'Title EL' %>" />
-                  <input type="text" class="trust-slot-en" data-slot="0" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="<%= lang === 'el' ? 'Τίτλος EN' : 'Title EN' %>" />
+                  <input type="text" class="trust-slot-el" data-slot="0" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Ασφαλείς συναλλαγές" />
+                  <input type="text" class="trust-slot-en" data-slot="0" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Secure payments" />
                 </div>
                 <div class="trust-slot" data-slot="1" style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:4px;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;">
                   <label style="font-size:.74rem;"><input type="checkbox" class="trust-slot-enabled" data-slot="1" checked /> </label>
@@ -2476,8 +2476,8 @@
                     <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
                     <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
                   </select>
-                  <input type="text" class="trust-slot-el" data-slot="1" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="<%= lang === 'el' ? 'Τίτλος EL' : 'Title EL' %>" />
-                  <input type="text" class="trust-slot-en" data-slot="1" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="<%= lang === 'el' ? 'Τίτλος EN' : 'Title EN' %>" />
+                  <input type="text" class="trust-slot-el" data-slot="1" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Γρήγορη παράδοση" />
+                  <input type="text" class="trust-slot-en" data-slot="1" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Fast delivery" />
                 </div>
                 <div class="trust-slot" data-slot="2" style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:4px;align-items:center;padding:4px 0;">
                   <label style="font-size:.74rem;"><input type="checkbox" class="trust-slot-enabled" data-slot="2" checked /> </label>
@@ -2488,8 +2488,8 @@
                     <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
                     <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
                   </select>
-                  <input type="text" class="trust-slot-el" data-slot="2" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="<%= lang === 'el' ? 'Τίτλος EL' : 'Title EL' %>" />
-                  <input type="text" class="trust-slot-en" data-slot="2" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="<%= lang === 'el' ? 'Τίτλος EN' : 'Title EN' %>" />
+                  <input type="text" class="trust-slot-el" data-slot="2" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Ελληνική υποστήριξη" />
+                  <input type="text" class="trust-slot-en" data-slot="2" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Greek support" />
                 </div>
               </div>
               <div id="kit-bc-trust-list" style="display:none;"></div>
@@ -3723,8 +3723,8 @@
         document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
         document.getElementById('kit-bc-video').value = bc.videoUrl || '';
         document.getElementById('kit-bc-video-source').value = bc.videoGuideSource || 'auto';
-        syncVideoSourceUI(bc);
-        syncVideoResolved(products[kitBuilderIdx]);
+        try { syncVideoSourceUI(bc); } catch(_vse) {}
+        try { syncVideoResolved(products[kitBuilderIdx]); } catch(_vre) {}
         document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
         document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
         document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
@@ -3901,11 +3901,15 @@
           var ic = document.querySelector('.trust-slot-icon[data-slot="' + s + '"]');
           var el = document.querySelector('.trust-slot-el[data-slot="' + s + '"]');
           var en = document.querySelector('.trust-slot-en[data-slot="' + s + '"]');
+          var def = _defaultTrustSlots[s] || {};
+          var defTitle = def.title || {};
           var tEl = el ? el.value.trim() : '';
           var tEn = en ? en.value.trim() : '';
-          if (tEl || tEn) {
-            items.push({ icon: ic ? ic.value : 'shield', title: { el: tEl, en: tEn }, enabled: cb ? cb.checked : true });
-          }
+          items.push({
+            icon: ic ? ic.value : (def.icon || 'shield'),
+            title: { el: tEl || defTitle.el || '', en: tEn || defTitle.en || '' },
+            enabled: cb ? cb.checked : true
+          });
         }
         return items;
       }

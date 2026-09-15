@@ -1533,17 +1533,18 @@ test('Summary panel does not use overflow-y:auto on .sbs-summary', () => {
   assert.ok(!summaryCSS.includes('overflow:auto'), 'summary does not use overflow:auto');
 });
 
-test('Builder body is the scroll container, not summary or summary-list', () => {
+test('Sidebar summary-list scrolls independently to pin trust/cart at bottom', () => {
   const bodyCSS = index.substring(
     index.indexOf('.sbs-builder-body {'),
     index.indexOf('}', index.indexOf('.sbs-builder-body {')) + 1
   );
-  assert.match(bodyCSS, /overflow-y:\s*auto/, 'builder-body scrolls');
+  assert.match(bodyCSS, /overflow:\s*hidden/, 'builder-body clips (columns scroll independently)');
   const listCSS = index.substring(
     index.indexOf('.sbs-summary-list {'),
     index.indexOf('}', index.indexOf('.sbs-summary-list {')) + 1
   );
-  assert.ok(!listCSS.includes('overflow-y:auto'), 'summary-list does not scroll internally');
+  assert.match(listCSS, /overflow-y:\s*auto/, 'summary-list scrolls to pin trust/cart at bottom');
+  assert.match(listCSS, /flex:\s*1/, 'summary-list takes available space');
 });
 
 test('Banner bg image uses absolute positioning for proper cover', () => {
@@ -1903,4 +1904,68 @@ test('S2: Step 1 heading uses mapped label, never raw ID', () => {
 
 test('S3: Admin Section D has merchant-friendly title', () => {
   assert.match(admin, /Δεξιά στήλη.*Αξιοπιστία.*Βίντεο οδηγιών|Summary.*Trust.*Installation Video/);
+});
+
+// === Section T: Trust row vs Benefits strip separation ===
+
+test('T1: Trust row element is inside sbs-summary (right sidebar), not sbs-benefits', () => {
+  const summaryStart = index.indexOf('id="sbs-summary"');
+  const summaryEnd = index.indexOf('</div>', index.indexOf('id="sbs-cart-btn"'));
+  const trustRowPos = index.indexOf('id="sbs-trust-row"');
+  assert.ok(trustRowPos > summaryStart, 'trust row after sbs-summary start');
+  assert.ok(trustRowPos < summaryEnd, 'trust row before sbs-summary end');
+  const benefitsPos = index.indexOf('id="sbs-benefits"');
+  assert.ok(benefitsPos > 0, 'benefits strip exists');
+  assert.ok(benefitsPos < summaryStart, 'benefits strip is before summary (separate element)');
+});
+
+test('T2: Benefits strip has separate class sbs-benefits, trust row has sbs-trust-row', () => {
+  assert.match(index, /class="sbs-benefits"/);
+  assert.match(index, /class="sbs-trust-row"/);
+  const benefitsClass = index.indexOf('class="sbs-benefits"');
+  const trustClass = index.indexOf('class="sbs-trust-row"');
+  assert.notStrictEqual(benefitsClass, trustClass);
+});
+
+test('T3: Summary list has independent scroll CSS (trust pinned at bottom)', () => {
+  assert.match(index, /\.sbs-summary-list\s*\{[^}]*flex:\s*1/);
+  assert.match(index, /\.sbs-summary-list\s*\{[^}]*overflow-y:\s*auto/);
+});
+
+test('T4: Trust row renders inside sbs-trust-row via openSbs, not inside benefits', () => {
+  assert.match(index, /elTrustRow\.innerHTML = ''/);
+  assert.match(index, /elTrustRow\.appendChild/);
+  assert.match(index, /sbs-trust-item/);
+});
+
+// === Section U: Admin trust effective defaults ===
+
+test('U1: Admin trust slot placeholders show default values', () => {
+  assert.match(admin, /placeholder="Ασφαλείς συναλλαγές"/);
+  assert.match(admin, /placeholder="Secure payments"/);
+  assert.match(admin, /placeholder="Γρήγορη παράδοση"/);
+  assert.match(admin, /placeholder="Fast delivery"/);
+  assert.match(admin, /placeholder="Ελληνική υποστήριξη"/);
+  assert.match(admin, /placeholder="Greek support"/);
+});
+
+test('U2: readTrustSlotsFromUI falls back to defaults for empty fields', () => {
+  assert.match(admin, /readTrustSlotsFromUI/);
+  assert.match(admin, /tEl \|\| defTitle\.el/);
+  assert.match(admin, /tEn \|\| defTitle\.en/);
+});
+
+test('U3: Admin preview falls back to _defaultTrustSlots when trustItems empty', () => {
+  assert.match(admin, /_defaultTrustSlots/);
+  assert.match(admin, /bc\.trustItems.*\.length > 0.*_defaultTrustSlots/);
+});
+
+// === Section V: Exactly one Add to Cart on completion ===
+
+test('V1: Nav button is hidden on completion (no duplicate Add to Cart)', () => {
+  assert.match(index, /btnNext\.style\.display = 'none'/);
+});
+
+test('V2: Nav button is restored when navigating back to a step', () => {
+  assert.match(index, /btnNext\.style\.display = ''/);
 });
