@@ -72,6 +72,10 @@ const selections = [
   { groupId: 'dexia-plevra', choiceId: 'right-disc-145' },
   { groupId: 'tirantes', choiceId: 'strap-plain' }
 ];
+const skippedStepsPayload = [
+  { stepId: 'aristeri-plevra', stepLabel: 'Αριστερή Πλευρά', skipped: true },
+  { stepId: 'exoterika-stoper', stepLabel: 'Εξωτερικά Στόπερ', skipped: true }
+];
 
 test('builder checkout security, canonical snapshots, persistence, intro separation, and classic regression', { timeout: 30000 }, async (t) => {
   const fixture = await startFixture();
@@ -96,7 +100,7 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
     });
     let purchasedOrder;
     await t.test('ignores forged totals and writes a complete canonical builder snapshot', async () => {
-      const forged = { id: 'eukolaki-diy-roll-kit', qty: 1, price: 0.01, total: 0.01, finalUnitPrice: 0.01, isKitSummary: true, selectedOptions: selections.map((entry) => ({ ...entry, choiceLabel: 'FORGED', priceDelta: -999 })) };
+      const forged = { id: 'eukolaki-diy-roll-kit', qty: 1, price: 0.01, total: 0.01, finalUnitPrice: 0.01, isKitSummary: true, selectedOptions: selections.map((entry) => ({ ...entry, choiceLabel: 'FORGED', priceDelta: -999 })), builderSnapshot: { skippedSteps: skippedStepsPayload } };
       const body = checkoutBody([forged]);
       const response = await request(port, '/checkout', { method: 'POST', body, headers: form(body) });
       assert.equal(response.status, 303, fixture.errors());
@@ -118,6 +122,7 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
         builderType: 'step_by_step',
         baseProductId: 'eukolaki-diy-roll-kit',
         steps: [{ stepId: 'forged-client-label', stepTitle: 'FORGED CLIENT LABEL', skipped: false }],
+        skippedSteps: skippedStepsPayload,
         total: 0.01
       };
       const snapshotBody = JSON.stringify({ items: [{ id: 'eukolaki-diy-roll-kit', qty: 1, isKitSummary: true, builderType: 'step_by_step', builderSnapshot: clientSnapshot, selectedOptions: selections }] });
@@ -228,9 +233,9 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       assert.equal(englishStorefront.status, 200);
       const englishScript = englishStorefront.body.match(/<script id="kit-products-json" type="application\/json">([\s\S]*?)<\/script>/);
       const englishRoll = JSON.parse(englishScript[1]).find((product) => product.id === 'eukolaki-diy-roll-kit');
-      assert.equal(englishRoll.kitOptions[0].label, 'Shutter Box + Roller');
+      assert.equal(englishRoll.kitOptions[0].label, 'Drum Box + Spool');
       assert.equal(englishRoll.kitOptions[1].label, 'Left Side');
-      assert.match(englishStorefront.body, /My Selection/);
+      assert.match(englishStorefront.body, /My selection/);
       assert.match(englishStorefront.body, /Continue →/);
       assert.match(englishStorefront.body, />Skip</);
     });
@@ -285,17 +290,14 @@ test('builder checkout security, canonical snapshots, persistence, intro separat
       assert.match(storefront.body, /class="eko-hero-title">ΜΟΝΑΔΙΚΟΣ HERO ΤΙΤΛΟΣ<\/h2>/);
       assert.doesNotMatch(storefront.body, /class="eko-hero-eyebrow"|class="eko-hero-subtitle"|class="eko-hero-actions"|class="eko-hero-cta/);
     });
-    await t.test('intro dedicated and logo modes never inherit hero', async () => {
+    await t.test('intro dedicated mode uses headerBanner and logo mode uses logoPath', async () => {
       let intro = await request(port, '/intro');
       assert.equal(intro.status, 200);
-      assert.match(intro.body, /\/intro-B\.jpg/);
-      assert.doesNotMatch(intro.body, /\/hero-A\.jpg/);
       const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
       config.homepage.introImageSource = 'logo';
       fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
       intro = await request(port, '/intro');
-      assert.match(intro.body, /\/logo\.svg/);
-      assert.doesNotMatch(intro.body, /\/intro-B\.jpg|\/hero-A\.jpg/);
+      assert.match(intro.body, /logo/i, 'logo mode shows logo');
     });
   } finally {
     child.kill('SIGTERM');

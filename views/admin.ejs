@@ -3643,14 +3643,16 @@
       };
       window.openKitBuilder = function(i) {
         if (!products[i] || products[i].type !== 'KIT') return;
-        kitBuilderIdx = i;
-        kitBuilderGroupIdx = -1;
-        var p = products[i];
-        var btSel = document.getElementById('kit-builder-type');
-        btSel.value = p.builderType || 'classic';
-        syncBuilderConfigPanel(p);
-        openKitBuilderModal();
-        renderKitBuilder();
+        try {
+          kitBuilderIdx = i;
+          kitBuilderGroupIdx = -1;
+          var p = products[i];
+          var btSel = document.getElementById('kit-builder-type');
+          btSel.value = p.builderType || 'classic';
+          syncBuilderConfigPanel(p);
+          openKitBuilderModal();
+          renderKitBuilder();
+        } catch(e) { console.error('[kit-builder] openKitBuilder error:', e); openKitBuilderModal(); }
       };
       function syncBuilderConfigPanel(p) {
         var panel = document.getElementById('kit-builder-config-panel');

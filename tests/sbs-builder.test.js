@@ -46,8 +46,8 @@ test('Back button decrements step and re-renders', () => {
   assert.match(index, /sbsState\.step -= 1;\s*renderStep\(\)/);
 });
 
-test('Next button is disabled for required steps without selection', () => {
-  assert.match(index, /btnNext\.disabled = g\.required && !sbsState\.selections\[g\.id\]/);
+test('Next button is disabled until a selection is made', () => {
+  assert.match(index, /btnNext\.disabled = !sbsState\.selections\[g\.id\]/);
 });
 
 test('One option per step — radio-style selection replaces previous choice', () => {
@@ -67,7 +67,7 @@ test('Summary shows thumbnails and prices for selected options', () => {
 test('Summary shows "Παράλειψη" with 0,00€ for skipped optional steps', () => {
   assert.match(index, /Παράλειψη/);
   assert.match(index, /0,00 &euro;/);
-  assert.match(index, /gi < sbsState\.step && !g\.required && g\.allowSkip/);
+  assert.match(index, /sbsState\.skipped\[g\.id\]/);
 });
 
 test('Summary total accumulates only selected option deltas', () => {
@@ -75,10 +75,10 @@ test('Summary total accumulates only selected option deltas', () => {
   assert.match(index, /elTotal\.textContent = total\.toFixed\(2\)/);
 });
 
-test('Add-to-cart buttons are disabled until all required steps are valid', () => {
-  assert.match(index, /allRequiredValid = groups\.every\(function\(g\) \{ return !g\.required \|\| !!sbsState\.selections\[g\.id\]; \}\)/);
-  assert.match(index, /btnNext\.disabled = !allRequiredValid/);
-  assert.match(index, /btnCartSidebar\.disabled = !allRequiredValid/);
+test('Add-to-cart button hidden during steps, shown only when builder complete', () => {
+  assert.match(index, /var builderComplete = isBuilderComplete\(\)/);
+  assert.match(index, /btnCartSidebar\.style\.display = allDone && builderComplete \? '' : 'none'/);
+  assert.match(index, /btnCartSidebar\.disabled = !builderComplete/);
 });
 
 // === Section 3: Builder config persistence ===
@@ -1752,4 +1752,89 @@ test('normalizeVideo preserves productId and categoryId', () => {
 test('server video save handler passes productId and categoryId', () => {
   assert.match(server, /productId:\s*req\.body\.productId/, 'productId saved');
   assert.match(server, /categoryId:\s*req\.body\.categoryId/, 'categoryId saved');
+});
+
+// === Section N: Completion gate — full 5-step flow ===
+
+test('N1: sbsState tracks skipped steps via sbsState.skipped object', () => {
+  assert.match(index, /sbsState\.skipped = \{\}/, 'skipped initialized to empty object');
+  assert.match(index, /sbsState\.skipped\[g\.id\] = true/, 'skip handler sets skipped[g.id] = true');
+});
+
+test('N2: isStepResolved checks selection OR explicit skip', () => {
+  assert.match(index, /function isStepResolved\(g\)/);
+  assert.match(index, /if \(sbsState\.selections\[g\.id\]\) return true/);
+  assert.match(index, /!g\.required && g\.allowSkip && sbsState\.skipped\[g\.id\]\) return true/);
+});
+
+test('N3: isBuilderComplete requires every step resolved', () => {
+  assert.match(index, /function isBuilderComplete\(\)/);
+  assert.match(index, /groups\.every\(isStepResolved\)/);
+});
+
+test('N4: Add to Cart button hidden during steps, visible only on completion', () => {
+  assert.match(index, /btnCartSidebar\.style\.display = allDone && builderComplete \? '' : 'none'/);
+});
+
+test('N5: Progress stepper marks step done via selection or skipped', () => {
+  assert.match(index, /var isDone = !!sbsState\.selections\[g\.id\] \|\| !!sbsState\.skipped\[g\.id\]/);
+});
+
+test('N6: Completion screen shows skipped steps status', () => {
+  assert.match(index, /sbsState\.skipped\[g\.id\]/, 'skipped state checked in summary');
+});
+
+test('N7: openSbs resets skipped state', () => {
+  assert.match(index, /sbsState\.skipped = \{\}/, 'skipped reset on builder open');
+});
+
+test('N8: Snapshot includes skippedSteps array', () => {
+  assert.match(index, /skippedSteps\.push\(\{ stepId: g\.id/);
+});
+
+// === Section O: Bypass prevention ===
+
+test('O1: addToCartFromBuilder guards with isBuilderComplete', () => {
+  assert.match(index, /function addToCartFromBuilder[\s\S]*?if \(!isBuilderComplete\(\)\) return/);
+});
+
+test('O2: Next handler after last step guards with isBuilderComplete', () => {
+  assert.match(index, /if \(!isBuilderComplete\(\)\) return;[\s\S]*?addToCartFromBuilder\(\)/);
+});
+
+test('O3: Server rejects incomplete kit — missing required step', () => {
+  assert.match(server, /missingRequired.*=.*found\.kitOptions\.some/);
+  assert.match(server, /res\.status\(400\)\.send\('Incomplete kit: required step missing'\)/);
+});
+
+test('O4: Server rejects incomplete kit — unresolved optional step', () => {
+  assert.match(server, /unresolvedOptional.*=.*found\.kitOptions\.some/);
+  assert.match(server, /res\.status\(400\)\.send\('Incomplete kit: optional step unresolved'\)/);
+});
+
+test('O5: Server checks skippedStepIds from builderSnapshot', () => {
+  assert.match(server, /skippedStepIds.*=.*Array\.isArray\(ci\.builderSnapshot && ci\.builderSnapshot\.skippedSteps\)/);
+  assert.match(server, /!skippedStepIds\.includes\(g\.id\)/);
+});
+
+test('O6: Completion screen redirects to first unresolved step if not complete', () => {
+  assert.match(index, /if \(!builderComplete\)[\s\S]*?var firstUnresolved/);
+});
+
+// === Section P: Admin builder button ===
+
+test('P1: openKitBuilder is a global window function', () => {
+  assert.match(admin, /window\.openKitBuilder = function\(i\)/);
+});
+
+test('P2: openKitBuilder has try/catch safety net', () => {
+  assert.match(admin, /openKitBuilder[\s\S]*?try \{[\s\S]*?kitBuilderIdx = i[\s\S]*?\} catch\(e\)/);
+});
+
+test('P3: openKitBuilder catch fallback still opens the modal', () => {
+  assert.match(admin, /catch\(e\) \{ console\.error\('\[kit-builder\][\s\S]*?openKitBuilderModal\(\)/);
+});
+
+test('P4: openKitBuilder validates product type is KIT', () => {
+  assert.match(admin, /products\[i\]\.type !== 'KIT'/);
 });
