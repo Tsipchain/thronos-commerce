@@ -3248,7 +3248,10 @@ app.post('/checkout', async (req, res) => {
           else selectedByGroup[group.id] = [choice];
         }
         const missingRequired = found.kitOptions.some((g) => g.required && (!selectedByGroup[g.id] || !selectedByGroup[g.id].length));
-        if (missingRequired) continue;
+        if (missingRequired) return res.status(400).send('Incomplete kit: required step missing');
+        const skippedStepIds = Array.isArray(ci.builderSnapshot && ci.builderSnapshot.skippedSteps) ? ci.builderSnapshot.skippedSteps.filter((s) => s.skipped).map((s) => s.stepId) : [];
+        const unresolvedOptional = found.kitOptions.some((g) => !g.required && g.allowSkip && (!selectedByGroup[g.id] || !selectedByGroup[g.id].length) && !skippedStepIds.includes(g.id));
+        if (unresolvedOptional) return res.status(400).send('Incomplete kit: optional step unresolved');
         selectedOptions = [];
         found.kitOptions.forEach((group) => {
           (selectedByGroup[group.id] || []).forEach((choice) => {

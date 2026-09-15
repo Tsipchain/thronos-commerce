@@ -2677,7 +2677,7 @@
         var tenantVideos = videosEl ? JSON.parse(videosEl.textContent || '[]') : [];
         var COMING_SOON_URL = <%- safeJson(withTenantLink('/video/coming-soon')) %>;
         var CONTENT_BASE = <%- safeJson(withTenantLink('/content')) %>;
-        var sbsState = { product: null, step: 0, selections: {} };
+        var sbsState = { product: null, step: 0, selections: {}, skipped: {} };
         var elBanner = document.getElementById('sbs-banner');
         var elBannerOverlay = document.getElementById('sbs-banner-overlay');
         var elBuilderLogo = document.getElementById('sbs-builder-logo');
@@ -2741,20 +2741,31 @@
           'tirantes': { el: 'Τιράντες', en: 'Straps' },
           'exoterika-stoper': { el: 'Εξωτερικά Στόπερ', en: 'External Stoppers' }
         };
+        function isStepResolved(g) {
+          if (sbsState.selections[g.id]) return true;
+          if (!g.required && g.allowSkip && sbsState.skipped[g.id]) return true;
+          return false;
+        }
+        function isBuilderComplete() {
+          var groups = (sbsState.product && sbsState.product.kitOptions) || [];
+          if (!groups.length) return false;
+          return groups.every(isStepResolved);
+        }
         function looksLikeRawId(s) { return /^[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+)*$/.test(s); }
         function stepShortLabel(g) {
           var mapped = stepShortLabels[g.id];
           if (mapped) return resolveF(mapped);
           var full = resolveF(g.label);
-          if (!full || looksLikeRawId(full)) return (LANG === 'el' ? 'Βήμα' : 'Step');
+          if (!full || looksLikeRawId(full)) { var h = humanizeId(g.id); var pp = h.split(/\s+/); return pp.length > 2 ? pp.slice(0, 2).join(' ') : h; }
           var parts = full.split(/\s+/);
           return parts.length > 2 ? parts.slice(0, 2).join(' ') : full;
         }
+        function humanizeId(s) { return s.replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
         function stepHeadingLabel(g) {
           var mapped = stepHeadingLabels[g.id];
           if (mapped) return resolveF(mapped);
           var label = resolveF(g.label) || '';
-          if (looksLikeRawId(label)) return (LANG === 'el' ? 'Βήμα' : 'Step');
+          if (!label || looksLikeRawId(label)) return humanizeId(g.id);
           return label;
         }
         function renderProgress() {
@@ -2762,7 +2773,7 @@
           elProgress.innerHTML = '';
           groups.forEach(function(g, i) {
             var cls = 'sbs-progress-step';
-            var isDone = !!sbsState.selections[g.id] || (i < sbsState.step);
+            var isDone = !!sbsState.selections[g.id] || !!sbsState.skipped[g.id];
             if (i === sbsState.step) cls += ' active';
             else if (isDone) cls += ' done';
             var div = document.createElement('div');
@@ -2783,9 +2794,14 @@
           renderProgress();
           renderSummary();
           var allDone = sbsState.step >= groups.length;
-          var allRequiredValid = groups.every(function(g) { return !g.required || !!sbsState.selections[g.id]; });
-          btnCartSidebar.disabled = !allRequiredValid;
+          var builderComplete = isBuilderComplete();
+          btnCartSidebar.style.display = allDone && builderComplete ? '' : 'none';
+          btnCartSidebar.disabled = !builderComplete;
           if (allDone) {
+            if (!builderComplete) {
+              var firstUnresolved = groups.findIndex(function(g){ return !isStepResolved(g); });
+              if (firstUnresolved >= 0) { sbsState.step = firstUnresolved; renderStep(); return; }
+            }
             elStepTitle.innerHTML = '<span class="sbs-step-title-bar"></span>' + escAttr(LANG === 'el' ? 'Ολοκλήρωση' : 'Finish');
             elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
             var recapHtml = '<div class="sbs-completion-recap">';
@@ -2796,10 +2812,11 @@
             groups.forEach(function(g, gi) {
               var sel = sbsState.selections[g.id];
               var choice = sel && (g.choices || []).find(function(c){ return c.id === sel; });
+              var skipped = sbsState.skipped[g.id];
               var statusIcon = choice ? '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="#22c55e"/><path d="M6 10l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-                : (!g.required && g.allowSkip && gi < sbsState.step) ? '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="#64748b"/><path d="M7 10h6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>'
+                : skipped ? '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="#64748b"/><path d="M7 10h6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>'
                 : '<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="9" fill="none" stroke="#ef4444" stroke-width="2"/><path d="M10 6v5M10 13v1" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>';
-              var label = choice ? escAttr(resolveF(choice.label)) : (gi < sbsState.step ? escAttr(LANG === 'el' ? 'Παράλειψη' : 'Skipped') : escAttr(LANG === 'el' ? 'Δεν επιλέχθηκε' : 'Not selected'));
+              var label = choice ? escAttr(resolveF(choice.label)) : (skipped ? escAttr(LANG === 'el' ? 'Παράλειψη' : 'Skipped') : escAttr(LANG === 'el' ? 'Δεν επιλέχθηκε' : 'Not selected'));
               recapHtml += '<div class="sbs-completion-row">' + statusIcon + '<span class="sbs-completion-step-name">' + escAttr(stepHeadingLabel(g)) + '</span><span class="sbs-completion-step-val">' + label + '</span></div>';
             });
             recapHtml += '</div></div>';
@@ -2807,7 +2824,7 @@
             btnBack.style.display = sbsState.step > 0 ? '' : 'none';
             btnNext.textContent = LANG === 'el' ? 'Προσθήκη στο καλάθι' : 'Add to Cart';
             btnNext.className = 'sbs-add-cart';
-            btnNext.disabled = !allRequiredValid;
+            btnNext.disabled = !builderComplete;
             btnSkip.style.display = 'none';
             return;
           }
@@ -2825,7 +2842,7 @@
           btnSkip.style.display = canSkip ? '' : 'none';
           btnNext.textContent = LANG === 'el' ? 'Συνέχεια →' : 'Continue →';
           btnNext.className = 'sbs-next';
-          btnNext.disabled = g.required && !sbsState.selections[g.id];
+          btnNext.disabled = !sbsState.selections[g.id];
           elOptionGrid.innerHTML = '';
           (g.choices || []).forEach(function(c) {
             if (c.enabled === false) return;
@@ -2868,7 +2885,7 @@
               total += delta;
               var thumb = choice.image ? '<img class="sbs-sum-thumb" src="' + escAttr(choice.image) + '" alt="" onerror="this.style.display=\'none\'" />' : emptyThumb;
               div.innerHTML = thumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(stepHeadingLabel(g)) + '</span><span class="sbs-sum-label">' + escAttr(resolveF(choice.label)) + '</span></span><span class="sbs-sum-price">' + delta.toFixed(2) + ' &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + changeLabel + '</button>';
-            } else if (gi < sbsState.step && !g.required && g.allowSkip) {
+            } else if (sbsState.skipped[g.id]) {
               div.innerHTML = emptyThumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(stepHeadingLabel(g)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.35);font-style:italic;">' + (LANG === 'el' ? 'Παράλειψη' : 'Skipped') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">0,00 &euro;</span><button type="button" class="sbs-sum-change" data-step="' + gi + '">' + changeLabel + '</button>';
             } else {
               div.innerHTML = emptyThumb + '<span class="sbs-sum-info"><span class="sbs-sum-step">' + escAttr(stepHeadingLabel(g)) + '</span><span class="sbs-sum-label" style="color:rgba(255,255,255,.3);">' + (LANG === 'el' ? 'Δεν έχει επιλεγεί' : 'Not selected') + '</span></span><span class="sbs-sum-price" style="color:rgba(255,255,255,.3);">—</span>';
@@ -2913,6 +2930,7 @@
           sbsState.product = product;
           sbsState.step = 0;
           sbsState.selections = {};
+          sbsState.skipped = {};
           var bc = product.builderConfig || {};
           var bcVersion = bc.imageVersion || 1;
           var bannerSrc = (isMobile && bc.mobileBannerImage) ? bc.mobileBannerImage : (bc.bannerImage || '');
@@ -3052,14 +3070,16 @@
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           if (sbsState.step < groups.length) {
             var g = groups[sbsState.step];
-            if (!g.required) {
+            if (!g.required && g.allowSkip) {
               delete sbsState.selections[g.id];
+              sbsState.skipped[g.id] = true;
               sbsState.step += 1;
               renderStep();
             }
           }
         });
         function addToCartFromBuilder() {
+          if (!isBuilderComplete()) return;
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           var selected = [];
           groups.forEach(function(g) {
@@ -3077,6 +3097,8 @@
           var finalPrice = selected.reduce(function(sum, o){ return sum + o.priceDelta; }, sbsState.product.kitPayMode === 'parts_only' ? 0 : (Number(sbsState.product.price) || 0));
           var optionSummary = selected.map(function(o){ return o.groupLabel + ': ' + o.choiceLabel; }).join(' | ');
           var cartKey = sbsState.product.id + '::sbs::' + selected.map(function(o){ return o.groupId + '=' + o.choiceId; }).sort().join('&');
+          var skippedSteps = [];
+          groups.forEach(function(g) { if (sbsState.skipped[g.id]) skippedSteps.push({ stepId: g.id, stepLabel: resolveF(g.label), skipped: true }); });
           var snapshot = {
             type: 'step_by_step',
             builderType: 'step_by_step',
@@ -3084,6 +3106,7 @@
             steps: selected.map(function(o){
               return { stepId: o.groupId, stepLabel: o.groupLabel, optionId: o.choiceId, optionLabel: o.choiceLabel, linkedProductId: o.linkedProductId, price: o.priceDelta };
             }),
+            skippedSteps: skippedSteps,
             total: finalPrice,
             timestamp: new Date().toISOString()
           };
@@ -3123,11 +3146,13 @@
           var groups = (sbsState.product && sbsState.product.kitOptions) || [];
           if (sbsState.step < groups.length) {
             var g = groups[sbsState.step];
-            if (g.required && !sbsState.selections[g.id]) return;
+            if (!sbsState.selections[g.id]) return;
+            if (sbsState.skipped[g.id]) delete sbsState.skipped[g.id];
             sbsState.step += 1;
             renderStep();
             return;
           }
+          if (!isBuilderComplete()) return;
           addToCartFromBuilder();
         });
         btnCartSidebar.addEventListener('click', function(){ addToCartFromBuilder(); });
