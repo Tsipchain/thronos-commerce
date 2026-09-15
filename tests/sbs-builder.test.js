@@ -87,7 +87,7 @@ test('Admin has all builder config input fields', () => {
   assert.match(admin, /id="kit-bc-banner"/);
   assert.match(admin, /id="kit-bc-mobile-banner"/);
   assert.match(admin, /id="kit-bc-video"/);
-  assert.match(admin, /id="kit-bc-show-video"/);
+  assert.match(admin, /id="kit-bc-video-source"/);
   assert.match(admin, /id="kit-bc-title-el"/);
   assert.match(admin, /id="kit-bc-title-en"/);
   assert.match(admin, /id="kit-bc-subtitle-el"/);
@@ -98,8 +98,8 @@ test('Admin has all builder config input fields', () => {
 });
 
 test('Builder config fields are bound via JS change listeners', () => {
-  assert.match(admin, /bcMap[\s\S]*logoImage[\s\S]*bannerImage[\s\S]*mobileBannerImage[\s\S]*videoUrl[\s\S]*title\.el[\s\S]*subtitle\.el[\s\S]*helperText\.el/);
-  assert.match(admin, /showFlags[\s\S]*showVideoCTA[\s\S]*showTrustRow/);
+  assert.match(admin, /bcMap[\s\S]*logoImage[\s\S]*bannerImage[\s\S]*mobileBannerImage[\s\S]*title\.el[\s\S]*subtitle\.el[\s\S]*helperText\.el/);
+  assert.match(admin, /kit-bc-video-source/, 'video guide source selector exists');
 });
 
 test('syncBuilderConfigPanel loads all fields from product data', () => {
@@ -111,7 +111,7 @@ test('syncBuilderConfigPanel loads all fields from product data', () => {
   assert.match(admin, /kit-bc-banner.*bannerImage/);
   assert.match(admin, /kit-bc-mobile-banner.*mobileBannerImage/);
   assert.match(admin, /kit-bc-video.*videoUrl/);
-  assert.match(admin, /kit-bc-show-video.*showVideoCTA/);
+  assert.match(admin, /kit-bc-video-source.*videoGuideSource/);
   assert.match(admin, /kit-bc-helper-el/);
   assert.match(admin, /kit-bc-helper-en/);
   assert.match(admin, /kit-bc-slogan-el.*slogan/);
@@ -1200,7 +1200,7 @@ test('normalizeProductRecord preserves all show* flags with !== false pattern', 
 
 test('syncBuilderConfigPanel reloads false show flags correctly', () => {
   assert.match(admin, /kit-bc-show-logo.*\.checked\s*=\s*bc\.showLogo\s*!==\s*false/s);
-  assert.match(admin, /kit-bc-show-video.*\.checked\s*=\s*bc\.showVideoCTA\s*===\s*true/s);
+  assert.match(admin, /kit-bc-video-source.*\.value\s*=\s*bc\.videoGuideSource/s);
 });
 
 test('showFlags listener writes boolean from checkbox.checked', () => {
@@ -1503,4 +1503,253 @@ test('Server normalizeProductRecord preserves bilingual text structure', () => {
   bilingualFields.forEach(f => {
     assert.match(normEnd, new RegExp(f + ".*\\|\\| ''"), f + ' preserved with fallback');
   });
+});
+
+// === Section: Behavioral / DOM-integration tests ===
+
+test('Click handler sets sbsState.selections and enables Continue', () => {
+  assert.match(index, /sbsState\.selections\[g\.id\]\s*=\s*c\.id/, 'click stores selection');
+  assert.match(index, /btnNext\.disabled\s*=\s*false/, 'click enables Continue');
+  assert.match(index, /renderStep\(\)/, 'click calls renderStep');
+});
+
+test('renderStep updates total from selections', () => {
+  assert.match(index, /elTotal/, 'reference to total element');
+  assert.match(index, /\.price/, 'price property read during render');
+});
+
+test('Option selected class is applied via renderStep', () => {
+  assert.match(index, /selected/, 'selected class referenced');
+  assert.match(index, /sbsState\.selections\[g\.id\]/, 'selection state checked during render');
+});
+
+test('Summary panel does not use overflow-y:auto on .sbs-summary', () => {
+  const summaryCSS = index.substring(
+    index.indexOf('.sbs-summary {'),
+    index.indexOf('}', index.indexOf('.sbs-summary {')) + 1
+  );
+  assert.ok(!summaryCSS.includes('overflow-y:auto'), 'summary does not scroll internally');
+  assert.ok(!summaryCSS.includes('overflow:auto'), 'summary does not use overflow:auto');
+});
+
+test('Builder body is the scroll container, not summary or summary-list', () => {
+  const bodyCSS = index.substring(
+    index.indexOf('.sbs-builder-body {'),
+    index.indexOf('}', index.indexOf('.sbs-builder-body {')) + 1
+  );
+  assert.match(bodyCSS, /overflow-y:\s*auto/, 'builder-body scrolls');
+  const listCSS = index.substring(
+    index.indexOf('.sbs-summary-list {'),
+    index.indexOf('}', index.indexOf('.sbs-summary-list {')) + 1
+  );
+  assert.ok(!listCSS.includes('overflow-y:auto'), 'summary-list does not scroll internally');
+});
+
+test('Banner bg image uses absolute positioning for proper cover', () => {
+  const bgCSS = index.substring(
+    index.indexOf('.sbs-banner img.sbs-banner-bg'),
+    index.indexOf('}', index.indexOf('.sbs-banner img.sbs-banner-bg')) + 1
+  );
+  assert.match(bgCSS, /position:\s*absolute/, 'banner bg is absolutely positioned');
+  assert.match(bgCSS, /object-fit:\s*cover/, 'banner bg uses object-fit:cover');
+  assert.match(bgCSS, /inset:\s*0/, 'banner bg uses inset:0');
+});
+
+test('Step labels use stepHeadingLabel/stepShortLabel, not raw group id', () => {
+  assert.match(index, /stepHeadingLabel\(g\)/, 'heading uses stepHeadingLabel()');
+  assert.match(index, /stepShortLabel\(g\)/, 'stepper uses stepShortLabel()');
+});
+
+test('stepHeadingLabels map covers all five eukolakis kit option group IDs', () => {
+  const mapStart = index.indexOf('var stepHeadingLabels');
+  assert.ok(mapStart > -1, 'stepHeadingLabels map exists');
+  const mapBlock = index.substring(mapStart, index.indexOf('};', mapStart) + 2);
+  kitOptions.forEach(g => {
+    assert.ok(mapBlock.includes("'" + g.id + "'") || mapBlock.includes('"' + g.id + '"'),
+      'stepHeadingLabels has entry for ' + g.id);
+  });
+});
+
+test('stepShortLabels map covers all five eukolakis kit option group IDs', () => {
+  const mapStart = index.indexOf('var stepShortLabels');
+  assert.ok(mapStart > -1, 'stepShortLabels map exists');
+  const mapBlock = index.substring(mapStart, index.indexOf('};', mapStart) + 2);
+  kitOptions.forEach(g => {
+    assert.ok(mapBlock.includes("'" + g.id + "'") || mapBlock.includes('"' + g.id + '"'),
+      'stepShortLabels has entry for ' + g.id);
+  });
+});
+
+test('Benefits strip renders from builderConfig.benefits array', () => {
+  assert.match(index, /benefits\.forEach/, 'benefits array iterated');
+  assert.match(index, /sbs-benefit/, 'benefit DOM class referenced');
+  assert.match(index, /sbs-benefit-icon/, 'benefit icon rendered');
+  assert.match(index, /sbs-benefit-text/, 'benefit text rendered');
+});
+
+test('Benefits data exists and has enabled items for eukolakis kit', () => {
+  const bc = rollKit.builderConfig;
+  assert.ok(bc, 'builderConfig exists');
+  assert.ok(Array.isArray(bc.benefits), 'benefits is an array');
+  const enabled = bc.benefits.filter(b => b.enabled !== false);
+  assert.ok(enabled.length >= 1, 'at least one enabled benefit');
+  enabled.forEach(b => {
+    assert.ok(b.icon, 'benefit has icon: ' + b.icon);
+    assert.ok(b.title, 'benefit has title');
+  });
+});
+
+test('Trust row renders from builderConfig.trustItems', () => {
+  assert.match(index, /trustItems/, 'trustItems referenced');
+  assert.match(index, /sbs-trust-item/, 'trust item class');
+  assert.match(index, /sbs-trust-icon/, 'trust icon class');
+});
+
+test('Continue button navigates to next step on click', () => {
+  assert.match(index, /sbsState\.step\s*\+=\s*1/, 'step incremented on Continue');
+  assert.match(index, /renderStep\(\)/, 'renderStep called after step increment');
+});
+
+// === Section: Video Guide Integration ===
+
+const { normalizeVideo, resolveVideoGuide } = require('../lib/video-library');
+
+// Case A: Product has explicit selected video → CTA opens that video
+test('Case A — resolveVideoGuide returns product-linked video first', () => {
+  const videos = [
+    normalizeVideo({ id: 'vid_cat', titleEn: 'Cat video', categoryId: 'diy-rolla', published: true }, 'test'),
+    normalizeVideo({ id: 'vid_prod', titleEn: 'Product video', productId: 'prod-1', published: true }, 'test'),
+    normalizeVideo({ id: 'vid_default', titleEn: 'Default', featured: true, published: true }, 'test'),
+  ];
+  const result = resolveVideoGuide(videos, { productId: 'prod-1', categoryId: 'diy-rolla' });
+  assert.ok(result, 'resolved a video');
+  assert.equal(result.video.id, 'vid_prod', 'product video takes priority');
+  assert.equal(result.source, 'product');
+});
+
+// Case B: No explicit product video → auto resolves product match in storefront
+test('Case B — storefront resolveVideoForBuilder handles auto product resolution', () => {
+  assert.match(index, /var byProduct = tenantVideos\.find/, 'auto product lookup exists');
+  assert.match(index, /vd\.productId === product\.id/, 'product ID matching');
+  assert.match(index, /source: 'product'/, 'product source returned');
+});
+
+// Case C: No product video but category guide → auto resolves category
+test('Case C — resolveVideoGuide falls back to category match', () => {
+  const videos = [
+    normalizeVideo({ id: 'vid_cat', titleEn: 'Cat guide', categoryId: 'diy-rolla', published: true }, 'test'),
+    normalizeVideo({ id: 'vid_default', titleEn: 'Default', featured: true, published: true }, 'test'),
+  ];
+  const result = resolveVideoGuide(videos, { productId: 'prod-no-match', categoryId: 'diy-rolla' });
+  assert.ok(result, 'resolved a video');
+  assert.equal(result.video.id, 'vid_cat', 'category video used');
+  assert.equal(result.source, 'category');
+});
+
+test('Case C — storefront resolveVideoForBuilder handles category fallback', () => {
+  assert.match(index, /vd\.categoryId === product\.categoryId/, 'category ID matching in storefront');
+  assert.match(index, /source: 'category'/, 'category source returned');
+});
+
+// Case D: No matching video → CTA visible → Coming Soon
+test('Case D — resolveVideoGuide returns null when no videos match', () => {
+  const videos = [
+    normalizeVideo({ id: 'vid_other', titleEn: 'Other', productId: 'other-prod', published: true }, 'test'),
+  ];
+  const result = resolveVideoGuide(videos, { productId: 'prod-1', categoryId: 'cat-1' });
+  assert.equal(result, null, 'null when no match');
+});
+
+test('Case D — storefront falls back to Coming Soon when no video resolved', () => {
+  assert.match(index, /source: 'coming_soon'/, 'coming_soon source in storefront');
+  assert.match(index, /COMING_SOON_URL/, 'Coming Soon URL used');
+});
+
+test('Case D — /video/coming-soon route exists in server', () => {
+  assert.match(server, /app\.get\('\/video\/coming-soon'/, 'route defined');
+  assert.match(server, /video-coming-soon/, 'renders coming-soon template');
+});
+
+test('Case D — Coming Soon page has tenant branding and back link', () => {
+  const comingSoon = read('views/video-coming-soon.ejs');
+  assert.match(comingSoon, /config\.storeName/, 'uses store name');
+  assert.match(comingSoon, /config\.accentColor/, 'uses accent color');
+  assert.match(comingSoon, /withTenantLink/, 'back link is tenant-aware');
+  assert.match(comingSoon, /productName/, 'displays product name');
+});
+
+// Case E: showVideoCTA=false → CTA absent (hidden source)
+test('Case E — videoGuideSource=hidden suppresses CTA in storefront', () => {
+  assert.match(index, /src === 'hidden'/, 'hidden source check');
+  assert.match(index, /return null/, 'returns null for hidden');
+});
+
+test('Case E — admin has hidden option in video source selector', () => {
+  assert.match(admin, /value="hidden"/, 'hidden option in admin selector');
+});
+
+// Case F: Multi-tenant safety — only tenant's videos appear
+test('Case F — server passes only published tenant videos to storefront', () => {
+  assert.match(server, /loadTenantVideos\(req\)\.filter/, 'videos filtered before passing to storefront');
+  assert.match(server, /v\.published/, 'only published videos sent');
+});
+
+test('Case F — video entity has tenantId field', () => {
+  const v = normalizeVideo({ titleEn: 'Test', published: true }, 'tenant-xyz');
+  assert.equal(v.tenantId, 'tenant-xyz', 'tenantId set correctly');
+});
+
+// videoGuideId and videoGuideSource in builderConfig normalization
+test('server normalizes videoGuideId and videoGuideSource in builderConfig', () => {
+  assert.match(server, /videoGuideId:\s*String\(_bc\.videoGuideId/, 'videoGuideId normalized');
+  assert.match(server, /videoGuideSource:.*auto.*select.*coming_soon.*hidden/, 'videoGuideSource validated');
+});
+
+// Admin UI: video source selector present
+test('admin has video guide source selector instead of plain URL input', () => {
+  assert.match(admin, /kit-bc-video-source/, 'video source select exists');
+  assert.match(admin, /value="auto"/, 'auto option');
+  assert.match(admin, /value="select"/, 'select option');
+  assert.match(admin, /value="coming_soon"/, 'coming_soon option');
+  assert.match(admin, /kit-bc-video-picker/, 'video picker select exists');
+});
+
+// Admin videos form: productId and categoryId fields
+test('admin-videos form has productId and categoryId fields', () => {
+  const adminVideos = read('views/admin-videos.ejs');
+  assert.match(adminVideos, /name="productId"/, 'productId field');
+  assert.match(adminVideos, /name="categoryId"/, 'categoryId field');
+});
+
+// video-library: resolveVideoGuide falls back to featured default
+test('resolveVideoGuide returns featured default when no product/category match', () => {
+  const videos = [
+    normalizeVideo({ id: 'vid_def', titleEn: 'Default Guide', featured: true, published: true }, 'test'),
+  ];
+  const result = resolveVideoGuide(videos, { productId: 'no-match', categoryId: 'no-cat' });
+  assert.ok(result, 'resolved a video');
+  assert.equal(result.video.id, 'vid_def');
+  assert.equal(result.source, 'default');
+});
+
+// video-library: unpublished videos are excluded from resolution
+test('resolveVideoGuide ignores unpublished videos', () => {
+  const videos = [
+    normalizeVideo({ id: 'vid_draft', titleEn: 'Draft', productId: 'prod-1', published: false }, 'test'),
+  ];
+  const result = resolveVideoGuide(videos, { productId: 'prod-1' });
+  assert.equal(result, null, 'unpublished video not resolved');
+});
+
+// video-library: productId and categoryId persist in normalizeVideo
+test('normalizeVideo preserves productId and categoryId', () => {
+  const v = normalizeVideo({ productId: 'p1', categoryId: 'c1', published: true }, 'tid');
+  assert.equal(v.productId, 'p1');
+  assert.equal(v.categoryId, 'c1');
+});
+
+// server saves productId and categoryId from video form
+test('server video save handler passes productId and categoryId', () => {
+  assert.match(server, /productId:\s*req\.body\.productId/, 'productId saved');
+  assert.match(server, /categoryId:\s*req\.body\.categoryId/, 'categoryId saved');
 });

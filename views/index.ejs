@@ -194,7 +194,7 @@
       .sbs-builder-backdrop.open { display:flex; align-items:flex-start; justify-content:center; }
       .sbs-builder { max-width:1280px; width:100%; margin:20px auto; background:#111827; color:#e2e8f0; border-radius:12px; box-shadow:0 8px 60px rgba(0,0,0,.7); overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 40px); }
       .sbs-banner { width:100%; position:relative; overflow:hidden; height:180px; flex-shrink:0; }
-      .sbs-banner img.sbs-banner-bg { width:100%; height:100%; object-fit:cover; display:block; }
+      .sbs-banner img.sbs-banner-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; z-index:0; }
       .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(8,12,24,.88) 0%,rgba(8,12,24,.55) 55%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:22px 36px; }
       .sbs-banner-logo { display:block; max-height:80px; max-width:280px; width:auto; height:auto; margin-bottom:10px; object-fit:contain; }
       .sbs-banner-logo.logo-center { align-self:center; }
@@ -225,7 +225,7 @@
       .sbs-progress-line { position:absolute; top:24px; left:calc(50% + 28px); right:calc(-50% + 28px); height:4px; background:#1e2840; z-index:1; border-radius:2px; }
       .sbs-progress-step.done .sbs-progress-line { background:#e8922d; }
       .sbs-progress-step:last-child .sbs-progress-line { display:none; }
-      .sbs-builder-body { display:grid; grid-template-columns:minmax(0,70fr) minmax(300px,30fr); gap:0; flex:1; min-height:0; }
+      .sbs-builder-body { display:grid; grid-template-columns:minmax(0,70fr) minmax(300px,30fr); gap:0; flex:1; min-height:0; overflow-y:auto; }
       .sbs-step-content { padding:24px 28px 28px; overflow-y:auto; background:#111827; }
       .sbs-step-title { font-size:1.3rem; font-weight:700; margin:0 0 2px; color:#fff; display:flex; align-items:center; gap:10px; line-height:1.3; }
       .sbs-step-title-bar { width:4px; height:28px; background:#e8922d; border-radius:2px; flex-shrink:0; }
@@ -245,10 +245,10 @@
       .sbs-option-label { font-size:.95rem; font-weight:700; color:#f1f5f9; padding:12px 16px 3px; }
       .sbs-option-desc { font-size:.74rem; color:rgba(255,255,255,.45); margin-top:2px; padding:0 16px; line-height:1.35; }
       .sbs-option-price { font-size:.95rem; font-weight:700; color:#e8922d; padding:8px 16px 14px; }
-      .sbs-summary { background:#0b1018; border-left:1px solid rgba(255,255,255,.08); padding:22px; display:flex; flex-direction:column; overflow-y:auto; }
+      .sbs-summary { background:#0b1018; border-left:1px solid rgba(255,255,255,.08); padding:22px; display:flex; flex-direction:column; }
       .sbs-summary h4 { margin:0 0 4px; font-size:1.05rem; font-weight:700; color:#e8922d; }
       .sbs-summary-subtitle { font-size:.76rem; color:rgba(255,255,255,.5); margin:0 0 16px; }
-      .sbs-summary-list { flex:1; }
+      .sbs-summary-list { }
       .sbs-summary-item { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.82rem; }
       .sbs-summary-item.muted { opacity:.4; }
       .sbs-summary-item .sbs-sum-thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; flex-shrink:0; background:#151c2c; }
@@ -298,7 +298,7 @@
         .sbs-benefits { flex-wrap:wrap; }
         .sbs-benefit { flex:0 0 auto; min-width:0; padding:7px 10px; font-size:.64rem; }
         .sbs-builder-body { grid-template-columns:1fr; }
-        .sbs-summary { border-left:0; border-top:1px solid rgba(255,255,255,.06); max-height:240px; overflow-y:auto; }
+        .sbs-summary { border-left:0; border-top:1px solid rgba(255,255,255,.06); }
         .sbs-progress { overflow-x:auto; padding:6px 12px 10px; gap:0; }
         .sbs-step-num { width:36px; height:36px; font-size:.82rem; }
         .sbs-progress-line { top:18px; }
@@ -2050,6 +2050,7 @@
         }) : []
       };
     })) %></script>
+    <script id="tenant-videos-json" type="application/json"><%- safeJson(tenantVideos || []) %></script>
     <% } %>
     <footer class="store-footer" style="--footer-text-color:<%= (config.theme && config.theme.footerTextColor) || '#6b7280' %>;">
       <% if (config.footer && (config.footer.facebookUrl || config.footer.instagramUrl || config.footer.tiktokUrl || config.footer.youtubeUrl)) { %>
@@ -2672,6 +2673,10 @@
         catalog.forEach(function(p){ catalogById[p.id] = p; });
         var sbsKits = allKits.filter(function(k){ return k.builderType === 'step_by_step'; });
         if (!sbsKits.length) return;
+        var videosEl = document.getElementById('tenant-videos-json');
+        var tenantVideos = videosEl ? JSON.parse(videosEl.textContent || '[]') : [];
+        var COMING_SOON_URL = <%- safeJson(withTenantLink('/video/coming-soon')) %>;
+        var CONTENT_BASE = <%- safeJson(withTenantLink('/content')) %>;
         var sbsState = { product: null, step: 0, selections: {} };
         var elBanner = document.getElementById('sbs-banner');
         var elBannerOverlay = document.getElementById('sbs-banner-overlay');
@@ -2879,6 +2884,29 @@
           });
           elTotal.textContent = total.toFixed(2) + ' €';
         }
+        function resolveVideoForBuilder(product) {
+          var bc = product.builderConfig || {};
+          var src = bc.videoGuideSource || 'auto';
+          if (src === 'hidden' || (bc.showVideoCTA === false && src !== 'auto' && src !== 'select' && src !== 'coming_soon')) return null;
+          if (src === 'select' && bc.videoGuideId) {
+            var v = tenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; });
+            if (v) return { video: v, source: 'selected' };
+          }
+          if (src === 'coming_soon') return { video: null, source: 'coming_soon' };
+          if (src === 'auto' || (src === 'select' && !bc.videoGuideId)) {
+            var byProduct = tenantVideos.find(function(vd){ return vd.productId === product.id; });
+            if (byProduct) return { video: byProduct, source: 'product' };
+            if (product.categoryId) {
+              var byCat = tenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
+              if (byCat) return { video: byCat, source: 'category' };
+            }
+            var defGuide = tenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
+            if (defGuide) return { video: defGuide, source: 'default' };
+          }
+          if (bc.videoUrl) return { video: null, source: 'legacy_url', url: bc.videoUrl };
+          if (bc.showVideoCTA !== false && src === 'auto') return { video: null, source: 'coming_soon' };
+          return null;
+        }
         function openSbs(productId) {
           var product = sbsKits.find(function(k){ return k.id === productId; });
           if (!product) return;
@@ -2963,14 +2991,39 @@
           } else {
             elTrustRow.style.display = 'none';
           }
-          if (bc.showVideoCTA && bc.videoUrl) {
+          var resolved = resolveVideoForBuilder(product);
+          if (resolved) {
+            var hasVideo = resolved.video || resolved.url;
+            var vTitle, vSub;
+            if (hasVideo) {
+              vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
+              vSub = resolveF(bc.videoCTASubtitle) || (LANG === 'el' ? 'Βήμα-βήμα η τοποθέτηση' : 'Step-by-step installation guide');
+            } else {
+              vTitle = LANG === 'el' ? 'Βίντεο οδηγιών' : 'Installation guide';
+              vSub = LANG === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
+            }
+            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
+            elVideoCTA.style.display = '';
+            elVideoCTA.onclick = function() {
+              if (resolved.video) {
+                var contentPath = '/content/' + encodeURIComponent(resolved.video.slug);
+                var contentQs = CONTENT_BASE.indexOf('?') >= 0 ? CONTENT_BASE.substring(CONTENT_BASE.indexOf('?')) : '';
+                window.open(contentPath + contentQs, '_blank', 'noopener');
+              } else if (resolved.url) {
+                window.open(resolved.url, '_blank', 'noopener');
+              } else {
+                var csSep = COMING_SOON_URL.indexOf('?') >= 0 ? '&' : '?';
+                var csUrl = COMING_SOON_URL + csSep + 'product=' + encodeURIComponent(resolveF(product.name) || '');
+                window.open(csUrl, '_blank', 'noopener');
+              }
+            };
+          } else if (bc.showVideoCTA && bc.videoUrl) {
             var vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
             var vSub = resolveF(bc.videoCTASubtitle) || '';
             elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
             elVideoCTA.style.display = '';
             elVideoCTA.onclick = function() {
-              var url = bc.videoUrl;
-              if (url) window.open(url, '_blank', 'noopener');
+              if (bc.videoUrl) window.open(bc.videoUrl, '_blank', 'noopener');
             };
           } else {
             elVideoCTA.style.display = 'none';

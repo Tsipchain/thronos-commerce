@@ -2444,10 +2444,24 @@
               <label style="font-size:.78rem;">
                 <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
               </label>
-              <label style="font-size:.78rem;">
-                <input type="checkbox" id="kit-bc-show-video" /> Show video CTA
+              <label style="font-size:.78rem;">Video guide source
+                <select id="kit-bc-video-source" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
+                  <option value="auto">Auto (product → category → default)</option>
+                  <option value="select">Select existing video</option>
+                  <option value="coming_soon">Coming Soon</option>
+                  <option value="hidden">Hidden</option>
+                </select>
               </label>
-              <label style="font-size:.78rem;">Video URL <input id="kit-bc-video" type="text" placeholder="https://..." style="width:100%;" /></label>
+              <div id="kit-bc-video-picker-wrap" style="display:none;grid-column:1/-1;">
+                <label style="font-size:.78rem;">Select video
+                  <select id="kit-bc-video-picker" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
+                    <option value="">— choose —</option>
+                  </select>
+                </label>
+                <div id="kit-bc-video-resolved" style="margin-top:4px;font-size:.76rem;color:#475569;"></div>
+              </div>
+              <div id="kit-bc-video-resolved-auto" style="grid-column:1/-1;font-size:.76rem;color:#475569;"></div>
+              <input type="hidden" id="kit-bc-video" value="" />
               <label style="font-size:.78rem;">Video CTA title (EL) <input id="kit-bc-vcta-title-el" type="text" style="width:100%;" /></label>
               <label style="font-size:.78rem;">Video CTA title (EN) <input id="kit-bc-vcta-title-en" type="text" style="width:100%;" /></label>
               <label style="font-size:.78rem;">Video CTA subtitle (EL) <input id="kit-bc-vcta-sub-el" type="text" style="width:100%;" /></label>
@@ -3651,7 +3665,9 @@
         document.getElementById('kit-bc-banner').value = bc.bannerImage || '';
         document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
         document.getElementById('kit-bc-video').value = bc.videoUrl || '';
-        document.getElementById('kit-bc-show-video').checked = bc.showVideoCTA === true;
+        document.getElementById('kit-bc-video-source').value = bc.videoGuideSource || 'auto';
+        syncVideoSourceUI(bc);
+        syncVideoResolved(products[kitBuilderIdx]);
         document.getElementById('kit-bc-title-el').value = (bc.title && bc.title.el) || '';
         document.getElementById('kit-bc-title-en').value = (bc.title && bc.title.en) || '';
         document.getElementById('kit-bc-subtitle-el').value = (bc.subtitle && bc.subtitle.el) || '';
@@ -3742,7 +3758,9 @@
         var trustEl = _lp('lp-trust'); var trs = Array.isArray(bc.trustItems) ? bc.trustItems.filter(function(t){ return t.enabled !== false; }) : [];
         if (bc.showTrustRow !== false && trs.length) { trustEl.textContent = trs.map(function(t){ return _rf(t.title); }).join(' · '); trustEl.style.display = ''; } else { trustEl.style.display = 'none'; }
         var vidEl = _lp('lp-video');
-        if (bc.showVideoCTA && bc.videoUrl) { vidEl.innerHTML = '<span style="margin-right:4px;">&#9654;</span> ' + (_rf(bc.videoCTATitle) || 'Video'); vidEl.style.display = ''; } else { vidEl.style.display = 'none'; }
+        var _vSrc = bc.videoGuideSource || 'auto';
+        var _vShow = _vSrc !== 'hidden' && (bc.showVideoCTA !== false || _vSrc === 'select' || _vSrc === 'coming_soon' || _vSrc === 'auto');
+        if (_vShow) { vidEl.innerHTML = '<span style="margin-right:4px;">&#9654;</span> ' + (_rf(bc.videoCTATitle) || 'Video'); vidEl.style.display = ''; } else { vidEl.style.display = 'none'; }
         checkBuilderDirty();
       }
       function renderBenefitsList(bc) {
@@ -3861,7 +3879,7 @@
       (function() {
         var bcMap = {
           'kit-bc-logo':'logoImage', 'kit-bc-mobile-logo':'mobileLogoImage',
-          'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage', 'kit-bc-video':'videoUrl',
+          'kit-bc-banner':'bannerImage', 'kit-bc-mobile-banner':'mobileBannerImage',
           'kit-bc-title-el':'title.el', 'kit-bc-title-en':'title.en',
           'kit-bc-subtitle-el':'subtitle.el', 'kit-bc-subtitle-en':'subtitle.en',
           'kit-bc-helper-el':'helperText.el', 'kit-bc-helper-en':'helperText.en',
@@ -3899,7 +3917,7 @@
         });
         var showFlags = {
           'kit-bc-show-logo':'showLogo', 'kit-bc-show-slogan':'showSlogan',
-          'kit-bc-show-video':'showVideoCTA', 'kit-bc-show-title':'showTitle',
+          'kit-bc-show-title':'showTitle',
           'kit-bc-show-subtitle':'showSubtitle', 'kit-bc-show-helper':'showHelperText',
           'kit-bc-show-trust':'showTrustRow'
         };
@@ -3912,6 +3930,66 @@
             p.builderConfig[key] = this.checked;
             refreshLivePreview(p.builderConfig);
           });
+        });
+        var _adminTenantVideos = <%- JSON.stringify((tenantVideos || []).filter(function(v){ return v.published; })) %>;
+        function syncVideoSourceUI(bc) {
+          var src = (bc && bc.videoGuideSource) || 'auto';
+          var pickerWrap = document.getElementById('kit-bc-video-picker-wrap');
+          var autoInfo = document.getElementById('kit-bc-video-resolved-auto');
+          pickerWrap.style.display = src === 'select' ? '' : 'none';
+          autoInfo.style.display = (src === 'auto') ? '' : 'none';
+          if (src === 'select') {
+            var sel = document.getElementById('kit-bc-video-picker');
+            var cur = (bc && bc.videoGuideId) || '';
+            sel.innerHTML = '<option value="">— choose —</option>';
+            _adminTenantVideos.forEach(function(v) {
+              var opt = document.createElement('option');
+              opt.value = v.id;
+              opt.textContent = (v.titleEl || v.titleEn || v.slug) + (v.category ? ' [' + v.category + ']' : '');
+              if (v.id === cur) opt.selected = true;
+              sel.appendChild(opt);
+            });
+          }
+        }
+        function syncVideoResolved(product) {
+          if (!product) return;
+          var bc = product.builderConfig || {};
+          var src = bc.videoGuideSource || 'auto';
+          var resolvedEl = document.getElementById('kit-bc-video-resolved');
+          var autoEl = document.getElementById('kit-bc-video-resolved-auto');
+          if (src === 'select') {
+            var v = bc.videoGuideId ? _adminTenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; }) : null;
+            resolvedEl.innerHTML = v ? '&#9654; ' + (v.titleEl || v.titleEn) + (v.thumbnailUrl ? ' <img src="' + v.thumbnailUrl + '" style="height:28px;vertical-align:middle;border-radius:3px;margin-left:4px;" />' : '') : '<em>No video selected</em>';
+          }
+          if (src === 'auto') {
+            var byProd = _adminTenantVideos.find(function(vd){ return vd.productId === product.id; });
+            if (byProd) { autoEl.textContent = 'Auto-resolved: ' + (byProd.titleEl || byProd.titleEn) + ' (product match)'; return; }
+            if (product.categoryId) {
+              var byCat = _adminTenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
+              if (byCat) { autoEl.textContent = 'Auto-resolved: ' + (byCat.titleEl || byCat.titleEn) + ' (category match)'; return; }
+            }
+            var defV = _adminTenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
+            if (defV) { autoEl.textContent = 'Auto-resolved: ' + (defV.titleEl || defV.titleEn) + ' (tenant default)'; return; }
+            autoEl.textContent = 'No video found — CTA will show Coming Soon page';
+          }
+        }
+        document.getElementById('kit-bc-video-source').addEventListener('change', function() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          p.builderConfig.videoGuideSource = this.value;
+          p.builderConfig.showVideoCTA = this.value !== 'hidden';
+          syncVideoSourceUI(p.builderConfig);
+          syncVideoResolved(p);
+          refreshLivePreview(p.builderConfig);
+        });
+        document.getElementById('kit-bc-video-picker').addEventListener('change', function() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          p.builderConfig.videoGuideId = this.value;
+          syncVideoResolved(p);
+          refreshLivePreview(p.builderConfig);
         });
         document.getElementById('kit-bc-benefit-add').addEventListener('click', function() {
           if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
