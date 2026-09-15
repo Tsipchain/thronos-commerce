@@ -2676,6 +2676,7 @@
         var videosEl = document.getElementById('tenant-videos-json');
         var tenantVideos = videosEl ? JSON.parse(videosEl.textContent || '[]') : [];
         var COMING_SOON_URL = <%- safeJson(withTenantLink('/video/coming-soon')) %>;
+        var CONTENT_BASE = <%- safeJson(withTenantLink('/content')) %>;
         var sbsState = { product: null, step: 0, selections: {} };
         var elBanner = document.getElementById('sbs-banner');
         var elBannerOverlay = document.getElementById('sbs-banner-overlay');
@@ -3005,11 +3006,14 @@
             elVideoCTA.style.display = '';
             elVideoCTA.onclick = function() {
               if (resolved.video) {
-                window.open(<%- safeJson(withTenantLink('/content/')) %> + encodeURIComponent(resolved.video.slug), '_blank', 'noopener');
+                var contentPath = '/content/' + encodeURIComponent(resolved.video.slug);
+                var contentQs = CONTENT_BASE.indexOf('?') >= 0 ? CONTENT_BASE.substring(CONTENT_BASE.indexOf('?')) : '';
+                window.open(contentPath + contentQs, '_blank', 'noopener');
               } else if (resolved.url) {
                 window.open(resolved.url, '_blank', 'noopener');
               } else {
-                var csUrl = COMING_SOON_URL + '?product=' + encodeURIComponent(resolveF(product.name) || '');
+                var csSep = COMING_SOON_URL.indexOf('?') >= 0 ? '&' : '?';
+                var csUrl = COMING_SOON_URL + csSep + 'product=' + encodeURIComponent(resolveF(product.name) || '');
                 window.open(csUrl, '_blank', 'noopener');
               }
             };
