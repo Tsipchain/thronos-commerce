@@ -1849,8 +1849,8 @@ test('Q1: Trust row renders in openSbs (visible during all steps)', () => {
 
 test('Q2: Trust row has default items when config is empty', () => {
   assert.match(index, /defaultTrustItems\s*=\s*\[/);
-  assert.match(index, /Ασφαλείς πληρωμές/);
-  assert.match(index, /Γρήγορη αποστολή/);
+  assert.match(index, /Ασφαλείς συναλλαγές/);
+  assert.match(index, /Γρήγορη παράδοση/);
   assert.match(index, /Ελληνική υποστήριξη/);
 });
 
