@@ -1983,3 +1983,85 @@ test('V1: Nav button is hidden on completion (no duplicate Add to Cart)', () => 
 test('V2: Nav button is restored when navigating back to a step', () => {
   assert.match(index, /btnNext\.style\.display = ''/);
 });
+
+// === Section W: Banner size / fit / position controls ===
+
+test('W1: Storefront CSS has banner size classes (small, medium=default, large)', () => {
+  assert.match(index, /\.sbs-banner\.banner-small\s*\{/);
+  assert.match(index, /\.sbs-banner\.banner-large\s*\{/);
+});
+
+test('W2: Storefront CSS has mobile banner size overrides', () => {
+  assert.match(index, /@media.*max-width.*768px[\s\S]*?\.sbs-banner\.banner-small/);
+  assert.match(index, /@media.*max-width.*768px[\s\S]*?\.sbs-banner\.banner-large/);
+});
+
+test('W3: Storefront applies bannerSize class from builderConfig', () => {
+  assert.match(index, /bc\.bannerSize/);
+  assert.match(index, /banner-small/);
+  assert.match(index, /banner-large/);
+});
+
+test('W4: Storefront applies bannerFit (contain class) from builderConfig', () => {
+  assert.match(index, /bc\.bannerFit/);
+  assert.match(index, /banner-contain/);
+  assert.match(index, /\.sbs-banner\.banner-contain.*object-fit:\s*contain/);
+});
+
+test('W5: Storefront applies bannerPosition as object-position from builderConfig', () => {
+  assert.match(index, /bc\.bannerPosition/);
+  assert.match(index, /objectPosition/);
+});
+
+test('W6: Admin has bannerSize select control', () => {
+  assert.match(admin, /id="kit-bc-banner-size"/);
+  assert.match(admin, /value="small"/);
+  assert.match(admin, /value="medium"/);
+  assert.match(admin, /value="large"/);
+});
+
+test('W7: Admin has bannerFit select control', () => {
+  assert.match(admin, /id="kit-bc-banner-fit"/);
+  assert.match(admin, /value="cover"/);
+  assert.match(admin, /value="contain"/);
+});
+
+test('W8: Admin has bannerPosition select control', () => {
+  assert.match(admin, /id="kit-bc-banner-position"/);
+});
+
+test('W9: Admin syncBuilderConfigPanel reads bannerSize/bannerFit/bannerPosition', () => {
+  assert.match(admin, /kit-bc-banner-size.*\.value\s*=\s*bc\.bannerSize/);
+  assert.match(admin, /kit-bc-banner-fit.*\.value\s*=\s*bc\.bannerFit/);
+  assert.match(admin, /kit-bc-banner-position.*\.value\s*=\s*bc\.bannerPosition/);
+});
+
+test('W10: Admin selectMap includes banner controls for live preview update', () => {
+  assert.match(admin, /kit-bc-banner-size.*bannerSize/);
+  assert.match(admin, /kit-bc-banner-fit.*bannerFit/);
+  assert.match(admin, /kit-bc-banner-position.*bannerPosition/);
+});
+
+test('W11: Admin preview applies bannerSize height', () => {
+  assert.match(admin, /bannerSize/);
+  assert.match(admin, /_bHeightMap/);
+});
+
+test('W12: Admin preview applies bannerFit to object-fit', () => {
+  assert.match(admin, /objectFit/);
+  assert.match(admin, /_bFit/);
+});
+
+test('W13: Admin preview applies bannerPosition to object-position', () => {
+  assert.match(admin, /objectPosition/);
+  assert.match(admin, /_bPos/);
+});
+
+test('W14: Banner size is independent from logo size', () => {
+  assert.match(admin, /id="kit-bc-logo-size"/, 'logo size control exists');
+  assert.match(admin, /id="kit-bc-banner-size"/, 'banner size control exists');
+  assert.match(admin, /bc\.logoSize/, 'logoSize read from config');
+  assert.match(admin, /bc\.bannerSize/, 'bannerSize read from config');
+  assert.match(index, /bc\.logoSize/, 'storefront uses logoSize');
+  assert.match(index, /bc\.bannerSize/, 'storefront uses bannerSize');
+});
