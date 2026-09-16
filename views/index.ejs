@@ -2904,7 +2904,7 @@
         function resolveVideoForBuilder(product) {
           var bc = product.builderConfig || {};
           var src = bc.videoGuideSource || 'auto';
-          if (src === 'hidden' || (bc.showVideoCTA === false && src !== 'auto' && src !== 'select' && src !== 'coming_soon')) return null;
+          if (src === 'hidden' || bc.showVideoCTA === false) return null;
           if (src === 'select' && bc.videoGuideId) {
             var v = tenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; });
             if (v) return { video: v, source: 'selected' };

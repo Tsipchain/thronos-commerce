@@ -1686,8 +1686,22 @@ test('Case E — videoGuideSource=hidden suppresses CTA in storefront', () => {
   assert.match(index, /return null/, 'returns null for hidden');
 });
 
+test('Case E — showVideoCTA=false is the master kill switch in storefront', () => {
+  assert.match(index, /bc\.showVideoCTA === false\) return null/, 'showVideoCTA=false returns null early');
+});
+
 test('Case E — admin has hidden option in video source selector', () => {
   assert.match(admin, /value="hidden"/, 'hidden option in admin selector');
+});
+
+test('Case E — admin preview uses same showVideoCTA master flag', () => {
+  assert.match(admin, /bc\.showVideoCTA !== false/, 'preview checks showVideoCTA');
+  assert.doesNotMatch(admin, /_vSrc === 'select' \|\| _vSrc === 'coming_soon' \|\| _vSrc === 'auto'/, 'preview does not override showVideoCTA with source');
+});
+
+test('Admin has explicit showVideoCTA checkbox', () => {
+  assert.match(admin, /id="kit-bc-show-video-cta"/, 'showVideoCTA checkbox exists');
+  assert.match(admin, /showVideoCTA.*this\.checked|this\.checked.*showVideoCTA/s, 'checkbox wired to showVideoCTA');
 });
 
 // Case F: Multi-tenant safety — only tenant's videos appear

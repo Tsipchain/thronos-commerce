@@ -2514,7 +2514,8 @@
 
             <div style="margin-top:8px;padding:6px 0;">
               <span style="font-size:.78rem;font-weight:600;color:#334155;"><%= lang === 'el' ? 'Βίντεο οδηγιών' : 'Installation video' %></span>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+              <label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:.78rem;color:#475569;"><input type="checkbox" id="kit-bc-show-video-cta" /> <%= lang === 'el' ? 'Εμφάνιση κουμπιού βίντεο' : 'Show installation video button' %></label>
+              <div id="kit-bc-video-config-wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
                 <label style="font-size:.78rem;"><%= lang === 'el' ? 'Πηγή βίντεο' : 'Video source' %>
                   <select id="kit-bc-video-source" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
                     <option value="auto"><%= lang === 'el' ? 'Αυτόματα (προϊόν → κατηγορία → προεπιλογή)' : 'Auto (product → category → default)' %></option>
@@ -3782,6 +3783,8 @@
         document.getElementById('kit-bc-show-helper').checked = bc.showHelperText !== false;
         document.getElementById('kit-bc-show-slogan').checked = bc.showSlogan !== false;
         document.getElementById('kit-bc-show-trust').checked = bc.showTrustRow !== false;
+        document.getElementById('kit-bc-show-video-cta').checked = bc.showVideoCTA !== false;
+        document.getElementById('kit-bc-video-config-wrap').style.display = bc.showVideoCTA !== false ? '' : 'none';
         document.getElementById('kit-bc-summary-sub-el').value = (bc.summarySubtitle && bc.summarySubtitle.el) || '';
         document.getElementById('kit-bc-summary-sub-en').value = (bc.summarySubtitle && bc.summarySubtitle.en) || '';
         document.getElementById('kit-bc-vcta-title-el').value = (bc.videoCTATitle && bc.videoCTATitle.el) || '';
@@ -3859,7 +3862,7 @@
         if (bc.showTrustRow !== false && trs.length) { trustEl.textContent = trs.map(function(t){ return _rf(t.title); }).join(' · '); trustEl.style.display = ''; } else { trustEl.style.display = 'none'; }
         var vidEl = _lp('lp-video');
         var _vSrc = bc.videoGuideSource || 'auto';
-        var _vShow = _vSrc !== 'hidden' && (bc.showVideoCTA !== false || _vSrc === 'select' || _vSrc === 'coming_soon' || _vSrc === 'auto');
+        var _vShow = _vSrc !== 'hidden' && bc.showVideoCTA !== false;
         if (_vShow) { vidEl.innerHTML = '<span style="margin-right:4px;">&#9654;</span> ' + (_rf(bc.videoCTATitle) || 'Video'); vidEl.style.display = ''; } else { vidEl.style.display = 'none'; }
         checkBuilderDirty();
       }
@@ -4052,12 +4055,19 @@
             refreshLivePreview(p.builderConfig);
           });
         });
+        document.getElementById('kit-bc-show-video-cta').addEventListener('change', function() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          p.builderConfig.showVideoCTA = this.checked;
+          document.getElementById('kit-bc-video-config-wrap').style.display = this.checked ? '' : 'none';
+          refreshLivePreview(p.builderConfig);
+        });
         document.getElementById('kit-bc-video-source').addEventListener('change', function() {
           if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
           var p = products[kitBuilderIdx];
           if (!p.builderConfig) p.builderConfig = {};
           p.builderConfig.videoGuideSource = this.value;
-          p.builderConfig.showVideoCTA = this.value !== 'hidden';
           syncVideoSourceUI(p.builderConfig);
           syncVideoResolved(p);
           refreshLivePreview(p.builderConfig);
