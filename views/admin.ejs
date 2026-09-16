@@ -2437,52 +2437,108 @@
           </details>
 
           <details style="margin-bottom:8px;">
-            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;">D. Summary / Trust / Video CTA</summary>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
-              <label style="font-size:.78rem;">Summary subtitle (EL) <input id="kit-bc-summary-sub-el" type="text" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">Summary subtitle (EN) <input id="kit-bc-summary-sub-en" type="text" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">
-                <input type="checkbox" id="kit-bc-show-trust" checked /> Show trust row
-              </label>
-              <label style="font-size:.78rem;">Video guide source
-                <select id="kit-bc-video-source" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
-                  <option value="auto">Auto (product → category → default)</option>
-                  <option value="select">Select existing video</option>
-                  <option value="coming_soon">Coming Soon</option>
-                  <option value="hidden">Hidden</option>
-                </select>
-              </label>
-              <div id="kit-bc-video-picker-wrap" style="display:none;grid-column:1/-1;">
-                <label style="font-size:.78rem;">Select video
-                  <select id="kit-bc-video-picker" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
-                    <option value="">— choose —</option>
-                  </select>
-                </label>
-                <div id="kit-bc-video-resolved" style="margin-top:4px;font-size:.76rem;color:#475569;"></div>
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;"><%= lang === 'el' ? 'Δ. Δεξιά στήλη / Αξιοπιστία / Βίντεο οδηγιών' : 'D. Summary / Trust / Installation Video' %></summary>
+
+            <div style="margin-top:6px;padding:6px 0;border-bottom:1px solid #e2e8f0;">
+              <span style="font-size:.78rem;font-weight:600;color:#334155;"><%= lang === 'el' ? 'Υπότιτλος «Η επιλογή μου»' : "'My Selection' subtitle" %></span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Ελληνικά' : 'Greek' %> <input id="kit-bc-summary-sub-el" type="text" style="width:100%;" placeholder="<%= lang === 'el' ? 'π.χ. Φτιάξε το ρολό σου' : 'e.g. Build your roller' %>" /></label>
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Αγγλικά' : 'English' %> <input id="kit-bc-summary-sub-en" type="text" style="width:100%;" placeholder="e.g. Build your roller" /></label>
               </div>
-              <div id="kit-bc-video-resolved-auto" style="grid-column:1/-1;font-size:.76rem;color:#475569;"></div>
-              <input type="hidden" id="kit-bc-video" value="" />
-              <label style="font-size:.78rem;">Video CTA title (EL) <input id="kit-bc-vcta-title-el" type="text" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">Video CTA title (EN) <input id="kit-bc-vcta-title-en" type="text" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">Video CTA subtitle (EL) <input id="kit-bc-vcta-sub-el" type="text" style="width:100%;" /></label>
-              <label style="font-size:.78rem;">Video CTA subtitle (EN) <input id="kit-bc-vcta-sub-en" type="text" style="width:100%;" /></label>
             </div>
-            <div style="margin-top:6px;">
-              <span style="font-size:.78rem;font-weight:600;">Trust items</span>
-              <div id="kit-bc-trust-list" style="font-size:.78rem;"></div>
-              <div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:4px;margin-top:4px;align-items:end;">
-                <label style="font-size:.76rem;">Icon
-                  <select id="kit-bc-trust-icon" style="width:100%;">
-                    <option value="tools">tools</option>
-                    <option value="quality">quality</option>
-                    <option value="delivery">delivery</option>
-                    <option value="shield">shield</option>
-                    <option value="support">support</option>
+
+            <div style="margin-top:8px;padding:6px 0;border-bottom:1px solid #e2e8f0;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:.78rem;font-weight:600;color:#334155;"><%= lang === 'el' ? 'Σήματα αξιοπιστίας' : 'Trust badges' %></span>
+                <label style="font-size:.76rem;margin-left:auto;">
+                  <input type="checkbox" id="kit-bc-show-trust" checked /> <%= lang === 'el' ? 'Εμφάνιση' : 'Show' %>
+                </label>
+              </div>
+              <div id="kit-bc-trust-slots" style="margin-top:6px;">
+                <div class="trust-slot" data-slot="0" style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:4px;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+                  <label style="font-size:.74rem;"><input type="checkbox" class="trust-slot-enabled" data-slot="0" checked /> </label>
+                  <select class="trust-slot-icon" data-slot="0" style="font-size:.76rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;">
+                    <option value="shield"><%= lang === 'el' ? '🛡 Ασφάλεια' : '🛡 Security' %></option>
+                    <option value="delivery"><%= lang === 'el' ? '🚚 Αποστολή' : '🚚 Delivery' %></option>
+                    <option value="support"><%= lang === 'el' ? '🎧 Υποστήριξη' : '🎧 Support' %></option>
+                    <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
+                    <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
+                  </select>
+                  <input type="text" class="trust-slot-el" data-slot="0" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Ασφαλείς συναλλαγές" />
+                  <input type="text" class="trust-slot-en" data-slot="0" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Secure payments" />
+                </div>
+                <div class="trust-slot" data-slot="1" style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:4px;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+                  <label style="font-size:.74rem;"><input type="checkbox" class="trust-slot-enabled" data-slot="1" checked /> </label>
+                  <select class="trust-slot-icon" data-slot="1" style="font-size:.76rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;">
+                    <option value="delivery"><%= lang === 'el' ? '🚚 Αποστολή' : '🚚 Delivery' %></option>
+                    <option value="shield"><%= lang === 'el' ? '🛡 Ασφάλεια' : '🛡 Security' %></option>
+                    <option value="support"><%= lang === 'el' ? '🎧 Υποστήριξη' : '🎧 Support' %></option>
+                    <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
+                    <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
+                  </select>
+                  <input type="text" class="trust-slot-el" data-slot="1" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Γρήγορη παράδοση" />
+                  <input type="text" class="trust-slot-en" data-slot="1" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Fast delivery" />
+                </div>
+                <div class="trust-slot" data-slot="2" style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:4px;align-items:center;padding:4px 0;">
+                  <label style="font-size:.74rem;"><input type="checkbox" class="trust-slot-enabled" data-slot="2" checked /> </label>
+                  <select class="trust-slot-icon" data-slot="2" style="font-size:.76rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;">
+                    <option value="support"><%= lang === 'el' ? '🎧 Υποστήριξη' : '🎧 Support' %></option>
+                    <option value="shield"><%= lang === 'el' ? '🛡 Ασφάλεια' : '🛡 Security' %></option>
+                    <option value="delivery"><%= lang === 'el' ? '🚚 Αποστολή' : '🚚 Delivery' %></option>
+                    <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
+                    <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
+                  </select>
+                  <input type="text" class="trust-slot-el" data-slot="2" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Ελληνική υποστήριξη" />
+                  <input type="text" class="trust-slot-en" data-slot="2" style="font-size:.76rem;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;width:100%;" placeholder="Greek support" />
+                </div>
+              </div>
+              <div id="kit-bc-trust-list" style="display:none;"></div>
+              <details style="margin-top:4px;">
+                <summary style="font-size:.72rem;color:#64748b;cursor:pointer;"><%= lang === 'el' ? 'Προχωρημένες ρυθμίσεις αξιοπιστίας' : 'Advanced trust settings' %></summary>
+                <div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:4px;margin-top:4px;align-items:end;">
+                  <label style="font-size:.76rem;"><%= lang === 'el' ? 'Εικονίδιο' : 'Icon' %>
+                    <select id="kit-bc-trust-icon" style="width:100%;">
+                      <option value="shield"><%= lang === 'el' ? '🛡 Ασφάλεια' : '🛡 Security' %></option>
+                      <option value="delivery"><%= lang === 'el' ? '🚚 Αποστολή' : '🚚 Delivery' %></option>
+                      <option value="support"><%= lang === 'el' ? '🎧 Υποστήριξη' : '🎧 Support' %></option>
+                      <option value="quality"><%= lang === 'el' ? '⭐ Ποιότητα' : '⭐ Quality' %></option>
+                      <option value="tools"><%= lang === 'el' ? '🔧 Εργαλεία' : '🔧 Tools' %></option>
+                    </select>
+                  </label>
+                  <label style="font-size:.76rem;"><%= lang === 'el' ? 'Τίτλος EL' : 'Title EL' %> <input id="kit-bc-trust-el" type="text" style="width:100%;" /></label>
+                  <label style="font-size:.76rem;"><%= lang === 'el' ? 'Τίτλος EN' : 'Title EN' %> <input id="kit-bc-trust-en" type="text" style="width:100%;" /></label>
+                  <button class="button" type="button" id="kit-bc-trust-add" style="font-size:.76rem;padding:2px 8px;"><%= lang === 'el' ? 'Προσθήκη' : 'Add' %></button>
+                </div>
+              </details>
+            </div>
+
+            <div style="margin-top:8px;padding:6px 0;">
+              <span style="font-size:.78rem;font-weight:600;color:#334155;"><%= lang === 'el' ? 'Βίντεο οδηγιών' : 'Installation video' %></span>
+              <label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:.78rem;color:#475569;"><input type="checkbox" id="kit-bc-show-video-cta" /> <%= lang === 'el' ? 'Εμφάνιση κουμπιού βίντεο' : 'Show installation video button' %></label>
+              <div id="kit-bc-video-config-wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Πηγή βίντεο' : 'Video source' %>
+                  <select id="kit-bc-video-source" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
+                    <option value="auto"><%= lang === 'el' ? 'Αυτόματα (προϊόν → κατηγορία → προεπιλογή)' : 'Auto (product → category → default)' %></option>
+                    <option value="select"><%= lang === 'el' ? 'Επιλογή βίντεο' : 'Select video' %></option>
+                    <option value="coming_soon"><%= lang === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon' %></option>
+                    <option value="hidden"><%= lang === 'el' ? 'Κρυφό' : 'Hidden' %></option>
                   </select>
                 </label>
-                <label style="font-size:.76rem;">Title EL <input id="kit-bc-trust-el" type="text" style="width:100%;" /></label>
-                <label style="font-size:.76rem;">Title EN <input id="kit-bc-trust-en" type="text" style="width:100%;" /></label>
-                <button class="button" type="button" id="kit-bc-trust-add" style="font-size:.76rem;padding:2px 8px;">Add</button>
+                <div></div>
+                <div id="kit-bc-video-picker-wrap" style="display:none;grid-column:1/-1;">
+                  <label style="font-size:.78rem;"><%= lang === 'el' ? 'Επιλογή βίντεο' : 'Select video' %>
+                    <select id="kit-bc-video-picker" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:.82rem;">
+                      <option value=""><%= lang === 'el' ? '— επιλέξτε —' : '— choose —' %></option>
+                    </select>
+                  </label>
+                  <div id="kit-bc-video-resolved" style="margin-top:4px;font-size:.76rem;color:#475569;"></div>
+                </div>
+                <div id="kit-bc-video-resolved-auto" style="grid-column:1/-1;font-size:.76rem;color:#475569;"></div>
+                <input type="hidden" id="kit-bc-video" value="" />
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Τίτλος κουμπιού βίντεο (EL)' : 'Video button title (EL)' %> <input id="kit-bc-vcta-title-el" type="text" style="width:100%;" placeholder="<%= lang === 'el' ? 'π.χ. Δες το βίντεο εγκατάστασης' : 'e.g. Watch the installation video' %>" /></label>
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Τίτλος κουμπιού βίντεο (EN)' : 'Video button title (EN)' %> <input id="kit-bc-vcta-title-en" type="text" style="width:100%;" placeholder="e.g. Watch the installation video" /></label>
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Υπότιτλος κουμπιού βίντεο (EL)' : 'Video button subtitle (EL)' %> <input id="kit-bc-vcta-sub-el" type="text" style="width:100%;" placeholder="<%= lang === 'el' ? 'π.χ. Βήμα-βήμα η τοποθέτηση' : 'e.g. Step-by-step installation guide' %>" /></label>
+                <label style="font-size:.78rem;"><%= lang === 'el' ? 'Υπότιτλος κουμπιού βίντεο (EN)' : 'Video button subtitle (EN)' %> <input id="kit-bc-vcta-sub-en" type="text" style="width:100%;" placeholder="e.g. Step-by-step installation guide" /></label>
               </div>
             </div>
           </details>
@@ -3654,6 +3710,48 @@
           renderKitBuilder();
         } catch(e) { console.error('[kit-builder] openKitBuilder error:', e); openKitBuilderModal(); }
       };
+      var _adminTenantVideos = <%- JSON.stringify((tenantVideos || []).filter(function(v){ return v.published; })) %>;
+      function syncVideoSourceUI(bc) {
+        var src = (bc && bc.videoGuideSource) || 'auto';
+        var pickerWrap = document.getElementById('kit-bc-video-picker-wrap');
+        var autoInfo = document.getElementById('kit-bc-video-resolved-auto');
+        pickerWrap.style.display = src === 'select' ? '' : 'none';
+        autoInfo.style.display = (src === 'auto') ? '' : 'none';
+        if (src === 'select') {
+          var sel = document.getElementById('kit-bc-video-picker');
+          var cur = (bc && bc.videoGuideId) || '';
+          sel.innerHTML = '<option value="">— choose —</option>';
+          _adminTenantVideos.forEach(function(v) {
+            var opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = (v.titleEl || v.titleEn || v.slug) + (v.category ? ' [' + v.category + ']' : '');
+            if (v.id === cur) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        }
+      }
+      function syncVideoResolved(product) {
+        if (!product) return;
+        var bc = product.builderConfig || {};
+        var src = bc.videoGuideSource || 'auto';
+        var resolvedEl = document.getElementById('kit-bc-video-resolved');
+        var autoEl = document.getElementById('kit-bc-video-resolved-auto');
+        if (src === 'select') {
+          var v = bc.videoGuideId ? _adminTenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; }) : null;
+          resolvedEl.innerHTML = v ? '&#9654; ' + (v.titleEl || v.titleEn) + (v.thumbnailUrl ? ' <img src="' + v.thumbnailUrl + '" style="height:28px;vertical-align:middle;border-radius:3px;margin-left:4px;" />' : '') : '<em>No video selected</em>';
+        }
+        if (src === 'auto') {
+          var byProd = _adminTenantVideos.find(function(vd){ return vd.productId === product.id; });
+          if (byProd) { autoEl.textContent = 'Auto-resolved: ' + (byProd.titleEl || byProd.titleEn) + ' (product match)'; return; }
+          if (product.categoryId) {
+            var byCat = _adminTenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
+            if (byCat) { autoEl.textContent = 'Auto-resolved: ' + (byCat.titleEl || byCat.titleEn) + ' (category match)'; return; }
+          }
+          var defV = _adminTenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
+          if (defV) { autoEl.textContent = 'Auto-resolved: ' + (defV.titleEl || defV.titleEn) + ' (tenant default)'; return; }
+          autoEl.textContent = 'No video found — CTA will show Coming Soon page';
+        }
+      }
       function syncBuilderConfigPanel(p) {
         var panel = document.getElementById('kit-builder-config-panel');
         var isSbs = (p.builderType === 'step_by_step');
@@ -3685,6 +3783,8 @@
         document.getElementById('kit-bc-show-helper').checked = bc.showHelperText !== false;
         document.getElementById('kit-bc-show-slogan').checked = bc.showSlogan !== false;
         document.getElementById('kit-bc-show-trust').checked = bc.showTrustRow !== false;
+        document.getElementById('kit-bc-show-video-cta').checked = bc.showVideoCTA !== false;
+        document.getElementById('kit-bc-video-config-wrap').style.display = bc.showVideoCTA !== false ? '' : 'none';
         document.getElementById('kit-bc-summary-sub-el').value = (bc.summarySubtitle && bc.summarySubtitle.el) || '';
         document.getElementById('kit-bc-summary-sub-en').value = (bc.summarySubtitle && bc.summarySubtitle.en) || '';
         document.getElementById('kit-bc-vcta-title-el').value = (bc.videoCTATitle && bc.videoCTATitle.el) || '';
@@ -3757,11 +3857,12 @@
         if (bc.showHelperText !== false && hText) { helpEl.textContent = hText; helpEl.style.display = ''; } else { helpEl.style.display = 'none'; }
         var benEl = _lp('lp-benefits'); var bens = Array.isArray(bc.benefits) ? bc.benefits.filter(function(b){ return b.enabled !== false; }) : [];
         if (bens.length) { benEl.textContent = bens.map(function(b){ return _rf(b.title); }).join(' · '); benEl.style.display = ''; } else { benEl.style.display = 'none'; }
-        var trustEl = _lp('lp-trust'); var trs = Array.isArray(bc.trustItems) ? bc.trustItems.filter(function(t){ return t.enabled !== false; }) : [];
+        var trustEl = _lp('lp-trust');
+        var trs = Array.isArray(bc.trustItems) && bc.trustItems.length > 0 ? bc.trustItems.filter(function(t){ return t.enabled !== false; }) : _defaultTrustSlots;
         if (bc.showTrustRow !== false && trs.length) { trustEl.textContent = trs.map(function(t){ return _rf(t.title); }).join(' · '); trustEl.style.display = ''; } else { trustEl.style.display = 'none'; }
         var vidEl = _lp('lp-video');
         var _vSrc = bc.videoGuideSource || 'auto';
-        var _vShow = _vSrc !== 'hidden' && (bc.showVideoCTA !== false || _vSrc === 'select' || _vSrc === 'coming_soon' || _vSrc === 'auto');
+        var _vShow = _vSrc !== 'hidden' && bc.showVideoCTA !== false;
         if (_vShow) { vidEl.innerHTML = '<span style="margin-right:4px;">&#9654;</span> ' + (_rf(bc.videoCTATitle) || 'Video'); vidEl.style.display = ''; } else { vidEl.style.display = 'none'; }
         checkBuilderDirty();
       }
@@ -3819,19 +3920,59 @@
           });
         });
       }
+      var _defaultTrustSlots = [
+        { icon: 'shield', title: { el: 'Ασφαλείς συναλλαγές', en: 'Secure payments' }, enabled: true },
+        { icon: 'delivery', title: { el: 'Γρήγορη παράδοση', en: 'Fast delivery' }, enabled: true },
+        { icon: 'support', title: { el: 'Ελληνική υποστήριξη', en: 'Greek support' }, enabled: true }
+      ];
+      function syncTrustSlotsToUI(bc) {
+        var arr = Array.isArray(bc.trustItems) && bc.trustItems.length > 0 ? bc.trustItems : _defaultTrustSlots;
+        for (var s = 0; s < 3; s++) {
+          var item = arr[s] || { icon: 'shield', title: { el: '', en: '' }, enabled: true };
+          var cb = document.querySelector('.trust-slot-enabled[data-slot="' + s + '"]');
+          var ic = document.querySelector('.trust-slot-icon[data-slot="' + s + '"]');
+          var el = document.querySelector('.trust-slot-el[data-slot="' + s + '"]');
+          var en = document.querySelector('.trust-slot-en[data-slot="' + s + '"]');
+          if (cb) cb.checked = item.enabled !== false;
+          if (ic) ic.value = item.icon || 'shield';
+          if (el) el.value = (item.title && item.title.el) || '';
+          if (en) en.value = (item.title && item.title.en) || '';
+        }
+      }
+      function readTrustSlotsFromUI() {
+        var items = [];
+        for (var s = 0; s < 3; s++) {
+          var cb = document.querySelector('.trust-slot-enabled[data-slot="' + s + '"]');
+          var ic = document.querySelector('.trust-slot-icon[data-slot="' + s + '"]');
+          var el = document.querySelector('.trust-slot-el[data-slot="' + s + '"]');
+          var en = document.querySelector('.trust-slot-en[data-slot="' + s + '"]');
+          var def = _defaultTrustSlots[s] || {};
+          var defTitle = def.title || {};
+          var tEl = el ? el.value.trim() : '';
+          var tEn = en ? en.value.trim() : '';
+          items.push({
+            icon: ic ? ic.value : (def.icon || 'shield'),
+            title: { el: tEl || defTitle.el || '', en: tEn || defTitle.en || '' },
+            enabled: cb ? cb.checked : true
+          });
+        }
+        return items;
+      }
       function renderTrustList(bc) {
+        syncTrustSlotsToUI(bc);
         var cont = document.getElementById('kit-bc-trust-list');
-        var arr = Array.isArray(bc.trustItems) ? bc.trustItems : [];
+        var arr = Array.isArray(bc.trustItems) ? bc.trustItems.slice(3) : [];
+        if (arr.length === 0) { cont.innerHTML = ''; return; }
+        cont.style.display = '';
         cont.innerHTML = arr.map(function(t, i) {
+          var ri = i + 3;
           var tEl = (t.title && t.title.el) || '';
           var tEn = (t.title && t.title.en) || '';
           return '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;">' +
             '<span style="font-size:.74rem;background:#dbeafe;padding:1px 4px;border-radius:3px;">' + (t.icon || 'shield') + '</span>' +
             '<span>' + tEl + ' / ' + tEn + '</span>' +
-            '<label style="margin-left:auto;font-size:.74rem;"><input type="checkbox" data-trust-idx="' + i + '" ' + (t.enabled !== false ? 'checked' : '') + ' /> on</label>' +
-            (i > 0 ? '<button type="button" data-trust-up="' + i + '" style="background:#3b82f6;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;" title="Move up">&uarr;</button>' : '') +
-            (i < arr.length - 1 ? '<button type="button" data-trust-down="' + i + '" style="background:#3b82f6;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;" title="Move down">&darr;</button>' : '') +
-            '<button type="button" data-trust-rm="' + i + '" style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;">x</button></div>';
+            '<label style="margin-left:auto;font-size:.74rem;"><input type="checkbox" data-trust-idx="' + ri + '" ' + (t.enabled !== false ? 'checked' : '') + ' /> on</label>' +
+            '<button type="button" data-trust-rm="' + ri + '" style="background:#ef4444;color:#fff;border:none;border-radius:3px;padding:0 5px;cursor:pointer;font-size:.74rem;">x</button></div>';
         }).join('');
         cont.querySelectorAll('[data-trust-rm]').forEach(function(btn) {
           btn.addEventListener('click', function() {
@@ -3850,25 +3991,6 @@
             if (!p.builderConfig) p.builderConfig = {};
             if (!Array.isArray(p.builderConfig.trustItems)) p.builderConfig.trustItems = [];
             if (p.builderConfig.trustItems[idx]) p.builderConfig.trustItems[idx].enabled = this.checked;
-            refreshLivePreview(p.builderConfig);
-          });
-        });
-        cont.querySelectorAll('[data-trust-up]').forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var idx = parseInt(this.getAttribute('data-trust-up'));
-            var p = products[kitBuilderIdx]; if (!p || !p.builderConfig || !Array.isArray(p.builderConfig.trustItems) || idx < 1) return;
-            var a = p.builderConfig.trustItems; var tmp = a[idx]; a[idx] = a[idx - 1]; a[idx - 1] = tmp;
-            renderTrustList(p.builderConfig);
-            refreshLivePreview(p.builderConfig);
-          });
-        });
-        cont.querySelectorAll('[data-trust-down]').forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var idx = parseInt(this.getAttribute('data-trust-down'));
-            var p = products[kitBuilderIdx]; if (!p || !p.builderConfig || !Array.isArray(p.builderConfig.trustItems)) return;
-            var a = p.builderConfig.trustItems; if (idx >= a.length - 1) return;
-            var tmp = a[idx]; a[idx] = a[idx + 1]; a[idx + 1] = tmp;
-            renderTrustList(p.builderConfig);
             refreshLivePreview(p.builderConfig);
           });
         });
@@ -3933,54 +4055,19 @@
             refreshLivePreview(p.builderConfig);
           });
         });
-        var _adminTenantVideos = <%- JSON.stringify((tenantVideos || []).filter(function(v){ return v.published; })) %>;
-        function syncVideoSourceUI(bc) {
-          var src = (bc && bc.videoGuideSource) || 'auto';
-          var pickerWrap = document.getElementById('kit-bc-video-picker-wrap');
-          var autoInfo = document.getElementById('kit-bc-video-resolved-auto');
-          pickerWrap.style.display = src === 'select' ? '' : 'none';
-          autoInfo.style.display = (src === 'auto') ? '' : 'none';
-          if (src === 'select') {
-            var sel = document.getElementById('kit-bc-video-picker');
-            var cur = (bc && bc.videoGuideId) || '';
-            sel.innerHTML = '<option value="">— choose —</option>';
-            _adminTenantVideos.forEach(function(v) {
-              var opt = document.createElement('option');
-              opt.value = v.id;
-              opt.textContent = (v.titleEl || v.titleEn || v.slug) + (v.category ? ' [' + v.category + ']' : '');
-              if (v.id === cur) opt.selected = true;
-              sel.appendChild(opt);
-            });
-          }
-        }
-        function syncVideoResolved(product) {
-          if (!product) return;
-          var bc = product.builderConfig || {};
-          var src = bc.videoGuideSource || 'auto';
-          var resolvedEl = document.getElementById('kit-bc-video-resolved');
-          var autoEl = document.getElementById('kit-bc-video-resolved-auto');
-          if (src === 'select') {
-            var v = bc.videoGuideId ? _adminTenantVideos.find(function(vd){ return vd.id === bc.videoGuideId; }) : null;
-            resolvedEl.innerHTML = v ? '&#9654; ' + (v.titleEl || v.titleEn) + (v.thumbnailUrl ? ' <img src="' + v.thumbnailUrl + '" style="height:28px;vertical-align:middle;border-radius:3px;margin-left:4px;" />' : '') : '<em>No video selected</em>';
-          }
-          if (src === 'auto') {
-            var byProd = _adminTenantVideos.find(function(vd){ return vd.productId === product.id; });
-            if (byProd) { autoEl.textContent = 'Auto-resolved: ' + (byProd.titleEl || byProd.titleEn) + ' (product match)'; return; }
-            if (product.categoryId) {
-              var byCat = _adminTenantVideos.find(function(vd){ return vd.categoryId === product.categoryId; });
-              if (byCat) { autoEl.textContent = 'Auto-resolved: ' + (byCat.titleEl || byCat.titleEn) + ' (category match)'; return; }
-            }
-            var defV = _adminTenantVideos.find(function(vd){ return vd.featured && !vd.productId && !vd.categoryId; });
-            if (defV) { autoEl.textContent = 'Auto-resolved: ' + (defV.titleEl || defV.titleEn) + ' (tenant default)'; return; }
-            autoEl.textContent = 'No video found — CTA will show Coming Soon page';
-          }
-        }
+        document.getElementById('kit-bc-show-video-cta').addEventListener('change', function() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          p.builderConfig.showVideoCTA = this.checked;
+          document.getElementById('kit-bc-video-config-wrap').style.display = this.checked ? '' : 'none';
+          refreshLivePreview(p.builderConfig);
+        });
         document.getElementById('kit-bc-video-source').addEventListener('change', function() {
           if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
           var p = products[kitBuilderIdx];
           if (!p.builderConfig) p.builderConfig = {};
           p.builderConfig.videoGuideSource = this.value;
-          p.builderConfig.showVideoCTA = this.value !== 'hidden';
           syncVideoSourceUI(p.builderConfig);
           syncVideoResolved(p);
           refreshLivePreview(p.builderConfig);
@@ -4022,6 +4109,19 @@
           document.getElementById('kit-bc-trust-en').value = '';
           renderTrustList(p.builderConfig);
           refreshLivePreview(p.builderConfig);
+        });
+        function syncTrustSlotsToConfig() {
+          if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
+          var p = products[kitBuilderIdx];
+          if (!p.builderConfig) p.builderConfig = {};
+          var slotItems = readTrustSlotsFromUI();
+          var extra = Array.isArray(p.builderConfig.trustItems) ? p.builderConfig.trustItems.slice(3) : [];
+          p.builderConfig.trustItems = slotItems.concat(extra);
+          refreshLivePreview(p.builderConfig);
+        }
+        document.querySelectorAll('.trust-slot-enabled, .trust-slot-icon, .trust-slot-el, .trust-slot-en').forEach(function(el) {
+          el.addEventListener('change', syncTrustSlotsToConfig);
+          if (el.tagName === 'INPUT' && el.type === 'text') el.addEventListener('input', syncTrustSlotsToConfig);
         });
         var previewMap = {
           logoImage: 'kit-bc-logo-preview',

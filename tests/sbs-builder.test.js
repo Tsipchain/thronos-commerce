@@ -1056,9 +1056,10 @@ test('Admin trust items have enable/disable toggle', () => {
   assert.match(admin, /data-trust-idx="/);
 });
 
-test('Admin trust items have move up/down buttons', () => {
-  assert.match(admin, /data-trust-up="/);
-  assert.match(admin, /data-trust-down="/);
+test('Admin trust uses fixed 3-slot UI (no move buttons needed)', () => {
+  assert.match(admin, /trust-slot.*data-slot="0"/);
+  assert.match(admin, /trust-slot.*data-slot="1"/);
+  assert.match(admin, /trust-slot.*data-slot="2"/);
 });
 
 test('Trust item enable toggle updates builderConfig', () => {
@@ -1532,17 +1533,18 @@ test('Summary panel does not use overflow-y:auto on .sbs-summary', () => {
   assert.ok(!summaryCSS.includes('overflow:auto'), 'summary does not use overflow:auto');
 });
 
-test('Builder body is the scroll container, not summary or summary-list', () => {
+test('Sidebar summary-list scrolls independently to pin trust/cart at bottom', () => {
   const bodyCSS = index.substring(
     index.indexOf('.sbs-builder-body {'),
     index.indexOf('}', index.indexOf('.sbs-builder-body {')) + 1
   );
-  assert.match(bodyCSS, /overflow-y:\s*auto/, 'builder-body scrolls');
+  assert.match(bodyCSS, /overflow:\s*hidden/, 'builder-body clips (columns scroll independently)');
   const listCSS = index.substring(
     index.indexOf('.sbs-summary-list {'),
     index.indexOf('}', index.indexOf('.sbs-summary-list {')) + 1
   );
-  assert.ok(!listCSS.includes('overflow-y:auto'), 'summary-list does not scroll internally');
+  assert.match(listCSS, /overflow-y:\s*auto/, 'summary-list scrolls to pin trust/cart at bottom');
+  assert.match(listCSS, /flex:\s*1/, 'summary-list takes available space');
 });
 
 test('Banner bg image uses absolute positioning for proper cover', () => {
@@ -1684,8 +1686,22 @@ test('Case E — videoGuideSource=hidden suppresses CTA in storefront', () => {
   assert.match(index, /return null/, 'returns null for hidden');
 });
 
+test('Case E — showVideoCTA=false is the master kill switch in storefront', () => {
+  assert.match(index, /bc\.showVideoCTA === false\) return null/, 'showVideoCTA=false returns null early');
+});
+
 test('Case E — admin has hidden option in video source selector', () => {
   assert.match(admin, /value="hidden"/, 'hidden option in admin selector');
+});
+
+test('Case E — admin preview uses same showVideoCTA master flag', () => {
+  assert.match(admin, /bc\.showVideoCTA !== false/, 'preview checks showVideoCTA');
+  assert.doesNotMatch(admin, /_vSrc === 'select' \|\| _vSrc === 'coming_soon' \|\| _vSrc === 'auto'/, 'preview does not override showVideoCTA with source');
+});
+
+test('Admin has explicit showVideoCTA checkbox', () => {
+  assert.match(admin, /id="kit-bc-show-video-cta"/, 'showVideoCTA checkbox exists');
+  assert.match(admin, /showVideoCTA.*this\.checked|this\.checked.*showVideoCTA/s, 'checkbox wired to showVideoCTA');
 });
 
 // Case F: Multi-tenant safety — only tenant's videos appear
@@ -1837,4 +1853,133 @@ test('P3: openKitBuilder catch fallback still opens the modal', () => {
 
 test('P4: openKitBuilder validates product type is KIT', () => {
   assert.match(admin, /products\[i\]\.type !== 'KIT'/);
+});
+
+// === Section Q: Trust triptych always visible ===
+
+test('Q1: Trust row renders in openSbs (visible during all steps)', () => {
+  assert.match(index, /showTrustRow !== false && trustItems\.length > 0/);
+  assert.match(index, /elTrustRow\.style\.display = ''/);
+});
+
+test('Q2: Trust row has default items when config is empty', () => {
+  assert.match(index, /defaultTrustItems\s*=\s*\[/);
+  assert.match(index, /Ασφαλείς συναλλαγές/);
+  assert.match(index, /Γρήγορη παράδοση/);
+  assert.match(index, /Ελληνική υποστήριξη/);
+});
+
+test('Q3: Cart button is absent during steps (only visible on completion)', () => {
+  assert.match(index, /btnCartSidebar\.style\.display = allDone && builderComplete \? '' : 'none'/);
+});
+
+test('Q4: showTrustRow=false hides trust row', () => {
+  assert.match(index, /bc\.showTrustRow !== false/);
+  assert.match(index, /elTrustRow\.style\.display = 'none'/);
+});
+
+// === Section R: Admin trust 3-slot UI ===
+
+test('R1: Admin has 3 fixed trust slots', () => {
+  assert.match(admin, /trust-slot-enabled.*data-slot="0"/);
+  assert.match(admin, /trust-slot-enabled.*data-slot="1"/);
+  assert.match(admin, /trust-slot-enabled.*data-slot="2"/);
+});
+
+test('R2: Admin trust slots have icon selectors', () => {
+  assert.match(admin, /trust-slot-icon.*data-slot="0"/);
+  assert.match(admin, /trust-slot-icon.*data-slot="1"/);
+  assert.match(admin, /trust-slot-icon.*data-slot="2"/);
+});
+
+test('R3: Admin preview shows trust items', () => {
+  assert.match(admin, /lp-trust/);
+  assert.match(admin, /showTrustRow !== false && trs\.length/);
+});
+
+// === Section S: DOM hierarchy — summary panel order ===
+
+test('S1: DOM order is trust-row before video-cta before cart-btn', () => {
+  const trustPos = index.indexOf('id="sbs-trust-row"');
+  const videoPos = index.indexOf('id="sbs-video-cta"');
+  const cartPos = index.indexOf('id="sbs-cart-btn"');
+  assert.ok(trustPos > 0, 'trust row exists');
+  assert.ok(videoPos > 0, 'video CTA exists');
+  assert.ok(cartPos > 0, 'cart button exists');
+  assert.ok(trustPos < videoPos, 'trust row before video CTA');
+  assert.ok(videoPos < cartPos, 'video CTA before cart button');
+});
+
+test('S2: Step 1 heading uses mapped label, never raw ID', () => {
+  assert.match(index, /stepHeadingLabels/);
+  assert.match(index, /tampakiera-karoulaki.*Ταμπακιέρα \+ Καρουλάκι/);
+  assert.match(index, /tampakiera-karoulaki.*Shutter Box \+ Roller/);
+});
+
+test('S3: Admin Section D has merchant-friendly title', () => {
+  assert.match(admin, /Δεξιά στήλη.*Αξιοπιστία.*Βίντεο οδηγιών|Summary.*Trust.*Installation Video/);
+});
+
+// === Section T: Trust row vs Benefits strip separation ===
+
+test('T1: Trust row element is inside sbs-summary (right sidebar), not sbs-benefits', () => {
+  const summaryStart = index.indexOf('id="sbs-summary"');
+  const summaryEnd = index.indexOf('</div>', index.indexOf('id="sbs-cart-btn"'));
+  const trustRowPos = index.indexOf('id="sbs-trust-row"');
+  assert.ok(trustRowPos > summaryStart, 'trust row after sbs-summary start');
+  assert.ok(trustRowPos < summaryEnd, 'trust row before sbs-summary end');
+  const benefitsPos = index.indexOf('id="sbs-benefits"');
+  assert.ok(benefitsPos > 0, 'benefits strip exists');
+  assert.ok(benefitsPos < summaryStart, 'benefits strip is before summary (separate element)');
+});
+
+test('T2: Benefits strip has separate class sbs-benefits, trust row has sbs-trust-row', () => {
+  assert.match(index, /class="sbs-benefits"/);
+  assert.match(index, /class="sbs-trust-row"/);
+  const benefitsClass = index.indexOf('class="sbs-benefits"');
+  const trustClass = index.indexOf('class="sbs-trust-row"');
+  assert.notStrictEqual(benefitsClass, trustClass);
+});
+
+test('T3: Summary list has independent scroll CSS (trust pinned at bottom)', () => {
+  assert.match(index, /\.sbs-summary-list\s*\{[^}]*flex:\s*1/);
+  assert.match(index, /\.sbs-summary-list\s*\{[^}]*overflow-y:\s*auto/);
+});
+
+test('T4: Trust row renders inside sbs-trust-row via openSbs, not inside benefits', () => {
+  assert.match(index, /elTrustRow\.innerHTML = ''/);
+  assert.match(index, /elTrustRow\.appendChild/);
+  assert.match(index, /sbs-trust-item/);
+});
+
+// === Section U: Admin trust effective defaults ===
+
+test('U1: Admin trust slot placeholders show default values', () => {
+  assert.match(admin, /placeholder="Ασφαλείς συναλλαγές"/);
+  assert.match(admin, /placeholder="Secure payments"/);
+  assert.match(admin, /placeholder="Γρήγορη παράδοση"/);
+  assert.match(admin, /placeholder="Fast delivery"/);
+  assert.match(admin, /placeholder="Ελληνική υποστήριξη"/);
+  assert.match(admin, /placeholder="Greek support"/);
+});
+
+test('U2: readTrustSlotsFromUI falls back to defaults for empty fields', () => {
+  assert.match(admin, /readTrustSlotsFromUI/);
+  assert.match(admin, /tEl \|\| defTitle\.el/);
+  assert.match(admin, /tEn \|\| defTitle\.en/);
+});
+
+test('U3: Admin preview falls back to _defaultTrustSlots when trustItems empty', () => {
+  assert.match(admin, /_defaultTrustSlots/);
+  assert.match(admin, /bc\.trustItems.*\.length > 0.*_defaultTrustSlots/);
+});
+
+// === Section V: Exactly one Add to Cart on completion ===
+
+test('V1: Nav button is hidden on completion (no duplicate Add to Cart)', () => {
+  assert.match(index, /btnNext\.style\.display = 'none'/);
+});
+
+test('V2: Nav button is restored when navigating back to a step', () => {
+  assert.match(index, /btnNext\.style\.display = ''/);
 });
