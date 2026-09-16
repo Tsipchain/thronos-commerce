@@ -2065,3 +2065,60 @@ test('W14: Banner size is independent from logo size', () => {
   assert.match(index, /bc\.logoSize/, 'storefront uses logoSize');
   assert.match(index, /bc\.bannerSize/, 'storefront uses bannerSize');
 });
+
+// === Section W+: Banner persistence and contain rendering ===
+
+test('W15: Server normalizeProductRecord preserves bannerSize', () => {
+  assert.match(server, /bannerSize.*small.*medium.*large/s, 'bannerSize whitelist in server');
+});
+
+test('W16: Server normalizeProductRecord preserves bannerFit', () => {
+  assert.match(server, /bannerFit.*cover.*contain/s, 'bannerFit whitelist in server');
+});
+
+test('W17: Server normalizeProductRecord preserves bannerPosition', () => {
+  assert.match(server, /bannerPosition.*left.*center.*right/s, 'bannerPosition whitelist in server');
+});
+
+test('W18: Server defaults bannerFit to contain', () => {
+  const normBlock = server.substring(server.indexOf('function normalizeProductRecord'), server.indexOf('function loadTenantCategories'));
+  assert.match(normBlock, /bannerFit.*'contain'/, 'server default bannerFit is contain');
+});
+
+test('W19: Storefront defaults bannerFit to contain', () => {
+  assert.match(index, /bannerFit \|\| 'contain'/, 'storefront default bannerFit is contain');
+});
+
+test('W20: Admin defaults bannerFit to contain', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  assert.match(syncFn, /bannerFit \|\| 'contain'/, 'admin syncBuilderConfigPanel default bannerFit is contain');
+});
+
+test('W21: Storefront contain mode does not stretch image', () => {
+  assert.match(index, /banner-contain img\.sbs-banner-bg.*object-fit:contain/s, 'contain CSS uses object-fit:contain');
+  const bannerCSS = index.substring(index.indexOf('.sbs-banner.banner-contain'), index.indexOf('.sbs-banner-overlay'));
+  assert.doesNotMatch(bannerCSS, /transform.*scale/, 'no transform scale in banner-contain CSS');
+});
+
+test('W22: Storefront contain mode has blurred background layer', () => {
+  assert.match(index, /sbs-banner-blur/, 'blur image class exists');
+  assert.match(index, /banner-contain img\.sbs-banner-blur.*display:block/s, 'blur visible in contain mode');
+  assert.match(index, /sbs-banner-blur.*filter.*blur/s, 'blur has filter');
+});
+
+test('W23: Admin preview has blurred background layer for contain', () => {
+  assert.match(admin, /lp-banner-blur/, 'admin blur element exists');
+  assert.match(admin, /bannerBlur\.style\.display.*contain/, 'admin blur toggled by contain');
+});
+
+test('W24: Storefront banner overlay has z-index above blur and image layers', () => {
+  assert.match(index, /sbs-banner-overlay.*z-index:\s*2/s, 'overlay z-index is 2 or higher');
+});
+
+test('W25: Storefront reopening SBS reapplies banner config', () => {
+  const openFn = index.substring(index.indexOf('function openSbs'));
+  assert.match(openFn, /elBanner\.className\s*=/, 'openSbs sets banner className');
+  assert.match(openFn, /bannerSize/, 'openSbs reads bannerSize');
+  assert.match(openFn, /bannerFit/, 'openSbs reads bannerFit');
+  assert.match(openFn, /bannerPosition/, 'openSbs reads bannerPosition');
+});
