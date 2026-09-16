@@ -2412,6 +2412,26 @@
               <label style="font-size:.78rem;">
                 <input type="checkbox" id="kit-bc-show-slogan" checked /> Show slogan
               </label>
+              <label style="font-size:.78rem;"><%= lang === 'el' ? 'Μέγεθος banner' : 'Banner size' %>
+                <select id="kit-bc-banner-size" style="width:100%;">
+                  <option value="small"><%= lang === 'el' ? 'Μικρό' : 'Small' %></option>
+                  <option value="medium" selected><%= lang === 'el' ? 'Μεσαίο' : 'Medium' %></option>
+                  <option value="large"><%= lang === 'el' ? 'Μεγάλο' : 'Large' %></option>
+                </select>
+              </label>
+              <label style="font-size:.78rem;"><%= lang === 'el' ? 'Εφαρμογή εικόνας' : 'Banner image fit' %>
+                <select id="kit-bc-banner-fit" style="width:100%;">
+                  <option value="cover" selected><%= lang === 'el' ? 'Κάλυψη (Cover)' : 'Cover' %></option>
+                  <option value="contain"><%= lang === 'el' ? 'Ολόκληρη (Contain)' : 'Contain' %></option>
+                </select>
+              </label>
+              <label style="font-size:.78rem;"><%= lang === 'el' ? 'Θέση εικόνας' : 'Banner position' %>
+                <select id="kit-bc-banner-position" style="width:100%;">
+                  <option value="left"><%= lang === 'el' ? 'Αριστερά' : 'Left' %></option>
+                  <option value="center" selected><%= lang === 'el' ? 'Κέντρο' : 'Center' %></option>
+                  <option value="right"><%= lang === 'el' ? 'Δεξιά' : 'Right' %></option>
+                </select>
+              </label>
             </div>
           </details>
 
@@ -3764,6 +3784,9 @@
         document.getElementById('kit-bc-logo-size').value = bc.logoSize || 'medium';
         document.getElementById('kit-bc-banner').value = bc.bannerImage || '';
         document.getElementById('kit-bc-mobile-banner').value = bc.mobileBannerImage || '';
+        document.getElementById('kit-bc-banner-size').value = bc.bannerSize || 'medium';
+        document.getElementById('kit-bc-banner-fit').value = bc.bannerFit || 'cover';
+        document.getElementById('kit-bc-banner-position').value = bc.bannerPosition || 'center';
         document.getElementById('kit-bc-video').value = bc.videoUrl || '';
         document.getElementById('kit-bc-video-source').value = bc.videoGuideSource || 'auto';
         syncVideoSourceUI(bc);
@@ -3831,9 +3854,20 @@
         var logoWrap = _lp('lp-logo-wrap');
         var logoImg = _lp('lp-logo-img');
         var bSrc = bc.bannerImage || '';
+        var _bSize = bc.bannerSize || 'medium';
+        var _bFit = bc.bannerFit || 'cover';
+        var _bPos = bc.bannerPosition || 'center';
+        var _bHeightMap = { small: '50px', medium: '80px', large: '110px' };
+        var _lpBanner = _lp('lp-banner');
+        _lpBanner.style.minHeight = _bHeightMap[_bSize] || '80px';
         if (bSrc) {
           bannerImg.src = bSrc + (bSrc.includes('?') ? '&' : '?') + 'v=' + (bc.imageVersion || 1);
           bannerImg.style.display = '';
+          bannerImg.style.height = _bHeightMap[_bSize] || '80px';
+          bannerImg.style.objectFit = _bFit;
+          bannerImg.style.objectPosition = _bPos + ' center';
+          if (_bFit === 'contain') { bannerImg.style.backgroundColor = '#0f172a'; }
+          else { bannerImg.style.backgroundColor = ''; }
         } else { bannerImg.style.display = 'none'; }
         var lSrc = bc.logoImage || '';
         if (bc.showLogo !== false && lSrc) {
@@ -4029,7 +4063,7 @@
             refreshLivePreview(p.builderConfig);
           });
         });
-        var selectMap = { 'kit-bc-logo-position':'logoPosition', 'kit-bc-logo-size':'logoSize' };
+        var selectMap = { 'kit-bc-logo-position':'logoPosition', 'kit-bc-logo-size':'logoSize', 'kit-bc-banner-size':'bannerSize', 'kit-bc-banner-fit':'bannerFit', 'kit-bc-banner-position':'bannerPosition' };
         Object.keys(selectMap).forEach(function(fId) {
           document.getElementById(fId).addEventListener('change', function() {
             if (kitBuilderIdx < 0 || !products[kitBuilderIdx]) return;
