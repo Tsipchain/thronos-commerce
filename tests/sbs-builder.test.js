@@ -2122,3 +2122,94 @@ test('W25: Storefront reopening SBS reapplies banner config', () => {
   assert.match(openFn, /bannerFit/, 'openSbs reads bannerFit');
   assert.match(openFn, /bannerPosition/, 'openSbs reads bannerPosition');
 });
+
+// === Section W26-W35: Intro logo, hero fit/height, banner overlay ===
+
+test('W26: Server whitelist includes bannerOverlay with enum validation', () => {
+  const normBlock = server.substring(server.indexOf('function normalizeProductRecord'));
+  assert.match(normBlock, /bannerOverlay/, 'bannerOverlay is in whitelist');
+  assert.match(normBlock, /\['none','light','medium','dark'\]/, 'valid overlay values are none/light/medium/dark');
+});
+
+test('W27: Admin has banner overlay select control', () => {
+  assert.match(admin, /id="kit-bc-banner-overlay"/, 'overlay select exists');
+  assert.match(admin, /value="none"/, 'none option exists');
+  assert.match(admin, /value="light"/, 'light option exists');
+  assert.match(admin, /value="medium"/, 'medium option exists');
+  assert.match(admin, /value="dark"/, 'dark option exists');
+});
+
+test('W28: Admin selectMap includes bannerOverlay', () => {
+  assert.match(admin, /'kit-bc-banner-overlay'\s*:\s*'bannerOverlay'/, 'bannerOverlay in selectMap');
+});
+
+test('W29: Admin syncBuilderConfigPanel reads bannerOverlay', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  assert.match(syncFn, /kit-bc-banner-overlay/, 'sync sets overlay select');
+  assert.match(syncFn, /bannerOverlay/, 'sync reads bannerOverlay from bc');
+});
+
+test('W30: Admin preview has overlay element', () => {
+  assert.match(admin, /id="lp-banner-overlay"/, 'overlay element in admin preview');
+});
+
+test('W31: Admin refreshLivePreview applies overlay gradient', () => {
+  const refreshFn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  assert.match(refreshFn, /bannerOverlay/, 'refreshLivePreview reads bannerOverlay');
+  assert.match(refreshFn, /_overlayMap/, 'refreshLivePreview uses overlay map');
+  assert.match(refreshFn, /lp-banner-overlay/, 'refreshLivePreview targets overlay element');
+});
+
+test('W32: Storefront openSbs applies bannerOverlay dynamically', () => {
+  const openFn = index.substring(index.indexOf('function openSbs'));
+  assert.match(openFn, /bannerOverlay/, 'openSbs reads bannerOverlay');
+  assert.match(openFn, /elBannerOverlay\.style\.background/, 'openSbs sets overlay background');
+  assert.match(openFn, /_overlayGradients/, 'openSbs uses overlay gradients map');
+});
+
+test('W33: Storefront banner overlay CSS default is medium (not dark)', () => {
+  const bannerCss = index.substring(index.indexOf('.sbs-banner-overlay'), index.indexOf('.sbs-banner-overlay') + 300);
+  assert.ok(!bannerCss.includes('rgba(8,12,24,.88)'), 'no .88 opacity in default CSS');
+  assert.ok(!bannerCss.includes('rgba(8,12,24,.55)'), 'no .55 opacity in default CSS');
+  assert.match(bannerCss, /rgba\(8,12,24,\.45\)/, 'default is medium .45 opacity');
+});
+
+test('W34: Server saves homepage introLogoUrl', () => {
+  assert.match(server, /homepageIntroLogoUrl/, 'server destructures introLogoUrl');
+  assert.match(server, /config\.homepage\.introLogoUrl/, 'server saves to config.homepage.introLogoUrl');
+});
+
+test('W35: Admin has intro logo input field', () => {
+  assert.match(admin, /name="homepageIntroLogoUrl"/, 'intro logo input exists');
+});
+
+test('W36: Intro.ejs prioritizes dedicated introLogoUrl', () => {
+  assert.match(intro, /introLogoUrl/, 'intro.ejs references introLogoUrl');
+  const logoBlock = intro.substring(intro.indexOf('_introLogoUrl'));
+  assert.match(logoBlock, /_introLogoUrl\s*\??\s*\n?\s*\?\s*_introLogoUrl/, 'introLogoUrl takes priority');
+});
+
+test('W37: Server saves homepage heroFit and heroHeight', () => {
+  assert.match(server, /homepageHeroFit/, 'server destructures heroFit');
+  assert.match(server, /homepageHeroHeight/, 'server destructures heroHeight');
+  assert.match(server, /config\.homepage\.heroFit/, 'server saves heroFit');
+  assert.match(server, /config\.homepage\.heroHeight/, 'server saves heroHeight');
+});
+
+test('W38: Admin has hero fit select and hero height input', () => {
+  assert.match(admin, /name="homepageHeroFit"/, 'hero fit select exists');
+  assert.match(admin, /name="homepageHeroHeight"/, 'hero height input exists');
+});
+
+test('W39: Index.ejs hero uses EJS-driven fit and height', () => {
+  assert.match(index, /homepage\.heroFit\s*===\s*'contain'/, 'hero img checks heroFit');
+  assert.match(index, /homepage\.heroHeight/, 'hero img uses heroHeight');
+});
+
+test('W40: Clean header hero override respects custom height/fit', () => {
+  const cleanHeroMatch = index.match(/body\.eko-header-clean\s+\.eko-hero-img\s*\{[^}]+\}/g);
+  assert.ok(cleanHeroMatch && cleanHeroMatch.length > 0, 'clean header hero CSS exists');
+  const cleanHero = cleanHeroMatch[0];
+  assert.match(cleanHero, /heroHeight/, 'clean header hero uses heroHeight');
+  assert.match(cleanHero, /heroFit/, 'clean header hero uses heroFit');
+});
