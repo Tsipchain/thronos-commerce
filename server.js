@@ -201,10 +201,12 @@ function buildTranslatableFromBody(body, baseName, fallbackValue) {
   return fallbackValue;
 }
 
+const _greekToLatin = {'α':'a','β':'v','γ':'g','δ':'d','ε':'e','ζ':'z','η':'i','θ':'th','ι':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x','ο':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'y','φ':'f','χ':'ch','ψ':'ps','ω':'o','ά':'a','έ':'e','ή':'i','ί':'i','ό':'o','ύ':'y','ώ':'o','ϊ':'i','ϋ':'y','ΐ':'i','ΰ':'y'};
 function normalizeSlug(value) {
   return String(value || '')
     .toLowerCase()
     .trim()
+    .replace(/[α-ωάέήίόύώϊϋΐΰ]/g, function(ch) { return _greekToLatin[ch] || ''; })
     .replace(/[\s_]+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
     .replace(/-+/g, '-')
@@ -1433,7 +1435,7 @@ function normalizeProductRecord(product) {
         showHelperText: _bc.showHelperText !== false,
         showVideo: _bc.showVideo !== false,
         showTrustRow: _bc.showTrustRow !== false,
-        showVideoCTA: _bc.showVideoCTA === true,
+        showVideoCTA: _bc.showVideoCTA !== false,
         videoGuideId: String(_bc.videoGuideId || '').trim(),
         videoGuideSource: ['auto', 'select', 'coming_soon', 'hidden'].includes(_bc.videoGuideSource) ? _bc.videoGuideSource : 'auto',
         videoCTATitle: _bc.videoCTATitle || '',
@@ -5384,6 +5386,39 @@ app.post('/admin/shipping-payment', async (req, res) => {
   res.render('admin', buildAdminViewModel(req, {
     message: 'Τα μεταφορικά και οι τρόποι πληρωμής αποθηκεύτηκαν.'
   }));
+});
+
+app.post('/admin/shipping-options/add', async (req, res) => {
+  const { password, shipId, shipLabel, shipBase, shipCodFee, shipType, shipAllowed } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται η προσθήκη μεταφορικών.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const normalizedId = normalizeSlug(shipId);
+  if (!normalizedId || !isUrlSafeSlug(normalizedId)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Το ID πρέπει να είναι URL-safe (πεζά λατινικά, αριθμοί, παύλες).' }));
+  }
+  const config = loadTenantConfig(req);
+  if (!config.shippingOptions) config.shippingOptions = [];
+  if (config.shippingOptions.some((s) => s.id === normalizedId)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Υπάρχει ήδη μεταφορικό με αυτό το ID.' }));
+  }
+  const newOpt = {
+    id: normalizedId,
+    label: String(shipLabel || '').trim() || normalizedId,
+    base: parseFloat(shipBase) || 0,
+    codFee: parseFloat(shipCodFee) || 0,
+    type: shipType === 'pickup' ? 'pickup' : 'courier',
+  };
+  const allowed = String(shipAllowed || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (allowed.length) newOpt.allowedPaymentMethods = allowed;
+  config.shippingOptions.push(newOpt);
+  saveTenantConfig(req, config);
+  res.render('admin', buildAdminViewModel(req, { message: 'Νέο μεταφορικό "' + newOpt.label + '" προστέθηκε.' }));
 });
 
 // Categories CRUD

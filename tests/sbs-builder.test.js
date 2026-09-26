@@ -763,8 +763,8 @@ test('Video CTA shown only when showVideoCTA and videoUrl are set', () => {
   assert.match(index, /sbs-video-cta/);
 });
 
-test('showVideoCTA defaults to false (opt-in)', () => {
-  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+test('showVideoCTA defaults to true (opt-out)', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*!==\s*false/);
 });
 
 test('Admin has video CTA title/subtitle EL/EN fields', () => {
@@ -944,8 +944,9 @@ test('Mobile breakpoint is 768px', () => {
   assert.match(index, /@media\s*\(max-width:\s*768px\)/);
 });
 
-test('Mobile nav buttons are inside summary', () => {
-  assert.match(index, /sbs-summary-nav/, 'nav buttons are in sbs-summary-nav container');
+test('Nav buttons are below product grid in step content', () => {
+  assert.match(index, /sbs-step-nav/, 'nav buttons use sbs-step-nav class');
+  assert.match(index, /id="sbs-summary-nav"/, 'nav container keeps sbs-summary-nav id');
 });
 
 // === Section 43: Summary thumbnail placeholder for unselected ===
@@ -1187,12 +1188,12 @@ test('normalizeProductRecord preserves showLogo:false correctly', () => {
   assert.match(server, /showLogo:\s*_bc\.showLogo\s*!==\s*false/);
 });
 
-test('normalizeProductRecord preserves showVideoCTA:false via === true', () => {
-  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+test('normalizeProductRecord defaults showVideoCTA to true via !== false', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*!==\s*false/);
 });
 
 test('normalizeProductRecord preserves all show* flags with !== false pattern', () => {
-  const neqFalse = ['showSlogan', 'showTitle', 'showSubtitle', 'showHelperText', 'showVideo', 'showTrustRow'];
+  const neqFalse = ['showSlogan', 'showTitle', 'showSubtitle', 'showHelperText', 'showVideo', 'showTrustRow', 'showVideoCTA'];
   neqFalse.forEach(flag => {
     const re = new RegExp(flag + ':\\s*_bc\\.' + flag + '\\s*!==\\s*false');
     assert.match(server, re, flag + ' uses !== false pattern');
@@ -2279,4 +2280,61 @@ test('W50: Checkout recalc toggles TK required based on courier', () => {
 test('W51: Server rejects empty TK for courier shipping', () => {
   assert.match(server, /shippingMethod\.type\s*!==\s*'pickup'\s*&&\s*!\(tk/, 'server checks courier + empty TK');
   assert.match(server, /ταχυδρομικός κώδικας/i, 'server returns Greek TK error message');
+});
+
+// === Subcategory storefront features ===
+
+test('W52: Subcategory pills rendered for parent categories with children', () => {
+  assert.match(index, /eko-subcat-pills/, 'subcategory pills container exists');
+  assert.match(index, /eko-subcat-pill/, 'subcategory pill class exists');
+  assert.match(index, /data-subcat="all"/, 'All pill has data-subcat=all');
+  assert.match(index, /_activeCatChildren/, 'children computed from categories');
+});
+
+test('W53: Products grouped by subcategory with section headings', () => {
+  assert.match(index, /eko-subcat-section/, 'subcategory section wrapper exists');
+  assert.match(index, /eko-subcat-heading/, 'subcategory heading class exists');
+  assert.match(index, /data-subcat-id/, 'section carries data-subcat-id');
+});
+
+test('W54: Product card carries data-product-category attribute', () => {
+  const card = read('views/_product-card.ejs');
+  assert.match(card, /data-product-category/, 'product card has category attribute');
+});
+
+test('W55: Subcategory pill click filters products client-side', () => {
+  assert.match(index, /eko-subcat-pill\[data-subcat\]/, 'JS targets pills by data-subcat');
+  assert.match(index, /data-product-category/, 'JS reads product category for filtering');
+});
+
+test('W56: Spare filter includes subcategory dropdown', () => {
+  assert.match(index, /spare-filter-subcat/, 'subcategory select in spare filters');
+  assert.match(index, /Υποκατηγορία/, 'Greek label for subcategory filter');
+});
+
+test('W57: Nav buttons moved below products, left-aligned', () => {
+  assert.match(index, /sbs-step-nav/, 'step nav CSS class exists');
+  assert.match(index, /sbs-option-grid[\s\S]*?sbs-step-nav[\s\S]*?sbs-summary/, 'nav is between option grid and summary');
+});
+
+test('W58: Video CTA defaults to visible (showVideoCTA !== false)', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*!==\s*false/, 'server defaults showVideoCTA to true');
+});
+
+test('W59: Video CTA shows construction icon for coming-soon state', () => {
+  assert.match(index, /coming-soon/, 'coming-soon CSS class for CTA');
+  assert.match(index, /Σύντομα διαθέσιμο/, 'Greek coming-soon text in CTA');
+});
+
+test('W60: Coming-soon page has construction barricade design', () => {
+  const comingSoon = read('views/video-coming-soon.ejs');
+  assert.match(comingSoon, /barricade/, 'barricade design element');
+  assert.match(comingSoon, /barricade-light/, 'blinking warning light');
+  assert.match(comingSoon, /Coming Soon/, 'coming soon badge');
+  assert.match(comingSoon, /config\.storeName/, 'uses store name');
+  assert.match(comingSoon, /withTenantLink/, 'back link is tenant-aware');
+});
+
+test('W61: Summary list has min-height for expanded view', () => {
+  assert.match(index, /sbs-summary-list.*min-height:\s*180px/, 'summary list has min-height');
 });

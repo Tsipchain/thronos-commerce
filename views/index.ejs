@@ -201,11 +201,14 @@
       .sbs-builder { max-width:1280px; width:100%; margin:20px auto; background:#111827; color:#e2e8f0; border-radius:12px; box-shadow:0 8px 60px rgba(0,0,0,.7); overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 40px); }
       .sbs-banner { width:100%; position:relative; overflow:hidden; height:210px; flex-shrink:0; border-radius:12px 12px 0 0; }
       .sbs-banner.banner-small { height:150px; }
-      .sbs-banner.banner-large { height:300px; }
+      .sbs-banner.banner-large { height:auto; min-height:220px; }
       .sbs-banner img.sbs-banner-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center center; display:block; z-index:0; }
       .sbs-banner img.sbs-banner-blur { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; object-position:center center; display:none; z-index:0; filter:blur(18px) brightness(.35); }
       .sbs-banner.banner-contain img.sbs-banner-blur { display:block; }
       .sbs-banner.banner-contain img.sbs-banner-bg { object-fit:contain; z-index:1; }
+      .sbs-banner.banner-large img.sbs-banner-bg { position:relative; width:100%; height:auto; object-fit:contain; }
+      .sbs-banner.banner-large .sbs-banner-overlay { position:absolute; inset:0; }
+      .sbs-banner.banner-large img.sbs-banner-blur { display:none; }
       .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(8,12,24,.45) 0%,rgba(8,12,24,.22) 55%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:22px 36px; z-index:2; }
       .sbs-banner-logo { display:block; max-height:80px; max-width:280px; width:auto; height:auto; margin-bottom:10px; object-fit:contain; }
       .sbs-banner-logo.logo-center { align-self:center; }
@@ -259,7 +262,7 @@
       .sbs-summary { background:#0b1018; border-left:1px solid rgba(255,255,255,.08); padding:22px; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
       .sbs-summary h4 { margin:0 0 4px; font-size:1.05rem; font-weight:700; color:#e8922d; }
       .sbs-summary-subtitle { font-size:.76rem; color:rgba(255,255,255,.5); margin:0 0 16px; }
-      .sbs-summary-list { flex:1; overflow-y:auto; min-height:0; }
+      .sbs-summary-list { flex:1; overflow-y:auto; min-height:180px; }
       .sbs-summary-item { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.82rem; }
       .sbs-summary-item.muted { opacity:.4; }
       .sbs-summary-item .sbs-sum-thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; flex-shrink:0; background:#151c2c; }
@@ -283,14 +286,16 @@
       .sbs-video-cta-text { font-size:.78rem; color:rgba(255,255,255,.65); flex:1; }
       .sbs-video-cta-text strong { color:#fff; display:block; font-size:.86rem; margin-bottom:2px; }
       .sbs-video-cta-arrow { width:18px; height:18px; fill:rgba(255,255,255,.35); flex-shrink:0; }
-      .sbs-summary-nav { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:14px 0 10px; border-top:1px solid rgba(255,255,255,.07); margin-top:auto; }
-      .sbs-summary-nav button { padding:10px 20px; border-radius:10px; font-size:.84rem; font-weight:600; cursor:pointer; border:1px solid rgba(255,255,255,.12); background:transparent; color:rgba(255,255,255,.65); }
-      .sbs-summary-nav button:hover { background:rgba(255,255,255,.05); }
-      .sbs-summary-nav #sbs-skip { background:#dc2626; color:#fff; border-color:#dc2626; }
-      .sbs-summary-nav #sbs-skip:hover { background:#b91c1c; }
-      .sbs-summary-nav .sbs-next { background:#e8922d; color:#fff; border-color:#e8922d; box-shadow:0 2px 10px rgba(232,146,45,.25); font-size:.88rem; padding:10px 24px; }
-      .sbs-summary-nav .sbs-next:hover { background:#d4831f; }
-      .sbs-summary-nav .sbs-next:disabled { opacity:.4; cursor:default; box-shadow:none; }
+      .sbs-video-cta.coming-soon { background:repeating-linear-gradient(135deg,rgba(245,158,11,.08) 0px,rgba(245,158,11,.08) 10px,transparent 10px,transparent 20px); border-color:rgba(245,158,11,.25); }
+      .sbs-video-cta.coming-soon .sbs-video-cta-icon { fill:#f59e0b; }
+      .sbs-step-nav { display:flex; align-items:center; gap:8px; padding:20px 0 6px; margin-top:8px; }
+      .sbs-step-nav button { padding:10px 20px; border-radius:10px; font-size:.84rem; font-weight:600; cursor:pointer; border:1px solid rgba(255,255,255,.12); background:transparent; color:rgba(255,255,255,.65); }
+      .sbs-step-nav button:hover { background:rgba(255,255,255,.05); }
+      .sbs-step-nav #sbs-skip { background:#dc2626; color:#fff; border-color:#dc2626; }
+      .sbs-step-nav #sbs-skip:hover { background:#b91c1c; }
+      .sbs-step-nav .sbs-next { background:#e8922d; color:#fff; border-color:#e8922d; box-shadow:0 2px 10px rgba(232,146,45,.25); font-size:.88rem; padding:10px 24px; }
+      .sbs-step-nav .sbs-next:hover { background:#d4831f; }
+      .sbs-step-nav .sbs-next:disabled { opacity:.4; cursor:default; box-shadow:none; }
       .sbs-completion-recap { display:flex; flex-direction:column; align-items:center; padding:32px 20px 16px; text-align:center; }
       .sbs-completion-icon { margin-bottom:14px; }
       .sbs-completion-heading { color:#fff; font-size:1.15rem; font-weight:700; margin:0 0 6px; }
@@ -304,7 +309,7 @@
         .sbs-builder { margin:0; border-radius:0; max-height:100vh; max-height:100dvh; }
         .sbs-banner { height:150px; }
         .sbs-banner.banner-small { height:110px; }
-        .sbs-banner.banner-large { height:200px; }
+        .sbs-banner.banner-large { height:auto; min-height:140px; }
         .sbs-banner-slogan { font-size:1.1rem; }
         .sbs-banner-overlay { padding:12px 16px; }
         .sbs-banner-logo { max-height:48px; max-width:160px; }
@@ -327,7 +332,7 @@
         .sbs-trust-row { flex-wrap:wrap; }
         .sbs-trust-item { flex:0 0 33.33%; }
         .sbs-video-cta { width:100%; box-sizing:border-box; }
-        .sbs-summary-nav { padding:10px 0 6px; }
+        .sbs-step-nav { padding:10px 0 6px; }
       }
       .exposure-overlay {
         position: fixed; inset: 0; background: rgba(2,6,23,.82); z-index: 1500; opacity: 0; pointer-events:none;
@@ -891,6 +896,13 @@
         background: #f0f2f5;
       }
       body.eukolakis-classic .eko-cat-tile:hover { animation: none; }
+
+      /* ── Subcategory pills ── */
+      .eko-subcat-pills { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 16px; }
+      .eko-subcat-pill { display:inline-block; padding:7px 16px; border-radius:20px; font-size:.82rem; font-weight:600; color:rgba(255,255,255,.7); background:var(--eko-surface); border:1px solid var(--eko-border); text-decoration:none; transition:all .15s; cursor:pointer; }
+      .eko-subcat-pill:hover { border-color:var(--eko-accent); color:#fff; }
+      .eko-subcat-pill.active { background:var(--eko-accent); color:#fff; border-color:var(--eko-accent); }
+      .eko-subcat-heading { font-size:1.05rem; font-weight:700; color:var(--eko-accent); margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--eko-border); }
 
       /* ── Product cards — dark theme adaptation ── */
       body.eukolakis-classic .product-card {
@@ -1804,6 +1816,16 @@
       <% } %>
       <% } %>
 
+      <% const _activeCatChildren = (activeCategory && activeCategoryObj) ? categories.filter(function(c){ return c.parentId === activeCategoryObj.id || c.parentId === activeCategoryObj.slug; }) : []; %>
+      <% if (_activeCatChildren.length) { %>
+      <div class="eko-subcat-pills">
+        <a class="eko-subcat-pill active" href="<%= withTenantLink('/', Object.assign({ category: activeCategoryObj.slug }, lang !== 'el' ? { lang } : {})) %>" data-subcat="all"><%= lang === 'el' ? 'Όλα' : 'All' %></a>
+        <% _activeCatChildren.forEach(function(sub) { %>
+          <a class="eko-subcat-pill" href="<%= withTenantLink('/', Object.assign({ category: sub.slug }, lang !== 'el' ? { lang } : {})) %>" data-subcat="<%= sub.id %>"><%= sub.name %></a>
+        <% }); %>
+      </div>
+      <% } %>
+
       <% if (isEukolakisLanding && homeBlockVisibility.kits !== false) { %>
       <section class="featured-section" data-home-block="kits">
         <div class="eko-section-header">
@@ -1912,6 +1934,12 @@
       <% if (activeCategory === 'spare-parts') { %>
       <section class="spare-filters" id="spare-filters">
         <input type="search" id="spare-filter-search" placeholder="<%= lang === 'el' ? 'Αναζήτηση SKU ή ονόματος' : 'Search SKU or name' %>" />
+        <% if (_activeCatChildren.length) { %>
+        <select id="spare-filter-subcat">
+          <option value=""><%= lang === 'el' ? 'Υποκατηγορία: όλες' : 'Subcategory: all' %></option>
+          <% _activeCatChildren.forEach(function(sub){ %><option value="<%= sub.id %>"><%= sub.name %></option><% }) %>
+        </select>
+        <% } %>
         <select id="spare-filter-tag">
           <option value=""><%= lang === 'el' ? 'Συμβατότητα: όλες' : 'Compatibility: all' %></option>
           <% spareFilterTags.forEach(function(tag){ %><option value="<%= String(tag).toLowerCase() %>"><%= tag %></option><% }) %>
@@ -1925,11 +1953,29 @@
       <section class="product-list" id="product-list-grid">
         <% if (products.length === 0) { %>
           <p><%= t('storefront.noProducts') %></p>
+        <% } else if (_activeCatChildren.length) { %>
+          <% const _parentProducts = products.filter(function(p){ return p.categoryId === activeCategoryObj.id; }); %>
+          <% if (_parentProducts.length) { %>
+            <% _parentProducts.forEach(function(product) { %>
+              <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
+            <% }); %>
+          <% } %>
+          <% _activeCatChildren.forEach(function(sub) { %>
+            <% const _subProducts = products.filter(function(p){ return p.categoryId === sub.id; }); %>
+            <% if (_subProducts.length) { %>
+            <div class="eko-subcat-section" data-subcat-id="<%= sub.id %>" style="grid-column:1/-1;">
+              <h3 class="eko-subcat-heading"><%= sub.name %></h3>
+            </div>
+            <% _subProducts.forEach(function(product) { %>
+              <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
+            <% }); %>
+            <% } %>
+          <% }); %>
+        <% } else { %>
+          <% products.forEach(function (product) { %>
+            <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
+          <% }); %>
         <% } %>
-
-        <% products.forEach(function (product) { %>
-          <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
-        <% }); %>
       </section>
       <div id="spare-filter-empty" class="filter-empty-state">
         <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
@@ -2056,18 +2102,18 @@
             <h4 class="sbs-step-title" id="sbs-step-title"></h4>
             <p class="sbs-step-helper" id="sbs-step-helper"></p>
             <div class="sbs-option-grid" id="sbs-option-grid"></div>
-          </div>
-          <div class="sbs-summary" id="sbs-summary">
-            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My selection' %></h4>
-            <p class="sbs-summary-subtitle" id="sbs-summary-subtitle"></p>
-            <div class="sbs-summary-list" id="sbs-summary-list"></div>
-            <div class="sbs-summary-nav" id="sbs-summary-nav">
+            <div class="sbs-step-nav" id="sbs-summary-nav">
               <button type="button" id="sbs-back"><%= lang === 'el' ? '← Πίσω' : '← Back' %></button>
               <div style="display:flex;gap:8px;">
                 <button type="button" id="sbs-skip" style="display:none;"><%= lang === 'el' ? 'Παράλειψη' : 'Skip' %></button>
                 <button type="button" id="sbs-next" class="sbs-next"><%= lang === 'el' ? 'Συνέχεια →' : 'Continue →' %></button>
               </div>
             </div>
+          </div>
+          <div class="sbs-summary" id="sbs-summary">
+            <h4><%= lang === 'el' ? 'Η επιλογή μου' : 'My selection' %></h4>
+            <p class="sbs-summary-subtitle" id="sbs-summary-subtitle"></p>
+            <div class="sbs-summary-list" id="sbs-summary-list"></div>
             <div class="sbs-summary-total">
               <span><%= lang === 'el' ? 'Σύνολο' : 'Total' %></span>
               <span id="sbs-total" class="sbs-total-value">0.00 &euro;</span>
@@ -3092,14 +3138,18 @@
           if (resolved) {
             var hasVideo = resolved.video || resolved.url;
             var vTitle, vSub;
+            var ctaIcon;
             if (hasVideo) {
               vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
               vSub = resolveF(bc.videoCTASubtitle) || (LANG === 'el' ? 'Βήμα-βήμα η τοποθέτηση' : 'Step-by-step installation guide');
+              ctaIcon = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
             } else {
               vTitle = LANG === 'el' ? 'Βίντεο οδηγιών' : 'Installation guide';
-              vSub = LANG === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
+              vSub = LANG === 'el' ? 'Σύντομα διαθέσιμο — Coming Soon' : 'Coming soon';
+              ctaIcon = '<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>';
             }
-            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
+            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon">' + ctaIcon + '</span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
+            elVideoCTA.className = 'sbs-video-cta' + (hasVideo ? '' : ' coming-soon');
             elVideoCTA.style.display = '';
             elVideoCTA.onclick = function() {
               if (resolved.video) {
@@ -3314,6 +3364,7 @@
         if (!filtersRoot || !grid) return;
         const searchEl = document.getElementById('spare-filter-search');
         const tagEl = document.getElementById('spare-filter-tag');
+        const subcatEl = document.getElementById('spare-filter-subcat');
         const priceEl = document.getElementById('spare-filter-price');
         const priceValueEl = document.getElementById('spare-filter-price-value');
         const resetBtn = document.getElementById('spare-filter-reset');
@@ -3321,6 +3372,7 @@
         const resultEl = document.getElementById('spare-filter-results');
         const emptyStateEl = document.getElementById('spare-filter-empty');
         const cards = Array.from(grid.querySelectorAll('.product-card'));
+        const subcatSections = Array.from(grid.querySelectorAll('.eko-subcat-section'));
         const renderResultText = function(count) {
           if (!resultEl) return;
           resultEl.textContent = count + ' ' + <%- safeJson(lang === 'el' ? 'προϊόντα βρέθηκαν' : 'products found') %>;
@@ -3328,34 +3380,66 @@
         const updateFilters = function() {
           const q = (searchEl && searchEl.value || '').trim().toLowerCase();
           const tag = (tagEl && tagEl.value || '').trim().toLowerCase();
+          const sc = (subcatEl && subcatEl.value || '').trim();
           const maxPrice = Number(priceEl && priceEl.value || 0);
           if (priceValueEl) priceValueEl.textContent = maxPrice.toFixed(0);
+          subcatSections.forEach(function(s){ s.style.display = (!sc || s.getAttribute('data-subcat-id') === sc) ? '' : 'none'; });
           let visibleCount = 0;
           cards.forEach(function(card) {
             const nameText = (card.querySelector('h2') && card.querySelector('h2').textContent || '').toLowerCase();
             const sku = String(card.getAttribute('data-product-sku') || '').toLowerCase();
             const tags = String(card.getAttribute('data-product-tags') || '').toLowerCase();
             const price = Number(card.getAttribute('data-product-price') || 0);
+            const catId = card.getAttribute('data-product-category') || '';
             const okQuery = !q || nameText.includes(q) || sku.includes(q);
             const okTag = !tag || tags.split(',').includes(tag);
             const okPrice = !maxPrice || price <= maxPrice;
-            const visible = okQuery && okTag && okPrice;
+            const okSubcat = !sc || catId === sc;
+            const visible = okQuery && okTag && okPrice && okSubcat;
             if (visible) visibleCount += 1;
             card.classList.toggle('filter-hidden', !visible);
           });
           renderResultText(visibleCount);
           if (emptyStateEl) emptyStateEl.style.display = visibleCount === 0 ? 'block' : 'none';
         };
-        [searchEl, tagEl, priceEl].forEach(function(el){ if (el) el.addEventListener('input', updateFilters); });
+        [searchEl, tagEl, subcatEl, priceEl].forEach(function(el){ if (el) el.addEventListener('input', updateFilters); });
+        if (subcatEl) subcatEl.addEventListener('change', updateFilters);
         const resetFilters = function() {
           if (searchEl) searchEl.value = '';
           if (tagEl) tagEl.value = '';
+          if (subcatEl) subcatEl.value = '';
           if (priceEl) priceEl.value = priceEl.max || priceEl.value;
           updateFilters();
         };
         if (resetBtn) resetBtn.addEventListener('click', resetFilters);
         if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetFilters);
         updateFilters();
+      })();
+      (function() {
+        var pills = document.querySelectorAll('.eko-subcat-pill[data-subcat]');
+        if (!pills.length) return;
+        var grid = document.getElementById('product-list-grid');
+        if (!grid) return;
+        var cards = Array.from(grid.querySelectorAll('.product-card'));
+        var sections = Array.from(grid.querySelectorAll('.eko-subcat-section'));
+        pills.forEach(function(pill) {
+          pill.addEventListener('click', function(e) {
+            e.preventDefault();
+            var sc = this.getAttribute('data-subcat');
+            pills.forEach(function(p){ p.classList.remove('active'); });
+            this.classList.add('active');
+            if (sc === 'all') {
+              cards.forEach(function(c){ c.style.display = ''; });
+              sections.forEach(function(s){ s.style.display = ''; });
+            } else {
+              sections.forEach(function(s){ s.style.display = s.getAttribute('data-subcat-id') === sc ? '' : 'none'; });
+              cards.forEach(function(c){
+                var cid = c.getAttribute('data-product-category');
+                c.style.display = cid === sc ? '' : 'none';
+              });
+            }
+          });
+        });
       })();
       (function() {
         const grid = document.getElementById('kit-choice-grid');
