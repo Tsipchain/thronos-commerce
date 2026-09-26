@@ -5934,6 +5934,30 @@ app.post('/admin/shipping-options/add', async (req, res) => {
   res.render('admin', buildAdminViewModel(req, { message: 'Νέο μεταφορικό "' + newOpt.label + '" προστέθηκε.' }));
 });
 
+// ── Delete shipping option ──────────────────────────────────────────────────
+app.post('/admin/shipping-options/delete', async (req, res) => {
+  const { password, shipId } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται η διαγραφή μεταφορικών.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const config = loadTenantConfig(req);
+  if (!Array.isArray(config.shippingOptions)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Δεν βρέθηκαν μεταφορικά.' }));
+  }
+  const idx = config.shippingOptions.findIndex((s) => s.id === shipId);
+  if (idx < 0) {
+    return res.status(404).render('admin', buildAdminViewModel(req, { error: 'Δεν βρέθηκε μεταφορικό με ID: ' + shipId }));
+  }
+  const removed = config.shippingOptions.splice(idx, 1)[0];
+  saveTenantConfig(req, config);
+  res.render('admin', buildAdminViewModel(req, { message: 'Το μεταφορικό "' + (removed.label || removed.id) + '" διαγράφηκε.' }));
+});
+
 // ── Box Now credentials ─────────────────────────────────────────────────────
 app.post('/admin/boxnow-credentials', async (req, res) => {
   const { password, boxnowClientId, boxnowClientSecret } = req.body;
