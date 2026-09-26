@@ -377,10 +377,10 @@
         <p class="settings-info-note" style="background:#fefce8;border-color:#fde68a;color:#92400e;">Το θέμα <strong>Eukolakis Classic</strong> υποστηρίζει clean και βιομηχανικό header. Το <strong>Primary & Accent color</strong> επηρεάζουν κουμπιά, links και δευτερεύοντα στοιχεία.</p>
         <label><span>Στυλ header / μενού</span>
           <select name="themeHeaderMenuStyle" <%= permissions.canEditSettings ? '' : 'disabled' %>>
-            <option value="clean" <%= ((config.theme && config.theme.headerMenuStyle) || 'clean') === 'clean' ? 'selected' : '' %>>Clean — compact black ecommerce header</option>
+            <option value="clean" <%= ((config.theme && config.theme.headerMenuStyle) || 'clean') === 'clean' ? 'selected' : '' %>>Φωτεινό — λευκό header με χρυσά γράμματα</option>
             <option value="industrial_plates" <%= (config.theme && config.theme.headerMenuStyle) === 'industrial_plates' ? 'selected' : '' %>>Industrial plates — rivets / metallic navigation</option>
           </select>
-          <small class="helper">Το clean είναι το προεπιλεγμένο για Eukolakis. Το industrial_plates παραμένει διαθέσιμο ως επαναχρησιμοποιήσιμο style.</small>
+          <small class="helper">Το Φωτεινό είναι το προεπιλεγμένο για Eukolakis (λευκό φόντο, χρυσές κατηγορίες). Το industrial_plates παραμένει διαθέσιμο ως εναλλακτικό style.</small>
         </label>
         <% } %>
 
