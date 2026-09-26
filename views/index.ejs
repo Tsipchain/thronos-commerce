@@ -199,16 +199,11 @@
       .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.96); z-index:2200; display:none; overflow-y:auto; }
       .sbs-builder-backdrop.open { display:flex; align-items:flex-start; justify-content:center; }
       .sbs-builder { max-width:1280px; width:100%; margin:20px auto; background:#111827; color:#e2e8f0; border-radius:12px; box-shadow:0 8px 60px rgba(0,0,0,.7); overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 40px); }
-      .sbs-banner { width:100%; position:relative; overflow:hidden; height:210px; flex-shrink:0; border-radius:12px 12px 0 0; }
-      .sbs-banner.banner-small { height:150px; }
-      .sbs-banner.banner-large { height:auto; min-height:220px; }
-      .sbs-banner img.sbs-banner-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center center; display:block; z-index:0; }
-      .sbs-banner img.sbs-banner-blur { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; object-position:center center; display:none; z-index:0; filter:blur(18px) brightness(.35); }
-      .sbs-banner.banner-contain img.sbs-banner-blur { display:block; }
-      .sbs-banner.banner-contain img.sbs-banner-bg { object-fit:contain; z-index:1; }
-      .sbs-banner.banner-large img.sbs-banner-bg { position:relative; width:100%; height:auto; object-fit:contain; }
-      .sbs-banner.banner-large .sbs-banner-overlay { position:absolute; inset:0; }
-      .sbs-banner.banner-large img.sbs-banner-blur { display:none; }
+      .sbs-banner { width:100%; position:relative; overflow:hidden; height:auto; min-height:180px; flex-shrink:0; border-radius:12px 12px 0 0; }
+      .sbs-banner.banner-small { max-height:180px; }
+      .sbs-banner.banner-large { min-height:220px; }
+      .sbs-banner img.sbs-banner-bg { position:relative; width:100%; height:auto; object-fit:contain; display:block; z-index:0; }
+      .sbs-banner img.sbs-banner-blur { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; object-position:center center; display:block; z-index:0; filter:blur(18px) brightness(.35); }
       .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(8,12,24,.45) 0%,rgba(8,12,24,.22) 55%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:22px 36px; z-index:2; }
       .sbs-banner-logo { display:block; max-height:80px; max-width:280px; width:auto; height:auto; margin-bottom:10px; object-fit:contain; }
       .sbs-banner-logo.logo-center { align-self:center; }
@@ -307,9 +302,9 @@
       .sbs-completion-step-val { color:#fff; font-weight:600; text-align:right; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       @media (max-width:768px) {
         .sbs-builder { margin:0; border-radius:0; max-height:100vh; max-height:100dvh; }
-        .sbs-banner { height:150px; }
-        .sbs-banner.banner-small { height:110px; }
-        .sbs-banner.banner-large { height:auto; min-height:140px; }
+        .sbs-banner { min-height:120px; }
+        .sbs-banner.banner-small { max-height:140px; }
+        .sbs-banner.banner-large { min-height:140px; }
         .sbs-banner-slogan { font-size:1.1rem; }
         .sbs-banner-overlay { padding:12px 16px; }
         .sbs-banner-logo { max-height:48px; max-width:160px; }
