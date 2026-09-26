@@ -199,10 +199,10 @@
       .sbs-builder-backdrop { position:fixed; inset:0; background:rgba(2,6,23,.96); z-index:2200; display:none; overflow-y:auto; }
       .sbs-builder-backdrop.open { display:flex; align-items:flex-start; justify-content:center; }
       .sbs-builder { max-width:1280px; width:100%; margin:20px auto; background:#111827; color:#e2e8f0; border-radius:12px; box-shadow:0 8px 60px rgba(0,0,0,.7); overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 40px); }
-      .sbs-banner { width:100%; position:relative; overflow:hidden; height:auto; min-height:180px; flex-shrink:0; border-radius:12px 12px 0 0; }
-      .sbs-banner.banner-small { max-height:180px; }
-      .sbs-banner.banner-large { min-height:220px; }
-      .sbs-banner img.sbs-banner-bg { position:relative; width:100%; height:auto; object-fit:contain; display:block; z-index:0; }
+      .sbs-banner { width:100%; position:relative; overflow:hidden; height:auto; min-height:140px; max-height:240px; flex-shrink:0; border-radius:12px 12px 0 0; }
+      .sbs-banner.banner-small { max-height:160px; }
+      .sbs-banner.banner-large { min-height:160px; max-height:260px; }
+      .sbs-banner img.sbs-banner-bg { position:relative; width:100%; height:auto; max-height:240px; object-fit:cover; object-position:center; display:block; z-index:0; }
       .sbs-banner img.sbs-banner-blur { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; object-position:center center; display:block; z-index:0; filter:blur(18px) brightness(.35); }
       .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(8,12,24,.45) 0%,rgba(8,12,24,.22) 55%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:22px 36px; z-index:2; }
       .sbs-banner-logo { display:block; max-height:80px; max-width:280px; width:auto; height:auto; margin-bottom:10px; object-fit:contain; }
@@ -257,7 +257,7 @@
       .sbs-summary { background:#0b1018; border-left:1px solid rgba(255,255,255,.08); padding:22px; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
       .sbs-summary h4 { margin:0 0 4px; font-size:1.05rem; font-weight:700; color:#e8922d; }
       .sbs-summary-subtitle { font-size:.76rem; color:rgba(255,255,255,.5); margin:0 0 16px; }
-      .sbs-summary-list { flex:1; overflow-y:auto; min-height:180px; }
+      .sbs-summary-list { flex:1; overflow-y:auto; min-height:80px; }
       .sbs-summary-item { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.82rem; }
       .sbs-summary-item.muted { opacity:.4; }
       .sbs-summary-item .sbs-sum-thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; flex-shrink:0; background:#151c2c; }
@@ -267,15 +267,19 @@
       .sbs-summary-item .sbs-sum-price { font-weight:700; color:#e8922d; flex-shrink:0; font-size:.88rem; }
       .sbs-summary-item .sbs-sum-change { font-size:.72rem; color:#e8922d; cursor:pointer; background:none; border:none; padding:2px 0; font-weight:600; flex-shrink:0; margin-left:4px; }
       .sbs-summary-item .sbs-sum-change:hover { text-decoration:underline; }
-      .sbs-summary-total { padding-top:18px; border-top:2px solid #e8922d; display:flex; justify-content:space-between; align-items:baseline; font-size:1.25rem; font-weight:800; color:#fff; }
+      .sbs-summary-total { padding-top:14px; border-top:2px solid #e8922d; display:flex; justify-content:space-between; align-items:baseline; font-size:1.25rem; font-weight:800; color:#fff; flex-shrink:0; }
       .sbs-summary-total .sbs-total-value { color:#e8922d; font-size:1.45rem; }
-      .sbs-add-cart { width:100%; padding:18px; border-radius:12px; font-size:1.08rem; font-weight:700; cursor:pointer; border:none; background:linear-gradient(180deg,#f0991f 0%,#e8922d 100%); color:#fff; margin-top:14px; text-transform:uppercase; letter-spacing:.05em; transition:background .15s,transform .1s; box-shadow:0 4px 20px rgba(232,146,45,.35); }
+      .sbs-action-buttons { display:flex; gap:8px; margin-top:12px; flex-shrink:0; }
+      .sbs-add-cart { flex:1; padding:14px 10px; border-radius:12px; font-size:.95rem; font-weight:700; cursor:pointer; border:none; background:linear-gradient(180deg,#f0991f 0%,#e8922d 100%); color:#fff; text-transform:uppercase; letter-spacing:.05em; transition:background .15s,transform .1s; box-shadow:0 4px 20px rgba(232,146,45,.35); }
       .sbs-add-cart:hover { background:linear-gradient(180deg,#e8922d 0%,#d4831f 100%); transform:translateY(-1px); }
       .sbs-add-cart:disabled { opacity:.4; cursor:default; background:#2d3650; color:rgba(255,255,255,.45); box-shadow:none; transform:none; }
-      .sbs-trust-row { display:flex; gap:0; padding:10px 0 4px; margin-top:10px; border-top:1px solid rgba(255,255,255,.06); }
+      .sbs-buy-now { background:linear-gradient(180deg,#16a34a 0%,#15803d 100%); box-shadow:0 4px 20px rgba(22,163,74,.35); }
+      .sbs-buy-now:hover { background:linear-gradient(180deg,#15803d 0%,#166534 100%); }
+      .sbs-buy-now:disabled { background:#2d3650; box-shadow:none; }
+      .sbs-trust-row { display:flex; gap:0; padding:6px 0 2px; margin-top:8px; border-top:1px solid rgba(255,255,255,.06); flex-shrink:0; }
       .sbs-trust-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:.68rem; color:rgba(255,255,255,.55); text-align:center; padding:4px 2px; }
       .sbs-trust-icon { width:18px; height:18px; fill:rgba(255,255,255,.45); flex-shrink:0; }
-      .sbs-video-cta { display:flex; align-items:center; gap:14px; background:#151c2c; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:14px 16px; margin-top:12px; cursor:pointer; transition:border-color .15s; }
+      .sbs-video-cta { display:flex; align-items:center; gap:14px; background:#151c2c; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:10px 14px; margin-top:8px; cursor:pointer; transition:border-color .15s; flex-shrink:0; }
       .sbs-video-cta:hover { border-color:#e8922d; }
       .sbs-video-cta-icon { width:38px; height:38px; fill:#e8922d; flex-shrink:0; }
       .sbs-video-cta-text { font-size:.78rem; color:rgba(255,255,255,.65); flex:1; }
@@ -300,11 +304,21 @@
       .sbs-completion-row:last-child { border-bottom:0; }
       .sbs-completion-step-name { color:rgba(255,255,255,.7); flex:1; }
       .sbs-completion-step-val { color:#fff; font-weight:600; text-align:right; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      @media (max-height:900px) {
+        .sbs-banner { max-height:180px; min-height:100px; }
+        .sbs-banner.banner-large { max-height:200px; }
+        .sbs-banner img.sbs-banner-bg { max-height:180px; }
+        .sbs-banner-slogan { font-size:1.2rem; }
+        .sbs-banner-overlay { padding:14px 24px; }
+        .sbs-banner-logo { max-height:56px; }
+        .sbs-summary-list { min-height:60px; }
+        .sbs-add-cart { padding:12px 8px; font-size:.88rem; }
+      }
       @media (max-width:768px) {
         .sbs-builder { margin:0; border-radius:0; max-height:100vh; max-height:100dvh; }
-        .sbs-banner { min-height:120px; }
-        .sbs-banner.banner-small { max-height:140px; }
-        .sbs-banner.banner-large { min-height:140px; }
+        .sbs-banner { min-height:100px; max-height:140px; }
+        .sbs-banner.banner-small { max-height:120px; }
+        .sbs-banner.banner-large { min-height:100px; max-height:160px; }
         .sbs-banner-slogan { font-size:1.1rem; }
         .sbs-banner-overlay { padding:12px 16px; }
         .sbs-banner-logo { max-height:48px; max-width:160px; }
@@ -2120,7 +2134,10 @@
             </div>
             <div id="sbs-trust-row" class="sbs-trust-row" style="display:none;"></div>
             <div id="sbs-video-cta" class="sbs-video-cta" style="display:none;"></div>
-            <button type="button" id="sbs-cart-btn" class="sbs-add-cart" disabled><%= lang === 'el' ? 'ΠΡΟΣΘΗΚΗ ΣΤΟ ΚΑΛΑΘΙ' : 'ADD TO CART' %></button>
+            <div class="sbs-action-buttons" id="sbs-action-buttons" style="display:none;">
+              <button type="button" id="sbs-cart-btn" class="sbs-add-cart" disabled><%= lang === 'el' ? 'ΠΡΟΣΘΗΚΗ ΣΤΟ ΚΑΛΑΘΙ' : 'ADD TO CART' %></button>
+              <button type="button" id="sbs-buy-now-btn" class="sbs-add-cart sbs-buy-now" disabled><%= lang === 'el' ? 'ΑΓΟΡΑ ΤΩΡΑ' : 'BUY NOW' %></button>
+            </div>
           </div>
         </div>
       </div>
@@ -2794,6 +2811,8 @@
         var btnNext = document.getElementById('sbs-next');
         var btnSkip = document.getElementById('sbs-skip');
         var btnCartSidebar = document.getElementById('sbs-cart-btn');
+        var btnBuyNow = document.getElementById('sbs-buy-now-btn');
+        var elActionButtons = document.getElementById('sbs-action-buttons');
         var elHelperText = document.getElementById('sbs-helper-text');
         var elTrustRow = document.getElementById('sbs-trust-row');
         var elVideoCTA = document.getElementById('sbs-video-cta');
@@ -2891,15 +2910,17 @@
           renderSummary();
           var allDone = sbsState.step >= groups.length;
           var builderComplete = isBuilderComplete();
-          btnCartSidebar.style.display = allDone && builderComplete ? '' : 'none';
+          var showActions = allDone && builderComplete;
+          if (elActionButtons) elActionButtons.style.display = showActions ? '' : 'none';
           btnCartSidebar.disabled = !builderComplete;
+          if (btnBuyNow) btnBuyNow.disabled = !builderComplete;
           if (allDone) {
             if (!builderComplete) {
               var firstUnresolved = groups.findIndex(function(g){ return !isStepResolved(g); });
               if (firstUnresolved >= 0) { sbsState.step = firstUnresolved; renderStep(); return; }
             }
             elStepTitle.innerHTML = '<span class="sbs-step-title-bar"></span>' + escAttr(LANG === 'el' ? 'Ολοκλήρωση' : 'Finish');
-            elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι.' : 'Review your selections and add to cart.';
+            elStepHelper.textContent = LANG === 'el' ? 'Ελέγξτε τις επιλογές σας και προσθέστε στο καλάθι ή αγοράστε τώρα.' : 'Review your selections and add to cart or buy now.';
             var recapHtml = '<div class="sbs-completion-recap">';
             recapHtml += '<div class="sbs-completion-icon"><svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="22" fill="none" stroke="#22c55e" stroke-width="3"/><path d="M14 24l7 7 13-13" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
             recapHtml += '<h4 class="sbs-completion-heading">' + escAttr(LANG === 'el' ? 'Οι επιλογές σας είναι έτοιμες!' : 'Your selections are ready!') + '</h4>';
@@ -3285,6 +3306,12 @@
           addToCartFromBuilder();
         });
         btnCartSidebar.addEventListener('click', function(){ addToCartFromBuilder(); });
+        if (btnBuyNow) {
+          btnBuyNow.addEventListener('click', function(){
+            addToCartFromBuilder();
+            window.location.href = <%- JSON.stringify(withTenantLink('/checkout', lang !== 'el' ? { lang: lang } : {})) %>;
+          });
+        }
         window.openSbsBuilder = openSbs;
         var origOpen = window.openKitWizard;
         if (origOpen) {
