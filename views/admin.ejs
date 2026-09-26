@@ -1580,6 +1580,7 @@
                 <th><%= t('admin.shipColBase') %></th>
                 <th><%= t('admin.shipColCodFee') %></th>
                 <th><%= t('admin.shipColAllowed') %></th>
+                <% if (permissions.canEditSettings) { %><th></th><% } %>
               </tr>
             </thead>
             <tbody>
@@ -1608,6 +1609,15 @@
                     <span class="sp-badge"><%= pm %></span>
                   <% }) %>
                 </td>
+                <% if (permissions.canEditSettings) { %>
+                <td>
+                  <form method="POST" action="<%= withTenantLink('/admin/shipping-options/delete') %>" style="display:inline;margin:0;">
+                    <input type="hidden" name="shipId" value="<%= opt.id %>" />
+                    <input type="hidden" name="password" id="shipDelPw_<%= i %>" />
+                    <button type="submit" onclick="this.form.querySelector('[id^=shipDelPw]').value=prompt('Κωδικός διαχειριστή:') || ''; return !!this.form.querySelector('[id^=shipDelPw]').value;" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.82rem;">Διαγραφή</button>
+                  </form>
+                </td>
+                <% } %>
               </tr>
               <% }) %>
             </tbody>
