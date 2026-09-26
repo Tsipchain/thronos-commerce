@@ -9,6 +9,8 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const express = require('express');
+const https = require('https');
+const http = require('http');
 const { normalizeAssistantConfig } = require('./lib/assistant-config');
 const { setupAdminAssistantRoutes } = require('./lib/admin-assistant-routes');
 const path = require('path');
@@ -2926,13 +2928,17 @@ function buildAdminPaymentsViewModel(req, extra) {
   const paymentOptions = Array.isArray(config.paymentOptions) ? config.paymentOptions : [];
   const stripeOpt = paymentOptions.find((p) => p.type === 'stripe' || p.id === 'stripe');
   const paypalOpt = paymentOptions.find((p) => p.type === 'paypal' || p.id === 'paypal');
+  const eurobankOpt = paymentOptions.find((p) => p.type === 'eurobank' || p.id === 'eurobank');
+  const revolutOpt = paymentOptions.find((p) => p.type === 'revolut' || p.id === 'revolut');
   return {
     tenant: req.tenant,
     config,
     permissions,
     paymentFlags: {
       stripeEnabled: !!stripeOpt,
-      paypalEnabled: !!paypalOpt
+      paypalEnabled: !!paypalOpt,
+      eurobankEnabled: !!eurobankOpt,
+      revolutEnabled: !!revolutOpt,
     },
     message: null,
     error: null,
@@ -3148,6 +3154,36 @@ app.get('/checkout', (req, res) => {
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
+// ── Box Now locker search ──────────────────────────────────────────
+app.get('/api/boxnow-lockers', async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  if (query.length < 2) return res.json([]);
+  try {
+    const apiUrl = `https://api-production.boxnow.gr/api/v1/lockers?address=${encodeURIComponent(query)}&limit=20`;
+    const result = await new Promise((resolve, reject) => {
+      https.get(apiUrl, { timeout: 8000 }, (resp) => {
+        let data = '';
+        resp.on('data', chunk => { data += chunk; });
+        resp.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch { resolve([]); }
+        });
+      }).on('error', reject).on('timeout', function() { this.destroy(); reject(new Error('timeout')); });
+    });
+    const lockers = Array.isArray(result) ? result : (result && Array.isArray(result.data) ? result.data : []);
+    res.json(lockers.slice(0, 30).map(l => ({
+      id: l.id || l.lockerId || '',
+      name: l.name || l.title || '',
+      address: l.address || l.fullAddress || '',
+      city: l.city || '',
+      postalCode: l.postalCode || l.zipCode || '',
+    })));
+  } catch (err) {
+    console.error('[BoxNow] locker search error:', err.message);
+    res.json([]);
+  }
+});
+
 app.post('/api/checkout/cart-snapshot', (req, res) => {
   const raw = req.body && req.body.items;
   if (!Array.isArray(raw)) {
@@ -3192,7 +3228,7 @@ app.post('/checkout', async (req, res) => {
   const products = loadTenantProducts(req);
   const {
     name, email, wallet, notes, shippingMethodId, paymentMethodId,
-    city, phone, address, doorbell, tk, cartJson, couponCode
+    city, phone, address, doorbell, tk, cartJson, couponCode, boxnowLockerId
   } = req.body;
   const sessionEmail = req.session.user ? normalizeEmail(req.session.user.email) : '';
   const checkoutEmail = sessionEmail || normalizeEmail(email);
@@ -3460,8 +3496,9 @@ app.post('/checkout', async (req, res) => {
     codFee:      totals.codFee,
     gatewayFee:  totals.gatewayFee,
     total:       totals.total,
-    paymentStatus: totals.paymentMethod.type === 'stripe' ? 'PENDING_STRIPE' : 'PENDING_COD',
-    fulfillmentStatus: totals.paymentMethod.type === 'stripe' ? 'pending_payment' : 'cod_pending',
+    boxnowLockerId: totals.shippingMethod.type === 'boxnow' ? (boxnowLockerId || '').trim() : '',
+    paymentStatus: ['stripe', 'eurobank', 'revolut'].includes(totals.paymentMethod.type) ? 'PENDING_STRIPE' : 'PENDING_COD',
+    fulfillmentStatus: ['stripe', 'eurobank', 'revolut'].includes(totals.paymentMethod.type) ? 'pending_payment' : 'cod_pending',
     shippedAt: null,
     deliveredAt: null,
     trackingNumber: '',
@@ -3515,6 +3552,134 @@ app.post('/checkout', async (req, res) => {
       } catch (stripeErr) {
         console.error('[Stripe] create session failed:', stripeErr.message);
         // Fall through to normal order if Stripe fails
+      }
+    }
+  }
+
+  // ── Eurobank checkout redirect ────────────────────────────────────
+  if (totals.paymentMethod.type === 'eurobank') {
+    const merchantId = config.eurobankMerchantId;
+    const apiKey = config.eurobankApiKey;
+    if (merchantId && apiKey) {
+      try {
+        const pendingId = `po_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+        const pending = loadJson(req.tenantPaths.pendingOrders, {});
+        pending[pendingId] = { order, enrichedItems };
+        saveJson(req.tenantPaths.pendingOrders, pending);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const totalCents = Math.round(totals.total * 100);
+        const eurobankPayload = {
+          merchantId,
+          amount: totalCents,
+          currency: 'EUR',
+          orderId: order.id,
+          description: `Order ${order.id}`,
+          customerEmail: checkoutEmail,
+          successUrl: `${baseUrl}/checkout/eurobank-success?pending_id=${pendingId}`,
+          failureUrl: `${baseUrl}/checkout`,
+          webhookUrl: `${baseUrl}/webhooks/eurobank`,
+          metadata: { tenantId: req.tenant.id, pendingId },
+        };
+
+        const eurobankUrl = config.eurobankApiUrl || 'https://api.eurobank.gr/payments/v1/session';
+        const ebRes = await new Promise((resolve, reject) => {
+          const parsed = new URL(eurobankUrl);
+          const mod = parsed.protocol === 'https:' ? https : http;
+          const bodyStr = JSON.stringify(eurobankPayload);
+          const ebReq = mod.request({
+            hostname: parsed.hostname,
+            port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+            path: parsed.pathname + (parsed.search || ''),
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Length': Buffer.byteLength(bodyStr),
+            },
+            timeout: 15000,
+          }, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+              try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+              catch { resolve({ status: res.statusCode, body: data }); }
+            });
+          });
+          ebReq.on('error', reject);
+          ebReq.on('timeout', () => { ebReq.destroy(); reject(new Error('Eurobank timeout')); });
+          ebReq.write(bodyStr);
+          ebReq.end();
+        });
+
+        if (ebRes.status === 200 && ebRes.body && ebRes.body.redirectUrl) {
+          return res.redirect(303, ebRes.body.redirectUrl);
+        }
+        console.error('[Eurobank] create session error:', ebRes.status, ebRes.body);
+      } catch (ebErr) {
+        console.error('[Eurobank] create session failed:', ebErr.message);
+      }
+    }
+  }
+
+  // ── Revolut Pay checkout redirect ───────────────────────────────────
+  if (totals.paymentMethod.type === 'revolut') {
+    const revolutApiKey = config.revolutApiKey;
+    if (revolutApiKey) {
+      try {
+        const pendingId = `po_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+        const pending = loadJson(req.tenantPaths.pendingOrders, {});
+        pending[pendingId] = { order, enrichedItems };
+        saveJson(req.tenantPaths.pendingOrders, pending);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const totalCents = Math.round(totals.total * 100);
+        const revolutPayload = {
+          amount: totalCents,
+          currency: 'EUR',
+          description: `Order ${order.id}`,
+          customer_email: checkoutEmail,
+          merchant_order_ext_ref: order.id,
+          settlement_currency: 'EUR',
+          metadata: { tenantId: req.tenant.id, pendingId },
+        };
+
+        const revolutUrl = config.revolutApiUrl || 'https://merchant.revolut.com/api/orders';
+        const revRes = await new Promise((resolve, reject) => {
+          const parsed = new URL(revolutUrl);
+          const mod = parsed.protocol === 'https:' ? https : http;
+          const bodyStr = JSON.stringify(revolutPayload);
+          const revReq = mod.request({
+            hostname: parsed.hostname,
+            port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+            path: parsed.pathname + (parsed.search || ''),
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${revolutApiKey}`,
+              'Content-Length': Buffer.byteLength(bodyStr),
+            },
+            timeout: 15000,
+          }, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+              try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+              catch { resolve({ status: res.statusCode, body: data }); }
+            });
+          });
+          revReq.on('error', reject);
+          revReq.on('timeout', () => { revReq.destroy(); reject(new Error('Revolut timeout')); });
+          revReq.write(bodyStr);
+          revReq.end();
+        });
+
+        if (revRes.status >= 200 && revRes.status < 300 && revRes.body && revRes.body.checkout_url) {
+          return res.redirect(303, revRes.body.checkout_url);
+        }
+        console.error('[Revolut] create order error:', revRes.status, revRes.body);
+      } catch (revErr) {
+        console.error('[Revolut] create order failed:', revErr.message);
       }
     }
   }
@@ -3784,6 +3949,147 @@ app.get('/checkout/stripe-success', async (req, res) => {
 });
 
 app.get('/checkout/stripe-cancel', (req, res) => res.redirect(buildTenantLink(req, '/checkout')));
+
+// ── Eurobank success callback ─────────────────────────────────────
+app.get('/checkout/eurobank-success', async (req, res) => {
+  const { pending_id } = req.query;
+  if (!pending_id) return res.redirect(buildTenantLink(req, '/checkout'));
+
+  const pending = loadJson(req.tenantPaths.pendingOrders, {});
+  const entry = pending[pending_id];
+  if (!entry) return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
+
+  const { order, enrichedItems } = entry;
+  const config = loadTenantConfig(req);
+
+  order.paymentStatus = 'PAID';
+  order.fulfillmentStatus = order.fulfillmentStatus === 'cancelled' ? 'cancelled' : 'ready_to_ship';
+  order.paymentGateway = 'eurobank';
+  if (req.session.user) order.userEmail = normalizeEmail(req.session.user.email);
+
+  delete pending[pending_id];
+  saveJson(req.tenantPaths.pendingOrders, pending);
+
+  let proofHash = '';
+  try { proofHash = await recordOrderOnChain(order, req.tenant); } catch (_) {}
+  order.proofHash = proofHash;
+  if (!loadTenantOrders(req).some((o) => o.id === order.id)) appendTenantOrder(req, order);
+  activateCustomerSubscriptionForPaidOrder(req, order);
+  createFinancialLedgerEntries(req, order);
+
+  const allProductsMut = loadTenantProducts(req);
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  enrichedItems.forEach((ci) => {
+    if (ci.isKitSummary) return;
+    const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
+    if (pIdx < 0) return;
+    const prod = allProductsMut[pIdx];
+    if (ci.variantId && Array.isArray(prod.variants)) {
+      const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
+      if (vIdx >= 0) {
+        prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, delta: -ci.qty, reason: 'eurobank_order', orderId: order.id, createdAt: order.createdAt });
+      }
+    } else if ((prod.stock || 0) > 0) {
+      prod.stock = Math.max(0, prod.stock - ci.qty);
+      stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'eurobank_order', orderId: order.id, createdAt: order.createdAt });
+    }
+  });
+  saveJson(req.tenantPaths.products, allProductsMut);
+  saveJson(req.tenantPaths.stockLog, stockLog);
+
+  try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
+  try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
+  sendOrderEmails(order, config).catch(() => {});
+
+  if (req.session) {
+    req.session.lastCompletedOrder = { orderId: order.id, tenantId: req.tenant.id, at: Date.now() };
+  }
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
+});
+
+// ── Eurobank webhook ──────────────────────────────────────────────
+app.post('/webhooks/eurobank', async (req, res) => {
+  try {
+    const { orderId, status, tenantId } = req.body || {};
+    if (!orderId || !tenantId) return res.status(400).json({ error: 'missing fields' });
+    console.log('[Eurobank webhook] orderId=%s status=%s tenant=%s', orderId, status, tenantId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Eurobank webhook] error:', err.message);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+// ── Revolut Pay success callback ──────────────────────────────────
+app.get('/checkout/revolut-success', async (req, res) => {
+  const { pending_id } = req.query;
+  if (!pending_id) return res.redirect(buildTenantLink(req, '/checkout'));
+
+  const pending = loadJson(req.tenantPaths.pendingOrders, {});
+  const entry = pending[pending_id];
+  if (!entry) return res.redirect(buildTenantLink(req, '/checkout', { error: 'order_not_found' }));
+
+  const { order, enrichedItems } = entry;
+  const config = loadTenantConfig(req);
+
+  order.paymentStatus = 'PAID';
+  order.fulfillmentStatus = order.fulfillmentStatus === 'cancelled' ? 'cancelled' : 'ready_to_ship';
+  order.paymentGateway = 'revolut';
+  if (req.session.user) order.userEmail = normalizeEmail(req.session.user.email);
+
+  delete pending[pending_id];
+  saveJson(req.tenantPaths.pendingOrders, pending);
+
+  let proofHash = '';
+  try { proofHash = await recordOrderOnChain(order, req.tenant); } catch (_) {}
+  order.proofHash = proofHash;
+  if (!loadTenantOrders(req).some((o) => o.id === order.id)) appendTenantOrder(req, order);
+  activateCustomerSubscriptionForPaidOrder(req, order);
+  createFinancialLedgerEntries(req, order);
+
+  const allProductsMut = loadTenantProducts(req);
+  const stockLog = loadJson(req.tenantPaths.stockLog, []);
+  enrichedItems.forEach((ci) => {
+    if (ci.isKitSummary) return;
+    const pIdx = allProductsMut.findIndex((p) => p.id === ci.id);
+    if (pIdx < 0) return;
+    const prod = allProductsMut[pIdx];
+    if (ci.variantId && Array.isArray(prod.variants)) {
+      const vIdx = prod.variants.findIndex((v) => v.id === ci.variantId);
+      if (vIdx >= 0) {
+        prod.variants[vIdx].stock = Math.max(0, (prod.variants[vIdx].stock || 0) - ci.qty);
+        stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, variantId: ci.variantId, delta: -ci.qty, reason: 'revolut_order', orderId: order.id, createdAt: order.createdAt });
+      }
+    } else if ((prod.stock || 0) > 0) {
+      prod.stock = Math.max(0, prod.stock - ci.qty);
+      stockLog.push({ id: Date.now().toString(36) + '_s', productId: ci.id, productName: ci.name, delta: -ci.qty, reason: 'revolut_order', orderId: order.id, createdAt: order.createdAt });
+    }
+  });
+  saveJson(req.tenantPaths.products, allProductsMut);
+  saveJson(req.tenantPaths.stockLog, stockLog);
+
+  try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
+  try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
+  sendOrderEmails(order, config).catch(() => {});
+
+  if (req.session) {
+    req.session.lastCompletedOrder = { orderId: order.id, tenantId: req.tenant.id, at: Date.now() };
+  }
+  return res.redirect(303, buildTenantLink(req, '/checkout/complete', { orderId: order.id }));
+});
+
+// ── Revolut webhook ───────────────────────────────────────────────
+app.post('/webhooks/revolut', async (req, res) => {
+  try {
+    const { merchant_order_ext_ref, state, order_id } = req.body || {};
+    console.log('[Revolut webhook] orderId=%s state=%s revolutOrderId=%s', merchant_order_ext_ref, state, order_id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Revolut webhook] error:', err.message);
+    res.status(500).json({ error: 'internal' });
+  }
+});
 
 app.get('/checkout/complete', (req, res) => {
   const config = loadTenantConfig(req);
@@ -5348,6 +5654,10 @@ setupAdminAssistantRoutes(app, {
   buildAdminViewModel,
   loadTenantConfig,
   saveTenantConfig,
+  loadTenantProducts,
+  saveTenantProducts,
+  loadTenantCategories,
+  saveTenantCategories,
   verifyAdminAction,
 });
 
@@ -5370,10 +5680,39 @@ app.post('/admin/payments', async (req, res) => {
     if (sk) config.stripeSecretKey = sk;
   }
   config.paypalEmail = (req.body.paypalEmail || '').trim();
-  const stripeEnabled = req.body.enableStripe === 'on';
-  const paypalEnabled = req.body.enablePaypal === 'on';
+
+  // Per-tenant gateway credentials (Eurobank, Revolut Pay)
+  if (req.body.eurobankMerchantId !== undefined) {
+    config.eurobankMerchantId = (req.body.eurobankMerchantId || '').trim();
+  }
+  if (req.body.eurobankApiKey !== undefined) {
+    const ek = (req.body.eurobankApiKey || '').trim();
+    if (ek) config.eurobankApiKey = ek;
+  }
+  if (req.body.eurobankSharedSecret !== undefined) {
+    const es = (req.body.eurobankSharedSecret || '').trim();
+    if (es) config.eurobankSharedSecret = es;
+  }
+  if (req.body.revolutApiKey !== undefined) {
+    const rk = (req.body.revolutApiKey || '').trim();
+    if (rk) config.revolutApiKey = rk;
+  }
+  if (req.body.revolutMerchantId !== undefined) {
+    config.revolutMerchantId = (req.body.revolutMerchantId || '').trim();
+  }
+
+  const GATEWAY_IDS = ['stripe', 'paypal', 'eurobank', 'revolut'];
+  const stripeEnabled   = req.body.enableStripe   === 'on';
+  const paypalEnabled   = req.body.enablePaypal   === 'on';
+  const eurobankEnabled = req.body.enableEurobank  === 'on';
+  const revolutEnabled  = req.body.enableRevolut   === 'on';
+
   const existing = Array.isArray(config.paymentOptions) ? config.paymentOptions.slice() : [];
-  const nonGateway = existing.filter((opt) => !['stripe', 'paypal'].includes(String(opt.id || '').toLowerCase()) && !['stripe', 'paypal'].includes(String(opt.type || '').toLowerCase()));
+  const nonGateway = existing.filter((opt) => {
+    const id = String(opt.id || '').toLowerCase();
+    const tp = String(opt.type || '').toLowerCase();
+    return !GATEWAY_IDS.includes(id) && !GATEWAY_IDS.includes(tp);
+  });
   const rebuilt = nonGateway.slice();
   if (stripeEnabled) {
     rebuilt.push({ id: 'stripe', label: 'Stripe (Card)', type: 'stripe', gatewaySurchargePercent: 0 });
@@ -5381,19 +5720,27 @@ app.post('/admin/payments', async (req, res) => {
   if (paypalEnabled) {
     rebuilt.push({ id: 'paypal', label: 'PayPal', type: 'paypal', gatewaySurchargePercent: 0 });
   }
+  if (eurobankEnabled) {
+    rebuilt.push({ id: 'eurobank', label: 'Eurobank (Card)', type: 'eurobank', gatewaySurchargePercent: 0 });
+  }
+  if (revolutEnabled) {
+    rebuilt.push({ id: 'revolut', label: 'Revolut Pay', type: 'revolut', gatewaySurchargePercent: 0 });
+  }
   config.paymentOptions = rebuilt;
   if (Array.isArray(config.shippingOptions)) {
     config.shippingOptions.forEach((ship) => {
       const existingAllowed = Array.isArray(ship.allowedPaymentMethods) ? ship.allowedPaymentMethods : [];
-      let allowed = existingAllowed.filter((id) => !['stripe', 'paypal'].includes(String(id).toLowerCase()));
+      let allowed = existingAllowed.filter((id) => !GATEWAY_IDS.includes(String(id).toLowerCase()));
       if (stripeEnabled) allowed.push('stripe');
       if (paypalEnabled) allowed.push('paypal');
+      if (eurobankEnabled) allowed.push('eurobank');
+      if (revolutEnabled) allowed.push('revolut');
       ship.allowedPaymentMethods = Array.from(new Set(allowed));
     });
   }
   saveTenantConfig(req, config);
 
-  return res.redirect(buildTenantLink(req, '/admin/payments', { message: 'Τα στοιχεία Stripe αποθηκεύτηκαν.' }));
+  return res.redirect(buildTenantLink(req, '/admin/payments', { message: 'Οι ρυθμίσεις πληρωμών αποθηκεύτηκαν.' }));
 });
 
 // Shipping & Payment options editor
@@ -5465,7 +5812,7 @@ app.post('/admin/shipping-options/add', async (req, res) => {
     label: String(shipLabel || '').trim() || normalizedId,
     base: parseFloat(shipBase) || 0,
     codFee: parseFloat(shipCodFee) || 0,
-    type: shipType === 'pickup' ? 'pickup' : 'courier',
+    type: ['pickup', 'boxnow'].includes(shipType) ? shipType : 'courier',
   };
   const allowed = String(shipAllowed || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (allowed.length) newOpt.allowedPaymentMethods = allowed;
