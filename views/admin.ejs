@@ -1615,6 +1615,29 @@
           <% } %>
           <p class="helper" style="margin-top:6px;"><%= t('admin.shipCostHelper') %></p>
 
+          <% if (permissions.canEditSettings) { %>
+          </form>
+          <form method="POST" action="<%= withTenantLink('/admin/shipping-options/add') %>" class="admin-subform" style="margin-top:12px;">
+            <h4 style="margin:0 0 8px;">Προσθήκη νέου μεταφορικού</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <input type="text" name="shipId" placeholder="ID (π.χ. box-now)" required />
+              <input type="text" name="shipLabel" placeholder="Ετικέτα (π.χ. Box Now)" required />
+              <input type="number" name="shipBase" placeholder="Κόστος βάσης (€)" min="0" step="0.01" value="0" />
+              <input type="number" name="shipCodFee" placeholder="COD χρέωση (€)" min="0" step="0.01" value="0" />
+              <select name="shipType">
+                <option value="courier">Courier (αποστολή)</option>
+                <option value="pickup">Παραλαβή (pickup)</option>
+              </select>
+              <input type="text" name="shipAllowed" placeholder="Allowed payments (π.χ. COD,BANK)" />
+            </div>
+            <div class="save-row" style="margin-top:8px;">
+              <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+              <button type="submit" class="button">Προσθήκη</button>
+            </div>
+          </form>
+          <form method="POST" action="<%= withTenantLink('/admin/shipping-payment') %>">
+          <% } %>
+
           <%# ── Payment options ── %>
           <h3><%= t('admin.paymentOptionsTitle') %></h3>
           <% if ((config.paymentOptions || []).length === 0) { %>
