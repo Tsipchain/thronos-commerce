@@ -1949,6 +1949,19 @@
         <p class="helper" style="margin-bottom:12px;">Πείτε στον βοηθό πώς να μιλάει — τι γλώσσα να χρησιμοποιεί και τι ύφος να έχει.</p>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <label><span>Όνομα βοηθού <small style="font-weight:400;color:#94a3b8;">(εμφανίζεται στον πελάτη)</small></span>
+            <input type="text" name="vaName" value="<%= _va.vaName || '' %>" maxlength="60"
+              placeholder="π.χ. Μαρία, Ο Βοηθός σου"
+              <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+          <label><span>Μήνυμα καλωσορίσματος <small style="font-weight:400;color:#94a3b8;">(στο κουμπί chat)</small></span>
+            <input type="text" name="vaGreeting" value="<%= _va.vaGreeting || '' %>" maxlength="200"
+              placeholder="π.χ. Γεια! Είμαι εδώ για να σε βοηθήσω"
+              <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          </label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
           <label><span>Γλώσσα επικοινωνίας</span>
             <select name="vaLanguage" <%= permissions.canEditSettings ? '' : 'disabled' %>>
               <option value="el"   <%= _vaLang === 'el'   ? 'selected' : '' %>>Ελληνικά</option>
