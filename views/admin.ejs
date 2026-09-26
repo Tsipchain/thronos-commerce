@@ -1738,6 +1738,55 @@
           <small class="helper">Φαίνεται ως «Από:» στα emails προς τον πελάτη και τον merchant.</small>
         </label>
 
+        <h3 class="settings-section-heading" style="margin-top:24px;">SMTP — Σύνδεση δικού σας email</h3>
+        <p class="helper">Συνδέστε τον δικό σας email server (π.χ. Google Workspace, Outlook) ώστε τα emails να φεύγουν από το δικό σας email. Αν αφήσετε κενό, χρησιμοποιείται το email της πλατφόρμας.</p>
+
+        <% const _smtp = (config.notifications && config.notifications.smtp) || {}; %>
+        <label>
+          <span>SMTP Host</span>
+          <input type="text" name="smtpHost"
+                 value="<%= _smtp.host || '' %>"
+                 placeholder="smtp.gmail.com"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Google Workspace: smtp.gmail.com · Outlook: smtp.office365.com</small>
+        </label>
+
+        <label>
+          <span>SMTP Port</span>
+          <input type="text" name="smtpPort"
+                 value="<%= _smtp.port || '' %>"
+                 placeholder="587"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Συνήθως 587 (TLS) ή 465 (SSL).</small>
+        </label>
+
+        <label>
+          <span>SMTP Username (email)</span>
+          <input type="email" name="smtpUser"
+                 value="<%= _smtp.user || '' %>"
+                 placeholder="support@eukolaki.gr"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Το email λογαριασμού σας (π.χ. Google Workspace email).</small>
+        </label>
+
+        <label>
+          <span>SMTP Password (App Password)</span>
+          <input type="password" name="smtpPass"
+                 value=""
+                 placeholder="<%= _smtp.pass ? '••••••••••••••••' : 'App Password 16 χαρακτήρων' %>"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Google Workspace: δημιουργήστε App Password από myaccount.google.com/apppasswords. Αφήστε κενό για να κρατήσετε τον τρέχοντα κωδικό.</small>
+        </label>
+
+        <label>
+          <span>From email <small style="font-weight:400;color:#94a3b8;">(προαιρετικό — αν διαφέρει από username)</small></span>
+          <input type="email" name="smtpFrom"
+                 value="<%= _smtp.from || '' %>"
+                 placeholder="noreply@eukolaki.gr"
+                 <%= permissions.canEditSettings ? '' : 'readonly' %> />
+          <small class="helper">Αν θέλετε διαφορετικό From email από το username. Αφήστε κενό για να χρησιμοποιηθεί το username.</small>
+        </label>
+
         <details style="margin:10px 0 14px;">
           <summary style="cursor:pointer;font-weight:700;font-size:.88rem;">Webhook integration <small style="font-weight:400;color:#94a3b8;">(για προχωρημένους — προαιρετικό)</small></summary>
           <p class="helper" style="margin:8px 0;">Αν θέλετε να ειδοποιείται αυτόματα ένα εξωτερικό σύστημα (π.χ. ERP, Zapier, Make.com) για κάθε παραγγελία, ορίστε εδώ ένα Webhook URL.</p>
@@ -1762,9 +1811,39 @@
         <% if (permissions.canEditSettings) { %>
         <div class="save-row">
           <label style="flex:1 1 auto;font-size:0.86rem;"><%= t('admin.adminPass') %>:</label>
-          <input type="password" name="password" placeholder="<%= t('admin.adminPass') %>" />
+          <input type="password" name="password" id="notif-pass" placeholder="<%= t('admin.adminPass') %>" />
           <button type="submit" class="button">Αποθήκευση ειδοποιήσεων</button>
+          <button type="button" class="button" style="background:#0e7490;" id="btn-test-email">Δοκιμαστικό email</button>
         </div>
+        <p id="test-email-result" style="display:none;margin:8px 0;padding:8px 12px;border-radius:6px;font-size:.85rem;"></p>
+        <script>
+          document.getElementById('btn-test-email').addEventListener('click', async function() {
+            var pass = document.getElementById('notif-pass').value;
+            if (!pass) { alert('Συμπληρώστε τον κωδικό διαχειριστή.'); return; }
+            var result = document.getElementById('test-email-result');
+            result.style.display = 'block';
+            result.textContent = 'Αποστολή...';
+            result.style.background = '#f0f9ff'; result.style.color = '#0e7490';
+            try {
+              var res = await fetch('<%= withTenantLink("/admin/notifications/test-email") %>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+              });
+              var data = await res.json();
+              if (data.ok) {
+                result.textContent = 'Το δοκιμαστικό email στάλθηκε! Ελέγξτε τα εισερχόμενά σας.';
+                result.style.background = '#f0fdf4'; result.style.color = '#166534';
+              } else {
+                result.textContent = 'Σφάλμα: ' + (data.error || 'Άγνωστο σφάλμα');
+                result.style.background = '#fef2f2'; result.style.color = '#991b1b';
+              }
+            } catch(e) {
+              result.textContent = 'Σφάλμα σύνδεσης: ' + e.message;
+              result.style.background = '#fef2f2'; result.style.color = '#991b1b';
+            }
+          });
+        </script>
         <% } %>
       </form>
 
