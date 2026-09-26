@@ -324,7 +324,7 @@
               <%= t('checkout.shippingMethod') %> *
               <select name="shippingMethodId" id="sel-shipping" required onchange="recalc()">
                 <% (config.shippingOptions || []).forEach(function(opt) { %>
-                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>" data-allowed="<%= Array.isArray(opt.allowedPaymentMethods) ? opt.allowedPaymentMethods.join(',') : '' %>" data-courier="<%= opt.type === 'pickup' ? '0' : '1' %>">
+                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>" data-allowed="<%= Array.isArray(opt.allowedPaymentMethods) ? opt.allowedPaymentMethods.join(',') : '' %>" data-courier="<%= opt.type === 'pickup' ? '0' : '1' %>" data-shiptype="<%= opt.type || 'courier' %>">
                     <%= opt.label %><% if (opt.base > 0) { %> (+<%= Number(opt.base).toFixed(2) %> €)<% } %>
                   </option>
                 <% }); %>
@@ -351,6 +351,22 @@
 
           <div id="stripe-badge" style="display:none;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;color:#5b21b6;">
             🔒 <%= t('checkout.stripeSecure') %>
+          </div>
+
+          <div id="boxnow-section" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;margin-bottom:12px;">
+            <p style="margin:0 0 8px;font-weight:600;font-size:.9rem;color:#9a3412;">
+              📦 <%= lang === 'el' ? 'Επιλέξτε Box Now Locker' : 'Select Box Now Locker' %>
+            </p>
+            <label style="margin-bottom:6px;">
+              <span style="font-size:.84rem;color:#78350f;"><%= lang === 'el' ? 'Αναζήτηση πόλης / περιοχής' : 'Search city / area' %></span>
+              <input type="text" id="boxnow-search" placeholder="<%= lang === 'el' ? 'π.χ. Αθήνα, Θεσσαλονίκη...' : 'e.g. Athens, Thessaloniki...' %>" style="width:100%;" />
+            </label>
+            <select id="boxnow-locker" name="boxnowLockerId" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;">
+              <option value=""><%= lang === 'el' ? '-- Επιλέξτε locker --' : '-- Select locker --' %></option>
+            </select>
+            <small style="display:block;margin-top:6px;font-size:.78rem;color:#92400e;">
+              <%= lang === 'el' ? 'Το δέμα σας θα σταλεί στο επιλεγμένο Box Now locker.' : 'Your parcel will be sent to the selected Box Now locker.' %>
+            </small>
           </div>
 
           <div class="checkout-section-title">
@@ -591,6 +607,13 @@
         const btnText   = document.getElementById('btn-submit-text');
         if (badge)   badge.style.display   = isStripe ? '' : 'none';
         if (btnText) btnText.textContent    = isStripe ? STRIPE_SUBMIT_TEXT : DEFAULT_SUBMIT_TEXT;
+
+        // ── Box Now locker section ───────────────────────────────
+        const isBoxnow = shipOpt && shipOpt.dataset.shiptype === 'boxnow';
+        const boxnowSection = document.getElementById('boxnow-section');
+        const boxnowLocker = document.getElementById('boxnow-locker');
+        if (boxnowSection) boxnowSection.style.display = isBoxnow ? '' : 'none';
+        if (boxnowLocker) boxnowLocker.required = !!isBoxnow;
       }
 
       // ── On submit: inject cart JSON ───────────────────────────────
@@ -619,6 +642,37 @@
       });
       const couponInput = document.getElementById('coupon-code');
       if (couponInput) couponInput.addEventListener('input', recalc);
+
+      // ── Box Now locker search ──────────────────────────────────
+      (function() {
+        var boxSearch = document.getElementById('boxnow-search');
+        var boxSelect = document.getElementById('boxnow-locker');
+        if (!boxSearch || !boxSelect) return;
+        var debounceTimer;
+        boxSearch.addEventListener('input', function() {
+          clearTimeout(debounceTimer);
+          var q = boxSearch.value.trim();
+          if (q.length < 2) return;
+          debounceTimer = setTimeout(function() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/boxnow-lockers?q=' + encodeURIComponent(q));
+            xhr.onload = function() {
+              if (xhr.status !== 200) return;
+              try {
+                var lockers = JSON.parse(xhr.responseText);
+                boxSelect.innerHTML = '<option value="">-- ' + (document.documentElement.lang === 'el' ? 'Επιλέξτε locker' : 'Select locker') + ' --</option>';
+                (lockers || []).forEach(function(l) {
+                  var opt = document.createElement('option');
+                  opt.value = l.id || '';
+                  opt.textContent = (l.name || l.id) + (l.address ? ' — ' + l.address : '');
+                  boxSelect.appendChild(opt);
+                });
+              } catch (e) {}
+            };
+            xhr.send();
+          }, 400);
+        });
+      })();
       (function() {
         const key = 'thrc_nav_last_url';
         const homeUrl = '<%= withTenantLink("/") %>';
