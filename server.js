@@ -1435,7 +1435,7 @@ function normalizeProductRecord(product) {
         showHelperText: _bc.showHelperText !== false,
         showVideo: _bc.showVideo !== false,
         showTrustRow: _bc.showTrustRow !== false,
-        showVideoCTA: _bc.showVideoCTA === true,
+        showVideoCTA: _bc.showVideoCTA !== false,
         videoGuideId: String(_bc.videoGuideId || '').trim(),
         videoGuideSource: ['auto', 'select', 'coming_soon', 'hidden'].includes(_bc.videoGuideSource) ? _bc.videoGuideSource : 'auto',
         videoCTATitle: _bc.videoCTATitle || '',

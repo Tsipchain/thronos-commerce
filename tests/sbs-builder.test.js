@@ -763,8 +763,8 @@ test('Video CTA shown only when showVideoCTA and videoUrl are set', () => {
   assert.match(index, /sbs-video-cta/);
 });
 
-test('showVideoCTA defaults to false (opt-in)', () => {
-  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+test('showVideoCTA defaults to true (opt-out)', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*!==\s*false/);
 });
 
 test('Admin has video CTA title/subtitle EL/EN fields', () => {
@@ -1188,12 +1188,12 @@ test('normalizeProductRecord preserves showLogo:false correctly', () => {
   assert.match(server, /showLogo:\s*_bc\.showLogo\s*!==\s*false/);
 });
 
-test('normalizeProductRecord preserves showVideoCTA:false via === true', () => {
-  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*===\s*true/);
+test('normalizeProductRecord defaults showVideoCTA to true via !== false', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*!==\s*false/);
 });
 
 test('normalizeProductRecord preserves all show* flags with !== false pattern', () => {
-  const neqFalse = ['showSlogan', 'showTitle', 'showSubtitle', 'showHelperText', 'showVideo', 'showTrustRow'];
+  const neqFalse = ['showSlogan', 'showTitle', 'showSubtitle', 'showHelperText', 'showVideo', 'showTrustRow', 'showVideoCTA'];
   neqFalse.forEach(flag => {
     const re = new RegExp(flag + ':\\s*_bc\\.' + flag + '\\s*!==\\s*false');
     assert.match(server, re, flag + ' uses !== false pattern');
@@ -2315,4 +2315,26 @@ test('W56: Spare filter includes subcategory dropdown', () => {
 test('W57: Nav buttons moved below products, left-aligned', () => {
   assert.match(index, /sbs-step-nav/, 'step nav CSS class exists');
   assert.match(index, /sbs-option-grid[\s\S]*?sbs-step-nav[\s\S]*?sbs-summary/, 'nav is between option grid and summary');
+});
+
+test('W58: Video CTA defaults to visible (showVideoCTA !== false)', () => {
+  assert.match(server, /showVideoCTA:\s*_bc\.showVideoCTA\s*!==\s*false/, 'server defaults showVideoCTA to true');
+});
+
+test('W59: Video CTA shows construction icon for coming-soon state', () => {
+  assert.match(index, /coming-soon/, 'coming-soon CSS class for CTA');
+  assert.match(index, /Σύντομα διαθέσιμο/, 'Greek coming-soon text in CTA');
+});
+
+test('W60: Coming-soon page has construction barricade design', () => {
+  const comingSoon = read('views/video-coming-soon.ejs');
+  assert.match(comingSoon, /barricade/, 'barricade design element');
+  assert.match(comingSoon, /barricade-light/, 'blinking warning light');
+  assert.match(comingSoon, /Coming Soon/, 'coming soon badge');
+  assert.match(comingSoon, /config\.storeName/, 'uses store name');
+  assert.match(comingSoon, /withTenantLink/, 'back link is tenant-aware');
+});
+
+test('W61: Summary list has min-height for expanded view', () => {
+  assert.match(index, /sbs-summary-list.*min-height:\s*180px/, 'summary list has min-height');
 });

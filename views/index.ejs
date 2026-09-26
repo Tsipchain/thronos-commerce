@@ -259,7 +259,7 @@
       .sbs-summary { background:#0b1018; border-left:1px solid rgba(255,255,255,.08); padding:22px; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
       .sbs-summary h4 { margin:0 0 4px; font-size:1.05rem; font-weight:700; color:#e8922d; }
       .sbs-summary-subtitle { font-size:.76rem; color:rgba(255,255,255,.5); margin:0 0 16px; }
-      .sbs-summary-list { flex:1; overflow-y:auto; min-height:0; }
+      .sbs-summary-list { flex:1; overflow-y:auto; min-height:180px; }
       .sbs-summary-item { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.82rem; }
       .sbs-summary-item.muted { opacity:.4; }
       .sbs-summary-item .sbs-sum-thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; flex-shrink:0; background:#151c2c; }
@@ -283,6 +283,8 @@
       .sbs-video-cta-text { font-size:.78rem; color:rgba(255,255,255,.65); flex:1; }
       .sbs-video-cta-text strong { color:#fff; display:block; font-size:.86rem; margin-bottom:2px; }
       .sbs-video-cta-arrow { width:18px; height:18px; fill:rgba(255,255,255,.35); flex-shrink:0; }
+      .sbs-video-cta.coming-soon { background:repeating-linear-gradient(135deg,rgba(245,158,11,.08) 0px,rgba(245,158,11,.08) 10px,transparent 10px,transparent 20px); border-color:rgba(245,158,11,.25); }
+      .sbs-video-cta.coming-soon .sbs-video-cta-icon { fill:#f59e0b; }
       .sbs-step-nav { display:flex; align-items:center; gap:8px; padding:20px 0 6px; margin-top:8px; }
       .sbs-step-nav button { padding:10px 20px; border-radius:10px; font-size:.84rem; font-weight:600; cursor:pointer; border:1px solid rgba(255,255,255,.12); background:transparent; color:rgba(255,255,255,.65); }
       .sbs-step-nav button:hover { background:rgba(255,255,255,.05); }
@@ -3133,14 +3135,18 @@
           if (resolved) {
             var hasVideo = resolved.video || resolved.url;
             var vTitle, vSub;
+            var ctaIcon;
             if (hasVideo) {
               vTitle = resolveF(bc.videoCTATitle) || (LANG === 'el' ? 'Δες το βίντεο εγκατάστασης' : 'Watch the installation video');
               vSub = resolveF(bc.videoCTASubtitle) || (LANG === 'el' ? 'Βήμα-βήμα η τοποθέτηση' : 'Step-by-step installation guide');
+              ctaIcon = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
             } else {
               vTitle = LANG === 'el' ? 'Βίντεο οδηγιών' : 'Installation guide';
-              vSub = LANG === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
+              vSub = LANG === 'el' ? 'Σύντομα διαθέσιμο — Coming Soon' : 'Coming soon';
+              ctaIcon = '<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>';
             }
-            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
+            elVideoCTA.innerHTML = '<span class="sbs-video-cta-icon">' + ctaIcon + '</span><span class="sbs-video-cta-text"><strong>' + escAttr(vTitle) + '</strong>' + (vSub ? ' ' + escAttr(vSub) : '') + '</span><span class="sbs-video-cta-arrow"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></span>';
+            elVideoCTA.className = 'sbs-video-cta' + (hasVideo ? '' : ' coming-soon');
             elVideoCTA.style.display = '';
             elVideoCTA.onclick = function() {
               if (resolved.video) {

@@ -1,3 +1,38 @@
 <!doctype html><html lang="<%= lang %>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= lang === 'el' ? 'Βίντεο οδηγιών' : 'Installation guide' %> – <%= config.storeName %></title><link rel="stylesheet" href="/styles.css"><style>
-:root{--accent:<%= config.accentColor || '#f97316' %>}body{margin:0;background:#090909;color:#f5f5f5;font-family:<%= config.fontFamily || 'system-ui' %>}main{max-width:600px;margin:auto;padding:60px 24px;text-align:center}.icon{font-size:3.5rem;margin-bottom:18px}.title{font-size:1.4rem;font-weight:700;margin:0 0 10px}.sub{color:#aaa;font-size:.95rem;margin:0 0 28px;line-height:1.5}.product{color:var(--accent);font-size:.88rem;margin:0 0 28px}.back{display:inline-block;padding:10px 20px;background:var(--accent);color:#111;text-decoration:none;border-radius:6px;font-weight:700;font-size:.9rem}
-</style></head><body><main><div class="icon">🎬</div><h1 class="title"><%= lang === 'el' ? 'Βίντεο οδηγιών' : 'Installation guide' %></h1><p class="sub"><%= lang === 'el' ? 'Σύντομα διαθέσιμο! Ετοιμάζουμε αναλυτικό βίντεο εγκατάστασης.' : 'Coming soon! We are preparing a detailed installation video.' %></p><% if (productName) { %><p class="product"><%= productName %></p><% } %><a class="back" href="<%= withTenantLink('/') %>"><%= lang === 'el' ? '← Επιστροφή στο κατάστημα' : '← Back to store' %></a></main></body></html>
+:root{--accent:<%= config.accentColor || '#f97316' %>;--stripe-a:#f59e0b;--stripe-b:#1a1a2e}
+body{margin:0;background:#090909;color:#f5f5f5;font-family:<%= config.fontFamily || 'system-ui' %>;min-height:100vh;display:flex;align-items:center;justify-content:center}
+main{max-width:480px;margin:auto;padding:48px 24px;text-align:center}
+.barricade{display:flex;justify-content:center;margin-bottom:28px}
+.barricade-sign{position:relative;width:220px;height:140px}
+.barricade-board{width:100%;height:60px;border-radius:8px;background:repeating-linear-gradient(135deg,var(--stripe-a) 0px,var(--stripe-a) 20px,var(--stripe-b) 20px,var(--stripe-b) 40px);box-shadow:0 4px 20px rgba(245,158,11,.25);position:absolute;top:10px;left:0}
+.barricade-board::after{content:'';position:absolute;inset:4px;border:2px solid rgba(255,255,255,.15);border-radius:5px}
+.barricade-leg{position:absolute;bottom:0;width:8px;height:60px;background:#3a3a50;border-radius:0 0 4px 4px}
+.barricade-leg.left{left:35px}
+.barricade-leg.right{right:35px}
+.barricade-light{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:22px;height:22px;background:#ef4444;border-radius:50%;box-shadow:0 0 12px #ef4444,0 0 24px rgba(239,68,68,.4);animation:blink 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 12px #ef4444,0 0 24px rgba(239,68,68,.4)}50%{opacity:.3;box-shadow:0 0 4px #ef4444}}
+.cone{display:inline-block;width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-bottom:40px solid var(--accent);position:relative;margin:0 12px}
+.cone::after{content:'';position:absolute;bottom:-44px;left:-10px;width:20px;height:6px;background:#555;border-radius:2px}
+.cone::before{content:'';position:absolute;top:12px;left:-6px;width:12px;height:4px;background:rgba(255,255,255,.7);border-radius:1px}
+.title{font-size:1.5rem;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
+.badge{display:inline-block;background:var(--accent);color:#111;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:4px 14px;border-radius:20px;margin-bottom:16px}
+.sub{color:#aaa;font-size:.92rem;margin:0 0 24px;line-height:1.6}
+.product{color:var(--accent);font-size:.88rem;margin:0 0 28px;font-weight:600}
+.back{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:rgba(255,255,255,.08);color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:.88rem;border:1px solid rgba(255,255,255,.1);transition:all .15s}
+.back:hover{background:var(--accent);color:#111;border-color:var(--accent)}
+.back svg{width:16px;height:16px;fill:currentColor}
+</style></head><body><main>
+<div class="barricade">
+  <div class="barricade-sign">
+    <div class="barricade-light"></div>
+    <div class="barricade-board"></div>
+    <div class="barricade-leg left"></div>
+    <div class="barricade-leg right"></div>
+  </div>
+</div>
+<div class="badge">Coming Soon</div>
+<h1 class="title"><%= lang === 'el' ? 'Ετοιμάζουμε κάτι καλό!' : 'Something great is coming!' %></h1>
+<p class="sub"><%= lang === 'el' ? 'Σύντομα θα ανεβάσουμε αναλυτικά βίντεο με οδηγίες εγκατάστασης & επισκευής DIY. Μείνετε συντονισμένοι!' : 'We are preparing detailed DIY installation & repair video guides. Stay tuned!' %></p>
+<% if (productName) { %><p class="product"><%= productName %></p><% } %>
+<a class="back" href="<%= withTenantLink('/') %>"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><%= lang === 'el' ? 'Επιστροφή στο κατάστημα' : 'Back to store' %></a>
+</main></body></html>
