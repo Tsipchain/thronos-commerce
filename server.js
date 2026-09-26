@@ -44,6 +44,84 @@ function stripeForTenant(config) {
   try { return StripeLib(key); } catch (e) { return null; }
 }
 
+// ── Box Now API ─────────────────────────────────────────────────────────────
+const BOXNOW_API = 'https://api-production.boxnow.gr';
+
+async function getBoxNowToken(clientId, clientSecret) {
+  const resp = await axios.post(
+    `${BOXNOW_API}/oauth2/token`,
+    `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 }
+  );
+  return resp.data.access_token;
+}
+
+async function createBoxNowDelivery(config, order) {
+  const clientId = (config.boxnowClientId || '').trim();
+  const clientSecret = (config.boxnowClientSecret || '').trim();
+  if (!clientId || !clientSecret) {
+    console.warn('[BoxNow] no API credentials — skipping delivery for order', order.id);
+    return null;
+  }
+  if (!order.boxnowLockerId) {
+    console.warn('[BoxNow] no locker selected — skipping delivery for order', order.id);
+    return null;
+  }
+  try {
+    const token = await getBoxNowToken(clientId, clientSecret);
+    const items = (order.items || []).map(ci => ({
+      description: ci.name || 'Product',
+      quantity: ci.qty || 1,
+      value: (ci.price || 0) * (ci.qty || 1),
+      weight: 0.5,
+    }));
+    const isCod = order.paymentStatus === 'PENDING_COD';
+    const resp = await axios.post(
+      `${BOXNOW_API}/api/v1/delivery-requests`,
+      {
+        orderNumber: order.id,
+        destinationId: order.boxnowLockerId,
+        typicalSize: 'medium',
+        recipient: {
+          fullName: order.customerName || '',
+          phone: order.phone || '',
+          email: order.email || '',
+        },
+        items: items.length ? items : [{ description: 'Order', quantity: 1, value: order.total || 0, weight: 1.0 }],
+        codAmount: isCod ? (order.total || 0) : 0,
+        comment: `Thronos order ${order.id}`,
+      },
+      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+    );
+    const result = resp.data || {};
+    console.log('[BoxNow] delivery created orderId=%s trackingNumber=%s', order.id, result.trackingNumber || result.id || '-');
+    return {
+      trackingNumber: result.trackingNumber || result.id || '',
+      deliveryId: result.id || '',
+      voucherUrl: result.voucherUrl || result.labelUrl || '',
+      status: result.status || 'CREATED',
+    };
+  } catch (err) {
+    const detail = err.response && err.response.data;
+    console.error('[BoxNow] delivery failed orderId=%s reason=%s detail=%j', order.id, err.message, detail || {});
+    return null;
+  }
+}
+
+async function tryBoxNowDelivery(req, config, order) {
+  if (order.boxnowLockerId && !order.boxnowTrackingNumber) {
+    const result = await createBoxNowDelivery(config, order);
+    if (result) {
+      order.boxnowTrackingNumber = result.trackingNumber;
+      order.boxnowDeliveryId = result.deliveryId;
+      order.boxnowVoucherUrl = result.voucherUrl;
+      order.trackingNumber = result.trackingNumber;
+      order.trackingCarrier = 'boxnow';
+      order.trackingUrl = `https://track.boxnow.gr/?trackingNumber=${encodeURIComponent(result.trackingNumber)}`;
+    }
+  }
+}
+
 // Platform-level Stripe (for selling Thronos subscriptions)
 function platformStripe() {
   const key = (process.env.STRIPE_SECRET_KEY || '').trim();
@@ -3752,6 +3830,14 @@ app.post('/checkout', async (req, res) => {
   saveJson(req.tenantPaths.products, allProductsMut);
   saveJson(req.tenantPaths.stockLog, stockLog);
 
+  // Auto-create Box Now delivery if applicable
+  try { await tryBoxNowDelivery(req, config, order); } catch (_) {}
+  if (order.boxnowTrackingNumber) {
+    const allOrdCod = loadTenantOrders(req);
+    const codIdx = allOrdCod.findIndex(o => o.id === order.id);
+    if (codIdx >= 0) { allOrdCod[codIdx] = order; saveJson(req.tenantPaths.orders, allOrdCod); }
+  }
+
   // ── Analytics: track city ──────────────────────────────────────
   if (order.city) {
     try {
@@ -3912,6 +3998,17 @@ app.get('/checkout/stripe-success', async (req, res) => {
     } catch (_) {}
   }
 
+  // Auto-create Box Now delivery if applicable
+  try { await tryBoxNowDelivery(req, config, order); } catch (_) {}
+
+  // Re-save order with tracking info if Box Now delivery was created
+  const allOrdersFinal = loadTenantOrders(req);
+  const oIdxFinal = allOrdersFinal.findIndex(o => o.id === order.id);
+  if (oIdxFinal >= 0 && order.boxnowTrackingNumber) {
+    allOrdersFinal[oIdxFinal] = order;
+    saveJson(req.tenantPaths.orders, allOrdersFinal);
+  }
+
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
@@ -3998,6 +4095,14 @@ app.get('/checkout/eurobank-success', async (req, res) => {
   saveJson(req.tenantPaths.products, allProductsMut);
   saveJson(req.tenantPaths.stockLog, stockLog);
 
+  // Auto-create Box Now delivery if applicable
+  try { await tryBoxNowDelivery(req, config, order); } catch (_) {}
+  if (order.boxnowTrackingNumber) {
+    const allOrdEuro = loadTenantOrders(req);
+    const euroIdx = allOrdEuro.findIndex(o => o.id === order.id);
+    if (euroIdx >= 0) { allOrdEuro[euroIdx] = order; saveJson(req.tenantPaths.orders, allOrdEuro); }
+  }
+
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
   sendOrderEmails(order, config).catch(() => {});
@@ -4068,6 +4173,14 @@ app.get('/checkout/revolut-success', async (req, res) => {
   });
   saveJson(req.tenantPaths.products, allProductsMut);
   saveJson(req.tenantPaths.stockLog, stockLog);
+
+  // Auto-create Box Now delivery if applicable
+  try { await tryBoxNowDelivery(req, config, order); } catch (_) {}
+  if (order.boxnowTrackingNumber) {
+    const allOrdRev = loadTenantOrders(req);
+    const revIdx = allOrdRev.findIndex(o => o.id === order.id);
+    if (revIdx >= 0) { allOrdRev[revIdx] = order; saveJson(req.tenantPaths.orders, allOrdRev); }
+  }
 
   try { await sendOrderEmail({ tenant: req.tenant, config, order }); } catch (_) {}
   try { await sendOrderWebhook({ tenant: req.tenant, config, order }); } catch (_) {}
@@ -5819,6 +5932,26 @@ app.post('/admin/shipping-options/add', async (req, res) => {
   config.shippingOptions.push(newOpt);
   saveTenantConfig(req, config);
   res.render('admin', buildAdminViewModel(req, { message: 'Νέο μεταφορικό "' + newOpt.label + '" προστέθηκε.' }));
+});
+
+// ── Box Now credentials ─────────────────────────────────────────────────────
+app.post('/admin/boxnow-credentials', async (req, res) => {
+  const { password, boxnowClientId, boxnowClientSecret } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται η αλλαγή ρυθμίσεων.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const config = loadTenantConfig(req);
+  if (boxnowClientId !== undefined) config.boxnowClientId = String(boxnowClientId).trim();
+  if (boxnowClientSecret && !boxnowClientSecret.startsWith('••')) {
+    config.boxnowClientSecret = String(boxnowClientSecret).trim();
+  }
+  saveTenantConfig(req, config);
+  res.render('admin', buildAdminViewModel(req, { message: 'Τα στοιχεία Box Now αποθηκεύτηκαν.' }));
 });
 
 // Categories CRUD

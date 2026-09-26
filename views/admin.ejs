@@ -1626,6 +1626,7 @@
               <input type="number" name="shipCodFee" placeholder="COD χρέωση (€)" min="0" step="0.01" value="0" />
               <select name="shipType">
                 <option value="courier">Courier (αποστολή)</option>
+                <option value="boxnow">Box Now (locker)</option>
                 <option value="pickup">Παραλαβή (pickup)</option>
               </select>
               <input type="text" name="shipAllowed" placeholder="Allowed payments (π.χ. COD,BANK)" />
@@ -1636,6 +1637,35 @@
             </div>
           </form>
           <form method="POST" action="<%= withTenantLink('/admin/shipping-payment') %>">
+          <% } %>
+
+          <%# ── Box Now API credentials ── %>
+          <% if (permissions.canEditSettings && (config.shippingOptions || []).some(function(s){ return s.type === 'boxnow'; })) { %>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin:16px 0;">
+            <h4 style="margin:0 0 6px;">📦 Box Now — Σύνδεση λογαριασμού</h4>
+            <p class="helper" style="margin-bottom:10px;">
+              Συνδέστε τον επαγγελματικό σας λογαριασμό Box Now για αυτόματη δημιουργία αποστολής.
+              Δημιουργήστε λογαριασμό στο <a href="https://business.boxnow.gr" target="_blank" rel="noopener">business.boxnow.gr</a>
+              και αντιγράψτε τα API κλειδιά σας.
+            </p>
+            <form method="POST" action="<%= withTenantLink('/admin/boxnow-credentials') %>">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <label style="display:flex;flex-direction:column;gap:4px;margin:0;">
+                  <span style="font-size:.84rem;">Client ID</span>
+                  <input type="text" name="boxnowClientId" value="<%= config.boxnowClientId || '' %>" placeholder="box_live_..." />
+                </label>
+                <label style="display:flex;flex-direction:column;gap:4px;margin:0;">
+                  <span style="font-size:.84rem;">Client Secret</span>
+                  <input type="password" name="boxnowClientSecret" value="<%= config.boxnowClientSecret ? '••••••••••••••••' : '' %>" placeholder="secret_..." autocomplete="new-password" />
+                </label>
+              </div>
+              <small class="helper">Αφήστε κενό το Secret για να κρατήσετε το τρέχον.</small>
+              <div class="save-row" style="margin-top:8px;">
+                <input type="password" name="password" placeholder="Κωδικός διαχειριστή" required />
+                <button type="submit" class="button">Αποθήκευση Box Now</button>
+              </div>
+            </form>
+          </div>
           <% } %>
 
           <%# ── Payment options ── %>
