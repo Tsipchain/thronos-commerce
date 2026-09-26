@@ -1235,7 +1235,8 @@ function loadTenantConfig(req) {
       enabled: false,
       notificationEmail: '',
       replyToEmail: '',
-      supportEmail: ''
+      supportEmail: '',
+      smtp: { host: '', port: '', user: '', pass: '', from: '' }
     },
     theme: {
       presetId: DEFAULT_THEME_KEY,
@@ -2058,11 +2059,20 @@ function seedTenantFilesFromTemplate(tenantId, templateId = 'demo') {
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
 
-function buildTransport() {
+function buildTransport(tenantSmtp) {
   if (!nodemailer) return null;
   if (process.env.EMAIL_ENABLED === 'false') {
     console.log('[mailer] EMAIL_ENABLED=false — email disabled.');
     return null;
+  }
+  if (tenantSmtp && tenantSmtp.host && tenantSmtp.user && tenantSmtp.pass) {
+    const port = Number(tenantSmtp.port || '587');
+    return nodemailer.createTransport({
+      host: tenantSmtp.host,
+      port,
+      secure: port === 465,
+      auth: { user: tenantSmtp.user, pass: tenantSmtp.pass }
+    });
   }
   const host = process.env.THRC_SMTP_HOST;
   const port = Number(process.env.THRC_SMTP_PORT || '587');
@@ -2077,8 +2087,22 @@ function buildTransport() {
   });
 }
 
+function tenantSmtpConfig(config) {
+  const s = (config && config.notifications && config.notifications.smtp) || {};
+  if (s.host && s.user && s.pass) return s;
+  return null;
+}
+
+function tenantFromAddress(config) {
+  const smtp = tenantSmtpConfig(config);
+  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
+  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
+  const fromEmail = (smtp && (smtp.from || smtp.user)) || process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER;
+  return `"${fromName}" <${fromEmail}>`;
+}
+
 async function sendOrderEmail({ tenant, config, order }) {
-  const transport = buildTransport();
+  const transport = buildTransport(tenantSmtpConfig(config));
   if (!transport) {
     console.log('[Thronos Commerce] Mailer not configured – skipping email.');
     return;
@@ -2091,8 +2115,7 @@ async function sendOrderEmail({ tenant, config, order }) {
   }
 
   const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
-  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
-  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const from = tenantFromAddress(config);
   const subject = `[${tenant.id}] Νέα παραγγελία #${order.id} – ${order.productName}`;
 
   const lines = [
@@ -2128,14 +2151,12 @@ async function sendOrderEmail({ tenant, config, order }) {
 }
 
 async function sendTrackingUpdateEmail({ tenant, config, order }) {
-  const transport = buildTransport();
+  const transport = buildTransport(tenantSmtpConfig(config));
   if (!transport) return;
   const recipient = normalizeEmail(order && order.email);
   if (!recipient) return;
   const notif = (config && config.notifications) || {};
-  const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
-  const fromName = config.notificationFromName || storeName || 'Thronos Commerce Store';
-  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const from = tenantFromAddress(config);
   const replyToEmail = (notif.replyToEmail || '').trim();
   const subject = `[${tenant.id}] Tracking update — παραγγελία #${order.id}`;
   const trackingUrl = order.trackingUrl || '';
@@ -2239,24 +2260,21 @@ async function dispatchAssistantEvent(req, eventType, payload) {
   }
 }
 
-// ── Order confirmation emails (uses platform THRC_SMTP_* transport) ─────────────
-// Tenant notification settings live in config.notifications (set via admin panel).
-// No tenant-level SMTP credentials — all mail goes through the platform transport.
+// ── Order confirmation emails ─────────────────────────────────────────────────
+// Uses tenant SMTP when configured, falls back to platform THRC_SMTP_* transport.
 
 async function sendOrderEmails(order, config) {
-  const transport = buildTransport();
+  const transport = buildTransport(tenantSmtpConfig(config));
   if (!transport) {
-    console.log('[Thronos Commerce] Platform SMTP not configured – skipping sendOrderEmails.');
+    console.log('[Thronos Commerce] SMTP not configured – skipping sendOrderEmails.');
     return;
   }
 
   const notif = (config && config.notifications) || {};
-  // notificationEmail: where merchant order alerts go (tenant-configured, no env fallback)
   const notificationEmail = (notif.notificationEmail || (config.notificationEmails && config.notificationEmails[0]) || '').trim();
   const replyToEmail = (notif.replyToEmail || '').trim();
   const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
-  const fromName = storeName || 'Thronos Commerce';
-  const from = `"${fromName}" <${process.env.THRC_SMTP_FROM || process.env.THRC_SMTP_USER}>`;
+  const from = tenantFromAddress(config);
 
   const bodyLines = [
     `Κωδικός παραγγελίας: ${order.id}`,
@@ -5230,12 +5248,18 @@ app.post('/admin/notifications', async (req, res) => {
   }
 
   const config = loadTenantConfig(req);
-  // New notifications config contract — platform SMTP, tenant branding only.
   if (!config.notifications) config.notifications = {};
   config.notifications.enabled          = req.body.emailNotificationsEnabled === 'on';
   config.notifications.notificationEmail = (req.body.notificationEmail || '').trim();
   config.notifications.replyToEmail     = (req.body.replyToEmail || '').trim();
   config.notifications.supportEmail     = (req.body.supportEmail || '').trim();
+  if (!config.notifications.smtp) config.notifications.smtp = {};
+  config.notifications.smtp.host = (req.body.smtpHost || '').trim();
+  config.notifications.smtp.port = (req.body.smtpPort || '').trim();
+  config.notifications.smtp.user = (req.body.smtpUser || '').trim();
+  const newPass = (req.body.smtpPass || '').trim();
+  if (newPass) config.notifications.smtp.pass = newPass;
+  config.notifications.smtp.from = (req.body.smtpFrom || '').trim();
   // Top-level legacy fields still read by email-sending code
   config.notificationCcCustomer  = req.body.notificationCcCustomer === 'on';
   config.notificationFromName    = (req.body.notificationFromName || '').trim();
@@ -5248,6 +5272,35 @@ app.post('/admin/notifications', async (req, res) => {
   saveTenantConfig(req, config);
 
   return res.render('admin', buildAdminViewModel(req, { message: 'Οι ρυθμίσεις ειδοποιήσεων αποθηκεύτηκαν.' }));
+});
+
+app.post('/admin/notifications/test-email', async (req, res) => {
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) return res.status(403).json({ ok: false, error: 'No permission.' });
+  const auth = await verifyAdminAction(req, req.body.password);
+  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Λάθος κωδικός.' });
+
+  const config = loadTenantConfig(req);
+  const smtp = tenantSmtpConfig(config);
+  const transport = buildTransport(smtp);
+  if (!transport) return res.json({ ok: false, error: 'SMTP δεν είναι ρυθμισμένο — συμπληρώστε τα πεδία SMTP και αποθηκεύστε πρώτα.' });
+
+  const to = (config.notifications && config.notifications.notificationEmail) || '';
+  if (!to) return res.json({ ok: false, error: 'Δεν έχει οριστεί email παραλήπτη.' });
+
+  try {
+    const from = tenantFromAddress(config);
+    await transport.sendMail({
+      from,
+      to,
+      subject: 'Δοκιμαστικό email — Thronos Commerce',
+      text: 'Αν βλέπετε αυτό το μήνυμα, η σύνδεση SMTP λειτουργεί σωστά!\n\n— Thronos Commerce'
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Thronos Commerce] Test email error:', err.message);
+    return res.json({ ok: false, error: err.message });
+  }
 });
 
 /* ── Virtual Assistant settings ─────────────────────────────────────────── */
