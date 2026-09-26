@@ -8264,11 +8264,9 @@ app.post('/api/chat', async (req, res) => {
     const tokenRes = await axios.post(
       `${vaUrl}/api/v1/auth/customer-token`,
       {
-        commerce_tenant_id: req.tenantId,
-        customer_id: (req.session && req.session.user && req.session.user.id)
-          ? String(req.session.user.id) : null,
-        customer_email: (req.session && req.session.user && req.session.user.email)
-          ? String(req.session.user.email) : null,
+        tenantId: req.tenantId || (req.tenant && req.tenant.id) || '',
+        host: req.get('host') || '',
+        lang: req.query.lang || req.body.lang || 'el',
       },
       { headers: authHeader, timeout: 15000 }
     );
