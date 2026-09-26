@@ -410,14 +410,14 @@
         background: linear-gradient(90deg, transparent 0%, rgba(196,144,46,.55) 30%, rgba(219,168,60,.55) 60%, transparent 100%);
       }
       
-      body.eukolakis-classic .header-mode-toggle-slot { display:flex; align-items:center; justify-content:flex-start; margin-right:8px; z-index:6; }
-      @media (max-width: 600px) { body.eukolakis-classic .header-mode-toggle-slot .eko-mode-btn { font-size:.68rem; padding:5px 8px; } }
+      body.eukolakis-classic .header-mode-toggle-slot { display:flex; align-items:center; flex-shrink:0; margin-left:auto; padding:0 12px; z-index:6; }
+      @media (max-width: 600px) { body.eukolakis-classic .header-mode-toggle-slot .eko-mode-btn { font-size:.64rem; padding:4px 8px; } }
       body.eukolakis-classic .header-main-row {
         position: relative;
         z-index: 2;
         justify-content: space-between !important;
         align-items: center !important;
-        padding: 10px 20px;
+        padding: 12px 20px;
         min-height: 0;
         max-width: 1180px;
         margin: 0 auto;
@@ -443,9 +443,9 @@
         text-decoration: none; color: inherit;
       }
       body.eukolakis-classic .eko-header-compact-logo img {
-        height: 52px; width: auto; max-width: 200px;
+        height: 80px; width: auto; max-width: 280px;
         object-fit: contain;
-        filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
       }
       body.eukolakis-classic .eko-header-compact-logo .eko-compact-name {
         font-size: .82rem; font-weight: 800; letter-spacing: .08em;
@@ -521,6 +521,8 @@
         border-top: 1px solid rgba(196,144,46,.12);
         background: rgba(0,0,0,.38);
         backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
       }
       body.eukolakis-classic .store-header.eko-hero-off { min-height: 0; }
       body.eukolakis-classic.eko-light .header-nav-row {
@@ -1249,13 +1251,14 @@
       /* ── Color mode toggle ── */
       .eko-mode-btn {
         position: relative; z-index: 6;
-        border: 1px solid var(--eko-border); border-radius: 999px;
-        padding: 6px 10px; background: var(--eko-surface); color: var(--eko-text);
-        cursor: pointer; font-size: .75rem; font-weight: 700; opacity: .8;
-        box-shadow: 0 4px 18px rgba(0,0,0,.28); transition: opacity .14s;
-        display: none;
+        border: 1px solid rgba(196,144,46,.25); border-radius: 999px;
+        padding: 5px 12px; background: rgba(0,0,0,.35); color: var(--eko-text);
+        cursor: pointer; font-size: .7rem; font-weight: 700; opacity: .75;
+        box-shadow: none; transition: opacity .14s, background .14s;
+        display: none; white-space: nowrap;
       }
       body.eukolakis-classic .eko-mode-btn { display: inline-flex; align-items:center; }
+      body.eukolakis-classic.eko-light .eko-mode-btn { background: rgba(0,0,0,.06); border-color: rgba(140,100,21,.2); }
       .eko-mode-btn:hover { opacity: 1; }
 
       /* ── Responsive ── */
@@ -1263,11 +1266,7 @@
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
         body.eukolakis-classic .eko-projects-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       }
-      body.eukolakis-classic .header-mode-toggle-slot {
-        display:flex; align-items:center; justify-content:flex-start; margin-right:8px; z-index:6;
-      }
       @media (max-width: 600px) {
-        body.eukolakis-classic .header-mode-toggle-slot .eko-mode-btn { font-size:.68rem; padding:5px 8px; }
         body.eukolakis-classic .eko-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         body.eukolakis-classic .eko-cat-tile-img,
         body.eukolakis-classic .eko-cat-tile-img-placeholder { height: 120px; }
@@ -1282,7 +1281,7 @@
         body.eukolakis-classic .eko-section-title { font-size: .82rem; }
         body.eukolakis-classic .eko-section-link { font-size: .68rem; }
       body.eukolakis-classic .header-main-row { padding: 8px 12px; }
-        body.eukolakis-classic .eko-header-compact-logo img { height: 40px; max-width: 150px; }
+        body.eukolakis-classic .eko-header-compact-logo img { height: 56px; max-width: 200px; }
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-name { font-size: .72rem; }
         body.eukolakis-classic .eko-header-compact-logo .eko-compact-sub { font-size: .48rem; }
         body.eukolakis-classic .header-nav-row .main-nav { padding: 0 14px; }
@@ -1457,7 +1456,6 @@
         <div class="eko-header-bg-logo" aria-hidden="true"><img src="<%= headerBrandAssetSrc %>" alt="" /></div>
       <% } %>
       <div class="header-main-row">
-      <% if (isEukolakisClassic) { %><div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div><% } %>
       <div class="logo-title <%= theme.headerLayout === 'centered' ? 'centered' : '' %> <%= isEukolakisClassic ? 'classic-branding' : '' %>">
         <% if (isEukolakisClassic) { %>
           <a class="eko-header-compact-logo" href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>">
@@ -1580,6 +1578,7 @@
           <% }) %>
         </select>
       </div>
+      <div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div>
       <% } %>
       </div>
       <% } %>
