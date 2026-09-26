@@ -828,17 +828,17 @@ test('Admin builder config has organized A/B/C/D sections', () => {
 
 test('Stepper has short label lookup map for known step IDs', () => {
   assert.match(index, /stepShortLabels\s*=\s*\{/);
-  assert.match(index, /'tampakiera-karoulaki':\s*\{\s*el:\s*'Ταμπακιέρα'/);
-  assert.match(index, /'aristeri-plevra':\s*\{\s*el:\s*'Αριστερά'/);
-  assert.match(index, /'dexia-plevra':\s*\{\s*el:\s*'Δεξιά'/);
+  assert.match(index, /'tampakiera-karoulaki':\s*\{\s*el:\s*'Ταμπακιέρα/);
+  assert.match(index, /'aristeri-plevra':\s*\{\s*el:\s*'Αριστερή Πλευρά'/);
+  assert.match(index, /'dexia-plevra':\s*\{\s*el:\s*'Δεξιά Πλευρά'/);
   assert.match(index, /'tirantes':\s*\{\s*el:\s*'Τιράντες'/);
   assert.match(index, /'exoterika-stoper':\s*\{\s*el:\s*'Στόπερ'/);
 });
 
 test('Stepper short labels include EN translations', () => {
-  assert.match(index, /en:\s*'Shutter Box'/);
-  assert.match(index, /en:\s*'Left'/);
-  assert.match(index, /en:\s*'Right'/);
+  assert.match(index, /en:\s*'Shutter Box/);
+  assert.match(index, /en:\s*'Left Side'/);
+  assert.match(index, /en:\s*'Right Side'/);
   assert.match(index, /en:\s*'Straps'/);
   assert.match(index, /en:\s*'Stoppers'/);
 });
@@ -944,8 +944,8 @@ test('Mobile breakpoint is 768px', () => {
   assert.match(index, /@media\s*\(max-width:\s*768px\)/);
 });
 
-test('Mobile nav is sticky', () => {
-  assert.match(index, /\.sbs-nav\s*\{[^}]*position:\s*sticky/);
+test('Mobile nav buttons are inside summary', () => {
+  assert.match(index, /sbs-summary-nav/, 'nav buttons are in sbs-summary-nav container');
 });
 
 // === Section 43: Summary thumbnail placeholder for unselected ===
