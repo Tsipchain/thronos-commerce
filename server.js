@@ -1423,6 +1423,10 @@ function normalizeProductRecord(product) {
         slogan: _bc.slogan || '',
         sloganSecondary: _bc.sloganSecondary || '',
         showSlogan: _bc.showSlogan !== false,
+        bannerSize: ['small','medium','large'].includes(_bc.bannerSize) ? _bc.bannerSize : 'medium',
+        bannerFit: ['cover','contain'].includes(_bc.bannerFit) ? _bc.bannerFit : 'contain',
+        bannerPosition: ['left','center','right'].includes(_bc.bannerPosition) ? _bc.bannerPosition : 'center',
+        bannerOverlay: ['none','light','medium','dark'].includes(_bc.bannerOverlay) ? _bc.bannerOverlay : 'medium',
         videoUrl: normalizeMediaPath(_bc.videoUrl || '', { allowAbsoluteUrl: true }),
         showTitle: _bc.showTitle !== false,
         showSubtitle: _bc.showSubtitle !== false,
@@ -3011,7 +3015,9 @@ app.get('/', (req, res) => {
     if (catSlug) {
       const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
       if (cat) {
-        products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
+        const childIds = categories.filter((c) => c.parentId === cat.id || c.parentId === cat.slug).map((c) => c.id);
+        const matchIds = new Set([cat.id, ...childIds]);
+        products = hydratedAllProducts.filter((p) => matchIds.has(p.categoryId));
       } else {
         products = [];
       }
@@ -4892,7 +4898,10 @@ app.post('/admin/settings', async (req, res) => {
     themeKitWizardSkipRule,
     themeHomeLayoutPreset,
     themeStorefrontBgUrl,
-    homepageIntroEnterButtonUrl
+    homepageIntroEnterButtonUrl,
+    homepageIntroLogoUrl,
+    homepageHeroFit,
+    homepageHeroHeight
   } = req.body;
 
   const permissions = getSupportPermissions(req.tenant.supportTier);
@@ -5114,6 +5123,15 @@ app.post('/admin/settings', async (req, res) => {
   if (hasBodyField(req.body, 'homepageIntroPosterUrl')) config.homepage.introPosterUrl = normalizeMediaPath(homepageIntroPosterUrl, { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageIntroBackgroundUrl')) config.homepage.introBackgroundUrl = normalizeMediaPath(req.body.homepageIntroBackgroundUrl || '', { allowAbsoluteUrl: true });
   if (hasBodyField(req.body, 'homepageIntroEnterButtonUrl')) config.homepage.introEnterButtonUrl = normalizeMediaPath(homepageIntroEnterButtonUrl || '', { allowAbsoluteUrl: true });
+  if (hasBodyField(req.body, 'homepageIntroLogoUrl')) config.homepage.introLogoUrl = normalizeMediaPath(homepageIntroLogoUrl || '', { allowAbsoluteUrl: true });
+  if (hasBodyField(req.body, 'homepageHeroFit')) {
+    const _hf = String(homepageHeroFit || 'cover').trim().toLowerCase();
+    config.homepage.heroFit = ['cover', 'contain'].includes(_hf) ? _hf : 'cover';
+  }
+  if (hasBodyField(req.body, 'homepageHeroHeight')) {
+    const _hh = parseInt(homepageHeroHeight, 10);
+    config.homepage.heroHeight = (_hh >= 120 && _hh <= 800) ? _hh : 0;
+  }
   if (hasBodyField(req.body, 'homepageBlockOrder')) {
     const parsedOrder = String(homepageBlockOrder || '')
       .split(',')

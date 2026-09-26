@@ -828,17 +828,17 @@ test('Admin builder config has organized A/B/C/D sections', () => {
 
 test('Stepper has short label lookup map for known step IDs', () => {
   assert.match(index, /stepShortLabels\s*=\s*\{/);
-  assert.match(index, /'tampakiera-karoulaki':\s*\{\s*el:\s*'Ταμπακιέρα'/);
-  assert.match(index, /'aristeri-plevra':\s*\{\s*el:\s*'Αριστερά'/);
-  assert.match(index, /'dexia-plevra':\s*\{\s*el:\s*'Δεξιά'/);
+  assert.match(index, /'tampakiera-karoulaki':\s*\{\s*el:\s*'Ταμπακιέρα/);
+  assert.match(index, /'aristeri-plevra':\s*\{\s*el:\s*'Αριστερή Πλευρά'/);
+  assert.match(index, /'dexia-plevra':\s*\{\s*el:\s*'Δεξιά Πλευρά'/);
   assert.match(index, /'tirantes':\s*\{\s*el:\s*'Τιράντες'/);
   assert.match(index, /'exoterika-stoper':\s*\{\s*el:\s*'Στόπερ'/);
 });
 
 test('Stepper short labels include EN translations', () => {
-  assert.match(index, /en:\s*'Shutter Box'/);
-  assert.match(index, /en:\s*'Left'/);
-  assert.match(index, /en:\s*'Right'/);
+  assert.match(index, /en:\s*'Shutter Box/);
+  assert.match(index, /en:\s*'Left Side'/);
+  assert.match(index, /en:\s*'Right Side'/);
   assert.match(index, /en:\s*'Straps'/);
   assert.match(index, /en:\s*'Stoppers'/);
 });
@@ -944,8 +944,8 @@ test('Mobile breakpoint is 768px', () => {
   assert.match(index, /@media\s*\(max-width:\s*768px\)/);
 });
 
-test('Mobile nav is sticky', () => {
-  assert.match(index, /\.sbs-nav\s*\{[^}]*position:\s*sticky/);
+test('Mobile nav buttons are inside summary', () => {
+  assert.match(index, /sbs-summary-nav/, 'nav buttons are in sbs-summary-nav container');
 });
 
 // === Section 43: Summary thumbnail placeholder for unselected ===
@@ -2064,4 +2064,193 @@ test('W14: Banner size is independent from logo size', () => {
   assert.match(admin, /bc\.bannerSize/, 'bannerSize read from config');
   assert.match(index, /bc\.logoSize/, 'storefront uses logoSize');
   assert.match(index, /bc\.bannerSize/, 'storefront uses bannerSize');
+});
+
+// === Section W+: Banner persistence and contain rendering ===
+
+test('W15: Server normalizeProductRecord preserves bannerSize', () => {
+  assert.match(server, /bannerSize.*small.*medium.*large/s, 'bannerSize whitelist in server');
+});
+
+test('W16: Server normalizeProductRecord preserves bannerFit', () => {
+  assert.match(server, /bannerFit.*cover.*contain/s, 'bannerFit whitelist in server');
+});
+
+test('W17: Server normalizeProductRecord preserves bannerPosition', () => {
+  assert.match(server, /bannerPosition.*left.*center.*right/s, 'bannerPosition whitelist in server');
+});
+
+test('W18: Server defaults bannerFit to contain', () => {
+  const normBlock = server.substring(server.indexOf('function normalizeProductRecord'), server.indexOf('function loadTenantCategories'));
+  assert.match(normBlock, /bannerFit.*'contain'/, 'server default bannerFit is contain');
+});
+
+test('W19: Storefront defaults bannerFit to contain', () => {
+  assert.match(index, /bannerFit \|\| 'contain'/, 'storefront default bannerFit is contain');
+});
+
+test('W20: Admin defaults bannerFit to contain', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  assert.match(syncFn, /bannerFit \|\| 'contain'/, 'admin syncBuilderConfigPanel default bannerFit is contain');
+});
+
+test('W21: Storefront contain mode does not stretch image', () => {
+  assert.match(index, /banner-contain img\.sbs-banner-bg.*object-fit:contain/s, 'contain CSS uses object-fit:contain');
+  const bannerCSS = index.substring(index.indexOf('.sbs-banner.banner-contain'), index.indexOf('.sbs-banner-overlay'));
+  assert.doesNotMatch(bannerCSS, /transform.*scale/, 'no transform scale in banner-contain CSS');
+});
+
+test('W22: Storefront contain mode has blurred background layer', () => {
+  assert.match(index, /sbs-banner-blur/, 'blur image class exists');
+  assert.match(index, /banner-contain img\.sbs-banner-blur.*display:block/s, 'blur visible in contain mode');
+  assert.match(index, /sbs-banner-blur.*filter.*blur/s, 'blur has filter');
+});
+
+test('W23: Admin preview has blurred background layer for contain', () => {
+  assert.match(admin, /lp-banner-blur/, 'admin blur element exists');
+  assert.match(admin, /bannerBlur\.style\.display.*contain/, 'admin blur toggled by contain');
+});
+
+test('W24: Storefront banner overlay has z-index above blur and image layers', () => {
+  assert.match(index, /sbs-banner-overlay.*z-index:\s*2/s, 'overlay z-index is 2 or higher');
+});
+
+test('W25: Storefront reopening SBS reapplies banner config', () => {
+  const openFn = index.substring(index.indexOf('function openSbs'));
+  assert.match(openFn, /elBanner\.className\s*=/, 'openSbs sets banner className');
+  assert.match(openFn, /bannerSize/, 'openSbs reads bannerSize');
+  assert.match(openFn, /bannerFit/, 'openSbs reads bannerFit');
+  assert.match(openFn, /bannerPosition/, 'openSbs reads bannerPosition');
+});
+
+// === Section W26-W35: Intro logo, hero fit/height, banner overlay ===
+
+test('W26: Server whitelist includes bannerOverlay with enum validation', () => {
+  const normBlock = server.substring(server.indexOf('function normalizeProductRecord'));
+  assert.match(normBlock, /bannerOverlay/, 'bannerOverlay is in whitelist');
+  assert.match(normBlock, /\['none','light','medium','dark'\]/, 'valid overlay values are none/light/medium/dark');
+});
+
+test('W27: Admin has banner overlay select control', () => {
+  assert.match(admin, /id="kit-bc-banner-overlay"/, 'overlay select exists');
+  assert.match(admin, /value="none"/, 'none option exists');
+  assert.match(admin, /value="light"/, 'light option exists');
+  assert.match(admin, /value="medium"/, 'medium option exists');
+  assert.match(admin, /value="dark"/, 'dark option exists');
+});
+
+test('W28: Admin selectMap includes bannerOverlay', () => {
+  assert.match(admin, /'kit-bc-banner-overlay'\s*:\s*'bannerOverlay'/, 'bannerOverlay in selectMap');
+});
+
+test('W29: Admin syncBuilderConfigPanel reads bannerOverlay', () => {
+  const syncFn = admin.substring(admin.indexOf('function syncBuilderConfigPanel'));
+  assert.match(syncFn, /kit-bc-banner-overlay/, 'sync sets overlay select');
+  assert.match(syncFn, /bannerOverlay/, 'sync reads bannerOverlay from bc');
+});
+
+test('W30: Admin preview has overlay element', () => {
+  assert.match(admin, /id="lp-banner-overlay"/, 'overlay element in admin preview');
+});
+
+test('W31: Admin refreshLivePreview applies overlay gradient', () => {
+  const refreshFn = admin.substring(admin.indexOf('function refreshLivePreview'));
+  assert.match(refreshFn, /bannerOverlay/, 'refreshLivePreview reads bannerOverlay');
+  assert.match(refreshFn, /_overlayMap/, 'refreshLivePreview uses overlay map');
+  assert.match(refreshFn, /lp-banner-overlay/, 'refreshLivePreview targets overlay element');
+});
+
+test('W32: Storefront openSbs applies bannerOverlay dynamically', () => {
+  const openFn = index.substring(index.indexOf('function openSbs'));
+  assert.match(openFn, /bannerOverlay/, 'openSbs reads bannerOverlay');
+  assert.match(openFn, /elBannerOverlay\.style\.background/, 'openSbs sets overlay background');
+  assert.match(openFn, /_overlayGradients/, 'openSbs uses overlay gradients map');
+});
+
+test('W33: Storefront banner overlay CSS default is medium (not dark)', () => {
+  const bannerCss = index.substring(index.indexOf('.sbs-banner-overlay'), index.indexOf('.sbs-banner-overlay') + 300);
+  assert.ok(!bannerCss.includes('rgba(8,12,24,.88)'), 'no .88 opacity in default CSS');
+  assert.ok(!bannerCss.includes('rgba(8,12,24,.55)'), 'no .55 opacity in default CSS');
+  assert.match(bannerCss, /rgba\(8,12,24,\.45\)/, 'default is medium .45 opacity');
+});
+
+test('W34: Server saves homepage introLogoUrl', () => {
+  assert.match(server, /homepageIntroLogoUrl/, 'server destructures introLogoUrl');
+  assert.match(server, /config\.homepage\.introLogoUrl/, 'server saves to config.homepage.introLogoUrl');
+});
+
+test('W35: Admin has intro logo input field', () => {
+  assert.match(admin, /name="homepageIntroLogoUrl"/, 'intro logo input exists');
+});
+
+test('W36: Intro.ejs prioritizes dedicated introLogoUrl', () => {
+  assert.match(intro, /introLogoUrl/, 'intro.ejs references introLogoUrl');
+  const logoBlock = intro.substring(intro.indexOf('_introLogoUrl'));
+  assert.match(logoBlock, /_introLogoUrl\s*\??\s*\n?\s*\?\s*_introLogoUrl/, 'introLogoUrl takes priority');
+});
+
+test('W37: Server saves homepage heroFit and heroHeight', () => {
+  assert.match(server, /homepageHeroFit/, 'server destructures heroFit');
+  assert.match(server, /homepageHeroHeight/, 'server destructures heroHeight');
+  assert.match(server, /config\.homepage\.heroFit/, 'server saves heroFit');
+  assert.match(server, /config\.homepage\.heroHeight/, 'server saves heroHeight');
+});
+
+test('W38: Admin has hero fit select and hero height input', () => {
+  assert.match(admin, /name="homepageHeroFit"/, 'hero fit select exists');
+  assert.match(admin, /name="homepageHeroHeight"/, 'hero height input exists');
+});
+
+test('W39: Index.ejs hero uses EJS-driven fit and height', () => {
+  assert.match(index, /homepage\.heroFit\s*===\s*'contain'/, 'hero img checks heroFit');
+  assert.match(index, /homepage\.heroHeight/, 'hero img uses heroHeight');
+});
+
+test('W40: Clean header hero override respects custom height/fit', () => {
+  const cleanHeroMatch = index.match(/body\.eko-header-clean\s+\.eko-hero-img\s*\{[^}]+\}/g);
+  assert.ok(cleanHeroMatch && cleanHeroMatch.length > 0, 'clean header hero CSS exists');
+  const cleanHero = cleanHeroMatch[0];
+  assert.match(cleanHero, /heroHeight/, 'clean header hero uses heroHeight');
+  assert.match(cleanHero, /heroFit/, 'clean header hero uses heroFit');
+});
+
+// === Section W41-W47: Subcategory nesting in navigation ===
+
+test('W41: Storefront builds topNavCategories excluding children', () => {
+  assert.match(index, /topNavCategories\s*=\s*navCategories\.filter/, 'topNavCategories filters out children');
+  assert.match(index, /!c\.parentId/, 'filter checks for parentId');
+});
+
+test('W42: Storefront builds childNavMap from categories with parentId', () => {
+  assert.match(index, /childNavMap/, 'childNavMap exists');
+  assert.match(index, /c\.parentId/, 'childNavMap groups by parentId');
+});
+
+test('W43: Main nav renders subcategories as nested sub-menu', () => {
+  assert.match(index, /class="sub-menu"/, 'sub-menu class exists in HTML');
+  assert.match(index, /has-submenu/, 'has-submenu class applied to parent');
+  assert.match(index, /_subCats\.forEach/, 'subcategories are iterated');
+});
+
+test('W44: Submenu dropdown CSS exists', () => {
+  assert.match(index, /\.main-nav\s+\.sub-menu/, 'submenu CSS defined');
+  assert.match(index, /has-submenu:hover\s*>\s*\.sub-menu/, 'hover shows submenu');
+});
+
+test('W45: Eukolakis-classic submenu has matching industrial styles', () => {
+  assert.match(index, /eukolakis-classic.*\.sub-menu/, 'eukolakis submenu styles exist');
+  assert.match(index, /eukolakis-classic.*has-submenu:hover.*sub-menu/, 'eukolakis hover shows submenu');
+});
+
+test('W46: Server product filter includes subcategory products for parent', () => {
+  const filterBlock = server.substring(server.indexOf('if (catSlug)'), server.indexOf('if (catSlug)') + 500);
+  assert.match(filterBlock, /childIds/, 'childIds computed from categories');
+  assert.match(filterBlock, /parentId/, 'checks parentId to find children');
+  assert.match(filterBlock, /matchIds/, 'uses matchIds set for filtering');
+});
+
+test('W47: Mobile submenu click toggle JS exists', () => {
+  assert.match(index, /has-submenu.*>.*a/, 'targets submenu parent links');
+  assert.match(index, /sub-menu/, 'references sub-menu');
+  assert.match(index, /innerWidth\s*<=\s*900/, 'checks mobile breakpoint');
 });
