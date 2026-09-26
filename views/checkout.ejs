@@ -242,8 +242,8 @@
               <input type="tel" name="phone" required placeholder="π.χ. 6912345678" />
             </label>
             <label>
-              <%= t('checkout.tk') %>
-              <input type="text" name="tk" placeholder="π.χ. 15123" maxlength="10" />
+              <%= t('checkout.tk') %> <span id="tk-required-mark">*</span>
+              <input type="text" name="tk" id="input-tk" placeholder="π.χ. 15123" maxlength="10" required />
             </label>
           </div>
 
@@ -270,7 +270,7 @@
               <%= t('checkout.shippingMethod') %> *
               <select name="shippingMethodId" id="sel-shipping" required onchange="recalc()">
                 <% (config.shippingOptions || []).forEach(function(opt) { %>
-                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>" data-allowed="<%= Array.isArray(opt.allowedPaymentMethods) ? opt.allowedPaymentMethods.join(',') : '' %>">
+                  <option value="<%= opt.id %>" data-base="<%= Number(opt.base)||0 %>" data-codfee="<%= Number(opt.codFee)||0 %>" data-allowed="<%= Array.isArray(opt.allowedPaymentMethods) ? opt.allowedPaymentMethods.join(',') : '' %>" data-courier="<%= opt.type === 'pickup' ? '0' : '1' %>">
                     <%= opt.label %><% if (opt.base > 0) { %> (+<%= Number(opt.base).toFixed(2) %> €)<% } %>
                   </option>
                 <% }); %>
@@ -504,6 +504,13 @@
           couponRow.style.display = couponDiscount > 0 ? '' : 'none';
           couponVal.textContent = '-' + couponDiscount.toFixed(2) + ' €';
         }
+
+        // ── TK required when courier ─────────────────────────────
+        const isCourier = shipOpt ? shipOpt.dataset.courier !== '0' : true;
+        const tkInput = document.getElementById('input-tk');
+        const tkMark = document.getElementById('tk-required-mark');
+        if (tkInput) { tkInput.required = isCourier; }
+        if (tkMark) { tkMark.style.display = isCourier ? '' : 'none'; }
 
         // ── Stripe indicator ──────────────────────────────────────
         const isStripe  = payOpt && payOpt.dataset.type === 'stripe';

@@ -3397,6 +3397,10 @@ app.post('/checkout', async (req, res) => {
     return res.status(400).send(err.message);
   }
 
+  if (totals.shippingMethod.type !== 'pickup' && !(tk || '').trim()) {
+    return res.status(400).send('Ο ταχυδρομικός κώδικας (ΤΚ) είναι υποχρεωτικός για αποστολή με courier.');
+  }
+
   const orderId = Date.now().toString() + '_' + crypto.randomBytes(6).toString('hex');
   const trackingToken = crypto.randomBytes(8).toString('hex');
   const order = {

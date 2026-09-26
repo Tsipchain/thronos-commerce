@@ -2254,3 +2254,29 @@ test('W47: Mobile submenu click toggle JS exists', () => {
   assert.match(index, /sub-menu/, 'references sub-menu');
   assert.match(index, /innerWidth\s*<=\s*900/, 'checks mobile breakpoint');
 });
+
+// === Checkout TK courier validation ===
+
+const checkout = read('views/checkout.ejs');
+
+test('W48: Checkout shipping options carry data-courier attribute', () => {
+  assert.match(checkout, /data-courier="<%=\s*opt\.type\s*===\s*'pickup'\s*\?\s*'0'\s*:\s*'1'\s*%>"/, 'data-courier attribute derived from opt.type');
+});
+
+test('W49: Checkout TK input has id and required attribute', () => {
+  assert.match(checkout, /id="input-tk"/, 'TK input has id');
+  assert.match(checkout, /id="tk-required-mark"/, 'TK required marker exists');
+  assert.match(checkout, /<input[^>]*name="tk"[^>]*required/, 'TK input is required by default');
+});
+
+test('W50: Checkout recalc toggles TK required based on courier', () => {
+  assert.match(checkout, /isCourier/, 'isCourier variable computed');
+  assert.match(checkout, /shipOpt\.dataset\.courier\s*!==\s*'0'/, 'courier detection from dataset');
+  assert.match(checkout, /tkInput\.required\s*=\s*isCourier/, 'TK required toggled by courier flag');
+  assert.match(checkout, /tkMark\.style\.display\s*=\s*isCourier/, 'TK asterisk visibility toggled');
+});
+
+test('W51: Server rejects empty TK for courier shipping', () => {
+  assert.match(server, /shippingMethod\.type\s*!==\s*'pickup'\s*&&\s*!\(tk/, 'server checks courier + empty TK');
+  assert.match(server, /ταχυδρομικός κώδικας/i, 'server returns Greek TK error message');
+});
