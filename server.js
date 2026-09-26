@@ -3015,7 +3015,9 @@ app.get('/', (req, res) => {
     if (catSlug) {
       const cat = categories.find((c) => normalizeSlug(c.slug) === catSlug || normalizeSlug(c.id) === catSlug);
       if (cat) {
-        products = hydratedAllProducts.filter((p) => p.categoryId === cat.id);
+        const childIds = categories.filter((c) => c.parentId === cat.id || c.parentId === cat.slug).map((c) => c.id);
+        const matchIds = new Set([cat.id, ...childIds]);
+        products = hydratedAllProducts.filter((p) => matchIds.has(p.categoryId));
       } else {
         products = [];
       }

@@ -153,6 +153,12 @@
       .main-nav.menu-style-compact ul { gap: 4px; }
       .main-nav.menu-style-compact a { padding: 4px 8px; font-size: .82rem; }
       .store-header.auth-pos-left .main-nav li.auth-link { order: -1; }
+      .main-nav li.has-submenu { position:relative; }
+      .main-nav .sub-menu { display:none; position:absolute; top:100%; left:0; min-width:180px; list-style:none; margin:0; padding:4px 0; background:#1a1a1a; border:1px solid rgba(255,255,255,.1); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.5); z-index:100; }
+      .main-nav li.has-submenu:hover > .sub-menu { display:block; }
+      .main-nav .sub-menu li a { display:block; padding:8px 16px; color:#ccc; text-decoration:none; font-size:.82rem; white-space:nowrap; }
+      .main-nav .sub-menu li a:hover { background:rgba(255,255,255,.08); color:#fff; }
+      .main-nav .sub-menu li.active a { color:#f59e0b; font-weight:700; }
       .pill-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
       .pill-nav.compact a { padding:4px 10px; font-size:.8rem; opacity:.95; }
       .pill-nav a { text-decoration:none; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.12); color:#fff; font-size:.85rem; }
@@ -617,6 +623,14 @@
         box-shadow: 0 0 18px rgba(255,132,0,.88), inset 0 0 12px rgba(255,132,0,.22);
       }
       body.eukolakis-classic .header-nav-row .cat-logo { display: none; }
+      body.eukolakis-classic .header-nav-row ul li.has-submenu { position:relative; }
+      body.eukolakis-classic .header-nav-row .sub-menu { position:absolute; top:100%; left:0; display:none; list-style:none; margin:2px 0 0; padding:4px 0; min-width:200px; background:linear-gradient(180deg,#1e1e1e 0%,#111 100%); border:1px solid rgba(255,125,0,.3); border-radius:6px; box-shadow:0 8px 28px rgba(0,0,0,.7); z-index:200; }
+      body.eukolakis-classic .header-nav-row li.has-submenu:hover > .sub-menu { display:block; }
+      body.eukolakis-classic .header-nav-row .sub-menu li a { display:block; padding:10px 18px; min-width:auto; height:auto; background:transparent; border:none; border-radius:0; color:#bbb; font-size:.78rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase; box-shadow:none; margin:0; }
+      body.eukolakis-classic .header-nav-row .sub-menu li a::before,
+      body.eukolakis-classic .header-nav-row .sub-menu li a::after { display:none; }
+      body.eukolakis-classic .header-nav-row .sub-menu li a:hover { background:rgba(255,125,0,.1); color:#fff; }
+      body.eukolakis-classic .header-nav-row .sub-menu li.active a { color:#f59e0b; }
       body.eukolakis-classic .menu-toggle { display: none; }
       body.eukolakis-classic .pill-nav { display: none !important; }
       body.eukolakis-classic .hero .hero-actions { display: none; }
@@ -1337,6 +1351,10 @@
         body.eko-header-clean .header-nav-row ul li a { padding:12px 0; }
         body.eko-header-clean .header-nav-row ul li a::after { display:none !important; }
         body.eko-header-clean .header-nav-row ul li.active a { border-left:2px solid var(--eko-accent) !important; padding-left:10px; }
+        body.eko-header-clean .main-nav .sub-menu,
+        body.eukolakis-classic .header-nav-row .sub-menu { position:static; display:block; border:none; background:transparent; box-shadow:none; min-width:0; margin:0; padding:0 0 0 18px; }
+        body.eko-header-clean .main-nav .sub-menu li a,
+        body.eukolakis-classic .header-nav-row .sub-menu li a { padding:8px 0; font-size:.78rem; min-width:auto; height:auto; background:transparent; border:none; box-shadow:none; margin:0; }
         body.eko-header-clean .eko-nav-lang { display:block; padding:0 18px 14px; margin:0; background:#090909; }
         body.eko-header-clean .main-nav:not(.open) + .eko-nav-lang { display:none; }
       }
@@ -1384,6 +1402,8 @@
     <% const hideMenuForHeroFocus = false; %>
     <% const navCategories = categories.filter(function(c){ return c.showInMainNav !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
     <% const storefrontCategories = categories.filter(function(c){ return c.visible !== false; }).sort(function(a,b){ return (Number(a.navOrder) || 999) - (Number(b.navOrder) || 999); }); %>
+    <% const topNavCategories = navCategories.filter(function(c){ return !c.parentId; }); %>
+    <% const childNavMap = {}; navCategories.forEach(function(c){ if (c.parentId) { if (!childNavMap[c.parentId]) childNavMap[c.parentId] = []; childNavMap[c.parentId].push(c); } }); %>
     <% const brandingMode = theme.brandingMode || 'logo_name'; %>
     <% const logoBgMode = theme.logoBgMode || 'auto'; %>
     <% const logoFrameClass = logoBgMode === 'dark_badge' ? 'logo-frame-dark' : (logoBgMode === 'light_badge' ? 'logo-frame-clean' : (logoBgMode === 'none' ? '' : 'logo-frame-floating')); %>
@@ -1491,9 +1511,10 @@
             <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>"><%= t('storefront.allProducts') %></a>
           </li>
           <% } %>
-          <% (isEukolakisClassic ? navCategories : categories).forEach(function(cat) { %>
+          <% (isEukolakisClassic ? topNavCategories : categories).forEach(function(cat) { %>
             <% if (!isEukolakisClassic && theme.categoryMenuStyle && theme.categoryMenuStyle !== 'text') { return; } %>
-            <li class="<%= activeCategory === cat.slug ? 'active' : '' %>">
+            <% const _subCats = childNavMap[cat.id] || childNavMap[cat.slug] || []; %>
+            <li class="<%= activeCategory === cat.slug ? 'active' : '' %><%= _subCats.length ? ' has-submenu' : '' %>">
               <a href="<%= withTenantLink('/', Object.assign({ category: cat.slug }, lang !== 'el' ? { lang } : {})) %>">
                 <% if (isEukolakisClassic && !isCleanHeader && !useCodeTabs) { %>
                   <% if (cat.image) { %>
@@ -1510,6 +1531,15 @@
                 <% } %>
                 <%= cat.name %>
               </a>
+              <% if (_subCats.length) { %>
+              <ul class="sub-menu">
+                <% _subCats.forEach(function(sub) { %>
+                  <li class="<%= activeCategory === sub.slug ? 'active' : '' %>">
+                    <a href="<%= withTenantLink('/', Object.assign({ category: sub.slug }, lang !== 'el' ? { lang } : {})) %>"><%= sub.name %></a>
+                  </li>
+                <% }); %>
+              </ul>
+              <% } %>
             </li>
           <% }); %>
           <% if (isCleanHeader && subscriptionsEnabled && !navCategories.some(function(cat){ return cat.slug === 'subscriptions'; })) { %>
@@ -2166,6 +2196,14 @@
           if (!mainNav.contains(event.target) && event.target !== menuToggle) setMenuOpen(false);
         });
       }
+      document.querySelectorAll('.main-nav li.has-submenu > a').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          if (window.innerWidth <= 900) {
+            var sub = this.parentElement.querySelector('.sub-menu');
+            if (sub) { e.preventDefault(); sub.style.display = sub.style.display === 'none' ? 'block' : (sub.offsetParent !== null && sub.style.display !== 'block' ? 'block' : 'none'); }
+          }
+        });
+      });
       const isEukolakis = <%= isEukolakisClassic ? 'true' : 'false' %>;
       const isDesktopDevice = <%= device === 'desktop' ? 'true' : 'false' %>;
       const productPreOpenEffect = <%- safeJson((config.theme && config.theme.productPreOpenEffect) || 'none') %>;

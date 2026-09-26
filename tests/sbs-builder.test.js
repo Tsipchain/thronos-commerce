@@ -2213,3 +2213,44 @@ test('W40: Clean header hero override respects custom height/fit', () => {
   assert.match(cleanHero, /heroHeight/, 'clean header hero uses heroHeight');
   assert.match(cleanHero, /heroFit/, 'clean header hero uses heroFit');
 });
+
+// === Section W41-W47: Subcategory nesting in navigation ===
+
+test('W41: Storefront builds topNavCategories excluding children', () => {
+  assert.match(index, /topNavCategories\s*=\s*navCategories\.filter/, 'topNavCategories filters out children');
+  assert.match(index, /!c\.parentId/, 'filter checks for parentId');
+});
+
+test('W42: Storefront builds childNavMap from categories with parentId', () => {
+  assert.match(index, /childNavMap/, 'childNavMap exists');
+  assert.match(index, /c\.parentId/, 'childNavMap groups by parentId');
+});
+
+test('W43: Main nav renders subcategories as nested sub-menu', () => {
+  assert.match(index, /class="sub-menu"/, 'sub-menu class exists in HTML');
+  assert.match(index, /has-submenu/, 'has-submenu class applied to parent');
+  assert.match(index, /_subCats\.forEach/, 'subcategories are iterated');
+});
+
+test('W44: Submenu dropdown CSS exists', () => {
+  assert.match(index, /\.main-nav\s+\.sub-menu/, 'submenu CSS defined');
+  assert.match(index, /has-submenu:hover\s*>\s*\.sub-menu/, 'hover shows submenu');
+});
+
+test('W45: Eukolakis-classic submenu has matching industrial styles', () => {
+  assert.match(index, /eukolakis-classic.*\.sub-menu/, 'eukolakis submenu styles exist');
+  assert.match(index, /eukolakis-classic.*has-submenu:hover.*sub-menu/, 'eukolakis hover shows submenu');
+});
+
+test('W46: Server product filter includes subcategory products for parent', () => {
+  const filterBlock = server.substring(server.indexOf('if (catSlug)'), server.indexOf('if (catSlug)') + 500);
+  assert.match(filterBlock, /childIds/, 'childIds computed from categories');
+  assert.match(filterBlock, /parentId/, 'checks parentId to find children');
+  assert.match(filterBlock, /matchIds/, 'uses matchIds set for filtering');
+});
+
+test('W47: Mobile submenu click toggle JS exists', () => {
+  assert.match(index, /has-submenu.*>.*a/, 'targets submenu parent links');
+  assert.match(index, /sub-menu/, 'references sub-menu');
+  assert.match(index, /innerWidth\s*<=\s*900/, 'checks mobile breakpoint');
+});
