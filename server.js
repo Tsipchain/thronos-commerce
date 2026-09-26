@@ -8288,14 +8288,16 @@ app.post('/api/chat', async (req, res) => {
     const isTimeout = err.code === 'ECONNABORTED' || (err.message && err.message.includes('timeout'));
     const reason = isTimeout ? 'timeout' : (err.code || 'upstream_error');
     const upstreamStatus = err.response && err.response.status;
+    const upstreamDetail = err.response && err.response.data && err.response.data.detail;
     console.error(
-      '[VA chat] proxy error tenantId=%s endpoint=%s status=%s reason=%s vcaUrlSource=%s secretSource=%s',
-      req.tenantId || '?', _lastEndpoint, upstreamStatus || '-', reason, vaUrl ? 'configured' : 'missing', webhookSecretSource
+      '[VA chat] proxy error tenantId=%s endpoint=%s upstreamStatus=%s reason=%s detail=%s vcaUrl=%s secretSource=%s',
+      req.tenantId || '?', _lastEndpoint, upstreamStatus || '-', reason,
+      upstreamDetail || err.message || '-', vaUrl || 'missing', webhookSecretSource
     );
-    const httpStatus = upstreamStatus || (isTimeout ? 504 : 502);
-    const detail = (err.response && err.response.data && err.response.data.detail)
+    const httpStatus = isTimeout ? 504 : (upstreamStatus || 502);
+    const detail = upstreamDetail
       || (isTimeout ? 'Assistant timed out — please retry.' : 'Assistant temporarily unavailable.');
-    return res.status(httpStatus >= 500 ? (isTimeout ? 504 : 502) : httpStatus).json({ error: detail });
+    return res.status(httpStatus).json({ error: detail });
   }
 });
 
