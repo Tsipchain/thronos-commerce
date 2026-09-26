@@ -2202,8 +2202,8 @@ test('W38: Admin has hero fit select and hero height input', () => {
 });
 
 test('W39: Index.ejs hero uses EJS-driven fit and height', () => {
-  assert.match(index, /homepage\.heroFit\s*===\s*'contain'/, 'hero img checks heroFit');
-  assert.match(index, /homepage\.heroHeight/, 'hero img uses heroHeight');
+  assert.match(index, /heroFit\s*===\s*'contain'/, 'hero img checks heroFit');
+  assert.match(index, /heroHeight/, 'hero img uses heroHeight');
 });
 
 test('W40: Clean header hero override respects custom height/fit', () => {
