@@ -5388,6 +5388,39 @@ app.post('/admin/shipping-payment', async (req, res) => {
   }));
 });
 
+app.post('/admin/shipping-options/add', async (req, res) => {
+  const { password, shipId, shipLabel, shipBase, shipCodFee, shipType, shipAllowed } = req.body;
+  const permissions = getSupportPermissions(req.tenant.supportTier);
+  if (!permissions.canEditSettings) {
+    return res.status(403).render('admin', buildAdminViewModel(req, { error: 'Δεν επιτρέπεται η προσθήκη μεταφορικών.' }));
+  }
+  const auth = await verifyAdminAction(req, password);
+  if (!auth.ok) {
+    return res.status(401).render('admin', buildAdminViewModel(req, { error: 'Λάθος κωδικός διαχειριστή.' }));
+  }
+  const normalizedId = normalizeSlug(shipId);
+  if (!normalizedId || !isUrlSafeSlug(normalizedId)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Το ID πρέπει να είναι URL-safe (πεζά λατινικά, αριθμοί, παύλες).' }));
+  }
+  const config = loadTenantConfig(req);
+  if (!config.shippingOptions) config.shippingOptions = [];
+  if (config.shippingOptions.some((s) => s.id === normalizedId)) {
+    return res.status(400).render('admin', buildAdminViewModel(req, { error: 'Υπάρχει ήδη μεταφορικό με αυτό το ID.' }));
+  }
+  const newOpt = {
+    id: normalizedId,
+    label: String(shipLabel || '').trim() || normalizedId,
+    base: parseFloat(shipBase) || 0,
+    codFee: parseFloat(shipCodFee) || 0,
+    type: shipType === 'pickup' ? 'pickup' : 'courier',
+  };
+  const allowed = String(shipAllowed || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (allowed.length) newOpt.allowedPaymentMethods = allowed;
+  config.shippingOptions.push(newOpt);
+  saveTenantConfig(req, config);
+  res.render('admin', buildAdminViewModel(req, { message: 'Νέο μεταφορικό "' + newOpt.label + '" προστέθηκε.' }));
+});
+
 // Categories CRUD
 app.post('/admin/categories/add', async (req, res) => {
   const { password, id, name, slug, parentId, image, visible, showInMainNav, navOrder } = req.body;
