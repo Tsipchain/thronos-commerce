@@ -2,13 +2,16 @@
 <%# Include this in any storefront page EXCEPT /checkout.                     %>
 <style>
   #floating-cart {
-    position: fixed; right: 24px; bottom: 24px; z-index: 1200;
-    width: 52px; height: 52px; border-radius: 50%;
+    position: fixed; right: 24px; bottom: 24px; z-index: 1800;
+    width: 56px; height: 56px; border-radius: 50%;
     background: var(--primary-color, #4f46e5); color: #fff;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.4rem; cursor: grab; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+    font-size: 1.5rem; cursor: grab; box-shadow: 0 4px 18px rgba(0,0,0,.3);
     user-select: none; touch-action: none;
+    transition: transform .15s, box-shadow .15s;
   }
+  body.eukolakis-classic #floating-cart { background: var(--eko-accent, #b8860b); box-shadow: 0 4px 18px rgba(184,134,11,.4); }
+  #floating-cart:hover { box-shadow: 0 6px 24px rgba(0,0,0,.4); }
   #floating-cart:active { transform: scale(.93); }
   #cart-badge {
     position: absolute; top: -4px; right: -4px;
@@ -17,7 +20,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   #cart-panel {
-    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 1201;
+    display: none; position: fixed; right: 84px; bottom: 24px; z-index: 1801;
     width: 300px; background: #fff; border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,.18); padding: 16px;
   }
@@ -99,17 +102,24 @@
     const cartState = window.ThrcCartState;
 
     // ── Position persistence ──────────────────────────────────────────
+    function clampPos(x, y) {
+      var w = widget.offsetWidth || 56, h = widget.offsetHeight || 56;
+      var maxX = window.innerWidth - w, maxY = window.innerHeight - h;
+      return { x: Math.max(0, Math.min(x, maxX)), y: Math.max(0, Math.min(y, maxY)) };
+    }
     (function applyPos() {
       try {
-        const p = JSON.parse(localStorage.getItem(POS_KEY));
+        var p = JSON.parse(localStorage.getItem(POS_KEY));
         if (!p) return;
+        p = clampPos(p.x, p.y);
         widget.style.right = 'auto'; widget.style.bottom = 'auto';
         widget.style.left = p.x + 'px'; widget.style.top = p.y + 'px';
       } catch(e) {}
     })();
 
     function savePos(x, y) {
-      localStorage.setItem(POS_KEY, JSON.stringify({ x, y }));
+      var c = clampPos(x, y);
+      localStorage.setItem(POS_KEY, JSON.stringify(c));
     }
 
     // ── Drag ─────────────────────────────────────────────────────────
@@ -129,7 +139,9 @@
     }
     function onMoveEnd(cx, cy) {
       if (!dragging) return; dragging = false;
-      const nl = origLeft + cx - startX, nt = origTop + cy - startY;
+      var raw = clampPos(origLeft + cx - startX, origTop + cy - startY);
+      var nl = raw.x, nt = raw.y;
+      widget.style.left = nl + 'px'; widget.style.top = nt + 'px';
       savePos(nl, nt);
       if (Math.abs(cx - startX) < 4 && Math.abs(cy - startY) < 4) {
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
@@ -143,6 +155,16 @@
     widget.addEventListener('touchstart', function(e) { const t = e.touches[0]; onMoveStart(t.clientX, t.clientY); }, { passive: true });
     document.addEventListener('touchmove', function(e) { const t = e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: true });
     document.addEventListener('touchend',  function(e) { const t = e.changedTouches[0]; onMoveEnd(t.clientX, t.clientY); });
+
+    window.addEventListener('resize', function() {
+      var r = widget.getBoundingClientRect();
+      if (r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight) {
+        var c = clampPos(r.left, r.top);
+        widget.style.right = 'auto'; widget.style.bottom = 'auto';
+        widget.style.left = c.x + 'px'; widget.style.top = c.y + 'px';
+        savePos(c.x, c.y);
+      }
+    });
 
     document.addEventListener('click', function(e) {
       if (!widget.contains(e.target) && !panel.contains(e.target)) {

@@ -1548,14 +1548,14 @@ test('Sidebar summary-list scrolls independently to pin trust/cart at bottom', (
   assert.match(listCSS, /flex:\s*1/, 'summary-list takes available space');
 });
 
-test('Banner bg image uses absolute positioning for proper cover', () => {
+test('Banner bg image uses relative positioning for natural fill', () => {
   const bgCSS = index.substring(
     index.indexOf('.sbs-banner img.sbs-banner-bg'),
     index.indexOf('}', index.indexOf('.sbs-banner img.sbs-banner-bg')) + 1
   );
-  assert.match(bgCSS, /position:\s*absolute/, 'banner bg is absolutely positioned');
-  assert.match(bgCSS, /object-fit:\s*cover/, 'banner bg uses object-fit:cover');
-  assert.match(bgCSS, /inset:\s*0/, 'banner bg uses inset:0');
+  assert.match(bgCSS, /position:\s*relative/, 'banner bg is relatively positioned');
+  assert.match(bgCSS, /object-fit:\s*contain/, 'banner bg uses object-fit:contain');
+  assert.match(bgCSS, /width:\s*100%/, 'banner bg fills width');
 });
 
 test('Step labels use stepHeadingLabel/stepShortLabel, not raw group id', () => {
@@ -2006,7 +2006,7 @@ test('W3: Storefront applies bannerSize class from builderConfig', () => {
 test('W4: Storefront applies bannerFit (contain class) from builderConfig', () => {
   assert.match(index, /bc\.bannerFit/);
   assert.match(index, /banner-contain/);
-  assert.match(index, /\.sbs-banner\.banner-contain.*object-fit:\s*contain/);
+  assert.match(index, /sbs-banner img\.sbs-banner-bg.*object-fit:\s*contain/);
 });
 
 test('W5: Storefront applies bannerPosition as object-position from builderConfig', () => {
@@ -2095,15 +2095,15 @@ test('W20: Admin defaults bannerFit to contain', () => {
   assert.match(syncFn, /bannerFit \|\| 'contain'/, 'admin syncBuilderConfigPanel default bannerFit is contain');
 });
 
-test('W21: Storefront contain mode does not stretch image', () => {
-  assert.match(index, /banner-contain img\.sbs-banner-bg.*object-fit:contain/s, 'contain CSS uses object-fit:contain');
-  const bannerCSS = index.substring(index.indexOf('.sbs-banner.banner-contain'), index.indexOf('.sbs-banner-overlay'));
-  assert.doesNotMatch(bannerCSS, /transform.*scale/, 'no transform scale in banner-contain CSS');
+test('W21: Storefront banner uses contain fit by default', () => {
+  assert.match(index, /sbs-banner img\.sbs-banner-bg.*object-fit:\s*contain/s, 'default CSS uses object-fit:contain');
+  const bannerCSS = index.substring(index.indexOf('.sbs-banner img.sbs-banner-bg'), index.indexOf('.sbs-banner-overlay'));
+  assert.doesNotMatch(bannerCSS, /transform.*scale/, 'no transform scale in banner CSS');
 });
 
-test('W22: Storefront contain mode has blurred background layer', () => {
+test('W22: Storefront banner has blurred background layer', () => {
   assert.match(index, /sbs-banner-blur/, 'blur image class exists');
-  assert.match(index, /banner-contain img\.sbs-banner-blur.*display:block/s, 'blur visible in contain mode');
+  assert.match(index, /sbs-banner-blur.*display:\s*block/s, 'blur visible by default');
   assert.match(index, /sbs-banner-blur.*filter.*blur/s, 'blur has filter');
 });
 
