@@ -39,6 +39,12 @@
     cursor: pointer; color: #ef4444; font-size: 1rem; line-height: 1;
     background: none; border: none; padding: 0 2px; flex-shrink: 0;
   }
+  #cart-items .ci-kit-toggle { cursor:pointer;color:#6b7280;font-size:.72rem;font-weight:600;margin-top:2px;display:inline-block;border:none;background:none;padding:0; }
+  #cart-items .ci-kit-toggle:hover { color:#374151; }
+  #cart-items .ci-kit-parts { padding:0;margin:4px 0 0 12px;list-style:none; }
+  #cart-items .ci-kit-parts li { display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px dashed #e5e7eb;font-size:.78rem;color:#4b5563; }
+  #cart-items .ci-kit-parts li .ci-name { flex:1; }
+  #cart-items .ci-kit-parts li .ci-remove { font-size:.85rem; }
   #cart-empty-msg { color: #aaa; font-style: italic; font-size: .85rem; }
   #cart-subtotal { font-weight: 600; font-size: .9rem; margin: 6px 0; }
   #cart-checkout-btn {
@@ -246,11 +252,30 @@
             : '';
           const optionSummary = snapshotSteps || (item.optionSummary ? '<small style=\"display:block;color:#6b7280;\">' + String(item.optionSummary).replace(/</g,'&lt;') + '</small>' : '');
           const unitPrice = item.builderSnapshot ? (Number(item.builderSnapshot.total) || 0) : (Number(item.price) || 0);
-          return '<li>' +
-            '<span class="ci-name">' + safeName + optionSummary + '</span>' +
+          var kitPartsHtml = '';
+          if (item.isKitSummary) {
+            var comps = cartState.kitComponents(cart, cartState.identity(item));
+            if (comps.length) {
+              var toggleLabel = '<%= lang === "el" ? "Εμφάνιση εξαρτημάτων" : "Show parts" %>';
+              var toggleLabelHide = '<%= lang === "el" ? "Απόκρυψη" : "Hide" %>';
+              var partsId = 'kit-parts-' + safeKey.replace(/[^a-zA-Z0-9]/g, '_');
+              kitPartsHtml = '<button class="ci-kit-toggle" onclick="var el=document.getElementById(\'' + partsId + '\');if(el){el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.textContent=el.style.display===\'none\'?\'' + toggleLabel + '\':\'' + toggleLabelHide + '\';}">' + toggleLabel + '</button>' +
+                '<ul class="ci-kit-parts" id="' + partsId + '" style="display:none;">' +
+                comps.map(function(comp) {
+                  var cKey = cartState.identity(comp).replace(/'/g, "\\'");
+                  var cName = (comp.name || comp.id || '?').replace(/</g, '&lt;');
+                  var cPrice = (Number(comp.price) || 0).toFixed(2);
+                  return '<li><span class="ci-name">' + cName + '</span><span class="ci-price">' + cPrice + ' &euro;</span>' +
+                    '<button class="ci-remove" onclick="thrcRemoveKitComponent(\'' + cKey + '\')" title="<%= lang === "el" ? "Αφαίρεση εξαρτήματος" : "Remove part" %>">&times;</button></li>';
+                }).join('') +
+                '</ul>';
+            }
+          }
+          return '<li style="flex-wrap:wrap;">' +
+            '<span class="ci-name">' + safeName + optionSummary + kitPartsHtml + '</span>' +
             '<span class="ci-controls"><button class="ci-qty-btn" onclick="thrcChangeCartQty(\'' + safeKey + '\',-1)" aria-label="Μείωση">−</button><span class="ci-qty">' + (item.qty || 1) + '</span><button class="ci-qty-btn" onclick="thrcChangeCartQty(\'' + safeKey + '\',1)" aria-label="Αύξηση">+</button></span>' +
             '<span class="ci-price">' + (unitPrice * (item.qty || 1)).toFixed(2) + ' &euro;</span>' +
-            '<button class="ci-remove" onclick="thrcRemoveFromCart(\'' + safeKey + '\')" title="Αφαίρεση γραμμής">&times;</button>' +
+            '<button class="ci-remove" onclick="thrcRemoveFromCart(\'' + safeKey + '\')" title="<%= lang === "el" ? "Αφαίρεση kit" : "Remove kit" %>">&times;</button>' +
             '</li>';
         }).join('');
         subtotalEl.textContent = '<%= t("storefront.cartSubtotal") %>: ' + total.toFixed(2) + ' \u20ac';
@@ -273,6 +298,11 @@
 
     window.thrcChangeCartQty = function(key, delta) { changeQuantity(key, delta); };
     window.thrcRemoveFromCart = function(key) { removeItem(key); };
+    window.thrcRemoveKitComponent = function(componentKey) {
+      var cart = cartState.removeKitComponent(loadCart(), componentKey);
+      saveCart(cart);
+      renderCart();
+    };
     if (clearAllBtn) {
       clearAllBtn.addEventListener('click', function() {
         if (!loadCart().length) return;
