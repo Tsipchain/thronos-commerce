@@ -3607,10 +3607,10 @@
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
-          galleryImages:  galleryRaw.length  ? galleryRaw  : undefined,
-          gallery:        galleryRaw.length  ? galleryRaw  : undefined,
-          specs:          specsRows.length   ? specsRows   : undefined,
-          variants:       variantRows.length ? variantRows : undefined,
+          galleryImages:  galleryRaw,
+          gallery:        galleryRaw,
+          specs:          specsRows,
+          variants:       variantRows,
           ...digitalFields
         };
         Object.keys(editedFields).forEach(k => editedFields[k] === undefined && delete editedFields[k]);
