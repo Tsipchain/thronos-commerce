@@ -1249,6 +1249,10 @@
           <input type="text" name="footerPickupAddress" value="<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>" placeholder="π.χ. Αθήνα, Λεωφόρος Παπάγου 12" />
           <small class="helper">Αφήστε κενό αν δεν υπάρχει φυσικό κατάστημα παραλαβής.</small>
         </label>
+        <label><span>Google Maps URL καταστήματος</span>
+          <input type="text" name="footerPickupMapUrl" value="<%= (rawConfig.footer && rawConfig.footer.pickupMapUrl) || '' %>" placeholder="https://maps.google.com/..." />
+          <small class="helper">Link Google Maps για τον χάρτη στη σελίδα επιβεβαίωσης (παραλαβή από κατάστημα).</small>
+        </label>
         <label><span>Facebook URL</span>
           <input type="text" name="footerFacebookUrl" value="<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>" placeholder="https://facebook.com/yourpage" />
         </label>

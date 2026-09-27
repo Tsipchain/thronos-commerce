@@ -1279,6 +1279,7 @@ function loadTenantConfig(req) {
     footer: {
       contactEmail: '',
       pickupAddress: '',
+      pickupMapUrl: '',
       facebookUrl: '',
       instagramUrl: '',
       tiktokUrl: '',
@@ -2356,6 +2357,11 @@ async function sendOrderEmails(order, config) {
   const storeName = resolveTranslatable(config.storeName, DEFAULT_CONTENT_LANG);
   const from = tenantFromAddress(config);
 
+  const _emailShMethod = (config.shippingOptions || []).find(function(s){ return s.id === order.shippingMethodId; });
+  const _emailIsPickup = _emailShMethod && _emailShMethod.type === 'pickup';
+  const _emailPickupAddr = (config.footer && config.footer.pickupAddress) || '';
+  const _emailPickupMap  = (config.footer && config.footer.pickupMapUrl)  || '';
+
   const bodyLines = [
     `Κωδικός παραγγελίας: ${order.id}`,
     `Προϊόν: ${order.productName}`,
@@ -2365,7 +2371,9 @@ async function sendOrderEmails(order, config) {
     `Πελάτης: ${order.customerName}`,
     `Email πελάτη: ${order.email}`,
     `Σημειώσεις: ${order.notes || '–'}`,
-    `Blockchain proof: ${order.proofHash || 'pending'}`
+    `Blockchain proof: ${order.proofHash || 'pending'}`,
+    ...(_emailIsPickup && _emailPickupAddr ? [`\n--- Παραλαβή από κατάστημα ---\nΔιεύθυνση: ${_emailPickupAddr}`] : []),
+    ...(_emailIsPickup && _emailPickupMap  ? [`Google Maps: ${_emailPickupMap}`] : [])
   ].join('\n');
 
   const sends = [];
@@ -5287,6 +5295,7 @@ app.post('/admin/settings', async (req, res) => {
     homepageSubscriptionsCtaHref,
     footerContactEmail,
     footerPickupAddress,
+    footerPickupMapUrl,
     footerFacebookUrl,
     footerInstagramUrl,
     footerTiktokUrl,
@@ -5603,6 +5612,7 @@ app.post('/admin/settings', async (req, res) => {
   config.footer = config.footer || {};
   config.footer.contactEmail = (footerContactEmail || config.footer.contactEmail || '').trim();
   config.footer.pickupAddress = (footerPickupAddress || config.footer.pickupAddress || '').trim();
+  config.footer.pickupMapUrl = (footerPickupMapUrl || config.footer.pickupMapUrl || '').trim();
   config.footer.facebookUrl = (footerFacebookUrl || config.footer.facebookUrl || '').trim();
   config.footer.instagramUrl = (footerInstagramUrl || config.footer.instagramUrl || '').trim();
   config.footer.tiktokUrl = (footerTiktokUrl || config.footer.tiktokUrl || '').trim();
