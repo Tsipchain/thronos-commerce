@@ -935,6 +935,21 @@
       .eko-subcat-pill.active { background:var(--eko-accent); color:#fff; border-color:var(--eko-accent); }
       .eko-subcat-heading { font-size:1.05rem; font-weight:700; color:var(--eko-accent); margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--eko-border); }
 
+      /* ── Subcategory cards (with photos) ── */
+      .eko-subcat-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; margin:14px 0 20px; }
+      .eko-subcat-card { display:flex; flex-direction:column; align-items:center; text-decoration:none; color:var(--eko-text); background:var(--eko-surface); border:1px solid var(--eko-border); border-radius:12px; overflow:hidden; transition:border-color .18s, transform .15s, box-shadow .18s; cursor:pointer; }
+      .eko-subcat-card:hover { border-color:var(--eko-accent); transform:translateY(-2px); box-shadow:0 4px 16px rgba(196,144,46,.15); }
+      .eko-subcat-card.active { border-color:var(--eko-accent); box-shadow:0 0 0 2px var(--eko-accent); }
+      .eko-subcat-card-img { width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--eko-surface-2, #1c2030); display:block; }
+      .eko-subcat-card-placeholder { width:100%; aspect-ratio:4/3; background:linear-gradient(135deg, var(--eko-surface-2, #1c2030) 0%, var(--eko-surface, #141820) 100%); display:flex; align-items:center; justify-content:center; }
+      .eko-subcat-card-placeholder span { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--eko-accent); opacity:.5; }
+      .eko-subcat-card-label { padding:8px 10px; font-size:.78rem; font-weight:700; text-align:center; color:var(--eko-text-strong, #fff); width:100%; box-sizing:border-box; line-height:1.25; }
+      .eko-subcat-card.active .eko-subcat-card-label { color:var(--eko-accent); }
+      @media (max-width:768px) {
+        .eko-subcat-cards { grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px; margin:10px 0 14px; }
+        .eko-subcat-card-label { font-size:.72rem; padding:6px 8px; }
+      }
+
       /* ── Product cards — dark theme adaptation ── */
       body.eukolakis-classic .product-card {
         background: var(--eko-surface) !important;
@@ -1848,7 +1863,29 @@
       <% } %>
 
       <% const _activeCatChildren = (activeCategory && activeCategoryObj) ? categories.filter(function(c){ return c.parentId === activeCategoryObj.id || c.parentId === activeCategoryObj.slug; }) : []; %>
-      <% if (_activeCatChildren.length) { %>
+      <% const _hasSubcatImages = _activeCatChildren.some(function(c){ return !!c.image; }); %>
+      <% if (_activeCatChildren.length && _hasSubcatImages && isEukolakisClassic) { %>
+      <div class="eko-subcat-cards">
+        <a class="eko-subcat-card active" href="<%= withTenantLink('/', Object.assign({ category: activeCategoryObj.slug }, lang !== 'el' ? { lang } : {})) %>" data-subcat="all">
+          <% if (activeCategoryObj.image) { %>
+            <img class="eko-subcat-card-img" src="<%= activeCategoryObj.image + '?v=' + (activeCategoryObj.imageVersion || 1) %>" alt="<%= lang === 'el' ? 'Όλα' : 'All' %>" />
+          <% } else { %>
+            <div class="eko-subcat-card-placeholder"><span><%= lang === 'el' ? 'Όλα' : 'All' %></span></div>
+          <% } %>
+          <div class="eko-subcat-card-label"><%= lang === 'el' ? 'Όλα' : 'All' %></div>
+        </a>
+        <% _activeCatChildren.forEach(function(sub) { %>
+        <a class="eko-subcat-card" href="<%= withTenantLink('/', Object.assign({ category: sub.slug }, lang !== 'el' ? { lang } : {})) %>" data-subcat="<%= sub.id %>">
+          <% if (sub.image) { %>
+            <img class="eko-subcat-card-img" src="<%= sub.image + '?v=' + (sub.imageVersion || 1) %>" alt="<%= sub.name %>" />
+          <% } else { %>
+            <div class="eko-subcat-card-placeholder"><span><%= (sub.name || '').slice(0,3) %></span></div>
+          <% } %>
+          <div class="eko-subcat-card-label"><%= sub.name %></div>
+        </a>
+        <% }); %>
+      </div>
+      <% } else if (_activeCatChildren.length) { %>
       <div class="eko-subcat-pills">
         <a class="eko-subcat-pill active" href="<%= withTenantLink('/', Object.assign({ category: activeCategoryObj.slug }, lang !== 'el' ? { lang } : {})) %>" data-subcat="all"><%= lang === 'el' ? 'Όλα' : 'All' %></a>
         <% _activeCatChildren.forEach(function(sub) { %>
@@ -3461,7 +3498,7 @@
         updateFilters();
       })();
       (function() {
-        var pills = document.querySelectorAll('.eko-subcat-pill[data-subcat]');
+        var pills = document.querySelectorAll('.eko-subcat-pill[data-subcat], .eko-subcat-card[data-subcat]');
         if (!pills.length) return;
         var grid = document.getElementById('product-list-grid');
         if (!grid) return;
