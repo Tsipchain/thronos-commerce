@@ -21,7 +21,7 @@
     "subtotal": "Υποσύνολο",
     "shipping": "Μεταφορικά",
     "codFee": "Επιβάρυνση αντικαταβολής",
-    "gatewayFee": "Επιβάρυνση gateway",
+    "gatewayFee": "Χρέωση υπηρεσίας",
     "total": "Σύνολο",
     "cartEmptyMsg": "Το καλάθι σας είναι άδειο.",
     "fullName": "Ονοματεπώνυμο",
@@ -56,7 +56,7 @@
     "subtotal": "Subtotal",
     "shippingCost": "Μεταφορικά",
     "codFee": "Αντικαταβολή",
-    "gatewayFee": "Gateway fee",
+    "gatewayFee": "Χρέωση υπηρεσίας",
     "total": "Σύνολο",
     "wallet": "Web3 wallet",
     "proofHash": "Thronos blockchain proof hash"

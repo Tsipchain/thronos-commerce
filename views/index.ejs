@@ -2718,7 +2718,7 @@
               });
               window.thrcAddToCart({
                 id: state.product.id,
-                name: (state.product.name || 'KIT') + ' (summary)',
+                name: (state.product.name || 'KIT') + (<%= JSON.stringify(lang) %> === 'el' ? ' (σύνοψη)' : ' (summary)'),
                 price: 0,
                 imageUrl: state.product.imageUrl || '',
                 selectedOptions: selected,
@@ -3274,7 +3274,7 @@
                 }
               });
               window.thrcAddToCart({
-                id: sbsState.product.id, name: resolveF(sbsState.product.name) + ' (summary)',
+                id: sbsState.product.id, name: resolveF(sbsState.product.name) + (LANG === 'el' ? ' (σύνοψη)' : ' (summary)'),
                 price: 0, imageUrl: sbsState.product.imageUrl || '',
                 selectedOptions: selected, optionSummary: optionSummary,
                 finalUnitPrice: 0, cartKey: cartKey + '::summary', isKitSummary: true,
