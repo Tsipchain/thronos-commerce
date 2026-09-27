@@ -53,7 +53,7 @@
     "subtotal": "Subtotal",
     "shippingCost": "Shipping cost",
     "codFee": "COD fee",
-    "gatewayFee": "Gateway fee",
+    "gatewayFee": "Service fee",
     "total": "Total",
     "wallet": "Web3 wallet",
     "proofHash": "Thronos blockchain proof hash"
