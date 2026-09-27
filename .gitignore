@@ -1,6 +1,17 @@
 # Dependencies
 node_modules/
+
+# Runtime tenant data (admin writes go to data-runtime/; git must never overwrite)
+data-runtime/
 data/tenants/*/video-storage/
+data/tenants/*/backups/
+data/tenants/*/orders.json
+data/tenants/*/users.json
+data/tenants/*/reviews.json
+data/tenants/*/stock_log.json
+data/tenants/*/analytics.json
+data/tenants/*/pending_orders.json
+data/tenants/*/tickets.json
 
 # Environment variables
 .env
