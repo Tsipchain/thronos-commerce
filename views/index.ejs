@@ -202,7 +202,8 @@
       .sbs-banner { width:100%; position:relative; overflow:hidden; height:auto; min-height:140px; max-height:280px; flex-shrink:0; border-radius:12px 12px 0 0; }
       .sbs-banner.banner-small { max-height:180px; }
       .sbs-banner.banner-large { min-height:180px; max-height:340px; }
-      .sbs-banner img.sbs-banner-bg { position:relative; width:100%; height:auto; max-height:280px; object-fit:cover; object-position:center; display:block; z-index:0; }
+      .sbs-banner img.sbs-banner-bg { position:relative; width:100%; height:auto; max-height:280px; object-fit:contain; object-position:center; display:block; z-index:1; }
+      .sbs-banner.banner-cover img.sbs-banner-bg { object-fit:cover; }
       .sbs-banner.banner-contain img.sbs-banner-bg { object-fit:contain; background:#0a0e1a; }
       .sbs-banner img.sbs-banner-blur { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; object-position:center center; display:block; z-index:0; filter:blur(18px) brightness(.35); }
       .sbs-banner-overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(8,12,24,.45) 0%,rgba(8,12,24,.22) 55%,transparent 100%); display:flex; flex-direction:column; justify-content:center; padding:22px 36px; z-index:2; }
@@ -1366,7 +1367,7 @@
       }
       /* Clean is a selectable presentation layer; the original plate rules above
          remain intact and are activated by .eko-header-industrial_plates. */
-      body.eukolakis-classic.eko-header-clean .store-header { position:static; top:auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; min-height:64px !important; padding:0 22px; background:var(--eko-surface) !important; box-shadow:0 1px 4px rgba(0,0,0,.18) !important; border-bottom:1px solid var(--eko-border) !important; backdrop-filter:none; overflow:visible; }
+      body.eukolakis-classic.eko-header-clean .store-header { position:relative; top:auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:0 8px; align-items:center; min-height:64px !important; padding:0 22px; background:var(--eko-surface) !important; box-shadow:0 1px 4px rgba(0,0,0,.18) !important; border-bottom:1px solid var(--eko-border) !important; backdrop-filter:none; overflow:visible; }
       .header-logo-foreground-hidden .logo-title { /* stable mode hook used by theme previews */ }
       body.eko-header-clean .store-header::before,
       body.eko-header-clean .store-header::after,
@@ -1374,12 +1375,12 @@
       body.eko-header-clean .header-main-row { display:contents; }
       body.eko-header-clean .logo-title { grid-column:1; align-self:center; }
       body.eko-header-clean .header-auth-actions { display:none !important; }
-      body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:160px; }
-      body.eko-header-clean .eko-header-compact-logo img { height:52px; max-width:200px; }
+      body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:140px; }
+      body.eko-header-clean .eko-header-compact-logo img { height:60px; max-width:220px; }
       body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
       body.eko-header-clean .header-nav-row { display:contents; }
       body.eko-header-clean .header-nav-row .main-nav { grid-column:2; grid-row:1; padding:0 22px; background:transparent; min-width:0; }
-      body.eko-header-clean .header-nav-row ul { justify-content:center; gap:24px; overflow:visible; }
+      body.eko-header-clean .header-nav-row ul { justify-content:flex-start; gap:24px; overflow:visible; }
       body.eko-header-clean .header-nav-row ul li a { min-width:0; padding:18px 0; border:0; border-radius:0; background:none; box-shadow:none; color:var(--eko-accent); font-size:.73rem; letter-spacing:.045em; font-weight:700; }
       body.eko-header-clean .header-nav-row ul li a::before { display:none !important; content:none !important; animation:none !important; }
       body.eko-header-clean .header-nav-row ul li a::after { content:"" !important; display:block !important; position:absolute; left:0; right:auto; bottom:10px; width:0; height:2px; border:0; background:var(--eko-accent); opacity:0; box-shadow:0 0 7px color-mix(in srgb,var(--eko-accent) 30%,transparent); transition:width .2s ease, opacity .2s ease; }
@@ -1396,6 +1397,8 @@
       body.eko-header-clean .eko-compact-sub { color:var(--eko-text-muted) !important; }
       body.eko-header-clean .eko-clean-menu-toggle { display:none; grid-column:4; grid-row:1; }
       body.eko-header-clean .eko-nav-lang { display:block; grid-column:4; grid-row:1; margin-left:8px; }
+      body.eko-header-clean .header-mode-toggle-slot { position:absolute; right:22px; top:50%; transform:translateY(-50%); z-index:6; }
+      body.eko-header-clean .header-mode-toggle-slot .eko-mode-btn { display:inline-flex; }
       body.eko-header-clean .eko-hero { margin:0 calc(50% - 50vw) 28px; border:0; border-radius:0; }
       body.eko-header-clean .eko-hero-img { height:<%= (_hp.heroHeight > 0) ? _hp.heroHeight + 'px' : 'clamp(360px,48vw,680px)' %>; object-fit:<%= (_hp.heroFit === 'contain') ? 'contain' : 'cover' %>; }
       .eko-account-utility { margin:28px auto 0; padding:18px; display:flex; justify-content:center; align-items:center; gap:12px; border-top:1px solid var(--eko-border); color:var(--eko-text-muted); }

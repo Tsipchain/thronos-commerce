@@ -512,9 +512,19 @@ if (process.env.THRC_DATA_ROOT) {
     DATA_ROOT = EMBEDDED_DATA_ROOT;
   }
 } else {
-  console.log(
-    '[Thronos Commerce] THRC_DATA_ROOT not set – using embedded ./data as DATA_ROOT.'
-  );
+  const runtimeRoot = path.join(__dirname, 'data-runtime');
+  try {
+    copyDirRecursiveSync(EMBEDDED_DATA_ROOT, runtimeRoot);
+    DATA_ROOT = runtimeRoot;
+    console.log(
+      '[Thronos Commerce] Using data-runtime/ (seeded from embedded data/). Set THRC_DATA_ROOT to override.'
+    );
+  } catch (err) {
+    console.error(
+      '[Thronos Commerce] Could not create data-runtime/, falling back to embedded data/:',
+      err.message
+    );
+  }
 }
 
 // Ensure base dirs for the final DATA_ROOT
