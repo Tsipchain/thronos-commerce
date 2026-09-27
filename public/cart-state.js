@@ -55,11 +55,18 @@
     const indexes = groupedIndexes(source, key);
     return source.filter((_, index) => !indexes.includes(index));
   }
+  function removeKitComponent(cart, componentKey) {
+    const source = Array.isArray(cart) ? cart : [];
+    return source.filter((item) => identity(item) !== componentKey);
+  }
+  function kitComponents(cart, kitKey) {
+    return (Array.isArray(cart) ? cart : []).filter((item) => item.sourceKitCartKey === kitKey);
+  }
   function subtotal(cart) {
     return (Array.isArray(cart) ? cart : []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1), 0);
   }
   function badgeCount(cart) {
     return visibleItems(cart).reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
   }
-  return { identity, isKitComponent, visibleItems, add, change, removeLine, subtotal, badgeCount };
+  return { identity, isKitComponent, visibleItems, add, change, removeLine, removeKitComponent, kitComponents, subtotal, badgeCount };
 });

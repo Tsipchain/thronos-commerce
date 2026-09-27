@@ -449,7 +449,7 @@
       const CART_KEY = 'thrc_cart:' + CART_SCOPE;
       const CART_SESSION_KEY = 'thrc_cart_session:' + CART_SCOPE;
       const cartJsonInput = document.getElementById('cart-json-input');
-      const cartSnapshotApi = '<%= withTenantLink("/api/checkout/cart-snapshot") %>';
+      const cartSnapshotApi = '<%- withTenantLink("/api/checkout/cart-snapshot") %>';
 
       // ── Load & validate cart ──────────────────────────────────────
       function readCartSnapshot() {

@@ -1249,6 +1249,10 @@
           <input type="text" name="footerPickupAddress" value="<%= (rawConfig.footer && rawConfig.footer.pickupAddress) || '' %>" placeholder="π.χ. Αθήνα, Λεωφόρος Παπάγου 12" />
           <small class="helper">Αφήστε κενό αν δεν υπάρχει φυσικό κατάστημα παραλαβής.</small>
         </label>
+        <label><span>Google Maps URL καταστήματος</span>
+          <input type="text" name="footerPickupMapUrl" value="<%= (rawConfig.footer && rawConfig.footer.pickupMapUrl) || '' %>" placeholder="https://maps.google.com/..." />
+          <small class="helper">Link Google Maps για τον χάρτη στη σελίδα επιβεβαίωσης (παραλαβή από κατάστημα).</small>
+        </label>
         <label><span>Facebook URL</span>
           <input type="text" name="footerFacebookUrl" value="<%= (rawConfig.footer && rawConfig.footer.facebookUrl) || '' %>" placeholder="https://facebook.com/yourpage" />
         </label>
@@ -2388,6 +2392,14 @@
               <% }) %>
             </select>
           </label>
+          <label class="full"><span>Επιπλέον κατηγορίες</span>
+            <select id="f-category-ids" multiple size="3" style="min-height:60px;">
+              <% categories.forEach(function(cat){ %>
+                <option value="<%= cat.id %>"><%= cat.name %></option>
+              <% }) %>
+            </select>
+            <small style="color:#6b7280;font-size:.7rem;">Ctrl+click για πολλαπλή επιλογή (εμφανίζεται και στις κατηγορίες αυτές)</small>
+          </label>
           <label class="full"><span><%= t('admin.modalImageUrl') %></span>
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
             <img id="f-image-preview" alt="" style="display:none;margin-top:6px;width:70px;height:70px;object-fit:cover;border:1px solid #d1d5db;border-radius:8px;" />
@@ -2977,6 +2989,7 @@
       const fDiyProject = document.getElementById('f-diy-project');
       const fActive     = document.getElementById('f-active');
       const fCat        = document.getElementById('f-category');
+      const fCatIds     = document.getElementById('f-category-ids');
       const fImg        = document.getElementById('f-imageUrl');
       const fImgPreview = document.getElementById('f-image-preview');
       const fImgFile    = document.getElementById('f-image-file');
@@ -3505,7 +3518,8 @@
         fPrice.value = ''; fStock.value = '1'; fFeatured.checked = false;
         if (fDiyProject) fDiyProject.checked = false;
         if (fActive) fActive.checked = true;
-        fCat.value = ''; fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
+        fCat.value = ''; if (fCatIds) Array.from(fCatIds.options).forEach(function(o){ o.selected = false; });
+        fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
@@ -3535,6 +3549,10 @@
         if (fDiyProject) fDiyProject.checked = !!p.diyProject || (Array.isArray(p.tags) && p.tags.includes('diy-project'));
         if (fActive) fActive.checked = p.active !== false;
         fCat.value        = p.categoryId || '';
+        if (fCatIds) {
+          var extraIds = Array.isArray(p.categoryIds) ? p.categoryIds : [];
+          Array.from(fCatIds.options).forEach(function(opt){ opt.selected = extraIds.includes(opt.value); });
+        }
         fImg.value        = p.imageUrl || '';
         if (fImgPreview) {
           if (fImg.value) { fImgPreview.src = fImg.value; fImgPreview.style.display = 'block'; }
@@ -3584,14 +3602,15 @@
           diyProject:     fDiyProject && fDiyProject.checked ? true : undefined,
           active:         fActive && !fActive.checked ? false : undefined,
           categoryId:     fCat.value || undefined,
+          categoryIds:    fCatIds ? Array.from(fCatIds.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : undefined,
           imageUrl:       fImg.value.trim() || undefined,
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,
-          galleryImages:  galleryRaw.length  ? galleryRaw  : undefined,
-          gallery:        galleryRaw.length  ? galleryRaw  : undefined,
-          specs:          specsRows.length   ? specsRows   : undefined,
-          variants:       variantRows.length ? variantRows : undefined,
+          galleryImages:  galleryRaw,
+          gallery:        galleryRaw,
+          specs:          specsRows,
+          variants:       variantRows,
           ...digitalFields
         };
         Object.keys(editedFields).forEach(k => editedFields[k] === undefined && delete editedFields[k]);
