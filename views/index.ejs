@@ -936,18 +936,18 @@
       .eko-subcat-heading { font-size:1.05rem; font-weight:700; color:var(--eko-accent); margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--eko-border); }
 
       /* ── Subcategory cards (with photos) ── */
-      .eko-subcat-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; margin:14px 0 20px; }
+      .eko-subcat-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(185px, 1fr)); gap:14px; margin:16px 0 22px; }
       .eko-subcat-card { display:flex; flex-direction:column; align-items:center; text-decoration:none; color:var(--eko-text); background:var(--eko-surface); border:1px solid var(--eko-border); border-radius:12px; overflow:hidden; transition:border-color .18s, transform .15s, box-shadow .18s; cursor:pointer; }
       .eko-subcat-card:hover { border-color:var(--eko-accent); transform:translateY(-2px); box-shadow:0 4px 16px rgba(196,144,46,.15); }
       .eko-subcat-card.active { border-color:var(--eko-accent); box-shadow:0 0 0 2px var(--eko-accent); }
       .eko-subcat-card-img { width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--eko-surface-2, #1c2030); display:block; }
       .eko-subcat-card-placeholder { width:100%; aspect-ratio:4/3; background:linear-gradient(135deg, var(--eko-surface-2, #1c2030) 0%, var(--eko-surface, #141820) 100%); display:flex; align-items:center; justify-content:center; }
       .eko-subcat-card-placeholder span { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--eko-accent); opacity:.5; }
-      .eko-subcat-card-label { padding:8px 10px; font-size:.78rem; font-weight:700; text-align:center; color:var(--eko-text-strong, #fff); width:100%; box-sizing:border-box; line-height:1.25; }
+      .eko-subcat-card-label { padding:10px 12px; font-size:.88rem; font-weight:700; text-align:center; color:var(--eko-text-strong, #fff); width:100%; box-sizing:border-box; line-height:1.25; }
       .eko-subcat-card.active .eko-subcat-card-label { color:var(--eko-accent); }
       @media (max-width:768px) {
-        .eko-subcat-cards { grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px; margin:10px 0 14px; }
-        .eko-subcat-card-label { font-size:.72rem; padding:6px 8px; }
+        .eko-subcat-cards { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; margin:12px 0 16px; }
+        .eko-subcat-card-label { font-size:.78rem; padding:8px 10px; }
       }
 
       /* ── Product cards — dark theme adaptation ── */
@@ -1374,8 +1374,8 @@
       body.eko-header-clean .header-main-row { display:contents; }
       body.eko-header-clean .logo-title { grid-column:1; align-self:center; }
       body.eko-header-clean .header-auth-actions { display:none !important; }
-      body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:150px; }
-      body.eko-header-clean .eko-header-compact-logo img { height:34px; max-width:130px; }
+      body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:160px; }
+      body.eko-header-clean .eko-header-compact-logo img { height:52px; max-width:200px; }
       body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
       body.eko-header-clean .header-nav-row { display:contents; }
       body.eko-header-clean .header-nav-row .main-nav { grid-column:2; grid-row:1; padding:0 22px; background:transparent; min-width:0; }
@@ -2772,7 +2772,7 @@
               });
               window.thrcAddToCart({
                 id: state.product.id,
-                name: (state.product.name || 'KIT') + (<%= JSON.stringify(lang) %> === 'el' ? ' (σύνοψη)' : ' (summary)'),
+                name: (state.product.name || 'KIT') + (<%- JSON.stringify(lang) %> === 'el' ? ' (σύνοψη)' : ' (summary)'),
                 price: 0,
                 imageUrl: state.product.imageUrl || '',
                 selectedOptions: selected,

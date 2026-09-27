@@ -3121,7 +3121,7 @@ app.get('/', (req, res) => {
       if (cat) {
         const childIds = categories.filter((c) => c.parentId === cat.id || c.parentId === cat.slug).map((c) => c.id);
         const matchIds = new Set([cat.id, ...childIds]);
-        products = hydratedAllProducts.filter((p) => matchIds.has(p.categoryId));
+        products = hydratedAllProducts.filter((p) => matchIds.has(p.categoryId) || (Array.isArray(p.categoryIds) && p.categoryIds.some((cid) => matchIds.has(cid))));
       } else {
         products = [];
       }
