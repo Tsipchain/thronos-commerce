@@ -103,6 +103,16 @@
       .filter-empty-state strong { display:block; margin-bottom:6px; color:#0f172a; }
       .filter-empty-state .button { margin-top:8px; display:inline-block; }
       .product-card.filter-hidden { display:none !important; }
+      .product-card.page-hidden { display:none !important; }
+      .thrc-product-search { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+      .thrc-product-search input { flex:1; max-width:360px; padding:9px 14px; border:1px solid var(--eko-border,#d1d5db); border-radius:8px; font-size:.88rem; background:var(--eko-surface,#fff); color:var(--eko-text,#1e293b); outline:none; }
+      .thrc-product-search input:focus { border-color:var(--eko-accent,#e8922d); box-shadow:0 0 0 2px color-mix(in srgb,var(--eko-accent,#e8922d) 18%,transparent); }
+      .thrc-pagination { display:flex; justify-content:center; align-items:center; gap:6px; margin:18px 0 8px; flex-wrap:wrap; }
+      .thrc-pagination button { min-width:36px; height:36px; border:1px solid var(--eko-border,#d1d5db); border-radius:8px; background:var(--eko-surface,#fff); color:var(--eko-text,#334155); font-size:.84rem; cursor:pointer; transition:background .15s,border-color .15s; }
+      .thrc-pagination button:hover { background:var(--eko-surface-2,#f1f5f9); }
+      .thrc-pagination button.active { background:var(--eko-accent,#e8922d); color:#fff; border-color:var(--eko-accent,#e8922d); font-weight:700; }
+      .thrc-pagination button:disabled { opacity:.4; cursor:default; }
+      .thrc-pagination .thrc-page-info { font-size:.78rem; color:var(--eko-text-muted,#64748b); }
       .kit-choice-grid.fade-step { opacity:.15; transform:translateY(6px); transition:opacity .2s ease, transform .2s ease; }
       .kit-choice-grid.fade-step.ready { opacity:1; transform:translateY(0); }
       body.card-density-compact .product-list { gap: 12px; }
@@ -1367,19 +1377,21 @@
       }
       /* Clean is a selectable presentation layer; the original plate rules above
          remain intact and are activated by .eko-header-industrial_plates. */
-      body.eukolakis-classic.eko-header-clean .store-header { position:relative; top:auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:0 8px; align-items:center; min-height:64px !important; padding:0 22px; background:var(--eko-surface) !important; box-shadow:0 1px 4px rgba(0,0,0,.18) !important; border-bottom:1px solid var(--eko-border) !important; backdrop-filter:none; overflow:visible; }
+      body.eukolakis-classic.eko-header-clean .store-header { position:relative; top:auto; display:grid; grid-template-columns:auto auto minmax(0,1fr) auto auto; gap:0 8px; align-items:center; min-height:64px !important; padding:0 10px 0 10px; background:var(--eko-surface) !important; box-shadow:0 1px 4px rgba(0,0,0,.18) !important; border-bottom:1px solid var(--eko-border) !important; backdrop-filter:none; overflow:visible; }
       .header-logo-foreground-hidden .logo-title { /* stable mode hook used by theme previews */ }
       body.eko-header-clean .store-header::before,
       body.eko-header-clean .store-header::after,
       body.eko-header-clean .eko-header-bg-logo { display:none !important; content:none !important; }
       body.eko-header-clean .header-main-row { display:contents; }
       body.eko-header-clean .logo-title { grid-column:1; align-self:center; }
+      body.eko-header-clean .header-mode-toggle-slot { grid-column:2; grid-row:1; display:flex; align-items:center; position:static; transform:none; }
+      body.eko-header-clean .header-mode-toggle-slot .eko-mode-btn { display:inline-flex; font-size:.68rem; padding:4px 10px; }
       body.eko-header-clean .header-auth-actions { display:none !important; }
       body.eko-header-clean .eko-header-compact-logo { padding:0; min-width:140px; }
-      body.eko-header-clean .eko-header-compact-logo img { height:60px; max-width:220px; }
+      body.eko-header-clean .eko-header-compact-logo img { height:68px; max-width:240px; }
       body.eko-header-clean .eko-header-compact-logo .eko-compact-sub { display:none; }
       body.eko-header-clean .header-nav-row { display:contents; }
-      body.eko-header-clean .header-nav-row .main-nav { grid-column:2; grid-row:1; padding:0 22px; background:transparent; min-width:0; }
+      body.eko-header-clean .header-nav-row .main-nav { grid-column:3; grid-row:1; padding:0 16px; background:transparent; min-width:0; }
       body.eko-header-clean .header-nav-row ul { justify-content:flex-start; gap:24px; overflow:visible; }
       body.eko-header-clean .header-nav-row ul li a { min-width:0; padding:18px 0; border:0; border-radius:0; background:none; box-shadow:none; color:var(--eko-accent); font-size:.73rem; letter-spacing:.045em; font-weight:700; }
       body.eko-header-clean .header-nav-row ul li a::before { display:none !important; content:none !important; animation:none !important; }
@@ -1389,26 +1401,25 @@
       body.eko-header-clean .header-nav-row ul:has(li:hover) li.active:not(:hover) a::after { opacity:.4; }
       body.eko-header-clean .header-nav-row ul li a:hover,
       body.eko-header-clean .header-nav-row ul li.active a { color:#e8922d; background:none; transform:none; box-shadow:none; }
-      body.eko-header-clean .eko-header-actions { grid-column:3; grid-row:1; margin:0; z-index:3; }
+      body.eko-header-clean .eko-header-actions { grid-column:4; grid-row:1; margin:0; z-index:3; }
       body.eko-header-clean .eko-header-icon-btn { border-color:var(--eko-border); background:var(--eko-surface-2); color:var(--eko-text); }
       body.eko-header-clean .eko-header-icon-btn svg { fill:var(--eko-text); }
       body.eko-header-clean .logo-title h1 { color:var(--eko-text-strong); }
       body.eko-header-clean .eko-compact-name { color:var(--eko-text-strong) !important; }
       body.eko-header-clean .eko-compact-sub { color:var(--eko-text-muted) !important; }
-      body.eko-header-clean .eko-clean-menu-toggle { display:none; grid-column:4; grid-row:1; }
-      body.eko-header-clean .eko-nav-lang { display:block; grid-column:4; grid-row:1; margin-left:8px; }
-      body.eko-header-clean .header-mode-toggle-slot { position:absolute; right:22px; top:50%; transform:translateY(-50%); z-index:6; }
-      body.eko-header-clean .header-mode-toggle-slot .eko-mode-btn { display:inline-flex; }
+      body.eko-header-clean .eko-clean-menu-toggle { display:none; grid-column:5; grid-row:1; }
+      body.eko-header-clean .eko-nav-lang { display:block; grid-column:5; grid-row:1; margin-left:8px; }
       body.eko-header-clean .eko-hero { margin:0 calc(50% - 50vw) 28px; border:0; border-radius:0; }
       body.eko-header-clean .eko-hero-img { height:<%= (_hp.heroHeight > 0) ? _hp.heroHeight + 'px' : 'clamp(360px,48vw,680px)' %>; object-fit:<%= (_hp.heroFit === 'contain') ? 'contain' : 'cover' %>; }
       .eko-account-utility { margin:28px auto 0; padding:18px; display:flex; justify-content:center; align-items:center; gap:12px; border-top:1px solid var(--eko-border); color:var(--eko-text-muted); }
       .eko-account-utility a { color:var(--eko-accent); text-decoration:none; font-size:.82rem; font-weight:700; }
       @media (max-width:900px) {
-        body.eukolakis-classic.eko-header-clean .store-header { grid-template-columns:minmax(0,1fr) auto auto; padding:0 12px; overflow-x:clip; }
+        body.eukolakis-classic.eko-header-clean .store-header { grid-template-columns:minmax(0,1fr) auto auto auto; padding:0 10px; overflow-x:clip; }
         body.eko-header-clean .logo-title { grid-column:1; grid-row:1; }
-        body.eko-header-clean .eko-header-actions { grid-column:2; }
-        body.eko-header-clean .eko-clean-menu-toggle { display:inline-flex; align-items:center; justify-content:center; grid-column:3; width:38px; height:38px; margin-left:6px; padding:0; background:var(--eko-surface-2); color:var(--eko-text); border:1px solid var(--eko-border); border-radius:8px; font-size:1.25rem; }
-        body.eko-header-clean .header-nav-row { display:block; grid-column:1/-1; grid-row:2; width:calc(100% + 24px); margin-left:-12px; }
+        body.eko-header-clean .header-mode-toggle-slot { grid-column:2; }
+        body.eko-header-clean .eko-header-actions { grid-column:3; }
+        body.eko-header-clean .eko-clean-menu-toggle { display:inline-flex; align-items:center; justify-content:center; grid-column:4; width:38px; height:38px; margin-left:6px; padding:0; background:var(--eko-surface-2); color:var(--eko-text); border:1px solid var(--eko-border); border-radius:8px; font-size:1.25rem; }
+        body.eko-header-clean .header-nav-row { display:block; grid-column:1/-1; grid-row:2; width:calc(100% + 20px); margin-left:-10px; }
         body.eko-header-clean .main-nav { display:none; }
         body.eko-header-clean .main-nav.open { display:block; padding:8px 18px 14px; border-top:1px solid var(--eko-border); background:var(--eko-surface); }
         body.eko-header-clean .header-nav-row ul { display:grid; grid-template-columns:1fr; gap:0; }
@@ -1532,6 +1543,7 @@
         <% } %>
       </div>
       <% if (isEukolakisClassic) { %>
+      <div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div>
       <div class="eko-header-actions">
         <form class="eko-header-search" action="<%= withTenantLink('/', {}) %>" method="GET">
           <input type="search" name="q" placeholder="<%= lang === 'el' ? 'Αναζήτηση...' : 'Search...' %>" value="<%= (typeof query !== 'undefined' && query) || '' %>" autocomplete="off" />
@@ -1627,7 +1639,6 @@
           <% }) %>
         </select>
       </div>
-      <div class="header-mode-toggle-slot" aria-label="Color mode toggle slot"></div>
       <% } %>
       </div>
       <% } %>
@@ -2021,6 +2032,11 @@
       </section>
       <div id="spare-filter-results" class="filter-results"></div>
       <% } %>
+      <% if (activeCategory !== 'spare-parts' && products.length > 0) { %>
+      <div class="thrc-product-search" id="thrc-product-search">
+        <input type="search" id="thrc-search-input" placeholder="<%= lang === 'el' ? 'Αναζήτηση προϊόντων...' : 'Search products...' %>" autocomplete="off" />
+      </div>
+      <% } %>
       <section class="product-list" id="product-list-grid">
         <% if (products.length === 0) { %>
           <p><%= t('storefront.noProducts') %></p>
@@ -2048,6 +2064,11 @@
           <% }); %>
         <% } %>
       </section>
+      <div id="thrc-pagination" class="thrc-pagination" style="display:none;"></div>
+      <div id="thrc-search-empty" class="filter-empty-state" style="display:none;">
+        <strong><%= lang === 'el' ? 'Δεν βρέθηκαν προϊόντα' : 'No products found' %></strong>
+        <div><%= lang === 'el' ? 'Δοκίμασε διαφορετική αναζήτηση.' : 'Try a different search.' %></div>
+      </div>
       <div id="spare-filter-empty" class="filter-empty-state">
         <strong><%= lang === 'el' ? 'Δεν βρέθηκαν ανταλλακτικά με αυτά τα φίλτρα' : 'No spare parts match these filters' %></strong>
         <div><%= lang === 'el' ? 'Δοκίμασε άλλο SKU ή κάνε reset.' : 'Try another SKU or reset filters.' %></div>
@@ -3525,6 +3546,95 @@
             }
           });
         });
+      })();
+      (function() {
+        var PER_PAGE = 15;
+        var grid = document.getElementById('product-list-grid');
+        var searchInput = document.getElementById('thrc-search-input');
+        var paginationEl = document.getElementById('thrc-pagination');
+        var emptyEl = document.getElementById('thrc-search-empty');
+        if (!grid) return;
+        var allCards = Array.from(grid.querySelectorAll('.product-card'));
+        var sections = Array.from(grid.querySelectorAll('.eko-subcat-section'));
+        if (!allCards.length) return;
+        var currentPage = 1;
+        var searchQuery = '';
+
+        function visibleCards() {
+          return allCards.filter(function(c) {
+            return !c.classList.contains('filter-hidden') && c.style.display !== 'none';
+          });
+        }
+        function matchesSearch(card, q) {
+          if (!q) return true;
+          var name = (card.querySelector('h2') ? card.querySelector('h2').textContent : '').toLowerCase();
+          var desc = (card.querySelector('.product-card-body p') ? card.querySelector('.product-card-body p').textContent : '').toLowerCase();
+          var sku = (card.getAttribute('data-product-sku') || '').toLowerCase();
+          return name.indexOf(q) !== -1 || desc.indexOf(q) !== -1 || sku.indexOf(q) !== -1;
+        }
+        function renderPage() {
+          var q = searchQuery;
+          var matchCards = allCards.filter(function(c) {
+            var subcatHidden = c.style.display === 'none' && !c.classList.contains('page-hidden');
+            if (subcatHidden) return false;
+            c.classList.remove('page-hidden');
+            return true;
+          }).filter(function(c) {
+            if (!c.classList.contains('filter-hidden')) return matchesSearch(c, q);
+            return false;
+          });
+          var totalPages = Math.max(1, Math.ceil(matchCards.length / PER_PAGE));
+          if (currentPage > totalPages) currentPage = totalPages;
+          var start = (currentPage - 1) * PER_PAGE;
+          var end = start + PER_PAGE;
+          allCards.forEach(function(c) { c.classList.remove('page-hidden'); });
+          matchCards.forEach(function(c, i) {
+            if (i < start || i >= end) c.classList.add('page-hidden');
+          });
+          if (q) {
+            allCards.forEach(function(c) {
+              if (!matchesSearch(c, q) && !c.classList.contains('filter-hidden')) c.classList.add('page-hidden');
+            });
+            sections.forEach(function(s) {
+              var sid = s.getAttribute('data-subcat-id');
+              var hasVisible = matchCards.slice(start, end).some(function(c) { return c.getAttribute('data-product-category') === sid; });
+              s.style.display = hasVisible ? '' : 'none';
+            });
+          }
+          if (emptyEl) emptyEl.style.display = matchCards.length === 0 && q ? 'block' : 'none';
+          if (paginationEl) {
+            if (totalPages <= 1) { paginationEl.style.display = 'none'; return; }
+            paginationEl.style.display = 'flex';
+            var html = '<button class="thrc-page-prev" ' + (currentPage <= 1 ? 'disabled' : '') + '>&laquo;</button>';
+            for (var p = 1; p <= totalPages; p++) {
+              html += '<button class="thrc-page-num' + (p === currentPage ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+            }
+            html += '<button class="thrc-page-next" ' + (currentPage >= totalPages ? 'disabled' : '') + '>&raquo;</button>';
+            html += '<span class="thrc-page-info">' + matchCards.length + ' <%= lang === "el" ? "προϊόντα" : "products" %></span>';
+            paginationEl.innerHTML = html;
+          }
+        }
+        if (paginationEl) paginationEl.addEventListener('click', function(e) {
+          var btn = e.target.closest('button');
+          if (!btn || btn.disabled) return;
+          if (btn.classList.contains('thrc-page-prev')) currentPage--;
+          else if (btn.classList.contains('thrc-page-next')) currentPage++;
+          else if (btn.dataset.page) currentPage = Number(btn.dataset.page);
+          renderPage();
+          grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        if (searchInput) {
+          var debounce;
+          searchInput.addEventListener('input', function() {
+            clearTimeout(debounce);
+            debounce = setTimeout(function() {
+              searchQuery = searchInput.value.trim().toLowerCase();
+              currentPage = 1;
+              renderPage();
+            }, 200);
+          });
+        }
+        renderPage();
       })();
       (function() {
         const grid = document.getElementById('kit-choice-grid');

@@ -144,8 +144,8 @@
           },
           {
             "id": "left-disc-120",
-            "label": { "el": "Δίσκος 120mm", "en": "Disc 120mm" },
-            "description": { "el": "Δίσκος αριστερής πλευράς 120mm.", "en": "Left side disc 120mm." },
+            "label": { "el": "Δίσκος 140mm", "en": "Disc 140mm" },
+            "description": { "el": "Δίσκος αριστερής πλευράς 140mm.", "en": "Left side disc 140mm." },
             "priceDelta": 3.5,
             "image": "/tenants/eukolakis/media/options/disc-120.png",
             "linkedProductId": "part-disc-120",
@@ -181,8 +181,8 @@
           },
           {
             "id": "right-disc-120",
-            "label": { "el": "Δίσκος 120mm", "en": "Disc 120mm" },
-            "description": { "el": "Δίσκος δεξιάς πλευράς 120mm.", "en": "Right side disc 120mm." },
+            "label": { "el": "Δίσκος 140mm", "en": "Disc 140mm" },
+            "description": { "el": "Δίσκος δεξιάς πλευράς 140mm.", "en": "Right side disc 140mm." },
             "priceDelta": 3.5,
             "image": "/tenants/eukolakis/media/options/disc-120.png",
             "linkedProductId": "part-disc-120",
@@ -347,8 +347,8 @@
   },
   {
     "id": "part-disc-120",
-    "name": { "el": "Δίσκος 120mm", "en": "Disc 120mm" },
-    "description": { "el": "Δίσκος στήριξης 120mm.", "en": "Support disc 120mm." },
+    "name": { "el": "Δίσκος 140mm", "en": "Disc 140mm" },
+    "description": { "el": "Δίσκος στήριξης 140mm.", "en": "Support disc 140mm." },
     "price": 3.5,
     "imageUrl": "/tenants/eukolakis/media/options/disc-120.png",
     "categoryId": "spare-parts",
