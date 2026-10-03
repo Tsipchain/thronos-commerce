@@ -3250,6 +3250,11 @@ app.get('/checkout', (req, res) => {
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
+app.get('/terms', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('terms', { config, tenant: req.tenant, user: req.session.user || null });
+});
+
 // ── Box Now locker search ──────────────────────────────────────────
 app.get('/api/boxnow-lockers', async (req, res) => {
   const query = String(req.query.q || '').trim();

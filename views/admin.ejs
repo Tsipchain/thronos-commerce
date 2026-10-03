@@ -2400,18 +2400,16 @@
             </select>
             <small style="color:#6b7280;font-size:.7rem;">Ctrl+click για πολλαπλή επιλογή (εμφανίζεται και στις κατηγορίες αυτές)</small>
           </label>
-          <label class="full"><span><%= t('admin.modalImageUrl') %></span>
+          <div class="full"><label for="f-imageUrl"><span><%= t('admin.modalImageUrl') %></span></label>
             <input type="text" id="f-imageUrl" placeholder="/tenants/.../media/photo.jpg" />
             <img id="f-image-preview" alt="" style="display:none;margin-top:6px;width:70px;height:70px;object-fit:cover;border:1px solid #d1d5db;border-radius:8px;" />
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-              <label class="cat-upload-btn" style="cursor:pointer;">
-                <input type="file" id="f-image-file" accept="image/*" style="display:none;" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
-                Upload image
-              </label>
+              <button type="button" class="cat-upload-btn" id="f-image-pick-btn" style="cursor:pointer;"><%= permissions.canUploadMedia ? 'Upload image' : 'Upload disabled' %></button>
+              <input type="file" id="f-image-file" accept="image/*" style="display:none;" <%= permissions.canUploadMedia ? '' : 'disabled' %> />
               <button type="button" class="btn-xs" id="f-image-upload-btn">Upload</button>
               <small id="f-image-upload-status" style="font-size:.78rem;color:#64748b;"></small>
             </div>
-          </label>
+          </div>
           <label class="full"><span><%= t('admin.modalDescription') %></span>
             <textarea id="f-description-el" rows="2" placeholder="Περιγραφή (Ελληνικά)"></textarea>
             <textarea id="f-description-en" rows="2" placeholder="Description (English)"></textarea>
@@ -3519,7 +3517,7 @@
         if (fDiyProject) fDiyProject.checked = false;
         if (fActive) fActive.checked = true;
         fCat.value = ''; if (fCatIds) Array.from(fCatIds.options).forEach(function(o){ o.selected = false; });
-        fImg.value = ''; fDescEl.value = ''; fDescEn.value = '';
+        fImg.value = ''; if (fImgFile) fImgFile.value = ''; fDescEl.value = ''; fDescEn.value = '';
         if (fImgPreview) { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
         if (fImgStatus) { fImgStatus.textContent = ''; fImgStatus.style.color = '#64748b'; }
         fSeoTitle.value = ''; fSeoDesc.value = ''; fGallery.value = '';
@@ -3554,6 +3552,7 @@
           Array.from(fCatIds.options).forEach(function(opt){ opt.selected = extraIds.includes(opt.value); });
         }
         fImg.value        = p.imageUrl || '';
+        if (fImgFile) fImgFile.value = '';
         if (fImgPreview) {
           if (fImg.value) { fImgPreview.src = fImg.value; fImgPreview.style.display = 'block'; }
           else { fImgPreview.style.display = 'none'; fImgPreview.src = ''; }
@@ -3578,6 +3577,10 @@
 
       document.getElementById('modal-cancel').addEventListener('click', closeModal);
       modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+      document.querySelector('#product-modal .modal-box').addEventListener('click', function(e) { e.stopPropagation(); });
+      var fImgPickBtn = document.getElementById('f-image-pick-btn');
+      if (fImgPickBtn && fImgFile) fImgPickBtn.addEventListener('click', function() { fImgFile.click(); });
+      if (fImgFile) fImgFile.addEventListener('change', function() { if (fImgFile.files && fImgFile.files[0]) handleModalImageUpload(); });
 
       document.getElementById('modal-save').addEventListener('click', function() {
         const nameObj = readLocalizedField(fNameEl, fNameEn);
@@ -3603,7 +3606,7 @@
           active:         fActive && !fActive.checked ? false : undefined,
           categoryId:     fCat.value || undefined,
           categoryIds:    fCatIds ? Array.from(fCatIds.selectedOptions).map(function(o){ return o.value; }).filter(Boolean) : undefined,
-          imageUrl:       fImg.value.trim() || undefined,
+          imageUrl:       fImg.value.trim(),
           description:    readLocalizedField(fDescEl, fDescEn) || undefined,
           seoTitle:       fSeoTitle.value.trim() || undefined,
           seoDescription: fSeoDesc.value.trim() || undefined,

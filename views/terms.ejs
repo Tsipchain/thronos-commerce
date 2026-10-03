@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= lang === 'el' ? 'Όροι Χρήσης' : 'Terms of Service' %> – <%= config.storeName %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="<%= withTenantLink('/favicon.ico', { v: (config.favicon && config.favicon.updatedAt) || '' }) %>" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary-color: <%= config.primaryColor %>;
+        --accent-color:  <%= config.accentColor %>;
+        --font-family:   <%= config.fontFamily %>;
+      }
+      body { font-family: var(--font-family, sans-serif); margin:0; padding:0; line-height:1.7; }
+      body.eukolakis-classic { background:#0b0d12; color:#e2e8f0; }
+      .terms-container {
+        max-width:800px; margin:0 auto; padding:32px 20px 64px;
+      }
+      .terms-header {
+        text-align:center; margin-bottom:36px; padding-bottom:24px;
+        border-bottom:2px solid rgba(128,128,128,.2);
+      }
+      .terms-header h1 { font-size:1.6rem; margin:0 0 6px; }
+      .terms-header p { margin:4px 0; color:#64748b; font-size:.88rem; }
+      body.eukolakis-classic .terms-header p { color:#94a3b8; }
+      .terms-section { margin-bottom:28px; }
+      .terms-section h2 { font-size:1.15rem; margin:0 0 10px; color:var(--accent-color, #e8922d); }
+      .terms-section p, .terms-section li { font-size:.92rem; margin:6px 0; }
+      .terms-section ul { padding-left:22px; }
+      .company-info {
+        background:rgba(128,128,128,.08); border-radius:10px;
+        padding:18px 22px; margin:20px 0;
+      }
+      body.eukolakis-classic .company-info { background:rgba(255,255,255,.05); }
+      .company-info p { margin:4px 0; font-size:.9rem; }
+      .company-info strong { display:inline-block; min-width:170px; }
+      .terms-back { display:inline-block; margin-bottom:20px; color:var(--accent-color, #e8922d); text-decoration:none; font-size:.9rem; }
+      .terms-back:hover { text-decoration:underline; }
+      .terms-print-btn {
+        display:inline-block; margin-top:24px; padding:10px 24px;
+        background:var(--accent-color, #e8922d); color:#fff;
+        border:none; border-radius:8px; cursor:pointer; font-size:.9rem;
+        text-decoration:none;
+      }
+      .terms-print-btn:hover { opacity:.9; }
+      @media print {
+        .terms-back, .terms-print-btn, .terms-nav { display:none !important; }
+        body { background:#fff !important; color:#000 !important; }
+        .terms-container { max-width:100%; padding:20px; }
+      }
+    </style>
+  </head>
+  <body class="<%= (config.theme && config.theme.presetId === 'eukolakis_classic_diy') ? 'eukolakis-classic' : '' %>">
+    <div class="terms-nav" style="padding:12px 20px;border-bottom:1px solid rgba(128,128,128,.15);">
+      <a href="<%= withTenantLink('/', lang !== 'el' ? { lang } : {}) %>" class="terms-back">&larr; <%= lang === 'el' ? 'Επιστροφή στο κατάστημα' : 'Back to store' %></a>
+    </div>
+    <div class="terms-container">
+      <div class="terms-header">
+        <h1><%= lang === 'el' ? 'Όροι Χρήσης & Πολιτική Απορρήτου' : 'Terms of Service & Privacy Policy' %></h1>
+        <p><%= config.storeName %></p>
+      </div>
+
+      <div class="company-info">
+        <p><strong><%= lang === 'el' ? 'Επωνυμία:' : 'Company Name:' %></strong> ΘΩΜΑΣ ΕΜΜ. ΔΗΜΟΠΟΥΛΟΣ</p>
+        <p><strong>ΑΦΜ:</strong> 131142801</p>
+        <p><strong><%= lang === 'el' ? 'Αριθμός ΓΕΜΗ:' : 'Chamber ID:' %></strong> 38633505000</p>
+        <p><strong><%= lang === 'el' ? 'Διεύθυνση:' : 'Address:' %></strong> ΑΛΚΜΗΝΗΣ 13, ΧΑΡΙΛΑΟΥ, ΘΕΣΣΑΛΟΝΙΚΗ, ΤΚ 54239</p>
+        <p><strong><%= lang === 'el' ? 'Τηλέφωνο:' : 'Phone:' %></strong> 2310 318384 / 698 609 7162</p>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '1. Γενικοί Όροι' : '1. General Terms' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Η χρήση του ηλεκτρονικού καταστήματος <%= config.storeName %> προϋποθέτει την αποδοχή των παρόντων όρων χρήσης. Παρακαλούμε διαβάστε τους προσεκτικά πριν πραγματοποιήσετε οποιαδήποτε παραγγελία.</p>
+        <p>Ο διαχειριστής του καταστήματος διατηρεί το δικαίωμα να τροποποιεί τους παρόντες όρους χωρίς προηγούμενη ειδοποίηση. Η συνέχιση χρήσης του καταστήματος μετά από τροποποίηση συνεπάγεται αποδοχή των νέων όρων.</p>
+        <% } else { %>
+        <p>Use of the online store <%= config.storeName %> requires acceptance of these terms of service. Please read them carefully before placing any order.</p>
+        <p>The store administrator reserves the right to modify these terms without prior notice. Continued use of the store after modification constitutes acceptance of the new terms.</p>
+        <% } %>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '2. Παραγγελίες & Πληρωμές' : '2. Orders & Payments' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Οι τιμές των προϊόντων περιλαμβάνουν ΦΠΑ. Τα έξοδα αποστολής υπολογίζονται κατά την ολοκλήρωση της παραγγελίας.</p>
+        <p>Η παραγγελία ολοκληρώνεται μετά την επιβεβαίωση πληρωμής. Σε περίπτωση αντικαταβολής, η παραγγελία ολοκληρώνεται κατά την παράδοση.</p>
+        <% } else { %>
+        <p>Product prices include VAT. Shipping costs are calculated at checkout.</p>
+        <p>The order is completed upon payment confirmation. For cash-on-delivery, the order is completed upon delivery.</p>
+        <% } %>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '3. Αποστολή & Παράδοση' : '3. Shipping & Delivery' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Η αποστολή πραγματοποιείται μέσω συνεργαζόμενης μεταφορικής εταιρείας ή μέσω Box Now lockers. Ο εκτιμώμενος χρόνος παράδοσης αναγράφεται σε κάθε προϊόν.</p>
+        <p>Σε περίπτωση καθυστέρησης λόγω ανωτέρας βίας, η εταιρεία δεν φέρει ευθύνη.</p>
+        <% } else { %>
+        <p>Shipping is carried out via partner courier services or Box Now lockers. Estimated delivery time is shown on each product.</p>
+        <p>In cases of delays due to force majeure, the company bears no responsibility.</p>
+        <% } %>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '4. Επιστροφές & Αλλαγές' : '4. Returns & Exchanges' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Ο πελάτης έχει δικαίωμα υπαναχώρησης εντός 14 ημερολογιακών ημερών από την παραλαβή, σύμφωνα με την ισχύουσα νομοθεσία. Το προϊόν πρέπει να επιστραφεί στην αρχική του κατάσταση.</p>
+        <p>Τα έξοδα επιστροφής βαρύνουν τον πελάτη εκτός εάν το προϊόν είναι ελαττωματικό.</p>
+        <% } else { %>
+        <p>The customer has the right to withdraw within 14 calendar days of receipt, in accordance with applicable law. The product must be returned in its original condition.</p>
+        <p>Return shipping costs are borne by the customer unless the product is defective.</p>
+        <% } %>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '5. Προστασία Προσωπικών Δεδομένων' : '5. Personal Data Protection' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Τα προσωπικά δεδομένα που συλλέγονται κατά την παραγγελία (ονοματεπώνυμο, διεύθυνση, τηλέφωνο, email) χρησιμοποιούνται αποκλειστικά για την εκτέλεση της παραγγελίας και δεν κοινοποιούνται σε τρίτους.</p>
+        <p>Ο χρήστης έχει δικαίωμα πρόσβασης, διόρθωσης και διαγραφής των δεδομένων του, σύμφωνα με τον Γενικό Κανονισμό Προστασίας Δεδομένων (GDPR).</p>
+        <% } else { %>
+        <p>Personal data collected during an order (name, address, phone, email) is used exclusively for order fulfillment and is not shared with third parties.</p>
+        <p>Users have the right to access, correct, and delete their data in accordance with the General Data Protection Regulation (GDPR).</p>
+        <% } %>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '6. Ευθύνη' : '6. Liability' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Η εταιρεία δεν ευθύνεται για ζημίες που προκύπτουν από ακατάλληλη χρήση των προϊόντων. Οι εικόνες και περιγραφές είναι ενδεικτικές.</p>
+        <% } else { %>
+        <p>The company is not liable for damages resulting from improper use of products. Images and descriptions are indicative.</p>
+        <% } %>
+      </div>
+
+      <div class="terms-section">
+        <h2><%= lang === 'el' ? '7. Εφαρμοστέο Δίκαιο' : '7. Applicable Law' %></h2>
+        <% if (lang === 'el') { %>
+        <p>Οι παρόντες όροι διέπονται από το Ελληνικό Δίκαιο. Αρμόδια δικαστήρια για την επίλυση διαφορών είναι τα δικαστήρια της Θεσσαλονίκης.</p>
+        <% } else { %>
+        <p>These terms are governed by Greek law. The courts of Thessaloniki have jurisdiction for dispute resolution.</p>
+        <% } %>
+      </div>
+
+      <div style="text-align:center;margin-top:36px;">
+        <button class="terms-print-btn" onclick="window.print()"><%= lang === 'el' ? '🖨️ Εκτύπωση / Αποθήκευση PDF' : '🖨️ Print / Save as PDF' %></button>
+      </div>
+    </div>
+  </body>
+</html>
