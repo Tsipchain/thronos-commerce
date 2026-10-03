@@ -2882,6 +2882,19 @@ app.use((req, res, next) => {
   return res.status(402).send(`<!doctype html><html lang="el"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Κατάστημα προσωρινά μη διαθέσιμο</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0b0d12;color:#d0d5e0;min-height:100vh;display:grid;place-items:center;padding:20px}.card{background:#141820;border:1px solid rgba(100,110,140,.28);border-top:2px solid #c4902e;border-radius:16px;padding:40px 32px;max-width:480px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}h1{font-size:1.4rem;font-weight:900;color:#edf0f6;margin-bottom:10px}p{color:#64707f;line-height:1.6;margin-bottom:18px}.badge{display:inline-block;background:#c4902e;color:#fff;font-size:.78rem;font-weight:800;border-radius:6px;padding:4px 12px;margin-bottom:22px;letter-spacing:.04em}a{color:#c4902e;text-decoration:none;font-weight:600}a:hover{text-decoration:underline}</style></head><body><div class="card"><div class="badge">ΣΥΝΔΡΟΜΗ ΛΗΞΗ</div><h1>Το κατάστημα δεν είναι διαθέσιμο αυτή τη στιγμή.</h1><p>Η συνδρομή αυτού του καταστήματος έχει λήξει. Επικοινωνήστε με τον ιδιοκτήτη ή δοκιμάστε ξανά αργότερα.</p><p style="font-size:.82rem;color:#94a3b8;">Αν είστε ο ιδιοκτήτης, <a href="${req.tenantBasePath || ''}/admin">συνδεθείτε στο admin</a> για να ανανεώσετε τη συνδρομή σας.</p></div></body></html>`);
 });
 
+// ── Under Development gate ────────────────────────────────────────────────
+const UNDER_DEV_EXEMPT = ['/admin', '/root', '/login', '/logout', '/signup', '/api', '/favicon.ico', '/styles.css', '/manifest', '/under-development'];
+app.use((req, res, next) => {
+  if (req.isPlatformRequest) return next();
+  const p = req.path || '/';
+  if (UNDER_DEV_EXEMPT.some(ep => p === ep || p.startsWith(ep + '/'))) return next();
+  if (p.startsWith('/tenants/') || p.match(/\.(js|css|ico|png|jpg|svg|webp|woff|ttf|eot)$/i)) return next();
+  const config = loadTenantConfig(req);
+  if (!config.underDevelopment) return next();
+  if (req.session && req.session.admin) return next();
+  return res.redirect(buildTenantLink(req, '/under-development'));
+});
+
 // Root admin auth guard
 app.use('/root', (req, res, next) => {
   if (req.path === '/login' || req.path === '/logout') return next();
@@ -3248,6 +3261,11 @@ app.get('/product/:id', (req, res) => {
 app.get('/checkout', (req, res) => {
   const config = localizeConfigContent(loadTenantConfig(req), req.lang);
   res.render('checkout', { config, tenant: req.tenant, user: req.session.user || null });
+});
+
+app.get('/under-development', (req, res) => {
+  const config = localizeConfigContent(loadTenantConfig(req), req.lang);
+  res.render('under-development', { config, tenant: req.tenant, user: req.session.user || null });
 });
 
 app.get('/terms', (req, res) => {
@@ -5398,6 +5416,7 @@ app.post('/admin/settings', async (req, res) => {
   }
 
   const config = loadTenantConfig(req);
+  config.underDevelopment = readCheckbox(req.body, 'underDevelopment', config.underDevelopment || false);
   config.storeName = buildTranslatableFromBody(req.body, 'storeName', storeName || config.storeName);
   config.primaryColor = primaryColor || config.primaryColor;
   config.accentColor = accentColor || config.accentColor;
