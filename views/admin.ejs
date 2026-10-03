@@ -356,6 +356,24 @@
           Υποστηριζόμενες ομάδες ρυθμίσεων: <code><%= (activeThemeMeta && activeThemeMeta.supportedSettings ? activeThemeMeta.supportedSettings.join(', ') : 'general') %></code>.
         </p>
 
+        <h3 class="settings-section-heading">Κατάσταση Καταστήματος</h3>
+        <% const _underDev = !!(rawConfig.underDevelopment); %>
+        <div style="padding:14px 18px;border-radius:12px;margin-bottom:16px;background:<%= _underDev ? '#fef2f2' : '#f0fdf4' %>;border:1px solid <%= _underDev ? '#fecaca' : '#bbf7d0' %>;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+            <input type="checkbox" name="underDevelopment" value="1" <%= _underDev ? 'checked' : '' %> style="width:auto;margin:0;accent-color:<%= _underDev ? '#dc2626' : '#16a34a' %>;" />
+            <span style="font-size:.92rem;font-weight:700;color:<%= _underDev ? '#dc2626' : '#15803d' %>;">
+              <% if (_underDev) { %>
+                🚧 Υπό Κατασκευή — το κατάστημα δεν είναι ορατό στους πελάτες
+              <% } else { %>
+                ✅ Ενεργό — το κατάστημα είναι ορατό στο κοινό
+              <% } %>
+            </span>
+          </label>
+          <p style="margin:8px 0 0;font-size:.8rem;color:#64748b;">
+            Όταν είναι ενεργοποιημένο, οι επισκέπτες βλέπουν μια σελίδα "Υπό Κατασκευή" αντί για το κατάστημα. Ο admin panel παραμένει προσβάσιμος.
+          </p>
+        </div>
+
         <h3 class="settings-section-heading">Ταυτότητα Καταστήματος</h3>
 
         <label><span><%= t('admin.storeName') %></span>
