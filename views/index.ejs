@@ -2041,14 +2041,14 @@
         <% if (products.length === 0) { %>
           <p><%= t('storefront.noProducts') %></p>
         <% } else if (_activeCatChildren.length) { %>
-          <% const _parentProducts = products.filter(function(p){ return p.categoryId === activeCategoryObj.id; }); %>
+          <% const _parentProducts = products.filter(function(p){ return p.categoryId === activeCategoryObj.id || (Array.isArray(p.categoryIds) && p.categoryIds.indexOf(activeCategoryObj.id) !== -1); }); %>
           <% if (_parentProducts.length) { %>
             <% _parentProducts.forEach(function(product) { %>
               <%- include('_product-card', { product, lang, t, config, tenantId: tenant.id }) %>
             <% }); %>
           <% } %>
           <% _activeCatChildren.forEach(function(sub) { %>
-            <% const _subProducts = products.filter(function(p){ return p.categoryId === sub.id; }); %>
+            <% const _subProducts = products.filter(function(p){ return p.categoryId === sub.id || (Array.isArray(p.categoryIds) && p.categoryIds.indexOf(sub.id) !== -1); }); %>
             <% if (_subProducts.length) { %>
             <div class="eko-subcat-section" data-subcat-id="<%= sub.id %>" style="grid-column:1/-1;">
               <h3 class="eko-subcat-heading"><%= sub.name %></h3>
@@ -3500,7 +3500,8 @@
             const okQuery = !q || nameText.includes(q) || sku.includes(q);
             const okTag = !tag || tags.split(',').includes(tag);
             const okPrice = !maxPrice || price <= maxPrice;
-            const okSubcat = !sc || catId === sc;
+            const allCats = (card.getAttribute('data-product-categories') || catId).split(',');
+            const okSubcat = !sc || catId === sc || allCats.indexOf(sc) !== -1;
             const visible = okQuery && okTag && okPrice && okSubcat;
             if (visible) visibleCount += 1;
             card.classList.toggle('filter-hidden', !visible);
@@ -3541,7 +3542,8 @@
               sections.forEach(function(s){ s.style.display = s.getAttribute('data-subcat-id') === sc ? '' : 'none'; });
               cards.forEach(function(c){
                 var cid = c.getAttribute('data-product-category');
-                c.style.display = cid === sc ? '' : 'none';
+                var allCats = (c.getAttribute('data-product-categories') || cid).split(',');
+                c.style.display = (cid === sc || allCats.indexOf(sc) !== -1) ? '' : 'none';
               });
             }
           });
@@ -3597,7 +3599,7 @@
             });
             sections.forEach(function(s) {
               var sid = s.getAttribute('data-subcat-id');
-              var hasVisible = matchCards.slice(start, end).some(function(c) { return c.getAttribute('data-product-category') === sid; });
+              var hasVisible = matchCards.slice(start, end).some(function(c) { var allCats = (c.getAttribute('data-product-categories') || '').split(','); return c.getAttribute('data-product-category') === sid || allCats.indexOf(sid) !== -1; });
               s.style.display = hasVisible ? '' : 'none';
             });
           }
