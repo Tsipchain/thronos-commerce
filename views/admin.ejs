@@ -360,6 +360,7 @@
         <% const _underDev = !!(rawConfig.underDevelopment); %>
         <div style="padding:14px 18px;border-radius:12px;margin-bottom:16px;background:<%= _underDev ? '#fef2f2' : '#f0fdf4' %>;border:1px solid <%= _underDev ? '#fecaca' : '#bbf7d0' %>;">
           <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+            <input type="hidden" name="underDevelopment" value="0" />
             <input type="checkbox" name="underDevelopment" value="1" <%= _underDev ? 'checked' : '' %> style="width:auto;margin:0;accent-color:<%= _underDev ? '#dc2626' : '#16a34a' %>;" />
             <span style="font-size:.92rem;font-weight:700;color:<%= _underDev ? '#dc2626' : '#15803d' %>;">
               <% if (_underDev) { %>

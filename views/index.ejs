@@ -3536,16 +3536,18 @@
             pills.forEach(function(p){ p.classList.remove('active'); });
             this.classList.add('active');
             if (sc === 'all') {
-              cards.forEach(function(c){ c.style.display = ''; });
+              cards.forEach(function(c){ c.classList.remove('page-hidden'); c.style.display = ''; });
               sections.forEach(function(s){ s.style.display = ''; });
             } else {
               sections.forEach(function(s){ s.style.display = s.getAttribute('data-subcat-id') === sc ? '' : 'none'; });
               cards.forEach(function(c){
+                c.classList.remove('page-hidden');
                 var cid = c.getAttribute('data-product-category');
                 var allCats = (c.getAttribute('data-product-categories') || cid).split(',');
                 c.style.display = (cid === sc || allCats.indexOf(sc) !== -1) ? '' : 'none';
               });
             }
+            document.dispatchEvent(new Event('subcat-changed'));
           });
         });
       })();
@@ -3636,6 +3638,7 @@
             }, 200);
           });
         }
+        document.addEventListener('subcat-changed', function() { currentPage = 1; renderPage(); });
         renderPage();
       })();
       (function() {
